@@ -1,0 +1,184 @@
+#pragma once
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h> // For HRESULT
+#include <stdexcept>
+
+#include <sstream>
+#include <dxgi1_6.h>
+#include <directx/d3dx12.h>
+#include <cassert>
+#include <string>
+#include <unordered_map>
+#include <DirectXColors.h>
+#include <DirectXCollision.h>
+#include <d3dcompiler.h>
+#include <array>
+#include "MathHelper.h"
+
+extern const int gNumFrameResources;
+
+inline std::string HrToString(HRESULT hr)
+{
+    char s_str[64] = {};
+    sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
+    return std::string(s_str);
+}
+
+class DxException 
+{
+public:
+    DxException() = default;
+    DxException(HRESULT hr, const std::wstring& functionName, const std::wstring& filename, int lineNumber);
+    std::wstring ToString() const;
+
+    HRESULT ErrorCode = S_OK;
+    std::wstring FunctionName;
+    std::wstring Filename;
+    int LineNumber = -1;
+};
+
+inline std::wstring AnsiToWString(const std::string& str)
+{
+    WCHAR buffer[512];
+	MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
+	return std::wstring(buffer);
+}
+
+#ifndef ThrowIfFailed
+#define ThrowIfFailed(x)                                              \
+{                                                                     \
+    HRESULT hr__ = (x);                                               \
+    std::wstring wfn = AnsiToWString(__FILE__);                       \
+    if(FAILED(hr__)) { throw DxException(hr__, L#x, wfn, __LINE__); } \
+}
+#endif
+
+class Utils
+{
+public:
+    static UINT CalcConstantBufferByteSize(UINT byteSize)
+    {
+        // Constant buffers must be a multiple of the minimum hardware size (256 bytes)
+        // Masking the lower bits is the same as rounding down.
+		return (byteSize + 255) & ~255;
+	}
+
+    static Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(const std::wstring& filename,
+        const D3D_SHADER_MACRO* defines,
+        const std::string& entryPoint,
+        const std::string& target);
+
+    static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(Microsoft::WRL::ComPtr<ID3D12Device>& device,
+        		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>& cmdList,
+        		const void* initData,
+        		UINT64 byteSize,
+        		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer);
+};
+
+struct SubmeshGeometry
+{
+    UINT indexCount = 0;
+    UINT startIndexLocation = 0;
+    INT baseVertexLocation = 0;
+
+    DirectX::BoundingBox bounds;
+};
+
+struct MeshGeometry
+{
+    std::string Name;
+
+    Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
+
+    UINT VertexByteStride = 0;
+    UINT VertexBufferByteSize = 0;
+
+    DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
+    UINT IndexBufferByteSize = 0;
+
+    std::unordered_map<std::string, SubmeshGeometry> DrawArgs;
+
+    D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
+    {
+        D3D12_VERTEX_BUFFER_VIEW vbv;
+        vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
+        vbv.SizeInBytes = VertexBufferByteSize;
+        vbv.StrideInBytes = VertexByteStride;
+
+        return vbv;
+	}
+
+    D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
+    {
+		D3D12_INDEX_BUFFER_VIEW ibv;
+		ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
+		ibv.Format = IndexFormat;
+		ibv.SizeInBytes = IndexBufferByteSize;
+
+        return ibv;
+	}
+
+    void DisposeUploaders()
+    {
+		VertexBufferUploader = nullptr;
+		IndexBufferUploader = nullptr;
+	}
+};
+
+struct MaterialConstants
+{
+    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+    float Roughness = .25f;
+
+    DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();;
+};
+
+struct Material
+{
+    std::string Name;
+
+    int MatCBIndex = -1;
+
+    int DiffuseSrvHeapIndex = -1;
+
+    int NormalSrvHeapIndex = -1;
+
+    int NumFramesDirty = gNumFrameResources;
+
+    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+    float Roughness = 0.25f;
+    DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
+};
+
+struct Texture
+{
+    std::string Name;
+
+    std::wstring Filename;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
+};
+
+#define MaxLights 16
+
+struct Light
+{
+    DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
+    float fallOffStart = 1.0f; // point/spot light only
+    DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };
+    float fallOffEnd = 10.0f; // point/spot light only
+    DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };
+    float SpotPower = 64.0f; // spot light only
+};
+
+

@@ -1,0 +1,347 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7B52B2FD-496F-3813-A90C-052765F3DAD7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>DirectXLib</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DirectXLib.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DirectXLib</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">DirectXLib.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">DirectXLib</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">DirectXLib.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">DirectXLib</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">DirectXLib.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">DirectXLib</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_UNICODE;UNICODE;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_UNICODE;UNICODE;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_UNICODE;UNICODE;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_UNICODE;UNICODE;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_UNICODE;UNICODE;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_UNICODE;UNICODE;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_UNICODE;UNICODE;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_UNICODE;UNICODE;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\iacco\Desktop\DistributedRendering\DirectXLib;C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx;C:\Users\iacco\Desktop\DistributedRendering\LocalIllumination;C:\Users\iacco\Desktop\DistributedRendering\DirectXTK12\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/iacco/Desktop/DistributedRendering/DirectXLib/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\iacco\Desktop\DistributedRendering\vendor\cmake-3.29.1-windows-x86_64\bin\cmake.exe -SC:/Users/iacco/Desktop/DistributedRendering -BC:/Users/iacco/Desktop/DistributedRendering/build_vs2022 --check-stamp-file C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/DirectXLib/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/iacco/Desktop/DistributedRendering/DirectXLib/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\iacco\Desktop\DistributedRendering\vendor\cmake-3.29.1-windows-x86_64\bin\cmake.exe -SC:/Users/iacco/Desktop/DistributedRendering -BC:/Users/iacco/Desktop/DistributedRendering/build_vs2022 --check-stamp-file C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/DirectXLib/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/iacco/Desktop/DistributedRendering/DirectXLib/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\iacco\Desktop\DistributedRendering\vendor\cmake-3.29.1-windows-x86_64\bin\cmake.exe -SC:/Users/iacco/Desktop/DistributedRendering -BC:/Users/iacco/Desktop/DistributedRendering/build_vs2022 --check-stamp-file C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/DirectXLib/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/iacco/Desktop/DistributedRendering/DirectXLib/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\iacco\Desktop\DistributedRendering\vendor\cmake-3.29.1-windows-x86_64\bin\cmake.exe -SC:/Users/iacco/Desktop/DistributedRendering -BC:/Users/iacco/Desktop/DistributedRendering/build_vs2022 --check-stamp-file C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/DirectXLib/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXLib\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\DirectXLib\DX12Lib\DescriptorHeap.cpp" />
+    <ClCompile Include="..\..\DirectXLib\DX12Lib\Resource.cpp" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Adapter.cpp" />
+    <ClInclude Include="..\..\DirectXLib\DX12Lib\DescriptorHeap.h" />
+    <ClInclude Include="..\..\DirectXLib\DX12Lib\Resource.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Adapter.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CIDXGIFactory.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CIDXGIFactory.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Camera.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Camera.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CommandAllocator.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CommandAllocator.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CommandList.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CommandList.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CommandQueue.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\CommandQueue.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\D3DApp.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\D3DApp.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\DX12Window.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\DX12Window.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Device.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Device.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Fence.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Fence.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\GameTime.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\GameTime.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\GeometryGenerator.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\GeometryGenerator.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Helpers.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Helpers.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\MathHelper.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\MathHelper.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\PipelineState.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\PipelineState.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Swapchain.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\Swapchain.h" />
+    <ClCompile Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\UploadBuffer.cpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\DX12Lib\UploadBuffer.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\D3D12TokenizedProgramFormat.hpp" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12.idl" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12compatibility.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12compatibility.idl" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12sdklayers.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12sdklayers.idl" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12shader.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12video.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3d12video.idl" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dcommon.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dcommon.idl" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_barriers.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_check_feature_support.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_core.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_default.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_pipeline_state_stream.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_property_format_table.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_render_pass.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_resource_helpers.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_root_signature.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\d3dx12_state_object.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\dxcore.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\dxcore_interface.h" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\dxgicommon.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\dxgicommon.idl" />
+    <ClInclude Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\dxgiformat.h" />
+    <Midl Include="C:\Users\iacco\Desktop\DistributedRendering\DirectXLib\directx\dxgiformat.idl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\ZERO_CHECK.vcxproj">
+      <Project>{E2D7949E-15C1-3F11-B43E-37885698CD7B}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\iacco\Desktop\DistributedRendering\build_vs2022\DirectXTK12\DirectXTK12.vcxproj">
+      <Project>{62F53D41-6EBC-31FB-9035-088D7A0D14D8}</Project>
+      <Name>DirectXTK12</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,15 @@
+# CMake generation dependency list for this directory.
+C:/Users/iacco/Desktop/DistributedRendering/DirectXTK12/CMakeLists.txt
+C:/Users/iacco/Desktop/DistributedRendering/DirectXTK12/build/CompilerAndLinker.cmake
+C:/Users/iacco/Desktop/DistributedRendering/DirectXTK12/build/DirectXTK12-config.cmake.in
+C:/Users/iacco/Desktop/DistributedRendering/DirectXTK12/build/DirectXTK12.pc.in
+C:/Users/iacco/Desktop/DistributedRendering/DirectXTK12/build/JoinPaths.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/CMakePackageConfigHelpers.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/CTest.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/CTestTargets.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/CTestUseLaunchers.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/CheckIncludeFileCXX.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/DartConfiguration.tcl.in
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/GNUInstallDirs.cmake
+C:/Users/iacco/Desktop/DistributedRendering/vendor/cmake-3.29.1-windows-x86_64/share/cmake-3.29/Modules/WriteBasicConfigVersionFile.cmake
