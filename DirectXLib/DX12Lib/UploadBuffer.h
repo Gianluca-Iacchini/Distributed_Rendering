@@ -10,7 +10,7 @@ template<typename T>
 class UploadBuffer : public Resource
 {
 public:
-	UploadBuffer(std::shared_ptr<Device> device, UINT elementCount, bool isConstantBuffer);
+	UploadBuffer(Device& device, UINT elementCount, bool isConstantBuffer);
 
 	UploadBuffer(const UploadBuffer& rhs) = delete;
 	UploadBuffer& operator=(const UploadBuffer& rhs) = delete;

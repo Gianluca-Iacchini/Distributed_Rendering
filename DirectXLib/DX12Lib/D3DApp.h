@@ -82,7 +82,7 @@ protected:
 
 	std::unique_ptr<CIDXGIFactory> m_dxgiFactory;
 	std::unique_ptr<Swapchain> m_swapchain;
-	std::shared_ptr<Device> m_d3dDevice;
+	std::unique_ptr<Device> m_d3dDevice;
 
 	ComPtr<ID3D12Fence> mFence;
 	UINT64 mCurrentFence = 0;

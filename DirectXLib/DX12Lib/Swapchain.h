@@ -14,13 +14,15 @@ class Swapchain
 {
 public:
 	Swapchain(DX12Window& window, int nBufferCount = 3, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
-	Swapchain(Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain);
 	~Swapchain();
 
-	Resource* GetBuffer(UINT index);
-	Resource* GetCurrentBackBuffer();
-	void Finalize(std::shared_ptr<Device> device, CIDXGIFactory& factory, CommandQueue& commandQueue);
+	void Finalize(CIDXGIFactory& factory, Device& device, CommandQueue& commandQueue);
+
+	Resource* GetBuffer(UINT index) { return m_backBufferResources[index].get(); }
+	Resource* GetCurrentBackBuffer() { return m_backBufferResources[m_currentBackBufferIndex].get(); }
 	void Resize(UINT width, UINT height);
+
+
 
 private:
 	
@@ -32,11 +34,11 @@ private:
 	
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
+
 	std::vector<std::unique_ptr<Resource>> m_backBufferResources;
 
+	DX12Window& m_window;
 	Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
-
-	HWND m_windowHandle = 0;
 	
 public:
 	const unsigned int BufferCount = 3;

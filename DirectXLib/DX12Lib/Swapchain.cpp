@@ -9,7 +9,7 @@ using namespace Microsoft::WRL;
 
 
 Swapchain::Swapchain(DX12Window& window, int nBufferCount, DXGI_FORMAT backBufferFormat) : 
-	m_backBufferFormat(backBufferFormat) ,BufferCount(nBufferCount)
+	m_window(window), m_backBufferFormat(backBufferFormat) ,BufferCount(nBufferCount)
 {
 	m_swapchain.Reset();
 
@@ -24,34 +24,30 @@ Swapchain::Swapchain(DX12Window& window, int nBufferCount, DXGI_FORMAT backBuffe
 	m_swapchainDesc.Scaling = DXGI_SCALING_STRETCH;
 	m_swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 	m_swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-	m_windowHandle = window.GetWindowHandle();
-
-
-}
-
-Swapchain::Swapchain(Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain) : m_swapchain(swapChain)
-{
-	swapChain->GetDesc1(&m_swapchainDesc);
 }
 
 Swapchain::~Swapchain()
 {
 }
 
-Resource* Swapchain::GetBuffer(UINT index)
+void Swapchain::Finalize(CIDXGIFactory& factory, Device& device, CommandQueue& commandQueue)
 {
-	assert(index < m_backBufferResources.size() && "Buffer index out of bounds.");
+	ThrowIfFailed(factory.GetComPointer()->CreateSwapChainForHwnd(
+		commandQueue.Get(), // The command queue associated with rendering
+		m_window.GetWindowHandle(),       // Handle to the window
+		&m_swapchainDesc,     // Swap chain description
+		nullptr,            // Fullscreen swap chain desc (nullptr for windowed mode)
+		nullptr,            // Restrict output to a specific monitor (nullptr for default)
+		m_swapchain.GetAddressOf()         // Receives the created swap chain interface
+	));
 
-	return m_backBufferResources[index].get();
+	for (int i = 0; i < BufferCount; i++)
+	{
+		ComPtr<ID3D12Resource> backBuffer;
+		ThrowIfFailed(m_swapchain->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf())));
+		m_backBufferResources.push_back(std::make_unique<Resource>(Resource(device, backBuffer)));
+	}
 }
-
-Resource* Swapchain::GetCurrentBackBuffer()
-{
-	return GetBuffer(m_currentBackBufferIndex);
-}
-
-
 
 void Swapchain::Resize(UINT width, UINT height)
 {
@@ -66,25 +62,5 @@ void Swapchain::Resize(UINT width, UINT height)
 	for (int i = 0; i < m_backBufferResources.size(); i++)
 	{
 		ThrowIfFailed(m_swapchain->GetBuffer(i, IID_PPV_ARGS(m_backBufferResources[i]->GetAddressOf())));
-	}
-
-
-
-}
-
-void Swapchain::Finalize(std::shared_ptr<Device> device, CIDXGIFactory& factory, CommandQueue& commandQueue)
-{
-	ThrowIfFailed(factory.GetComPointer()->CreateSwapChainForHwnd(commandQueue.Get(),
-		m_windowHandle,
-		&m_swapchainDesc,
-		nullptr,
-		nullptr,
-		m_swapchain.GetAddressOf()));
-
-	for (int i = 0; i < BufferCount; i++)
-	{
-		ComPtr<ID3D12Resource> backBuffer;
-		ThrowIfFailed(m_swapchain->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf())));
-		m_backBufferResources.push_back(std::make_unique<Resource>(device, backBuffer));
 	}
 }

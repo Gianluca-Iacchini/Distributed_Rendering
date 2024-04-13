@@ -1,7 +1,7 @@
 #include "UploadBuffer.h"
 
 template<typename T>
-inline UploadBuffer<T>::UploadBuffer(std::shared_ptr<Device> device, UINT elementCount, bool isConstantBuffer) 
+inline UploadBuffer<T>::UploadBuffer(Device& device, UINT elementCount, bool isConstantBuffer) 
 	: m_device(device), m_isConstantBuffer(isConstantBuffer), m_elementCount(elementCount)
 {
 	m_elementByteSize = sizeof(T);
@@ -17,7 +17,7 @@ inline UploadBuffer<T>::UploadBuffer(std::shared_ptr<Device> device, UINT elemen
 template<typename T>
 void UploadBuffer<T>::Recreate()
 {
-	ThrowIfFailed(m_device.get()->GetComPtr()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+	ThrowIfFailed(m_device.GetComPtr()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(m_elementByteSize * m_elementCount),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
