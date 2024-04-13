@@ -49,29 +49,29 @@ public:
 
 		std::cout << "Hello World!" << std::endl;
 
-		//std::wstring srcDir = ToWstring(SOURCE_DIR);
+		std::wstring srcDir = ToWstring(SOURCE_DIR);
 
 
-		//std::wstring shaderPath = srcDir + L"/Shaders/Basic.hlsl";
+		std::wstring shaderPath = srcDir + L"/Shaders/Basic.hlsl";
 
-		//std::wcout << shaderPath << std::endl;
+		std::wcout << shaderPath << std::endl;
 
-		//mp_shaders["BasicVS"] = std::make_shared<Shader>(shaderPath, "VS", "vs_5_1");
-		//mp_shaders["BasicVS"]->InputLayout =
-		//{
-		//	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		//	{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		//};
+		mp_shaders["BasicVS"] = std::make_shared<Shader>(shaderPath, "VS", "vs_5_1");
+		mp_shaders["BasicVS"]->InputLayout =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		};
 
-		//mp_shaders["BasicPS"] = std::make_shared<Shader>(shaderPath, "PS", "ps_5_1");
+		mp_shaders["BasicPS"] = std::make_shared<Shader>(shaderPath, "PS", "ps_5_1");
 
-		//mp_shaders["BasicVS"]->Compile();
-		//mp_shaders["BasicPS"]->Compile();
+		mp_shaders["BasicVS"]->Compile();
+		mp_shaders["BasicPS"]->Compile();
 
-		//m_pipelineState = std::make_unique<PipelineState>(m_d3dDevice, mBackBufferFormat, mDepthStencilFormat);
-		//m_pipelineState->SetShader(mp_shaders["BasicVS"], ShaderType::Vertex);
-		//m_pipelineState->SetShader(mp_shaders["BasicPS"], ShaderType::Pixel);
-		//m_pipelineState->Finalize();
+		m_pipelineState = std::make_unique<PipelineState>(mBackBufferFormat, mDepthStencilFormat);
+		m_pipelineState->SetShader(mp_shaders["BasicVS"], ShaderType::Vertex);
+		m_pipelineState->SetShader(mp_shaders["BasicPS"], ShaderType::Pixel);
+		//m_pipelineState->Finalize(*m_d3dDevice);
 
 		return true;
 	}

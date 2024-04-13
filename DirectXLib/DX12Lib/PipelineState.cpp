@@ -4,8 +4,7 @@
 
 using namespace Microsoft::WRL;
 
-PipelineState::PipelineState(std::shared_ptr<Device> device, DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthStencilFormat, D3D12_GRAPHICS_PIPELINE_STATE_DESC* psoDesc)
-	: m_device(device)
+PipelineState::PipelineState(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthStencilFormat, D3D12_GRAPHICS_PIPELINE_STATE_DESC* psoDesc)
 {
 	if (psoDesc != nullptr)
 	{
@@ -73,9 +72,9 @@ void PipelineState::SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputL
 	m_psoDesc.InputLayout.pInputElementDescs = inputLayout.data();
 }
 
-void PipelineState::Finalize()
+void PipelineState::Finalize(Device& device)
 {
-	ThrowIfFailed(m_device->GetComPtr()->CreateGraphicsPipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())))
+	ThrowIfFailed(device.GetComPtr()->CreateGraphicsPipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())))
 }
 
 
