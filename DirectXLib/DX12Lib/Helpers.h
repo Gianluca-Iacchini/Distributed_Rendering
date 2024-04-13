@@ -66,6 +66,8 @@ inline std::wstring AnsiToWString(const std::string& str)
 }
 #endif
 
+// From Microsoft mini engine
+#define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
 #define CONSTANT_BUFFER_SIZE 256
 
 class Utils

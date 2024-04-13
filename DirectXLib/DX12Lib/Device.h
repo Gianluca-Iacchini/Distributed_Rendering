@@ -16,13 +16,9 @@ public:
 	~Device();
 
 	bool Initialize(Adapter* adapter = nullptr);
+	
+	UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const { return m_device->GetDescriptorHandleIncrementSize(type); };
 
-	//CommandList CreateCommandList(D3D12_COMMAND_LIST_TYPE cmdlistType);
-
-
-	ID3D12Device* Get() const { return m_device.Get(); }
-	ID3D12Device** GetAddressOf() { return m_device.GetAddressOf(); }
-	Microsoft::WRL::ComPtr<ID3D12Device> GetComPtr() const { return m_device; }
 
 	UINT RtvDescriptorSize = 0;
 	UINT DsvDescriptorSize = 0;
@@ -32,6 +28,11 @@ public:
 private:
 
 	Microsoft::WRL::ComPtr<ID3D12Device> m_device;
+
+public:
+	ID3D12Device* Get() const { return m_device.Get(); }
+	ID3D12Device** GetAddressOf() { return m_device.GetAddressOf(); }
+	Microsoft::WRL::ComPtr<ID3D12Device> GetComPtr() const { return m_device; }
 };
 
 #endif // !DEVICE_H
