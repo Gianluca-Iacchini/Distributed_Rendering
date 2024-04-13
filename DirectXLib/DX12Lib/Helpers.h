@@ -17,6 +17,19 @@
 
 extern const int gNumFrameResources;
 
+inline std::wstring ToWstring(const char* stringLiteral) 
+{
+
+    std::string sourceDirNarrow(stringLiteral);
+
+    // Convert to std::wstring using wstringstream
+    std::wstringstream wss;
+    wss << sourceDirNarrow.c_str();
+    std::wstring sourceDirWide = wss.str();
+
+    return sourceDirWide;
+}
+
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -53,17 +66,23 @@ inline std::wstring AnsiToWString(const std::string& str)
 }
 #endif
 
+#define CONSTANT_BUFFER_SIZE 256
+
 class Utils
 {
 public:
-    static UINT CalcConstantBufferByteSize(UINT byteSize)
+    /// <summary>
+    /// Rounds up to the nearest multiple of alignAt
+    /// </summary>
+    /// <param name="byteSize">Input bytesize</param>
+    /// <param name="alignAt">Value to round up to. Must be a power of 2.</param>
+    /// <returns></returns>
+    static UINT AlignAtBytes(UINT byteSize, UINT alignAt)
     {
-        // Constant buffers must be a multiple of the minimum hardware size (256 bytes)
-        // Masking the lower bits is the same as rounding down.
-		return (byteSize + 255) & ~255;
+		return (byteSize + alignAt - 1) & ~(alignAt-1);
 	}
 
-    static Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(const std::wstring& filename,
+    static Microsoft::WRL::ComPtr<ID3DBlob> Compile(const std::wstring& filename,
         const D3D_SHADER_MACRO* defines,
         const std::string& entryPoint,
         const std::string& target);

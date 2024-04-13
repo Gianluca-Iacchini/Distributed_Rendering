@@ -35,7 +35,7 @@ void Fence::WaitForFence()
 {
 	if (m_fence->GetCompletedValue() < m_fenceValue)
 	{
-		m_fenceEvent = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent));
 
 		WaitForSingleObject(m_fenceEvent, INFINITE);

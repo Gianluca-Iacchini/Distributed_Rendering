@@ -7,9 +7,9 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_FILES})
 
 add_library(DirectXLib STATIC "${SOURCE_FILES}")
 
-set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
 
-
+add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx)

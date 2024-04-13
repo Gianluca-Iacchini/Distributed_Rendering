@@ -3,12 +3,31 @@
 #include <iostream>
 #include "DX12Lib/CIDXGIFactory.h"
 #include "Keyboard.h"
+#include "DX12Lib/Shader.h"
+#include "Dx12Lib/PipelineState.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
+struct Vertex
+{
+	Vertex(XMFLOAT3 p, XMFLOAT4 c) : Pos(p), Color(c) {}
+	XMFLOAT3 Pos;
+	XMFLOAT4 Color;
+};
+
 class AppTest : public D3DApp
 {
+	Vertex triangleVertices[3] =
+	{
+		{ XMFLOAT3(0.0f, 0.5f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) }
+	};
+
+	std::unordered_map<std::string, std::shared_ptr<Shader>> mp_shaders;
+	std::unique_ptr<PipelineState> m_pipelineState;
+
 	Keyboard keyboard;
 	DirectX::Keyboard::KeyboardStateTracker tracker;
 
@@ -25,26 +44,36 @@ public:
 
 	virtual bool Initialize() override
 	{
-		if (AllocConsole())
-		{
-			FILE* fp;
-
-			freopen_s(&fp, "CONOUT$", "w", stdout);
-
-			freopen_s(&fp, "CONIN$", "r", stdin);
-
-			freopen_s(&fp, "CONOUT$", "w", stderr);
-
-			std::cout.clear();
-			std::clog.clear();
-			std::cerr.clear();
-			
-			std::ios::sync_with_stdio();
-		}
+		if (!D3DApp::Initialize())
+			return false;
 
 		std::cout << "Hello World!" << std::endl;
 
-		return D3DApp::Initialize();
+		//std::wstring srcDir = ToWstring(SOURCE_DIR);
+
+
+		//std::wstring shaderPath = srcDir + L"/Shaders/Basic.hlsl";
+
+		//std::wcout << shaderPath << std::endl;
+
+		//mp_shaders["BasicVS"] = std::make_shared<Shader>(shaderPath, "VS", "vs_5_1");
+		//mp_shaders["BasicVS"]->InputLayout =
+		//{
+		//	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		//	{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		//};
+
+		//mp_shaders["BasicPS"] = std::make_shared<Shader>(shaderPath, "PS", "ps_5_1");
+
+		//mp_shaders["BasicVS"]->Compile();
+		//mp_shaders["BasicPS"]->Compile();
+
+		//m_pipelineState = std::make_unique<PipelineState>(m_d3dDevice, mBackBufferFormat, mDepthStencilFormat);
+		//m_pipelineState->SetShader(mp_shaders["BasicVS"], ShaderType::Vertex);
+		//m_pipelineState->SetShader(mp_shaders["BasicPS"], ShaderType::Pixel);
+		//m_pipelineState->Finalize();
+
+		return true;
 	}
 
 private:
@@ -70,7 +99,7 @@ private:
 	virtual void Draw(const GameTime& gt) override
 	{
 		// Draw a square
-
+		int a = 0;
 	}
 };
 

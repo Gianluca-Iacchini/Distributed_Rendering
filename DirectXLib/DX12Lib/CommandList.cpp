@@ -45,7 +45,8 @@ void CommandList::ResetAllAllocators()
 
 void CommandList::TransitionResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState)
 {
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, beforeState, afterState));
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, beforeState, afterState);
+	m_commandList->ResourceBarrier(1, &barrier);
 }
 
 void CommandList::Close()

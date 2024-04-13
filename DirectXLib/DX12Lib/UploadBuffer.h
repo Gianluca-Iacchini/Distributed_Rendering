@@ -1,57 +1,37 @@
-#pragma once
-#include "Helpers.h"
 
-using Microsoft::WRL::ComPtr;
+#include "Helpers.h"
+#include "Resource.h"
+
+
+#ifndef UPLOADBUFFER_H
+#define UPLOADBUFFER_H
 
 template<typename T>
-class UploadBuffer
+class UploadBuffer : public Resource
 {
 public:
-	UploadBuffer(ComPtr<ID3D12Device>& device, UINT elementCount, bool isConstantBuffer) : m_IsConstantBuffer(isConstantBuffer)
-	{
-		m_ElementByteSize = sizeof(T);
-		
-		if (isConstantBuffer)
-		{
-			m_ElementByteSize = Utils::CalcConstantBufferByteSize(m_ElementByteSize);
-		}
-
-		ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(m_UploadBuffer.GetAddressOf())));
-
-		ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
-	}
+	UploadBuffer(std::shared_ptr<Device> device, UINT elementCount, bool isConstantBuffer);
 
 	UploadBuffer(const UploadBuffer& rhs) = delete;
 	UploadBuffer& operator=(const UploadBuffer& rhs) = delete;
-	~UploadBuffer()
-	{
-		if (m_UploadBuffer != nullptr)
-		{
-			m_UploadBuffer->Unmap(0, nullptr);
-		}
-		m_MappedData = nullptr;
-	}
 
-	ID3D12Resource* Resource() const
-	{
-		return m_UploadBuffer.Get();
-	}
+	void Recreate() override;
 
-	void CopyData(int elementIndex, const T& data)
-	{
-		memcpy(&m_MappedData[elementIndex * m_ElementByteSize], &data, sizeof(T));
-	}
+	~UploadBuffer();
+
+	void CopyData(int elementIndex, const T& data);
+
 
 private:
-	ComPtr<ID3D12Resource> m_UploadBuffer = nullptr;
-	BYTE* m_MappedData = nullptr;
-	UINT m_ElementByteSize = 0;
-	bool m_IsConstantBuffer = false;
-	
+	BYTE* m_mappedData = nullptr;
+	UINT m_elementByteSize = 0;
+	UINT m_elementCount = 0;
+	bool m_isConstantBuffer = false;
+
 };
+
+#endif // !UPLOADBUFFER_H
+
+
+
 

@@ -50,7 +50,10 @@ void D3DApp::Set4xMsaaState(bool value)
 		m_4xMsaaState = value;
 
 		// Recreate the swapchain and buffers with new multisample settings.
-		m_swapchain = std::make_unique<Swapchain>(*m_dxgiFactory, *mCommandQueue, *m_mainWindow, 3, mBackBufferFormat);
+		m_swapchain = std::make_unique<Swapchain>(*m_mainWindow, 3, mBackBufferFormat);
+		m_swapchain->Finalize(m_d3dDevice, *m_dxgiFactory, *mCommandQueue);
+
+
 		OnResize();
 	}
 }
@@ -96,6 +99,9 @@ bool D3DApp::Initialize()
 	if (!InitMainWindow())
 		return false;
 
+	if (!InitConsole())
+		return false;
+
 	if (!InitDirect3D())
 		return false;
 
@@ -134,8 +140,7 @@ void D3DApp::OnResize()
 		rtView.descType = DescriptorType::RTV;
 		rtView.view.RTV = nullptr;
 
-		auto backBuffer = m_swapchain->GetBuffer(i);
-		backBuffer->CreateView(rtView, *m_rtvHeap);
+		m_swapchain->GetBuffer(i)->CreateView(rtView, *m_rtvHeap);
 	}
 
 
@@ -157,7 +162,7 @@ void D3DApp::OnResize()
 	optClear.DepthStencil.Depth = 1.0f;
 	optClear.DepthStencil.Stencil = 0;
 	
-	m_depthStencilBuffer = std::make_unique<Resource>(*m_d3dDevice, depthStencilDesc, &optClear);
+	m_depthStencilBuffer = std::make_unique<Resource>(m_d3dDevice, depthStencilDesc, &optClear);
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
@@ -196,6 +201,30 @@ bool D3DApp::InitMainWindow()
 	return true;
 }
 
+bool D3DApp::InitConsole()
+{
+	if (AllocConsole())
+	{
+		FILE* fp;
+
+		freopen_s(&fp, "CONOUT$", "w", stdout);
+
+		freopen_s(&fp, "CONIN$", "r", stdin);
+
+		freopen_s(&fp, "CONOUT$", "w", stderr);
+
+		std::cout.clear();
+		std::clog.clear();
+		std::cerr.clear();
+
+		std::ios::sync_with_stdio();
+
+		return true;
+	}
+
+	return false;
+}
+
 bool D3DApp::InitDirect3D()
 {
 #if defined(DEBUG) || defined (_DEBUG)
@@ -208,7 +237,7 @@ bool D3DApp::InitDirect3D()
 
 	m_dxgiFactory = std::make_unique<CIDXGIFactory>();
 
-	m_d3dDevice = std::make_unique<Device>();
+	m_d3dDevice = std::make_shared<Device>();
 	bool deviceCreated = m_d3dDevice->Initialize(nullptr);
 
 	if (!deviceCreated)
@@ -231,7 +260,9 @@ bool D3DApp::InitDirect3D()
 	mCommandList = std::make_shared<CommandList>(*m_d3dDevice, 3, D3D12_COMMAND_LIST_TYPE_DIRECT, nullptr);
 
 	mCommandList->GetComPtr()->Close();
-	m_swapchain = std::make_unique<Swapchain>(*m_dxgiFactory, *mCommandQueue , *m_mainWindow, 3, mBackBufferFormat);
+	
+	m_swapchain = std::make_unique<Swapchain>(*m_mainWindow, 3, mBackBufferFormat);
+	m_swapchain->Finalize(m_d3dDevice, *m_dxgiFactory, *mCommandQueue);
 
 	CreateRtvAndDsvDescriptorHeaps();
 

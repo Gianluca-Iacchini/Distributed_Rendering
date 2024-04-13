@@ -13,16 +13,18 @@ class Resource;
 class Swapchain
 {
 public:
-	Swapchain(CIDXGIFactory& factory, CommandQueue& commandQueue, DX12Window& window, int nBufferCount = 3, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+	Swapchain(DX12Window& window, int nBufferCount = 3, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 	Swapchain(Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain);
 	~Swapchain();
 
-	Resource* GetBuffer(UINT index) { return m_backBufferResources[index].get(); }
-	Resource* GetCurrentBackBuffer() { return m_backBufferResources[m_currentBackBufferIndex].get(); }
+	Resource* GetBuffer(UINT index);
+	Resource* GetCurrentBackBuffer();
+	void Finalize(std::shared_ptr<Device> device, CIDXGIFactory& factory, CommandQueue& commandQueue);
 	void Resize(UINT width, UINT height);
 
 private:
-	Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
+	
+	DXGI_SWAP_CHAIN_DESC1 m_swapchainDesc = {};
 
 	unsigned int m_currentBackBufferIndex = 0;
 	bool m_isMsaaEnabled = false;
@@ -31,6 +33,10 @@ private:
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	std::vector<std::unique_ptr<Resource>> m_backBufferResources;
+
+	Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
+
+	HWND m_windowHandle = 0;
 	
 public:
 	const unsigned int BufferCount = 3;

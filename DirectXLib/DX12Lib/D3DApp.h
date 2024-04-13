@@ -52,6 +52,7 @@ protected:
 protected:
 	bool InitMainWindow();
 	bool InitDirect3D();
+	bool InitConsole();
 
 	std::unique_ptr<DescriptorHeap> m_rtvHeap;
 	std::unique_ptr<DescriptorHeap> m_dsvHeap;
@@ -81,7 +82,7 @@ protected:
 
 	std::unique_ptr<CIDXGIFactory> m_dxgiFactory;
 	std::unique_ptr<Swapchain> m_swapchain;
-	std::unique_ptr<Device> m_d3dDevice;
+	std::shared_ptr<Device> m_d3dDevice;
 
 	ComPtr<ID3D12Fence> mFence;
 	UINT64 mCurrentFence = 0;
