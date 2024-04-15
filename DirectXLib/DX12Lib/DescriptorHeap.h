@@ -126,11 +126,11 @@ enum class DescriptorType
 
 union ViewDesc
 {
-	const D3D12_SHADER_RESOURCE_VIEW_DESC* SRV;
-	const D3D12_RENDER_TARGET_VIEW_DESC* RTV;
-	const D3D12_DEPTH_STENCIL_VIEW_DESC* DSV;
-	const D3D12_UNORDERED_ACCESS_VIEW_DESC* UAV;
-	const D3D12_CONSTANT_BUFFER_VIEW_DESC* CBV;
+	D3D12_SHADER_RESOURCE_VIEW_DESC SRV;
+	D3D12_RENDER_TARGET_VIEW_DESC RTV;
+	D3D12_DEPTH_STENCIL_VIEW_DESC DSV;
+	D3D12_UNORDERED_ACCESS_VIEW_DESC UAV;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC CBV;
 };
 
 struct ResourceView
@@ -138,6 +138,7 @@ struct ResourceView
 public:
 	DescriptorType descType;
 	ViewDesc view;
+	bool isDescNull = false;
 	unsigned int DescriptorIndex = 0;
 };
 

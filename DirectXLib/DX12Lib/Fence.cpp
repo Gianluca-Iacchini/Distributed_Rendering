@@ -17,12 +17,12 @@ Fence::~Fence()
 
 UINT64 Fence::GetCPUFenceValue()
 {
-	return 0;
+	return m_fenceValue;
 }
 
 UINT64 Fence::GetGPUFenceValue()
 {
-	return 0;
+	return m_fence->GetCompletedValue();
 }
 
 
@@ -33,13 +33,18 @@ bool Fence::IsFenceComplete(UINT64 fenceValue)
 
 void Fence::WaitForFence()
 {
-	if (m_fence->GetCompletedValue() < m_fenceValue)
-	{
-		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent));
+	WaitForFence(m_fenceValue);
+}
 
-		WaitForSingleObject(m_fenceEvent, INFINITE);
-		CloseHandle(m_fenceEvent);
+void Fence::WaitForFence(UINT64 value)
+{
+	if (m_fence->GetCompletedValue() < value)
+	{
+		HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue, eventHandle));
+
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
 	}
 }
 
@@ -49,4 +54,5 @@ void Fence::SetFenceValue(UINT64 fenceValue)
 
 void Fence::IncreaseCounter()
 {
+	m_fenceValue++;
 }

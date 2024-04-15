@@ -38,6 +38,15 @@ public:
 	void RecreateResource();
 
 	void CreateView(struct ResourceView& view, DescriptorHeap& descriptorHeap);
+	ResourceView GetView(DescriptorType type) const { 
+		for (int i = 0; i < m_views.size(); i++)
+		{
+			if (m_views[i].descType == type)
+				return m_views[i];
+		}
+
+		return ResourceView();
+	}
 
 	~Resource();
 

@@ -24,7 +24,7 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 D3DApp::~D3DApp()
 {
 	if (m_d3dDevice != nullptr)
-		mCommandQueue->Flush();
+		m_commandQueue->Flush();
 }
 
 HINSTANCE D3DApp::AppInst() const
@@ -51,7 +51,7 @@ void D3DApp::Set4xMsaaState(bool value)
 
 		// Recreate the swapchain and buffers with new multisample settings.
 		m_swapchain = std::make_unique<Swapchain>(*m_mainWindow, 3, mBackBufferFormat);
-		m_swapchain->Finalize(*m_dxgiFactory, *m_d3dDevice, *mCommandQueue);
+		m_swapchain->Finalize(*m_dxgiFactory, *m_d3dDevice, *m_commandQueue);
 		OnResize();
 	}
 }
@@ -106,6 +106,8 @@ bool D3DApp::Initialize()
 	// Do the initial resize code.
 	OnResize();
 
+
+
 	return true;
 }
 
@@ -122,9 +124,9 @@ void D3DApp::OnResize()
 	assert(m_swapchain);
 
 	// Flush before changing any resources.
-	mCommandQueue->Flush();
+	m_commandQueue->Flush();
 	
-	mCommandList->Reset(nullptr);
+	m_commandList->Reset(*m_commandAllocator);
 
 	if (m_depthStencilBuffer)
 		m_depthStencilBuffer->ResetComPtr();
@@ -136,7 +138,7 @@ void D3DApp::OnResize()
 	{
 		ResourceView rtView;
 		rtView.descType = DescriptorType::RTV;
-		rtView.view.RTV = nullptr;
+		rtView.isDescNull = true;
 
 		auto backBuffer = m_swapchain->GetBuffer(i);
 		backBuffer->CreateView(rtView, *m_rtvHeap);
@@ -171,17 +173,17 @@ void D3DApp::OnResize()
 
 	ResourceView dsvView;
 	dsvView.descType = DescriptorType::DSV;
-	dsvView.view.DSV = &dsvDesc;
+	dsvView.view.DSV = dsvDesc;
 	
 	m_depthStencilBuffer->CreateView(dsvView, *m_dsvHeap);
 
-	mCommandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	m_commandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-	mCommandQueue->ExecuteCommandList(*mCommandList.get());
+	m_commandQueue->ExecuteCommandList(*m_commandList.get());
 
 
 
-	mCommandQueue->Flush();
+	m_commandQueue->Flush();
 
 	mScreenViewport.TopLeftX = 0;
 	mScreenViewport.TopLeftY = 0;
@@ -231,12 +233,14 @@ bool D3DApp::InitDirect3D()
 	LogAdapters();
 #endif // _DEBUG
 
-	mCommandQueue = std::make_shared<CommandQueue>(*m_d3dDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	mCommandList = std::make_shared<CommandList>(*m_d3dDevice, 3, D3D12_COMMAND_LIST_TYPE_DIRECT, nullptr);
+	
+	m_commandQueue = std::make_unique<CommandQueue>(*m_d3dDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
+	m_commandAllocator = std::make_shared<CommandAllocator>(*m_d3dDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
+	m_commandList = std::make_unique<CommandList>(*m_d3dDevice, *m_commandAllocator, D3D12_COMMAND_LIST_TYPE_DIRECT, nullptr);
 
-	mCommandList->GetComPtr()->Close();
+	m_commandList->GetComPtr()->Close();
 	m_swapchain = std::make_unique<Swapchain>(*m_mainWindow, 3, mBackBufferFormat);
-	m_swapchain->Finalize(*m_dxgiFactory, *m_d3dDevice, *mCommandQueue);
+	m_swapchain->Finalize(*m_dxgiFactory, *m_d3dDevice, *m_commandQueue);
 
 	CreateRtvAndDsvDescriptorHeaps();
 

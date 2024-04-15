@@ -38,22 +38,26 @@ void CommandQueue::ExecuteCommandLists(std::vector<CommandList> cmdLists)
 
 void CommandQueue::ExecuteCommandList(CommandList& cmdList)
 {
-	ID3D12CommandList* cmdListExecute = cmdList.Get();
-
 	cmdList.Close();
 
+	ID3D12CommandList* cmdListExecute = cmdList.Get();
 	m_commandQueue->ExecuteCommandLists(1, &cmdListExecute);
 }
 
-void CommandQueue::Signal()
+void CommandQueue::Signal(UINT64 value)
 {
-	ThrowIfFailed(m_commandQueue->Signal(m_fence->Get(), m_fence->GetCPUFenceValue()));
+	ThrowIfFailed(m_commandQueue->Signal(m_fence->Get(), value));
 }
 
 void CommandQueue::Flush()
 {
 	m_fence->IncreaseCounter();
-	this->Signal();
+	this->Signal(m_fence->GetCPUFenceValue());
 
 	m_fence->WaitForFence();
+}
+
+void CommandQueue::WaitForFenceValue(UINT64 fenceValue)
+{
+	m_fence->WaitForFence(fenceValue);
 }

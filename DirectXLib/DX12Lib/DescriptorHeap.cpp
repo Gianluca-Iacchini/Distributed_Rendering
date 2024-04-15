@@ -40,23 +40,23 @@ void DescriptorHeap::AddDescriptor(ID3D12Resource* resource, ResourceView& view)
 	{
 	case DescriptorType::SRV:
 		assert(m_descriptorHeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		m_device.GetComPtr()->CreateShaderResourceView(resource, view.view.SRV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
+		m_device.GetComPtr()->CreateShaderResourceView(resource, view.isDescNull? nullptr : &view.view.SRV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
 		break;
 	case DescriptorType::CBV:
 		assert(m_descriptorHeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		m_device.GetComPtr()->CreateConstantBufferView(view.view.CBV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
+		m_device.GetComPtr()->CreateConstantBufferView(view.isDescNull ? nullptr : &view.view.CBV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
 		break;
 	case DescriptorType::UAV:
 		assert(m_descriptorHeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		m_device.GetComPtr()->CreateUnorderedAccessView(resource, nullptr, view.view.UAV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
+		m_device.GetComPtr()->CreateUnorderedAccessView(resource, nullptr, view.isDescNull ? nullptr : &view.view.UAV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
 		break;
 	case DescriptorType::RTV:
 		assert(m_descriptorHeapType == D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		m_device.GetComPtr()->CreateRenderTargetView(resource, view.view.RTV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
+		m_device.GetComPtr()->CreateRenderTargetView(resource, view.isDescNull ? nullptr : &view.view.RTV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
 		break;
 	case DescriptorType::DSV:
 		assert(m_descriptorHeapType == D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-		m_device.GetComPtr()->CreateDepthStencilView(resource, view.view.DSV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
+		m_device.GetComPtr()->CreateDepthStencilView(resource, view.isDescNull ? nullptr : &view.view.DSV, GetCPUDescriptorHandle(m_availableDescriptorIndex));
 		break;
 	default:
 		break;

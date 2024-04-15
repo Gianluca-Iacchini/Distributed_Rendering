@@ -1,6 +1,7 @@
 #include "PipelineState.h"
 #include "Device.h"
 #include "Shader.h"
+#include <iostream>
 
 using namespace Microsoft::WRL;
 
@@ -70,6 +71,11 @@ void PipelineState::SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputL
 {
 	m_psoDesc.InputLayout.NumElements = static_cast<UINT>(inputLayout.size());
 	m_psoDesc.InputLayout.pInputElementDescs = inputLayout.data();
+}
+
+void PipelineState::SetRootSignature(ID3D12RootSignature* rootSignature)
+{
+	m_psoDesc.pRootSignature = rootSignature;
 }
 
 void PipelineState::Finalize(Device& device)

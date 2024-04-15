@@ -26,7 +26,7 @@ public:
 	void SetRasterizerState(const D3D12_RASTERIZER_DESC& rasterizerDesc) { m_psoDesc.RasterizerState = rasterizerDesc; }
 	void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& depthStencilDesc) { m_psoDesc.DepthStencilState = depthStencilDesc; }
 	void SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout);
-	void SetRoogSignature();
+	void SetRootSignature(ID3D12RootSignature* rootSignature);
 	void Finalize(Device& device);
 
 private:
@@ -41,7 +41,7 @@ public:
 	PipelineState(const PipelineState& rhs) = delete;
 	PipelineState& operator=(const PipelineState& rhs) = delete;
 
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> Get() const { return m_pipelineState; }
+	ID3D12PipelineState* Get() const { return m_pipelineState.Get(); }
 	ID3D12PipelineState** GetAddressOf() { return m_pipelineState.GetAddressOf(); }
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> GetComPtr() const { return m_pipelineState; }
 

@@ -87,8 +87,9 @@ protected:
 	ComPtr<ID3D12Fence> mFence;
 	UINT64 mCurrentFence = 0;
 
-	std::shared_ptr<CommandQueue> mCommandQueue;
-	std::shared_ptr<CommandList> mCommandList;
+	std::unique_ptr<CommandQueue> m_commandQueue;
+	std::unique_ptr<CommandList> m_commandList;
+	std::shared_ptr<CommandAllocator> m_commandAllocator;
 
 	std::unique_ptr<Resource> m_depthStencilBuffer;
 

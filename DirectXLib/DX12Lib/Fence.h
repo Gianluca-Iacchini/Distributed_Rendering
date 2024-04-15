@@ -18,6 +18,7 @@ public:
 	UINT64 GetGPUFenceValue();
 	bool IsFenceComplete(UINT64 fenceValue);
 	void WaitForFence();
+	void WaitForFence(UINT64 fenceValue);
 	void SetFenceValue(UINT64 fenceValue);
 	void IncreaseCounter();
 

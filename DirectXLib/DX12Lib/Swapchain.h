@@ -19,7 +19,7 @@ public:
 	void Finalize(CIDXGIFactory& factory, Device& device, CommandQueue& commandQueue);
 
 	Resource* GetBuffer(UINT index) { return m_backBufferResources[index].get(); }
-	Resource* GetCurrentBackBuffer() { return m_backBufferResources[m_currentBackBufferIndex].get(); }
+	Resource* GetCurrentBackBuffer() { return m_backBufferResources[CurrentBufferIndex].get(); }
 	void Resize(UINT width, UINT height);
 
 
@@ -28,7 +28,6 @@ private:
 	
 	DXGI_SWAP_CHAIN_DESC1 m_swapchainDesc = {};
 
-	unsigned int m_currentBackBufferIndex = 0;
 	bool m_isMsaaEnabled = false;
 	unsigned int m_msaaQuality = 0;
 	
