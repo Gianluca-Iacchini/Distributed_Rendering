@@ -15,11 +15,6 @@ Fence::~Fence()
 {
 }
 
-UINT64 Fence::GetCPUFenceValue()
-{
-	return m_fenceValue;
-}
-
 UINT64 Fence::GetGPUFenceValue()
 {
 	return m_fence->GetCompletedValue();
@@ -33,7 +28,7 @@ bool Fence::IsFenceComplete(UINT64 fenceValue)
 
 void Fence::WaitForFence()
 {
-	WaitForFence(m_fenceValue);
+	WaitForFence(FenceValue);
 }
 
 void Fence::WaitForFence(UINT64 value)
@@ -41,18 +36,9 @@ void Fence::WaitForFence(UINT64 value)
 	if (m_fence->GetCompletedValue() < value)
 	{
 		HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue, eventHandle));
+		ThrowIfFailed(m_fence->SetEventOnCompletion(FenceValue, eventHandle));
 
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-}
-
-void Fence::SetFenceValue(UINT64 fenceValue)
-{
-}
-
-void Fence::IncreaseCounter()
-{
-	m_fenceValue++;
 }

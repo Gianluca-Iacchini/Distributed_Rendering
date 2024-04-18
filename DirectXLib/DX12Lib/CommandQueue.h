@@ -19,17 +19,14 @@ public:
 	void ExecuteCommandLists(std::vector<CommandList> cmdList);
 	void ExecuteCommandList(CommandList& cmdList);
 	//void ExecuteCommandList(ID3D12CommandList* commandList);
-	void Signal(UINT64 value);
+	void Signal(Fence* fence, UINT64 value);
+	void Signal(Fence* fence);
 	//void Wait(ID3D12Fence* fence, UINT64 fenceValue);
-	void Flush();
-	void WaitForFenceValue(UINT64 fenceValue);
-	UINT64 GetAppFenceValue() const { return m_fence->GetCPUFenceValue(); }
-	void IncrementFenceValue() { m_fence->IncreaseCounter(); }
+	void Flush(Fence* fence);
 
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
-	std::unique_ptr<Fence> m_fence;
 
 public:
 	ID3D12CommandQueue* Get() const { return m_commandQueue.Get(); }

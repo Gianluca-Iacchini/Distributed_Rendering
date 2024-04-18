@@ -1,13 +1,14 @@
-
 #include "Helpers.h"
-#include "Resource.h"
+
 
 
 #ifndef UPLOADBUFFER_H
 #define UPLOADBUFFER_H
 
+class Device;
+
 template<typename T>
-class UploadBuffer : public Resource
+class UploadBuffer
 {
 public:
 	UploadBuffer(Device& device, UINT elementCount, bool isConstantBuffer);
@@ -23,11 +24,12 @@ public:
 
 
 private:
+	Device& m_device;
 	BYTE* m_mappedData = nullptr;
 	UINT m_elementByteSize = 0;
 	UINT m_elementCount = 0;
 	bool m_isConstantBuffer = false;
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_resource;
 };
 
 #endif // !UPLOADBUFFER_H

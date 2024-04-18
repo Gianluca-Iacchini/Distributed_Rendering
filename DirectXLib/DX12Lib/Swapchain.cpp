@@ -32,7 +32,7 @@ Swapchain::~Swapchain()
 
 void Swapchain::Finalize(CIDXGIFactory& factory, Device& device, CommandQueue& commandQueue)
 {
-	ThrowIfFailed(factory.GetComPointer()->CreateSwapChainForHwnd(
+	ThrowIfFailed(factory->CreateSwapChainForHwnd(
 		commandQueue.Get(), // The command queue associated with rendering
 		m_window.GetWindowHandle(),       // Handle to the window
 		&m_swapchainDesc,     // Swap chain description
@@ -45,7 +45,7 @@ void Swapchain::Finalize(CIDXGIFactory& factory, Device& device, CommandQueue& c
 	{
 		ComPtr<ID3D12Resource> backBuffer;
 		ThrowIfFailed(m_swapchain->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf())));
-		m_backBufferResources.push_back(std::make_unique<Resource>(Resource(device, backBuffer)));
+		//m_backBufferResources.push_back(std::make_unique<Resource>(Resource(device, backBuffer)));
 	}
 }
 

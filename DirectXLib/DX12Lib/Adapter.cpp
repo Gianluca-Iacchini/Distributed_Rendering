@@ -12,11 +12,11 @@ Adapter::Adapter(CIDXGIFactory& factory, bool useWarp, DXGI_GPU_PREFERENCE gpuPr
 {
 	if (useWarp)
 	{
-		ThrowIfFailed(factory.GetComPointer()->EnumWarpAdapter(IID_PPV_ARGS(m_adapter.GetAddressOf())));
+		ThrowIfFailed(factory.GetComPtr()->EnumWarpAdapter(IID_PPV_ARGS(m_adapter.GetAddressOf())));
 	}
 	else
 	{
-		ThrowIfFailed(factory.GetComPointer()->EnumAdapterByGpuPreference(0, gpuPreference, IID_PPV_ARGS(m_adapter.GetAddressOf())));
+		ThrowIfFailed(factory.GetComPtr()->EnumAdapterByGpuPreference(0, gpuPreference, IID_PPV_ARGS(m_adapter.GetAddressOf())));
 	}
 
 	m_adapter->GetDesc(&m_adapterDesc);
@@ -30,7 +30,7 @@ std::vector<Adapter> Adapter::GetAllAdapters(CIDXGIFactory& factory)
 
 	std::vector<Adapter> adapterList;
 
-	while (factory.GetComPointer()->EnumAdapters1(i, adapter1.GetAddressOf()) != DXGI_ERROR_NOT_FOUND)
+	while (factory.GetComPtr()->EnumAdapters1(i, adapter1.GetAddressOf()) != DXGI_ERROR_NOT_FOUND)
 	{
 
 		ThrowIfFailed(adapter1.As(&adapter4));

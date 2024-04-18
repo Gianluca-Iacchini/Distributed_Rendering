@@ -7,7 +7,6 @@ using namespace Microsoft::WRL;
 CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_QUEUE_DESC cmdQueueDesc)
 {
 	ThrowIfFailed(device.GetComPtr()->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(m_commandQueue.GetAddressOf())));
-	m_fence = std::make_unique<Fence>(device, 0);
 }
 
 CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type)
@@ -19,7 +18,6 @@ CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type)
 	queueDesc.Type = type;
 
 	ThrowIfFailed(device.GetComPtr()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_commandQueue.GetAddressOf())));
-	m_fence = std::make_unique<Fence>(device, 0);
 }
 
 void CommandQueue::ExecuteCommandLists(std::vector<CommandList> cmdLists)
@@ -44,20 +42,22 @@ void CommandQueue::ExecuteCommandList(CommandList& cmdList)
 	m_commandQueue->ExecuteCommandLists(1, &cmdListExecute);
 }
 
-void CommandQueue::Signal(UINT64 value)
+void CommandQueue::Signal(Fence* fence, UINT64 value)
 {
-	ThrowIfFailed(m_commandQueue->Signal(m_fence->Get(), value));
+	ThrowIfFailed(m_commandQueue->Signal(fence->Get(), value));
 }
 
-void CommandQueue::Flush()
+void CommandQueue::Signal(Fence* fence)
 {
-	m_fence->IncreaseCounter();
-	this->Signal(m_fence->GetCPUFenceValue());
-
-	m_fence->WaitForFence();
+	ThrowIfFailed(m_commandQueue->Signal(fence->Get(), fence->FenceValue));
 }
 
-void CommandQueue::WaitForFenceValue(UINT64 fenceValue)
+void CommandQueue::Flush(Fence* fence)
 {
-	m_fence->WaitForFence(fenceValue);
+	fence->FenceValue += 1;
+
+	this->Signal(fence, fence->FenceValue);
+
+	fence->WaitForFence();
 }
+

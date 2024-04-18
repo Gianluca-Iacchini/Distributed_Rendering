@@ -1,9 +1,28 @@
-float4 VS( ) : SV_POSITION
+float gTime : register(b0);
+
+struct VertexIn
 {
-    return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    float3 PosL : POSITION;
+    float4 Color : COLOR;
+};
+
+struct VertexOut
+{
+    float4 PosH : SV_POSITION;
+    float4 Color : COLOR;
+};
+
+VertexOut VS(VertexIn vIn)
+{   
+    VertexOut vOut;
+    vOut.PosH = float4(vIn.PosL, 1.0f);
+    vOut.PosH.x += 0.5f * sin(gTime);
+    vOut.PosH.y += 0.5f * cos(gTime);
+    vOut.Color = vIn.Color;
+    return vOut;
 }
 
-float4 PS(float4 pIn : SV_Position) : SV_TARGET
+float4 PS(VertexOut pIn) : SV_TARGET
 {
-    return float4(1.0f, 0.0f, 0.0f, 1.0f);
+    return pIn.Color;
 }

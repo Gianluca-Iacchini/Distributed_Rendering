@@ -1,18 +1,16 @@
 #pragma once
 #include "Helpers.h"
 #include "GameTime.h"
-#include "CIDXGIFactory.h"
-#include "Adapter.h"
-#include "Device.h"
-#include "CommandQueue.h"
-#include "CommandAllocator.h"
-#include "CommandList.h"
-#include "DX12Window.h"
-#include "Swapchain.h"
-#include "DescriptorHeap.h"
-#include "Resource.h"
 
 #include <wrl.h>
+
+class CIDXGIFactory;
+class Device;
+class Fence;
+class CommandQueue;
+class CommandAllocator;
+class CommandList;
+class DescriptorAllocator;
 
 using Microsoft::WRL::ComPtr;
 class D3DApp
@@ -28,7 +26,7 @@ public:
 	static D3DApp* GetApp();
 
 	HINSTANCE AppInst() const;
-
+	HWND MainWnd() const;
 	float AspectRatio() const;
 
 	bool Get4xMsaaSate() const;
@@ -37,9 +35,9 @@ public:
 	int Run();
 
 	virtual bool Initialize();
+	virtual LRESULT MsgProc(HWND hwn, UINT msg, WPARAM wParam, LPARAM lParam);
 
 protected:
-	virtual void CreateRtvAndDsvDescriptorHeaps();
 	virtual void OnResize();
 	virtual void Update(const GameTime& gt) = 0;
 	virtual void Draw(const GameTime& gt) = 0;
@@ -51,24 +49,27 @@ protected:
 
 protected:
 	bool InitMainWindow();
-	bool InitDirect3D();
 	bool InitConsole();
+	bool InitDirect3D();
+	void CreateCommandObjects();
+	void CreateSwapChain();
+	void FlushCommandQueue();
 
-	std::unique_ptr<DescriptorHeap> m_rtvHeap;
-	std::unique_ptr<DescriptorHeap> m_dsvHeap;
+	ComPtr<ID3D12Resource> CurrentBackBuffer() const;
+	D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
+	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 	void CalculateFrameStats();
 
 	void LogAdapters();
-	void LogAdapterOutput(Adapter m_adapter);
+	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter);
 	void LogOutputDisplayModes(ComPtr<IDXGIOutput> output, DXGI_FORMAT format);
 
 protected:
 	static D3DApp* m_App;
 
-	std::unique_ptr<DX12Window> m_mainWindow;
 	HINSTANCE m_hAppInst = nullptr;
-
+	HWND m_hMainWnd = nullptr;
 	bool m_AppPaused = false;
 	bool m_Minimized = false;
 	bool m_Maximized = false;
@@ -80,21 +81,31 @@ protected:
 
 	GameTime m_Time;
 
-	std::unique_ptr<CIDXGIFactory> m_dxgiFactory;
-	std::unique_ptr<Swapchain> m_swapchain;
-	std::unique_ptr<Device> m_d3dDevice;
+	std::unique_ptr<CIDXGIFactory> m_idxgiFactory;
+	ComPtr<IDXGISwapChain> mSwapChain;
+	std::unique_ptr<Device> m_device;
 
-	ComPtr<ID3D12Fence> mFence;
+	Microsoft::WRL::ComPtr<ID3D12Device> m_d3dDevice;
+
+	std::unique_ptr<Fence> m_appFence;
 	UINT64 mCurrentFence = 0;
 
 	std::unique_ptr<CommandQueue> m_commandQueue;
-	std::unique_ptr<CommandList> m_commandList;
-	std::shared_ptr<CommandAllocator> m_commandAllocator;
+	std::shared_ptr<CommandAllocator> m_appCommandAllocator;
+	std::shared_ptr<CommandList> m_commandList;
 
-	std::unique_ptr<Resource> m_depthStencilBuffer;
+	static const int SwapChainBufferCount = 3;
+	int mCurrentBackBuffer = 0;
+
+	ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
+	ComPtr<ID3D12Resource> mDepthStencilBuffer;
 
 	D3D12_VIEWPORT mScreenViewport;
 	D3D12_RECT mScissorRect;
+
+	UINT mRtvDescriptorSize = 0;
+	UINT mDsvDescriptorSize = 0;
+	UINT mCbvSrvUavDescriptorSize = 0;
 
 	std::wstring mMainWndCaption = L"D3D12 Application";
 	D3D_DRIVER_TYPE mD3DDriverType = D3D_DRIVER_TYPE_HARDWARE;
@@ -102,4 +113,7 @@ protected:
 	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	int mClientWidth = 1920;
 	int mClientHeight = 1080;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandles[SwapChainBufferCount];
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;
 };

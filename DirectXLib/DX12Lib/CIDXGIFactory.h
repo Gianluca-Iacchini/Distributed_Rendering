@@ -13,8 +13,7 @@ public:
 	~CIDXGIFactory();
 
 
-	Microsoft::WRL::ComPtr<IDXGIFactory6> GetComPointer() { return m_factory; }
-	IDXGIFactory6* GetRawPointer() { return m_factory.Get(); }
+
 	
 	//Swapchain CreateSwapchain(DXGI_SWAP_CHAIN_DESC swapChainDesc);
 	//Swapchain CreateSwapchain(HWND hwnd, DXGI_FORMAT backBufferFormat, int swapchainBufferCount = 3, bool windowed = true);
@@ -22,6 +21,15 @@ public:
 private:
 
 	Microsoft::WRL::ComPtr<IDXGIFactory6> m_factory;
+
+public:
+
+	Microsoft::WRL::ComPtr<IDXGIFactory6> GetComPtr() { return m_factory; }
+	IDXGIFactory6* Get() { return m_factory.Get(); }
+	IDXGIFactory6** GetAddressOf() { return m_factory.GetAddressOf(); }
+	
+	operator IDXGIFactory6* () const { return m_factory.Get(); }
+	IDXGIFactory6* operator->() const { return m_factory.Get(); }
 
 };
 #endif // !CIDXGI_FACTORY_H

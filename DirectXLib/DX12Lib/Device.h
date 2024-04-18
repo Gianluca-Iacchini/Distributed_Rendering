@@ -30,6 +30,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Device> m_device;
 
 public:
+	operator ID3D12Device* () const { return m_device.Get(); }
+
+	ID3D12Device* operator->() const { return m_device.Get(); }
+
 	ID3D12Device* Get() const { return m_device.Get(); }
 	ID3D12Device** GetAddressOf() { return m_device.GetAddressOf(); }
 	Microsoft::WRL::ComPtr<ID3D12Device> GetComPtr() const { return m_device; }

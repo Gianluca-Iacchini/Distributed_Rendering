@@ -1,4 +1,5 @@
 #include "UploadBuffer.h"
+#include "Device.h"
 
 template<typename T>
 inline UploadBuffer<T>::UploadBuffer(Device& device, UINT elementCount, bool isConstantBuffer) 
@@ -36,7 +37,7 @@ UploadBuffer<T>::~UploadBuffer()
 	}
 	m_mappedData = nullptr;
 	
-	Resource::~Resource();
+	m_resource = nullptr;
 }
 
 template<typename T>

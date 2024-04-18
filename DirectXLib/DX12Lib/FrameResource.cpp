@@ -15,9 +15,7 @@ void FrameResource::Initialize(Device& device, D3D12_COMMAND_LIST_TYPE cmdListTy
 
 void FrameResource::EndFrame(CommandQueue& cmdQueue)
 {
-	cmdQueue.IncrementFenceValue();
-	FenceValue = cmdQueue.GetAppFenceValue();
-	cmdQueue.Signal(cmdQueue.GetAppFenceValue());
+
 }
 
 FrameResourceManager::FrameResourceManager(Device& device, UINT nFrameResources) : nFrameResources(nFrameResources)
