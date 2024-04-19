@@ -4,7 +4,7 @@
 
 #include <wrl.h>
 
-
+class DepthBuffer;
 class DX12Window;
 class Device;
 class Fence;
@@ -82,8 +82,8 @@ protected:
 	std::unique_ptr<DX12Window> m_dx12Window;
 	std::shared_ptr<Device> m_device;
 
-	//ComPtr<IDXGISwapChain> mSwapChain;
 	std::unique_ptr<Swapchain> m_swapchain;
+	std::shared_ptr<DepthBuffer> m_depthStencilBuffer;
 
 	std::unique_ptr<Fence> m_appFence;
 	UINT64 mCurrentFence = 0;
@@ -92,7 +92,6 @@ protected:
 	std::shared_ptr<CommandAllocator> m_appCommandAllocator;
 	std::shared_ptr<CommandList> m_commandList;
 
-	ComPtr<ID3D12Resource> mDepthStencilBuffer;
 
 	D3D12_VIEWPORT mScreenViewport;
 	D3D12_RECT mScissorRect;
@@ -103,6 +102,4 @@ protected:
 	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	int mClientWidth = 1920;
 	int mClientHeight = 1080;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;
 };

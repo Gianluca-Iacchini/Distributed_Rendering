@@ -12,6 +12,7 @@
 #include "DX12Lib/CommandList.h"
 #include "DX12Lib/CommandAllocator.h"
 #include "DX12Lib/Swapchain.h"
+#include "DX12Lib/DepthBuffer.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -274,8 +275,11 @@ public:
 
 		m_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
+		float clearDepth = m_depthStencilBuffer->GetClearDepth();
+		float clearStencil = m_depthStencilBuffer->GetClearStencil();
+
 		m_commandList->GetComPtr()->ClearRenderTargetView(CurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
-		m_commandList->GetComPtr()->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		m_commandList->GetComPtr()->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, clearDepth, clearStencil, 0, nullptr);
 
 		m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 

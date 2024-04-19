@@ -41,7 +41,7 @@ void PixelBuffer::AssociateWithResource(Microsoft::WRL::ComPtr<ID3D12Resource> r
 
 void PixelBuffer::CreateTextureResource(Device& device, const D3D12_RESOURCE_DESC& resourceDesc, D3D12_CLEAR_VALUE clearValue)
 {
-    OnDestroy();
+    Destroy();
 
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
     ThrowIfFailed(device->CreateCommittedResource(&heapProps, 
@@ -52,7 +52,7 @@ void PixelBuffer::CreateTextureResource(Device& device, const D3D12_RESOURCE_DES
         IID_PPV_ARGS(m_resource.GetAddressOf())));
 
     m_currentState = D3D12_RESOURCE_STATE_COMMON;
-    m_gpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+    m_gpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;
 }
 
 DXGI_FORMAT PixelBuffer::GetBaseFormat(DXGI_FORMAT format)
@@ -95,6 +95,95 @@ DXGI_FORMAT PixelBuffer::GetBaseFormat(DXGI_FORMAT format)
 
     default:
         return format;
+    }
+}
+
+DXGI_FORMAT PixelBuffer::GetDSVFormat(DXGI_FORMAT Format)
+{
+    switch (Format)
+    {
+        // 32 bit depth with stencil
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+
+        // 32 bit epth, No stencil
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+        return DXGI_FORMAT_D32_FLOAT;
+
+        // 24 bit depth
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+        return DXGI_FORMAT_D16_UNORM;
+
+    default:
+        return Format;
+    }
+}
+
+DXGI_FORMAT PixelBuffer::GetDepthFormat(DXGI_FORMAT Format)
+{
+    switch (Format)
+    {
+    // 32 bit depth with stencil
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+		return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+    // 32 bit epth, No stencil
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+        return DXGI_FORMAT_R32_FLOAT;
+    
+	// 24 bit depth
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+        return DXGI_FORMAT_R16_UNORM;
+
+    default:
+        return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
+DXGI_FORMAT PixelBuffer::GetStencilFormat(DXGI_FORMAT Format)
+{
+    switch (Format)
+    {
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
+
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+    
+    default:
+        return DXGI_FORMAT_UNKNOWN;
     }
 }
 

@@ -77,11 +77,11 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE m_gpuHandle = {};
 };
 
-class DescriptorHeap2
+class DescriptorHeap
 {
 public:
-	DescriptorHeap2(Device& device) : m_device(device){}
-	~DescriptorHeap2() { Destroy(); }
+	DescriptorHeap(Device& device) : m_device(device){}
+	~DescriptorHeap() { Destroy(); }
 	void Create(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount);
 	void Destroy() { m_heap = nullptr; }
 
