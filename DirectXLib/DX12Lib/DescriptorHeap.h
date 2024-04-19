@@ -8,14 +8,13 @@
 class DescriptorAllocator
 {
 public:
-	DescriptorAllocator(Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type);
+	DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Allocate(UINT count);
 
 	static void DestroyAll(void);
 
 protected:
-	static Device* m_device;
 	static const UINT sm_numDescriptorsPerHeap = 256;
 	static std::mutex sm_allocationMutex;
 	static std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> sm_descriptorHeapPool;

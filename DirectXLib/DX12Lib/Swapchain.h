@@ -1,31 +1,32 @@
 #include "Helpers.h"
-
+#include "ColorBuffer.h"
 
 #ifndef SWAPCHAIN_H
 #define SWAPCHAIN_H
 
 class CIDXGIFactory;
 class DX12Window;
-class Device;
 class CommandQueue;
-class Resource;
 
 class Swapchain
 {
 public:
-	Swapchain(DX12Window& window, int nBufferCount = 3, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+	Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 	~Swapchain();
 
-	void Finalize(CIDXGIFactory& factory, Device& device, CommandQueue& commandQueue);
+	void Initialize(CommandQueue& commandQueue);
 
-	Resource* GetBuffer(UINT index) { return m_backBufferResources[index].get(); }
-	Resource* GetCurrentBackBuffer() { return m_backBufferResources[CurrentBufferIndex].get(); }
 	void Resize(UINT width, UINT height);
 
+	ColorBuffer& GetBackBuffer(unsigned int index) { return m_backBuffers[index]; }
+	ColorBuffer& GetCurrentBackBuffer() { return m_backBuffers[CurrentBufferIndex]; }
+
+public:
+	static const unsigned int BufferCount = 3;
+	unsigned int CurrentBufferIndex = 0;
 
 
 private:
-	
 	DXGI_SWAP_CHAIN_DESC1 m_swapchainDesc = {};
 
 	bool m_isMsaaEnabled = false;
@@ -33,15 +34,10 @@ private:
 	
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-
-	std::vector<std::unique_ptr<Resource>> m_backBufferResources;
-
 	DX12Window& m_window;
 	Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
 	
-public:
-	const unsigned int BufferCount = 3;
-	unsigned int CurrentBufferIndex = 0;
+	ColorBuffer m_backBuffers[BufferCount];
 
 public:
 

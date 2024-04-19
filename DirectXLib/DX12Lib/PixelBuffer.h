@@ -18,7 +18,7 @@ public:
 protected:
 	D3D12_RESOURCE_DESC DescribeTex2D(UINT width, UINT height, UINT arraySize, UINT numMips, DXGI_FORMAT format, UINT flags);
 
-	void AssociateWithResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES currentState);
+	void AssociateWithResource(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES currentState);
 	void CreateTextureResource(Device& device, const D3D12_RESOURCE_DESC& resourceDesc, D3D12_CLEAR_VALUE clearValue);
 
 	static DXGI_FORMAT GetBaseFormat(DXGI_FORMAT Format);

@@ -11,6 +11,7 @@
 #include "DX12Lib/CommandQueue.h"
 #include "DX12Lib/CommandList.h"
 #include "DX12Lib/CommandAllocator.h"
+#include "DX12Lib/Swapchain.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -99,7 +100,7 @@ public:
 	AppTest(const AppTest& rhs) = delete;
 	AppTest& operator=(const AppTest& rhs) = delete;
 	~AppTest() { 
-		if (m_d3dDevice != nullptr)
+		if (m_device != nullptr)
 			FlushCommandQueue();
 		
 		FreeConsole();
@@ -146,7 +147,7 @@ public:
 		}
 		ThrowIfFailed(hr);
 
-		ThrowIfFailed(m_d3dDevice->CreateRootSignature(
+		ThrowIfFailed(m_device->GetComPtr()->CreateRootSignature(
 			0,
 			serializedRootSig->GetBufferPointer(),
 			serializedRootSig->GetBufferSize(),
@@ -173,7 +174,7 @@ public:
 		psoDesc.SampleDesc.Quality = m_4xMsaaState ? (m_4xMsaaQuality - 1) : 0;
 		psoDesc.DSVFormat = mDepthStencilFormat;
 
-		ThrowIfFailed(m_d3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
+		ThrowIfFailed(m_device->GetComPtr()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
 	
 	}
 
@@ -198,9 +199,9 @@ public:
 		m_vertexData.VertexBufferStride = sizeof(Vertex);
 		m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
 
-		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(m_d3dDevice, mCommandList, triangleVertices, vbByteSize, m_vertexData.VertexBufferUploader);
+		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(m_device->GetComPtr(), mCommandList, triangleVertices, vbByteSize, m_vertexData.VertexBufferUploader);
 
-		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(m_d3dDevice, mCommandList, triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
+		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(m_device->GetComPtr(), mCommandList, triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
 	}
 
 	virtual bool Initialize() override
@@ -298,9 +299,8 @@ public:
 		m_commandList->Close();
 
 		m_commandQueue->ExecuteCommandList(*m_commandList);
-
-		ThrowIfFailed(mSwapChain->Present(0, 0));
-		mCurrentBackBuffer = (mCurrentBackBuffer + 1) % SwapChainBufferCount;
+		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0,0));
+		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
 
 		m_currentFrameResource->Fence = ++m_appFence->FenceValue;
 

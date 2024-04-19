@@ -4,13 +4,14 @@
 
 #include <wrl.h>
 
-class CIDXGIFactory;
+
+class DX12Window;
 class Device;
 class Fence;
 class CommandQueue;
 class CommandAllocator;
 class CommandList;
-class DescriptorAllocator;
+class Swapchain;
 
 using Microsoft::WRL::ComPtr;
 class D3DApp
@@ -35,7 +36,6 @@ public:
 	int Run();
 
 	virtual bool Initialize();
-	virtual LRESULT MsgProc(HWND hwn, UINT msg, WPARAM wParam, LPARAM lParam);
 
 protected:
 	virtual void OnResize();
@@ -61,15 +61,12 @@ protected:
 
 	void CalculateFrameStats();
 
-	void LogAdapters();
-	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter);
-	void LogOutputDisplayModes(ComPtr<IDXGIOutput> output, DXGI_FORMAT format);
-
 protected:
 	static D3DApp* m_App;
 
+
+
 	HINSTANCE m_hAppInst = nullptr;
-	HWND m_hMainWnd = nullptr;
 	bool m_AppPaused = false;
 	bool m_Minimized = false;
 	bool m_Maximized = false;
@@ -81,11 +78,12 @@ protected:
 
 	GameTime m_Time;
 
-	std::unique_ptr<CIDXGIFactory> m_idxgiFactory;
-	ComPtr<IDXGISwapChain> mSwapChain;
-	std::unique_ptr<Device> m_device;
 
-	Microsoft::WRL::ComPtr<ID3D12Device> m_d3dDevice;
+	std::unique_ptr<DX12Window> m_dx12Window;
+	std::shared_ptr<Device> m_device;
+
+	//ComPtr<IDXGISwapChain> mSwapChain;
+	std::unique_ptr<Swapchain> m_swapchain;
 
 	std::unique_ptr<Fence> m_appFence;
 	UINT64 mCurrentFence = 0;
@@ -94,18 +92,10 @@ protected:
 	std::shared_ptr<CommandAllocator> m_appCommandAllocator;
 	std::shared_ptr<CommandList> m_commandList;
 
-	static const int SwapChainBufferCount = 3;
-	int mCurrentBackBuffer = 0;
-
-	ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
 	ComPtr<ID3D12Resource> mDepthStencilBuffer;
 
 	D3D12_VIEWPORT mScreenViewport;
 	D3D12_RECT mScissorRect;
-
-	UINT mRtvDescriptorSize = 0;
-	UINT mDsvDescriptorSize = 0;
-	UINT mCbvSrvUavDescriptorSize = 0;
 
 	std::wstring mMainWndCaption = L"D3D12 Application";
 	D3D_DRIVER_TYPE mD3DDriverType = D3D_DRIVER_TYPE_HARDWARE;
@@ -114,6 +104,5 @@ protected:
 	int mClientWidth = 1920;
 	int mClientHeight = 1080;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE m_rtvHandles[SwapChainBufferCount];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvHandle;
 };

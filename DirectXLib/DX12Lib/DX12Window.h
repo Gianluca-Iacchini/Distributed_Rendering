@@ -11,6 +11,8 @@ public:
 	DX12Window(HINSTANCE hInstance, int width, int height, std::wstring windowTitle);
 	~DX12Window() {};
 
+	bool Create();
+	void Show();
 	HWND GetWindowHandle() const { return m_hwnd; }
 	int GetWidth() const { return m_width; }
 	int GetHeight() const { return m_height; }
@@ -18,6 +20,7 @@ public:
 	void SetWindowTitle(std::wstring title);
 
 private:
+	WNDCLASSEX m_windowClass;
 	HINSTANCE m_hInstance;
 	HWND m_hwnd;
 	int m_width;

@@ -18,7 +18,9 @@ public:
 		}
 	}
 
-	void CreateFromSwapChain(ID3D12Resource* baseResource);
+	~ColorBuffer() = default;
+
+	void CreateFromSwapChain(Microsoft::WRL::ComPtr<ID3D12Resource> baseResource);
 
 	void Create(uint32_t width, uint32_t height, uint32_t numMips, 
 		DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);

@@ -1,16 +1,12 @@
 #include "DescriptorHeap.h"
 #include "Device.h"
+#include "GraphicsCore.h"
 
 using namespace Microsoft::WRL;
 
-DescriptorAllocator::DescriptorAllocator(Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type)
+DescriptorAllocator::DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type)
 	: m_descriptorHeapType(type), m_currentHeap(nullptr), m_descriptorSize(0)
-{
-	assert(device != nullptr && "Device is null");
-
-	if (m_device == nullptr)
-		m_device = device;
-	
+{	
 	m_remainingFreeHandles = sm_numDescriptorsPerHeap;
 	m_currentHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 }
@@ -18,7 +14,6 @@ DescriptorAllocator::DescriptorAllocator(Device* device, D3D12_DESCRIPTOR_HEAP_T
 
 std::mutex DescriptorAllocator::sm_allocationMutex;
 std::vector<ComPtr<ID3D12DescriptorHeap>> DescriptorAllocator::sm_descriptorHeapPool;
-Device* DescriptorAllocator::m_device = nullptr;
 
 void DescriptorAllocator::DestroyAll()
 {
@@ -37,7 +32,7 @@ ID3D12DescriptorHeap* DescriptorAllocator::RequestNewHeap(D3D12_DESCRIPTOR_HEAP_
 
 	ComPtr<ID3D12DescriptorHeap> heap;
 
-	ThrowIfFailed(m_device->GetComPtr()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
+	ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
 	sm_descriptorHeapPool.emplace_back(heap);
 
 	return heap.Get();
@@ -59,7 +54,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate(UINT count)
 
 		if (m_descriptorSize == 0)
 		{
-			m_descriptorSize = m_device->GetDescriptorSize(m_descriptorHeapType);
+			m_descriptorSize = Graphics::s_device->GetDescriptorSize(m_descriptorHeapType);
 		}
 	}
 

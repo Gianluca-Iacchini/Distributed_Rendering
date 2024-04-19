@@ -129,34 +129,48 @@ MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 DX12Window::DX12Window(HINSTANCE hInstance, int width, int height, std::wstring windowTitle) : 
 	m_hInstance(hInstance), m_width(width), m_height(height), m_windowTitle(windowTitle)
 {
-	WNDCLASSEX wc = { 0 };
-	wc.cbSize = sizeof(WNDCLASSEX);
-	wc.style = CS_HREDRAW | CS_VREDRAW;
-	wc.lpfnWndProc = MainWndProc;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = hInstance;
-	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
-	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
-	wc.lpszMenuName = 0;
-	wc.lpszClassName = L"MainWindow";
+	m_windowClass = { 0 };
+	m_windowClass.cbSize = sizeof(WNDCLASSEX);
+	m_windowClass.style = CS_HREDRAW | CS_VREDRAW;
+	m_windowClass.lpfnWndProc = MainWndProc;
+	m_windowClass.cbClsExtra = 0;
+	m_windowClass.cbWndExtra = 0;
+	m_windowClass.hInstance = hInstance;
+	m_windowClass.hIcon = LoadIcon(0, IDI_APPLICATION);
+	m_windowClass.hCursor = LoadCursor(0, IDC_ARROW);
+	m_windowClass.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+	m_windowClass.lpszMenuName = 0;
+	m_windowClass.lpszClassName = L"MainWindow";
 
-	if (!RegisterClassEx(&wc))
+
+}
+
+bool DX12Window::Create()
+{
+	if (!RegisterClassEx(&m_windowClass))
 	{
 		MessageBox(0, L"RegisterClass Failed.", 0, 0);
-		PostQuitMessage(0);
+		return false;
 	}
 
-	RECT R = { 0, 0, width, height };
+	RECT R = { 0, 0, m_width, m_height};
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int rWidth = R.right - R.left;
 	int rHeight = R.bottom - R.top;
 
 	m_hwnd = CreateWindowEx(0, L"MainWindow", L"D3D12 Application", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, rWidth, rHeight, 0, 0, m_hInstance, 0);
 
-	assert(m_hwnd && "CreateWindow Failed.");
+	if (!m_hwnd)
+	{
+		MessageBox(0, L"CreateWindow Failed.", 0, 0);
+		return false;
+	}
 
+	return true;
+}
+
+void DX12Window::Show()
+{
 	ShowWindow(m_hwnd, SW_SHOW);
 	UpdateWindow(m_hwnd);
 }

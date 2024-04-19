@@ -23,13 +23,13 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D(UINT width, UINT height, UINT arr
     return desc;
 }
 
-void PixelBuffer::AssociateWithResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES currentState)
+void PixelBuffer::AssociateWithResource(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES currentState)
 {
     assert(resource != nullptr);
 
     D3D12_RESOURCE_DESC desc = resource->GetDesc();
 
-    m_resource.Attach(resource);
+    m_resource = resource;
 
     m_currentState = currentState;
 
