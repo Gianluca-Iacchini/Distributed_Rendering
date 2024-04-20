@@ -33,6 +33,7 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 D3DApp::~D3DApp()
 {
 	FlushCommandQueue();
+	Graphics::s_commandAllocatorPool->DiscardAllocator(m_appFence->FenceValue, m_appCommandAllocator);
 }
 
 HINSTANCE D3DApp::AppInst() const
@@ -235,7 +236,7 @@ void D3DApp::CreateCommandObjects()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	m_commandQueue = std::make_unique<CommandQueue>(*m_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	m_appCommandAllocator = std::make_shared<CommandAllocator>(*m_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+	m_appCommandAllocator = Graphics::s_commandAllocatorPool->RequestAllocator(m_appFence->FenceValue);
 	m_commandList = std::make_shared<CommandList>(*m_device, *m_appCommandAllocator);
 
 	//ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));

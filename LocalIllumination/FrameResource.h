@@ -1,6 +1,7 @@
 #include "DX12Lib/Helpers.h"
 #include "DX12Lib/CommandAllocator.h"
 #include "DX12Lib/Device.h"
+#include "DX12Lib/GraphicsCore.h"
 
 #ifndef MAINFRAME_RESOURCE_H
 #define MAINFRAME_RESOURCE_H
@@ -8,9 +9,9 @@
 struct FrameResource
 {
 public:
-	FrameResource(Device& device)
+	FrameResource(Device& device, uint64_t value)
 	{
-		CmdListAlloc = std::make_shared<CommandAllocator>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+		CmdListAlloc = Graphics::s_commandAllocatorPool->RequestAllocator(value);
 	}
 	FrameResource(const FrameResource& rhs) = delete;
 	FrameResource& operator=(const FrameResource& rhs) = delete;

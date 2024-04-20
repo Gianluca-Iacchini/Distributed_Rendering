@@ -2,6 +2,7 @@
 #include "Device.h"
 #include "CIDXGIFactory.h"
 #include "Adapter.h"
+#include "CommandAllocator.h"
 
 using namespace Microsoft::WRL;
 
@@ -16,6 +17,8 @@ namespace Graphics
 	};
 
 	std::shared_ptr<Device> Graphics::s_device = nullptr;
+
+	std::unique_ptr<CommandAllocatorPool> Graphics::s_commandAllocatorPool = std::make_unique<CommandAllocatorPool>(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{

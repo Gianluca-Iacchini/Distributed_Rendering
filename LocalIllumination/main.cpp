@@ -218,7 +218,7 @@ public:
 
 		for (int i = 0; i < gNumFrameResources; ++i)
 		{
-			m_frameResources.push_back(std::make_unique<FrameResource>(*m_device));
+			m_frameResources.push_back(std::make_unique<FrameResource>(*m_device, m_appFence->FenceValue + i));
 		}
 
 		BuildEmptyRootSignature();

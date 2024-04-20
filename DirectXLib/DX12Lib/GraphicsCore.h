@@ -3,11 +3,13 @@
 #include "DX12Lib/DescriptorHeap.h"
 
 class Device;
+class CommandAllocatorPool;
 
 namespace Graphics
 {
 	extern DescriptorAllocator s_descriptorAllocators[];
 	extern std::shared_ptr<Device> s_device;
+	extern std::unique_ptr<CommandAllocatorPool> s_commandAllocatorPool;
 
 	bool Initialize();
 	

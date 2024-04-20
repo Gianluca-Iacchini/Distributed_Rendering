@@ -1,4 +1,4 @@
-add_executable(LocalIllumination WIN32 main.cpp)
+add_executable(LocalIllumination WIN32 main.cpp FrameResource.h FrameResource.cpp)
 
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 

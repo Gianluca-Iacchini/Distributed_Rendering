@@ -1,7 +1,9 @@
-#include "Helpers.h"
-
 #ifndef COMMAND_ALLOCATOR_H
 #define COMMAND_ALLOCATOR_H
+
+#include "Helpers.h"
+#include <mutex>
+#include <queue>
 
 class Device;
 
@@ -17,9 +19,31 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 
 public:
+	ID3D12CommandAllocator* operator->() const { return m_commandAllocator.Get(); }
+	ID3D12CommandAllocator* operator*() const { return m_commandAllocator.Get(); }
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator>& operator&() { return m_commandAllocator; }
+
 	ID3D12CommandAllocator* Get() const { return m_commandAllocator.Get(); }
 	ID3D12CommandAllocator** GetAddressOf() { return m_commandAllocator.GetAddressOf(); }
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetComPtr() const { return m_commandAllocator; }
+};
+
+class CommandAllocatorPool
+{
+public:
+	CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
+	~CommandAllocatorPool();
+
+	std::shared_ptr<CommandAllocator> RequestAllocator(uint64_t completedFenceValue);
+	void DiscardAllocator(uint64_t fenceValue, std::shared_ptr<CommandAllocator> allocator);
+
+	inline size_t Size() const { return m_commandAllocatorPool.size(); }
+
+private:
+	const D3D12_COMMAND_LIST_TYPE m_type;
+	std::vector<std::shared_ptr<CommandAllocator>> m_commandAllocatorPool;
+	std::queue<std::pair<uint64_t, std::shared_ptr<CommandAllocator>>> m_availableCommandAllocators;
+	std::mutex m_cmdAllocatorMutex;
 };
 #endif // COMMAND_ALLOCATOR_H
 
