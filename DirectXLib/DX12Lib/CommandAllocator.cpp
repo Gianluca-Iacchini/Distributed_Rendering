@@ -11,6 +11,7 @@ CommandAllocator::CommandAllocator(Device& device, D3D12_COMMAND_LIST_TYPE type)
 
 CommandAllocator::~CommandAllocator()
 {
+
 }
 
 CommandAllocatorPool::CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type)
@@ -20,10 +21,15 @@ CommandAllocatorPool::CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type)
 
 CommandAllocatorPool::~CommandAllocatorPool()
 {
+	for (auto allocator : m_commandAllocatorPool)
+	{
+		delete allocator;
+	}
+
 	m_commandAllocatorPool.clear();
 }
 
-std::shared_ptr<CommandAllocator> CommandAllocatorPool::RequestAllocator(uint64_t completedFenceValue)
+CommandAllocator* CommandAllocatorPool::RequestAllocator(uint64_t completedFenceValue)
 {
 	std::lock_guard<std::mutex> lock(m_cmdAllocatorMutex);
 
@@ -43,13 +49,13 @@ std::shared_ptr<CommandAllocator> CommandAllocatorPool::RequestAllocator(uint64_
 	}
 
 	// Otherwise we create a new allocator and return it
-	auto cmdAllocator = std::make_shared<CommandAllocator>(*(Graphics::s_device), m_type);
+	auto cmdAllocator = new CommandAllocator(*(Graphics::s_device), m_type);
 	m_commandAllocatorPool.push_back(cmdAllocator);
 	return cmdAllocator;
 	
 }
 
-void CommandAllocatorPool::DiscardAllocator(uint64_t fenceValue, const std::shared_ptr<CommandAllocator> allocator)
+void CommandAllocatorPool::DiscardAllocator(uint64_t fenceValue, CommandAllocator* allocator)
 {
 	std::lock_guard<std::mutex> lock(m_cmdAllocatorMutex);
 	

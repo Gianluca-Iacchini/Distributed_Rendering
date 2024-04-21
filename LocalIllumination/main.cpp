@@ -13,9 +13,11 @@
 #include "DX12Lib/CommandAllocator.h"
 #include "DX12Lib/Swapchain.h"
 #include "DX12Lib/DepthBuffer.h"
+#include "DX12Lib/GraphicsCore.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
+using namespace Graphics;
 
 struct Vertex
 {
@@ -92,17 +94,14 @@ class AppTest : public D3DApp
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
-	ComPtr<ID3D12CommandQueue> mCommandQueue;
-	ComPtr<ID3D12GraphicsCommandList> mCommandList;
-	ComPtr<ID3D12CommandAllocator> mCommandListAllocator;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
 	AppTest(const AppTest& rhs) = delete;
 	AppTest& operator=(const AppTest& rhs) = delete;
 	~AppTest() { 
-		if (m_device != nullptr)
-			FlushCommandQueue();
+
+		FlushCommandQueue();
 		
 		FreeConsole();
 	};
@@ -148,7 +147,7 @@ public:
 		}
 		ThrowIfFailed(hr);
 
-		ThrowIfFailed(m_device->GetComPtr()->CreateRootSignature(
+		ThrowIfFailed(s_device->GetComPtr()->CreateRootSignature(
 			0,
 			serializedRootSig->GetBufferPointer(),
 			serializedRootSig->GetBufferSize(),
@@ -175,7 +174,7 @@ public:
 		psoDesc.SampleDesc.Quality = m_4xMsaaState ? (m_4xMsaaQuality - 1) : 0;
 		psoDesc.DSVFormat = mDepthStencilFormat;
 
-		ThrowIfFailed(m_device->GetComPtr()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
+		ThrowIfFailed(s_device->GetComPtr()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
 	
 	}
 
@@ -200,9 +199,10 @@ public:
 		m_vertexData.VertexBufferStride = sizeof(Vertex);
 		m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
 
-		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(m_device->GetComPtr(), mCommandList, triangleVertices, vbByteSize, m_vertexData.VertexBufferUploader);
 
-		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(m_device->GetComPtr(), mCommandList, triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
+		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), s_commandList->GetComPtr(), triangleVertices, vbByteSize, m_vertexData.VertexBufferUploader);
+
+		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), s_commandList->GetComPtr(), triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
 	}
 
 	virtual bool Initialize() override
@@ -210,15 +210,11 @@ public:
 		if (!D3DApp::Initialize())
 			return false;
 
-		mCommandQueue = m_commandQueueManager->GetGraphicsQueue().GetComPtr();
-		mCommandList = m_commandList->GetComPtr();
-		mCommandListAllocator = m_appCommandAllocator->GetComPtr();
-
-		m_commandList->Reset(*m_appCommandAllocator);
+		s_commandList->Reset(*s_initCommandAllocator);
 
 		for (int i = 0; i < gNumFrameResources; ++i)
 		{
-			m_frameResources.push_back(std::make_unique<FrameResource>(*m_device, mCurrentFence));
+			m_frameResources.push_back(std::make_unique<FrameResource>(*s_device, mCurrentFence));
 		}
 
 		BuildEmptyRootSignature();
@@ -226,9 +222,9 @@ public:
 		BuildPSO();
 		BuildVertexData();
 
-		m_commandList->Close();
+		s_commandList->Close();
 
-		mCurrentFence = m_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*m_commandList);
+		mCurrentFence = s_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*s_commandList);
 
 		FlushCommandQueue();
 
@@ -255,7 +251,7 @@ public:
 
 		if (m_currentFrameResource->Fence != 0)
 		{
-			m_commandQueueManager->GetGraphicsQueue().WaitForFence(m_currentFrameResource->Fence);
+			s_commandQueueManager->GetGraphicsQueue().WaitForFence(m_currentFrameResource->Fence);
 		}
 	}
 
@@ -267,42 +263,42 @@ public:
 		cmdListAlloc->Reset();
 
 
-		m_commandList->Reset(*cmdListAlloc);
+		s_commandList->Reset(*cmdListAlloc);
 
 
-		m_commandList->GetComPtr()->RSSetViewports(1, &mScreenViewport);
-		m_commandList->GetComPtr()->RSSetScissorRects(1, &mScissorRect);
+		s_commandList->GetComPtr()->RSSetViewports(1, &mScreenViewport);
+		s_commandList->GetComPtr()->RSSetScissorRects(1, &mScissorRect);
 
-		m_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		s_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		float clearDepth = m_depthStencilBuffer->GetClearDepth();
 		float clearStencil = m_depthStencilBuffer->GetClearStencil();
 
-		m_commandList->GetComPtr()->ClearRenderTargetView(CurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
-		m_commandList->GetComPtr()->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, clearDepth, clearStencil, 0, nullptr);
+		s_commandList->GetComPtr()->ClearRenderTargetView(CurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
+		s_commandList->GetComPtr()->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, clearDepth, clearStencil, 0, nullptr);
 
-		m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+		s_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-		m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature.Get());
+		s_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature.Get());
 
 		float time = gt.TotalTime();
 
-		m_commandList->GetComPtr()->SetGraphicsRoot32BitConstants(0, 1, &time, 0);
+		s_commandList->GetComPtr()->SetGraphicsRoot32BitConstants(0, 1, &time, 0);
 
-		m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
+		s_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
-		m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_vertexData.VertexBufferView());
-		m_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
-		m_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		s_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_vertexData.VertexBufferView());
+		s_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
+		s_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		m_commandList->GetComPtr()->DrawIndexedInstanced(3, 1, 0, 0, 0);
+		s_commandList->GetComPtr()->DrawIndexedInstanced(3, 1, 0, 0, 0);
 
-		m_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		s_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
 
-		m_commandList->Close();
+		s_commandList->Close();
 
-		m_currentFrameResource->Fence = m_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*m_commandList);
+		m_currentFrameResource->Fence = s_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*s_commandList);
 
 		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0,0));
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;

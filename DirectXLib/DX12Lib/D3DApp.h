@@ -51,7 +51,6 @@ protected:
 	bool InitMainWindow();
 	bool InitConsole();
 	bool InitDirect3D();
-	void CreateCommandObjects();
 	void CreateSwapChain();
 	void FlushCommandQueue();
 
@@ -80,17 +79,12 @@ protected:
 
 
 	std::unique_ptr<DX12Window> m_dx12Window;
-	std::shared_ptr<Device> m_device;
 
 	std::unique_ptr<Swapchain> m_swapchain;
 	std::shared_ptr<DepthBuffer> m_depthStencilBuffer;
 
 	//std::unique_ptr<Fence> m_appFence;
 	UINT64 mCurrentFence = 0;
-
-	std::unique_ptr<CommandQueueManager> m_commandQueueManager;
-	std::shared_ptr<CommandAllocator> m_appCommandAllocator;
-	std::shared_ptr<CommandList> m_commandList;
 
 
 	D3D12_VIEWPORT mScreenViewport;

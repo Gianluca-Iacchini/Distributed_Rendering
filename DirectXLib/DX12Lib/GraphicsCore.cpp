@@ -3,6 +3,8 @@
 #include "CIDXGIFactory.h"
 #include "Adapter.h"
 #include "CommandAllocator.h"
+#include "CommandQueue.h"
+#include "CommandList.h"
 
 using namespace Microsoft::WRL;
 
@@ -19,6 +21,9 @@ namespace Graphics
 	std::shared_ptr<Device> Graphics::s_device = nullptr;
 
 	std::unique_ptr<CommandAllocatorPool> Graphics::s_commandAllocatorPool = std::make_unique<CommandAllocatorPool>(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	std::unique_ptr<CommandQueueManager> Graphics::s_commandQueueManager = nullptr;
+	CommandAllocator* Graphics::s_initCommandAllocator = nullptr;
+	std::unique_ptr<CommandList> Graphics::s_commandList = nullptr;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -100,8 +105,22 @@ namespace Graphics
 			LogAdapters(factory);
 		#endif // _DEBUG
 
+			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
+			s_commandQueueManager->Create();
+			s_initCommandAllocator = s_commandAllocatorPool->RequestAllocator(0);
+			s_commandList = std::make_unique<CommandList>(*s_device, *s_initCommandAllocator);
+
+			s_commandList->Close();
+
 		return true;
 	}
 
+	void Shutdown()
+	{
+		if (s_initCommandAllocator != nullptr)
+		{
+			s_commandAllocatorPool->DiscardAllocator(0, s_initCommandAllocator);
+		}
+	}
 }
 

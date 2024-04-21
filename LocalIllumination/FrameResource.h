@@ -15,9 +15,15 @@ public:
 	}
 	FrameResource(const FrameResource& rhs) = delete;
 	FrameResource& operator=(const FrameResource& rhs) = delete;
-	~FrameResource() {}
+	~FrameResource() 
+	{
+		if (CmdListAlloc != nullptr)
+		{
+			Graphics::s_commandAllocatorPool->DiscardAllocator(Fence, CmdListAlloc);
+		}
+	}
 
-	std::shared_ptr<CommandAllocator> CmdListAlloc;
+	CommandAllocator* CmdListAlloc;
 
 	UINT64 Fence = 0;
 };

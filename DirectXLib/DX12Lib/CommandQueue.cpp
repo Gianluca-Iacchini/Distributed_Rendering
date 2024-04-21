@@ -1,6 +1,7 @@
 #include "CommandQueue.h"
 #include "Device.h"
 #include "CommandList.h"
+#include "CommandAllocator.h"
 
 using namespace Microsoft::WRL;
 

@@ -15,6 +15,9 @@
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
 
+using namespace Microsoft::WRL;
+using namespace Graphics;
+
 D3DApp* D3DApp::m_App = nullptr;
 
 D3DApp* D3DApp::GetApp()
@@ -33,7 +36,8 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 D3DApp::~D3DApp()
 {
 	FlushCommandQueue();
-	Graphics::s_commandAllocatorPool->DiscardAllocator(mCurrentFence, m_appCommandAllocator);
+	
+	Graphics::Shutdown();
 }
 
 HINSTANCE D3DApp::AppInst() const
@@ -123,8 +127,6 @@ bool D3DApp::Initialize()
 
 void D3DApp::OnResize()
 {
-	assert(m_device);
-	assert(m_appCommandAllocator);
 	assert(m_swapchain);
 
 	// Flush before changing any resources.
@@ -132,7 +134,7 @@ void D3DApp::OnResize()
 
 
 
-	m_commandList->Reset(*m_appCommandAllocator);
+	s_commandList->Reset(*s_initCommandAllocator);
 
 
 
@@ -151,11 +153,11 @@ void D3DApp::OnResize()
 
 
 	//auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	m_commandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	s_commandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 
-	m_commandList->Close();
-	mCurrentFence = m_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*m_commandList);
+	s_commandList->Close();
+	mCurrentFence = s_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*s_commandList);
 	FlushCommandQueue();
 
 	mScreenViewport.TopLeftX = 0;
@@ -214,9 +216,6 @@ bool D3DApp::InitDirect3D()
 	if (!Graphics::Initialize())
 		return false;
 
-	m_device = Graphics::s_device;
-
-	CreateCommandObjects();
 	CreateSwapChain();
 
 	m_depthStencilBuffer = std::make_shared<DepthBuffer>();
@@ -224,33 +223,16 @@ bool D3DApp::InitDirect3D()
 	return true;
 }
 
-void D3DApp::CreateCommandObjects()
-{
-	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	queueDesc.NodeMask = 0;
-	queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	m_commandQueueManager = std::make_unique<CommandQueueManager>(*m_device);
-	m_commandQueueManager->Create();
-	m_appCommandAllocator = Graphics::s_commandAllocatorPool->RequestAllocator(mCurrentFence);
-	m_commandList = std::make_shared<CommandList>(*m_device, *m_appCommandAllocator);
-
-	m_commandList->Close();
-
-	//mCommandList->Close();
-}
 
 void D3DApp::CreateSwapChain()
 {
 	m_swapchain = std::make_unique<Swapchain>(*m_dx12Window, mBackBufferFormat);
-	m_swapchain->Initialize(m_commandQueueManager->GetGraphicsQueue());
+	m_swapchain->Initialize(s_commandQueueManager->GetGraphicsQueue());
 }
 
 void D3DApp::FlushCommandQueue()
 {	
-	m_commandQueueManager->GetGraphicsQueue().Flush();
+	s_commandQueueManager->GetGraphicsQueue().Flush();
 }
 
 ComPtr<ID3D12Resource> D3DApp::CurrentBackBuffer() const
