@@ -12,14 +12,13 @@ class CommandList;
 class CommandQueue
 {
 public:
-	CommandQueue(Device& device, D3D12_COMMAND_QUEUE_DESC cmdQueueDesc);
-	CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
+	CommandQueue(D3D12_COMMAND_LIST_TYPE type);
 	~CommandQueue();
 
-	//bool Initialize(D3D12_COMMAND_LIST_TYPE type, bool isBundle = false);
+	void Create(Device& device);
+
 	UINT64 ExecuteCommandLists(std::vector<CommandList*> cmdList);
 	UINT64 ExecuteCommandList(CommandList& cmdList);
-	//void ExecuteCommandList(ID3D12CommandList* commandList);
 
 	//void Wait(ID3D12Fence* fence, UINT64 fenceValue);
 	void Flush();
@@ -32,8 +31,9 @@ private:
 	UINT64 ExecuteAndSignal(std::vector<CommandList*> cmdLists);
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
+	D3D12_COMMAND_LIST_TYPE m_type;
+
 	std::unique_ptr<Fence> m_fence;
-	HANDLE m_fenceEvent;
 	std::mutex m_fenceMutex;
 
 	std::vector<ID3D12CommandList*> m_executeCmdLists;
@@ -42,6 +42,29 @@ public:
 	ID3D12CommandQueue* Get() const { return m_commandQueue.Get(); }
 	ID3D12CommandQueue** GetAddressOf() { return m_commandQueue.GetAddressOf(); }
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetComPtr() const { return m_commandQueue; }
+};
+
+
+class CommandQueueManager
+{
+public:
+	CommandQueueManager(Device& device);
+	~CommandQueueManager();
+
+	void Create();
+
+	CommandQueue& GetGraphicsQueue() { return m_graphicsQueue; }
+	CommandQueue& GetComputeQueue() { return m_computeQueue; }
+	CommandQueue& GetCopyQueue() { return m_copyQueue; }
+
+
+private:
+
+	Device& m_device;
+
+	CommandQueue m_graphicsQueue;
+	CommandQueue m_computeQueue;
+	CommandQueue m_copyQueue;
 };
 #endif // !COMMAND_QUEUE_H
 

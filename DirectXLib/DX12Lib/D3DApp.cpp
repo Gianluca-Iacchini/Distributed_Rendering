@@ -126,7 +126,6 @@ void D3DApp::OnResize()
 	assert(m_device);
 	assert(m_appCommandAllocator);
 	assert(m_swapchain);
-	assert(m_commandQueue);
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
@@ -156,8 +155,7 @@ void D3DApp::OnResize()
 
 
 	m_commandList->Close();
-	mCurrentFence = m_commandQueue->ExecuteCommandList(*m_commandList);
-	UINT64 fenceVal = m_commandQueue->GetFenceValue();
+	mCurrentFence = m_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*m_commandList);
 	FlushCommandQueue();
 
 	mScreenViewport.TopLeftX = 0;
@@ -234,13 +232,10 @@ void D3DApp::CreateCommandObjects()
 	queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	m_commandQueue = std::make_unique<CommandQueue>(*m_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+	m_commandQueueManager = std::make_unique<CommandQueueManager>(*m_device);
+	m_commandQueueManager->Create();
 	m_appCommandAllocator = Graphics::s_commandAllocatorPool->RequestAllocator(mCurrentFence);
 	m_commandList = std::make_shared<CommandList>(*m_device, *m_appCommandAllocator);
-
-	//ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));
-	//ThrowIfFailed(m_d3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandListAllocator)));
-	//ThrowIfFailed(m_d3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandListAllocator.Get(), nullptr, IID_PPV_ARGS(mCommandList.GetAddressOf())));
 
 	m_commandList->Close();
 
@@ -249,36 +244,13 @@ void D3DApp::CreateCommandObjects()
 
 void D3DApp::CreateSwapChain()
 {
-	//mSwapChain.Reset();
-
-	//DXGI_SWAP_CHAIN_DESC swapChainDesc;
-	//swapChainDesc.BufferDesc.Width = mClientWidth;
-	//swapChainDesc.BufferDesc.Height = mClientHeight;
-	//swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
-	//swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	//swapChainDesc.BufferDesc.Format = mBackBufferFormat;
-	//swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	//swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	//swapChainDesc.SampleDesc.Count = m_4xMsaaState ? 4 : 1;
-	//swapChainDesc.SampleDesc.Quality = m_4xMsaaState ? (m_4xMsaaQuality - 1) : 0;
-	//swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	//swapChainDesc.BufferCount = SwapChainBufferCount;
-	//swapChainDesc.OutputWindow = m_dx12Window->GetWindowHandle();
-	//swapChainDesc.Windowed = true;
-	//swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	//swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-	//auto factory = CIDXGIFactory();
-
-	//ThrowIfFailed(factory.GetComPtr()->CreateSwapChain(m_commandQueue->Get(), &swapChainDesc, mSwapChain.GetAddressOf()));
-
 	m_swapchain = std::make_unique<Swapchain>(*m_dx12Window, mBackBufferFormat);
-	m_swapchain->Initialize(*m_commandQueue);
+	m_swapchain->Initialize(m_commandQueueManager->GetGraphicsQueue());
 }
 
 void D3DApp::FlushCommandQueue()
 {	
-	m_commandQueue->Flush();
+	m_commandQueueManager->GetGraphicsQueue().Flush();
 }
 
 ComPtr<ID3D12Resource> D3DApp::CurrentBackBuffer() const

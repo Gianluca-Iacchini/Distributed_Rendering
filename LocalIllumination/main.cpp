@@ -210,7 +210,7 @@ public:
 		if (!D3DApp::Initialize())
 			return false;
 
-		mCommandQueue = m_commandQueue->GetComPtr();
+		mCommandQueue = m_commandQueueManager->GetGraphicsQueue().GetComPtr();
 		mCommandList = m_commandList->GetComPtr();
 		mCommandListAllocator = m_appCommandAllocator->GetComPtr();
 
@@ -228,7 +228,7 @@ public:
 
 		m_commandList->Close();
 
-		mCurrentFence = m_commandQueue->ExecuteCommandList(*m_commandList);
+		mCurrentFence = m_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*m_commandList);
 
 		FlushCommandQueue();
 
@@ -255,7 +255,7 @@ public:
 
 		if (m_currentFrameResource->Fence != 0)
 		{
-			m_commandQueue->WaitForFence(m_currentFrameResource->Fence);
+			m_commandQueueManager->GetGraphicsQueue().WaitForFence(m_currentFrameResource->Fence);
 		}
 	}
 
@@ -302,7 +302,7 @@ public:
 
 		m_commandList->Close();
 
-		m_currentFrameResource->Fence = m_commandQueue->ExecuteCommandList(*m_commandList);
+		m_currentFrameResource->Fence = m_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*m_commandList);
 
 		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0,0));
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;

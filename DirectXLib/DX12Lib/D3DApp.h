@@ -1,6 +1,7 @@
 #pragma once
 #include "Helpers.h"
 #include "GameTime.h"
+#include "CommandQueue.h"
 
 #include <wrl.h>
 
@@ -8,7 +9,6 @@ class DepthBuffer;
 class DX12Window;
 class Device;
 class Fence;
-class CommandQueue;
 class CommandAllocator;
 class CommandList;
 class Swapchain;
@@ -88,7 +88,7 @@ protected:
 	//std::unique_ptr<Fence> m_appFence;
 	UINT64 mCurrentFence = 0;
 
-	std::unique_ptr<CommandQueue> m_commandQueue;
+	std::unique_ptr<CommandQueueManager> m_commandQueueManager;
 	std::shared_ptr<CommandAllocator> m_appCommandAllocator;
 	std::shared_ptr<CommandList> m_commandList;
 
