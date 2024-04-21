@@ -85,7 +85,7 @@ protected:
 	std::unique_ptr<Swapchain> m_swapchain;
 	std::shared_ptr<DepthBuffer> m_depthStencilBuffer;
 
-	std::unique_ptr<Fence> m_appFence;
+	//std::unique_ptr<Fence> m_appFence;
 	UINT64 mCurrentFence = 0;
 
 	std::unique_ptr<CommandQueue> m_commandQueue;

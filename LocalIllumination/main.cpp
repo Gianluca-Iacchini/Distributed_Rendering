@@ -218,7 +218,7 @@ public:
 
 		for (int i = 0; i < gNumFrameResources; ++i)
 		{
-			m_frameResources.push_back(std::make_unique<FrameResource>(*m_device, m_appFence->FenceValue + i));
+			m_frameResources.push_back(std::make_unique<FrameResource>(*m_device, mCurrentFence));
 		}
 
 		BuildEmptyRootSignature();
@@ -228,7 +228,7 @@ public:
 
 		m_commandList->Close();
 
-		m_commandQueue->ExecuteCommandList(*m_commandList);
+		mCurrentFence = m_commandQueue->ExecuteCommandList(*m_commandList);
 
 		FlushCommandQueue();
 
@@ -255,7 +255,7 @@ public:
 
 		if (m_currentFrameResource->Fence != 0)
 		{
-			m_appFence->WaitForFence(m_currentFrameResource->Fence);
+			m_commandQueue->WaitForFence(m_currentFrameResource->Fence);
 		}
 	}
 
@@ -302,13 +302,11 @@ public:
 
 		m_commandList->Close();
 
-		m_commandQueue->ExecuteCommandList(*m_commandList);
+		m_currentFrameResource->Fence = m_commandQueue->ExecuteCommandList(*m_commandList);
+
 		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0,0));
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
 
-		m_currentFrameResource->Fence = ++m_appFence->FenceValue;
-
-		m_commandQueue->Signal(m_appFence.get());
 	}
 };
 

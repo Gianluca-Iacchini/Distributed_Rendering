@@ -1,9 +1,11 @@
 #include "Fence.h"
 #include "Device.h"
 
-Fence::Fence(Device& device, UINT64 initialValue)
+Fence::Fence(Device& device, UINT64 lastFenceValue, UINT64 nextFenceValue)
+	: m_lastFenceValue(lastFenceValue), CurrentFenceValue(nextFenceValue)
 {
-	ThrowIfFailed(device.GetComPtr()->CreateFence(initialValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf())));
+	ThrowIfFailed(device.GetComPtr()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf())));
+	m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 }
 
 Fence::Fence(Microsoft::WRL::ComPtr<ID3D12Fence> fence)
@@ -13,6 +15,7 @@ Fence::Fence(Microsoft::WRL::ComPtr<ID3D12Fence> fence)
 
 Fence::~Fence()
 {
+	CloseHandle(m_fenceEvent);
 }
 
 UINT64 Fence::GetGPUFenceValue()
@@ -23,22 +26,26 @@ UINT64 Fence::GetGPUFenceValue()
 
 bool Fence::IsFenceComplete(UINT64 fenceValue)
 {
-	return false;
+	if (fenceValue > m_lastFenceValue)
+		m_lastFenceValue = std::max(m_lastFenceValue, m_fence->GetCompletedValue());
+
+	return fenceValue <= m_lastFenceValue;
 }
 
-void Fence::WaitForFence()
-{
-	WaitForFence(FenceValue);
-}
 
 void Fence::WaitForFence(UINT64 value)
 {
-	if (m_fence->GetCompletedValue() < value)
+	if (!IsFenceComplete(value))
 	{
-		HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		ThrowIfFailed(m_fence->SetEventOnCompletion(FenceValue, eventHandle));
+		std::lock_guard<std::mutex> lock(m_fenceEventMutex);
 
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
+		m_fence->SetEventOnCompletion(value, m_fenceEvent);
+		WaitForSingleObject(m_fenceEvent, INFINITE);
+		m_lastFenceValue = value;
 	}
+}
+
+void Fence::WaitForCurrentFence()
+{
+	WaitForFence(CurrentFenceValue);
 }

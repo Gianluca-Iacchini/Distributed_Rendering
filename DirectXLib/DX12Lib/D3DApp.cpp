@@ -33,7 +33,7 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 D3DApp::~D3DApp()
 {
 	FlushCommandQueue();
-	Graphics::s_commandAllocatorPool->DiscardAllocator(m_appFence->FenceValue, m_appCommandAllocator);
+	Graphics::s_commandAllocatorPool->DiscardAllocator(mCurrentFence, m_appCommandAllocator);
 }
 
 HINSTANCE D3DApp::AppInst() const
@@ -126,6 +126,7 @@ void D3DApp::OnResize()
 	assert(m_device);
 	assert(m_appCommandAllocator);
 	assert(m_swapchain);
+	assert(m_commandQueue);
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
@@ -155,8 +156,8 @@ void D3DApp::OnResize()
 
 
 	m_commandList->Close();
-	m_commandQueue->ExecuteCommandList(*m_commandList);
-
+	mCurrentFence = m_commandQueue->ExecuteCommandList(*m_commandList);
+	UINT64 fenceVal = m_commandQueue->GetFenceValue();
 	FlushCommandQueue();
 
 	mScreenViewport.TopLeftX = 0;
@@ -217,8 +218,6 @@ bool D3DApp::InitDirect3D()
 
 	m_device = Graphics::s_device;
 
-	m_appFence = std::make_unique<Fence>(*m_device, 0);
-
 	CreateCommandObjects();
 	CreateSwapChain();
 
@@ -236,7 +235,7 @@ void D3DApp::CreateCommandObjects()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	m_commandQueue = std::make_unique<CommandQueue>(*m_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	m_appCommandAllocator = Graphics::s_commandAllocatorPool->RequestAllocator(m_appFence->FenceValue);
+	m_appCommandAllocator = Graphics::s_commandAllocatorPool->RequestAllocator(mCurrentFence);
 	m_commandList = std::make_shared<CommandList>(*m_device, *m_appCommandAllocator);
 
 	//ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));
@@ -279,7 +278,7 @@ void D3DApp::CreateSwapChain()
 
 void D3DApp::FlushCommandQueue()
 {	
-	m_commandQueue->Flush(m_appFence.get());
+	m_commandQueue->Flush();
 }
 
 ComPtr<ID3D12Resource> D3DApp::CurrentBackBuffer() const

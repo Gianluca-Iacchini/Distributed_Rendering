@@ -7,6 +7,7 @@ using namespace Microsoft::WRL;
 CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_QUEUE_DESC cmdQueueDesc)
 {
 	ThrowIfFailed(device.GetComPtr()->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(m_commandQueue.GetAddressOf())));
+	m_fence = std::make_unique<Fence>(device, 0, 1);
 }
 
 CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type)
@@ -18,46 +19,62 @@ CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type)
 	queueDesc.Type = type;
 
 	ThrowIfFailed(device.GetComPtr()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_commandQueue.GetAddressOf())));
+	m_fence = std::make_unique<Fence>(device, 0, 1);
 }
 
-void CommandQueue::ExecuteCommandLists(std::vector<CommandList> cmdLists)
+CommandQueue::~CommandQueue()
 {
-	std::vector<ID3D12CommandList*> cmdListExecute;
+	m_executeCmdLists.clear();
+}
 
-	for (auto& cmdList : cmdLists)
+UINT64 CommandQueue::ExecuteCommandLists(std::vector<CommandList*> cmdLists)
+{
+	return this->ExecuteAndSignal(cmdLists);
+}
+
+UINT64 CommandQueue::ExecuteCommandList(CommandList& cmdList)
+{
+	std::vector<CommandList*> cmdLists = { &cmdList };
+
+	return this->ExecuteAndSignal(cmdLists);
+}
+
+void CommandQueue::Flush()
+{
+	m_fence->CurrentFenceValue += 1;
+
+	ThrowIfFailed(m_commandQueue->Signal(m_fence->Get(), m_fence->CurrentFenceValue));
+
+	m_fence->WaitForCurrentFence();
+}
+
+
+void CommandQueue::WaitForFence(UINT64 fenceValue)
+{
+	m_fence->WaitForFence(fenceValue);
+}
+
+UINT64 CommandQueue::ExecuteAndSignal(std::vector<CommandList*> cmdLists)
+{
+	assert (cmdLists.size() > 0);
+
+	std::lock_guard<std::mutex> lock(m_fenceMutex);
+
+	UINT cmdListSize = cmdLists.size();
+
+	m_executeCmdLists.resize(cmdListSize);
+
+	for (UINT i = 0; i < cmdListSize; i++)
 	{
-		cmdList.Close();
-		cmdListExecute.push_back(cmdList.Get());
+		cmdLists[i]->Close();
+		m_executeCmdLists[i] = cmdLists[i]->Get();
 	}
 
-	m_commandQueue->ExecuteCommandLists(static_cast<UINT>(cmdListExecute.size()), cmdListExecute.data());
+	m_commandQueue->ExecuteCommandLists(cmdListSize, m_executeCmdLists.data());
 
-}
+	ThrowIfFailed(m_commandQueue->Signal(m_fence->Get(), m_fence->CurrentFenceValue));
 
-void CommandQueue::ExecuteCommandList(CommandList& cmdList)
-{
-	cmdList.Close();
 
-	ID3D12CommandList* cmdListExecute = cmdList.Get();
-	m_commandQueue->ExecuteCommandLists(1, &cmdListExecute);
-}
-
-void CommandQueue::Signal(Fence* fence, UINT64 value)
-{
-	ThrowIfFailed(m_commandQueue->Signal(fence->Get(), value));
-}
-
-void CommandQueue::Signal(Fence* fence)
-{
-	ThrowIfFailed(m_commandQueue->Signal(fence->Get(), fence->FenceValue));
-}
-
-void CommandQueue::Flush(Fence* fence)
-{
-	fence->FenceValue += 1;
-
-	this->Signal(fence, fence->FenceValue);
-
-	fence->WaitForFence();
+	return m_fence->CurrentFenceValue++;
 }
 
