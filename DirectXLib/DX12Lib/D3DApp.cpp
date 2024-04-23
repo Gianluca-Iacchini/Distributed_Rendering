@@ -14,6 +14,7 @@
 #include "Swapchain.h"
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
+#include "CommandContext.h"
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
@@ -38,6 +39,9 @@ D3DApp::~D3DApp()
 	FlushCommandQueue();
 	
 	Graphics::Shutdown();
+
+	if (context != nullptr)
+		delete context;
 }
 
 HINSTANCE D3DApp::AppInst() const
@@ -119,6 +123,9 @@ bool D3DApp::Initialize()
 	if (!InitDirect3D())
 		return false;
 
+	context = new CommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	context->Initialize();
+
 	// Do the initial resize code.
 	OnResize();
 
@@ -131,10 +138,6 @@ void D3DApp::OnResize()
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
-
-
-
-	s_commandList->Reset(*s_initCommandAllocator);
 
 
 
@@ -153,11 +156,10 @@ void D3DApp::OnResize()
 
 
 	//auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	s_commandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	context->m_commandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-
-	s_commandList->Close();
-	mCurrentFence = s_commandQueueManager->GetGraphicsQueue().ExecuteCommandList(*s_commandList);
+	
+	context->Finish();
 	FlushCommandQueue();
 
 	mScreenViewport.TopLeftX = 0;

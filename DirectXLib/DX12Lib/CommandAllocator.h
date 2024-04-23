@@ -35,15 +35,15 @@ public:
 	~CommandAllocatorPool();
 
 
-	CommandAllocator* RequestAllocator(uint64_t completedFenceValue);
-	void DiscardAllocator(uint64_t fenceValue, CommandAllocator* allocator);
+	CommandAllocator* RequestAllocator(UINT64 completedFenceValue);
+	void DiscardAllocator(UINT64 fenceValue, CommandAllocator* allocator);
 
 	inline size_t Size() const { return m_commandAllocatorPool.size(); }
 
 private:
 	const D3D12_COMMAND_LIST_TYPE m_type;
 	std::vector<CommandAllocator*> m_commandAllocatorPool;
-	std::queue<std::pair<uint64_t, CommandAllocator*>> m_availableCommandAllocators;
+	std::queue<std::pair<UINT64, CommandAllocator*>> m_availableCommandAllocators;
 	std::mutex m_cmdAllocatorMutex;
 };
 #endif // COMMAND_ALLOCATOR_H

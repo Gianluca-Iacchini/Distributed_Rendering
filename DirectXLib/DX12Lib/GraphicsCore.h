@@ -12,10 +12,7 @@ namespace Graphics
 {
 	extern DescriptorAllocator s_descriptorAllocators[];
 	extern std::shared_ptr<Device> s_device;
-	extern std::unique_ptr<CommandAllocatorPool> s_commandAllocatorPool;
 	extern std::unique_ptr<CommandQueueManager> s_commandQueueManager;
-	extern CommandAllocator* s_initCommandAllocator;
-	extern std::unique_ptr<CommandList> s_commandList;
 
 	bool Initialize();
 	void Shutdown();

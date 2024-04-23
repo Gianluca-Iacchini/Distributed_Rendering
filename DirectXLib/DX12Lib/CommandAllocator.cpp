@@ -29,14 +29,14 @@ CommandAllocatorPool::~CommandAllocatorPool()
 	m_commandAllocatorPool.clear();
 }
 
-CommandAllocator* CommandAllocatorPool::RequestAllocator(uint64_t completedFenceValue)
+CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceValue)
 {
 	std::lock_guard<std::mutex> lock(m_cmdAllocatorMutex);
 
 	// If allocator is in the pool then we check if it is ready to be reused, reset it and return it
 	if (!m_availableCommandAllocators.empty())
 	{
-		auto pair = m_availableCommandAllocators.front();
+		std::pair<UINT64, CommandAllocator*>& pair = m_availableCommandAllocators.front();
 
 		if (pair.first <= completedFenceValue)
 		{
@@ -55,7 +55,7 @@ CommandAllocator* CommandAllocatorPool::RequestAllocator(uint64_t completedFence
 	
 }
 
-void CommandAllocatorPool::DiscardAllocator(uint64_t fenceValue, CommandAllocator* allocator)
+void CommandAllocatorPool::DiscardAllocator(UINT64 fenceValue, CommandAllocator* allocator)
 {
 	std::lock_guard<std::mutex> lock(m_cmdAllocatorMutex);
 	

@@ -12,6 +12,7 @@ class Fence;
 class CommandAllocator;
 class CommandList;
 class Swapchain;
+class CommandContext;
 
 using Microsoft::WRL::ComPtr;
 class D3DApp
@@ -63,7 +64,7 @@ protected:
 protected:
 	static D3DApp* m_App;
 
-
+	CommandContext* context = nullptr;
 
 	HINSTANCE m_hAppInst = nullptr;
 	bool m_AppPaused = false;

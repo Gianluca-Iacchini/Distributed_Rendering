@@ -2,16 +2,21 @@
 #include "Device.h"
 #include "Fence.h"
 #include "mutex"
+#include "CommandAllocator.h"
+
 
 #ifndef COMMAND_QUEUE_H
 #define COMMAND_QUEUE_H
 
-class CommandList;
+#define OUT
 
+class CommandList;
 
 
 class CommandQueue
 {
+	friend class CommandQueueManager;
+
 public:
 	CommandQueue(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 	~CommandQueue();
@@ -25,10 +30,15 @@ public:
 	void Flush();
 	void WaitForFence(UINT64 fenceValue);
 	UINT64 GetFenceValue() { return m_fence->CurrentFenceValue; }
+	UINT64 GetGPUFenceValue() { return m_fence->GetGPUFenceValue(); }
+
+	CommandAllocator* RequestAllocator();
+	void DiscardAllocator(UINT64 fenceValue, CommandAllocator* allocator);
 
 private:
 	UINT64 ExecuteAndSignal(std::vector<CommandList*> cmdLists);
 
+	CommandAllocatorPool m_allocatorPool;
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
@@ -58,8 +68,11 @@ public:
 	CommandQueue& GetComputeQueue() { return m_computeQueue; }
 	CommandQueue& GetCopyQueue() { return m_copyQueue; }
 
+	void CreateCommandList(D3D12_COMMAND_LIST_TYPE type, OUT CommandList** cmdList, OUT CommandAllocator** cmdAllocator);
 
 private:
+
+
 
 	Device& m_device;
 

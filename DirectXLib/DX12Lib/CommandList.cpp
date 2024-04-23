@@ -14,7 +14,7 @@ CommandList::CommandList(Device& device, CommandAllocator& cmdAllocator, D3D12_C
 		pso = pipelineState->GetComPtr().Get();
 	}
 
-	ThrowIfFailed(device.GetComPtr()->CreateCommandList(0, cmdType, cmdAllocator.GetComPtr().Get(), pso, IID_PPV_ARGS(&m_commandList)));
+	ThrowIfFailed(device.GetComPtr()->CreateCommandList(0, cmdType, cmdAllocator.Get(), pso, IID_PPV_ARGS(&m_commandList)));
 }
 
 /// <summary>
@@ -30,7 +30,6 @@ void CommandList::Reset(CommandAllocator& cmdAllocator)
 	}
 
 	m_closed = false;
-	cmdAllocator.Reset();
 	ThrowIfFailed(m_commandList->Reset(cmdAllocator.Get(), pso));
 }
 
