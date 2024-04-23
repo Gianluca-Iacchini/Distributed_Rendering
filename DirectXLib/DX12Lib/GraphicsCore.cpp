@@ -5,6 +5,7 @@
 #include "CommandAllocator.h"
 #include "CommandQueue.h"
 #include "CommandList.h"
+#include "dxgidebug.h"
 
 using namespace Microsoft::WRL;
 
@@ -100,11 +101,16 @@ namespace Graphics
 
 		#ifdef _DEBUG
 			LogAdapters(factory);
+			ID3D12DebugDevice* debugDevice = nullptr;
+			if (SUCCEEDED(s_device->GetComPtr()->QueryInterface(&debugDevice)))
+			{
+				debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
+				debugDevice->Release();
+			}
 		#endif // _DEBUG
 
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
-
 		return true;
 	}
 

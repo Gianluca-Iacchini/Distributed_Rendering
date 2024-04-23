@@ -17,6 +17,8 @@ CommandAllocator::~CommandAllocator()
 CommandAllocatorPool::CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type)
 	: m_type(type)
 {
+	m_availableCommandAllocators = std::queue<std::pair<UINT64, CommandAllocator*>>();
+
 }
 
 CommandAllocatorPool::~CommandAllocatorPool()
@@ -29,6 +31,9 @@ CommandAllocatorPool::~CommandAllocatorPool()
 	m_commandAllocatorPool.clear();
 }
 
+#include <iostream>
+#include <chrono>
+
 CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceValue)
 {
 	std::lock_guard<std::mutex> lock(m_cmdAllocatorMutex);
@@ -36,11 +41,13 @@ CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceVa
 	// If allocator is in the pool then we check if it is ready to be reused, reset it and return it
 	if (!m_availableCommandAllocators.empty())
 	{
+
 		std::pair<UINT64, CommandAllocator*>& pair = m_availableCommandAllocators.front();
 
 		if (pair.first <= completedFenceValue)
 		{
-			auto allocator = pair.second;
+
+			CommandAllocator* allocator = pair.second;
 			allocator->Reset();
 			m_availableCommandAllocators.pop();
 
@@ -49,8 +56,9 @@ CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceVa
 	}
 
 	// Otherwise we create a new allocator and return it
-	auto cmdAllocator = new CommandAllocator(*(Graphics::s_device), m_type);
+	CommandAllocator* cmdAllocator = new CommandAllocator(*(Graphics::s_device), m_type);
 	m_commandAllocatorPool.push_back(cmdAllocator);
+
 	return cmdAllocator;
 	
 }

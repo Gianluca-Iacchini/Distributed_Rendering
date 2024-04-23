@@ -15,6 +15,7 @@
 #include "DX12Lib/DepthBuffer.h"
 #include "DX12Lib/GraphicsCore.h"
 #include "DX12Lib/CommandContext.h"
+#include <chrono>
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -213,10 +214,6 @@ public:
 
 		context->Reset();
 
-		//for (int i = 0; i < gNumFrameResources; ++i)
-		//{
-		//	m_frameResources.push_back(std::make_unique<FrameResource>(*s_device, mCurrentFence));
-		//}
 
 		BuildEmptyRootSignature();
 		BuildShadersAndInputLayout();
@@ -232,7 +229,7 @@ public:
 	virtual void Update(const GameTime& gt) override
 	{
 
-
+		auto start = std::chrono::high_resolution_clock::now();
 		auto kbState = keyboard.GetState();
 		tracker.Update(kbState);
 
@@ -249,13 +246,12 @@ public:
 		//{
 		//	s_commandQueueManager->GetGraphicsQueue().WaitForFence(m_currentFrameResource->Fence);
 		//}
+
 	}
 
 	virtual void Draw(const GameTime& gt) override
 	{
-
 		context->Reset();
-
 
 		context->m_commandList->GetComPtr()->RSSetViewports(1, &mScreenViewport);
 		context->m_commandList->GetComPtr()->RSSetScissorRects(1, &mScissorRect);
@@ -289,8 +285,14 @@ public:
 
 		context->Finish();
 
+
+
 		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0,0));
+
+
+
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
+
 
 	}
 };

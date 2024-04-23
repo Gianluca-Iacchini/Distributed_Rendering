@@ -15,6 +15,7 @@
 #include "ColorBuffer.h"
 #include "DepthBuffer.h"
 #include "CommandContext.h"
+#include <chrono>
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
@@ -83,29 +84,39 @@ int D3DApp::Run()
 
 	m_Time.Reset();
 
-	while (msg.message != WM_QUIT)
+	bool isDone = false;
+
+	while (!isDone)
 	{
 		// If there are Window messages then process them.
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
+
+			if (msg.message == WM_QUIT)
+				isDone = true;
 		}
 		// Otherwise, do animation/game stuff.
-		else
-		{
-			m_Time.Tick();
 
-			if (!m_AppPaused)
-			{
-				CalculateFrameStats();
-				Update(m_Time);
-				Draw(m_Time);
-			}
-			else
-			{
-				Sleep(100);
-			}
+		float startFrame = m_Time.TotalTime();
+
+		m_Time.Tick();
+
+		CalculateFrameStats();
+		Update(m_Time);
+		Draw(m_Time);
+
+		float endFrame = m_Time.TotalTime();
+
+		float elapsedTime = endFrame - startFrame;
+
+		float sleepTime = (1.f / 200.f) - elapsedTime;
+
+		if (sleepTime > 0.0f)
+		{
+			
+			Sleep(static_cast<DWORD>(sleepTime * 1000));
 		}
 	}
 
@@ -114,6 +125,8 @@ int D3DApp::Run()
 
 bool D3DApp::Initialize()
 {
+	m_initalTime = std::chrono::high_resolution_clock::now();
+
 	if (!InitConsole())
 		return false;
 
@@ -255,24 +268,46 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::DepthStencilView() const
 void D3DApp::CalculateFrameStats()
 {
 	static int frameCount = 0;
-	static float timeElapsed = 0.0f;
+	static double timeElapsed = 0.0f;
 
 	frameCount++;
 
-	if (m_Time.TotalTime() - timeElapsed >= 1.0f)
+	auto frameTime = std::chrono::high_resolution_clock::now();
+	double elapsedSeconds = std::chrono::duration<double>(frameTime - m_initalTime).count();
+
+	if (elapsedSeconds >= 1.0)
 	{
-		float fps = (float)frameCount;
-		float mspf = 1000.0f / fps;
+		
+			float fps = (float)frameCount;
+			float mspf = 1000.0f / fps;
 
-		std::wstring fpsStr = std::to_wstring(fps);
-		std::wstring mspfStr = std::to_wstring(mspf);
+			std::wstring fpsStr = std::to_wstring(fps);
+			std::wstring mspfStr = std::to_wstring(mspf);
 
-		std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
+			std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
 
-		SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
+			SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
 
-		frameCount = 0;
+			frameCount = 0;
 
-		timeElapsed += 1.0f;
+			m_initalTime = frameTime;
 	}
+
+	//if ((frameTime - m_initalTime).count() - timeElapsed >= 1.0f)
+	//{
+	//	float fps = (float)frameCount;
+	//	float mspf = 1000.0f / fps;
+
+	//	std::wstring fpsStr = std::to_wstring(fps);
+	//	std::wstring mspfStr = std::to_wstring(mspf);
+
+	//	std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
+
+	//	SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
+
+	//	frameCount = 0;
+
+	//	timeElapsed += 1.0f;
+	//}
 }
+

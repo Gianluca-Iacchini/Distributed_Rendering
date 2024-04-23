@@ -13,6 +13,8 @@ public:
 	void Stop();
 	void Tick();
 
+	float GetInstantTime() const;
+
 private:
 	double m_SecondsPerCount;
 	double m_DeltaTime;

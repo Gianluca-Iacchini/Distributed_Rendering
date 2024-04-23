@@ -62,6 +62,8 @@ protected:
 	void CalculateFrameStats();
 
 protected:
+	void SetMsAsTitle(float ms);
+
 	static D3DApp* m_App;
 
 	CommandContext* context = nullptr;
@@ -97,4 +99,6 @@ protected:
 	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	int mClientWidth = 1920;
 	int mClientHeight = 1080;
+
+	std::chrono::high_resolution_clock::time_point m_initalTime;
 };

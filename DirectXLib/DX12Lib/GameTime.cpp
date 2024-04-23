@@ -87,3 +87,11 @@ void GameTime::Tick()
 		m_DeltaTime = 0.0;
 	}
 }
+
+float GameTime::GetInstantTime() const
+{
+	__int64 currTime;
+	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+
+	return static_cast<float>((currTime - m_BaseTime) * m_SecondsPerCount);
+}

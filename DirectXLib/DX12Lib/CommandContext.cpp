@@ -38,8 +38,8 @@ void CommandContext::Reset()
 void CommandContext::Finish()
 {
 	CommandQueue& queue = Graphics::s_commandQueueManager->GetGraphicsQueue();
-	UINT64 fenceValue = queue.ExecuteCommandList(*m_commandList);
 
+	UINT64 fenceValue = queue.ExecuteCommandList(*m_commandList);
 	queue.DiscardAllocator(fenceValue, m_currentAllocator);
 	m_currentAllocator = nullptr;
 }
