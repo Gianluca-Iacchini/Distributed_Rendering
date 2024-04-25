@@ -7,7 +7,7 @@ using namespace Microsoft::WRL;
 Shader::Shader(const std::wstring& shaderFilePath, const std::string& entryPoint, const std::string& shaderTarget)
 	: m_shaderFilePath(shaderFilePath), m_entryPoint(entryPoint), m_shaderTarget(shaderTarget)
 {
-	std::cout << SOURCE_DIR << std::endl;
+
 }
 
 Shader::~Shader()

@@ -77,23 +77,13 @@ class AppTest : public D3DApp
 
 	VertexResourceData m_vertexData;
 
-	std::unordered_map<std::string, ComPtr<ID3D10Blob>> m_shaders;
-
 	Keyboard keyboard;
 	DirectX::Keyboard::KeyboardStateTracker tracker;
 
-	RootSignature m_rootSignature;
-	ComPtr<ID3D12PipelineState> m_pipelineState;
-	//PipelineState m_pipelieState;
+	std::shared_ptr<RootSignature> m_rootSignature;
+	PipelineState m_pipelineState;
 
-	//std::vector<std::unique_ptr<FrameResource>> m_frameResources;
-
-	//FrameResource* m_currentFrameResource = nullptr;
-
-	//UINT m_currentFrameResourceIndex = 0;
-	//UINT gNumFrameResources = 3;
-
-	//std::unordered_map<std::string, std::shared_ptr<Shader>> m_shaders;
+	std::unordered_map<std::string, std::shared_ptr<Shader>> mp_shaders;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
@@ -115,8 +105,14 @@ public:
 		std::wstring srcDir = ToWstring(SOURCE_DIR);
 		std::wstring shaderFile = srcDir + L"\\Shaders\\Basic.hlsl";
 
-		m_shaders["basicVS"] = Utils::Compile(shaderFile, nullptr, "VS", "vs_5_1");
-		m_shaders["basicPS"] = Utils::Compile(shaderFile, nullptr, "PS", "ps_5_1");
+		std::shared_ptr<Shader> vertexShader = std::make_shared<Shader>(shaderFile, "VS", "vs_5_1");
+		std::shared_ptr<Shader> pixelShader = std::make_shared<Shader>(shaderFile, "PS", "ps_5_1");
+
+		vertexShader->Compile();
+		pixelShader->Compile();
+
+		mp_shaders["basicVS"] = std::move(vertexShader);
+		mp_shaders["basicPS"] = std::move(pixelShader);
 
 		m_inputLayout =
 		{
@@ -131,39 +127,23 @@ public:
 		RootParameter constantRoot = RootParameter();
 		constantRoot.InitAsConstants(0, 1);
 
-		m_rootSignature = RootSignature(1, 0);
-		m_rootSignature[0] = constantRoot;
-		m_rootSignature.Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		m_rootSignature = std::make_shared<RootSignature>(1, 0);
+		(*m_rootSignature)[0] = constantRoot;
+		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	}
 
 	void BuildPSO()
 	{
-		//m_pipelieState = PipelineState();
-		//m_pipelieState.InitializeDefaultStates();
-		//m_pipelieState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		//m_pipelieState.SetShader(m_shaders["basicVS"], ShaderType::Vertex);
-		//m_pipelieState.SetShader(m_shaders["basicPS"], ShaderType::Pixel);
+		m_pipelineState = PipelineState();
+		m_pipelineState.InitializeDefaultStates();
+		m_pipelineState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		m_pipelineState.SetShader(mp_shaders["basicVS"], ShaderType::Vertex);
+		m_pipelineState.SetShader(mp_shaders["basicPS"], ShaderType::Pixel);
+		m_pipelineState.SetInputLayout(m_inputLayout);
+		m_pipelineState.SetRootSignature(m_rootSignature);
+		m_pipelineState.SetRenderTargetFormat(mBackBufferFormat, mDepthStencilFormat, 1, 0);
 
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-
-		psoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size()};
-		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = { reinterpret_cast<BYTE*>(m_shaders["basicVS"]->GetBufferPointer()), m_shaders["basicVS"]->GetBufferSize() };
-		psoDesc.PS = { reinterpret_cast<BYTE*>(m_shaders["basicPS"]->GetBufferPointer()), m_shaders["basicPS"]->GetBufferSize() };
-		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-		psoDesc.SampleMask = UINT_MAX;
-		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = mBackBufferFormat;
-		psoDesc.SampleDesc.Count = m_4xMsaaState ? 4 : 1;
-		psoDesc.SampleDesc.Quality = m_4xMsaaState ? (m_4xMsaaQuality - 1) : 0;
-		psoDesc.DSVFormat = mDepthStencilFormat;
-
-		ThrowIfFailed(s_device->GetComPtr()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
-	
+		m_pipelineState.Finalize();
 	}
 
 	void BuildVertexData()
@@ -249,7 +229,7 @@ public:
 
 		context->m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature.Get());
+		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature->Get());
 
 		float time = gt.TotalTime();
 
