@@ -15,7 +15,7 @@
 #include "DX12Lib/DepthBuffer.h"
 #include "DX12Lib/GraphicsCore.h"
 #include "DX12Lib/CommandContext.h"
-#include <chrono>
+#include "DX12Lib/RootSignature.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -77,13 +77,14 @@ class AppTest : public D3DApp
 
 	VertexResourceData m_vertexData;
 
-	std::unordered_map<std::string, std::shared_ptr<Shader>> mp_shaders;
+	std::unordered_map<std::string, ComPtr<ID3D10Blob>> m_shaders;
 
 	Keyboard keyboard;
 	DirectX::Keyboard::KeyboardStateTracker tracker;
 
-	ComPtr<ID3D12RootSignature> m_rootSignature;
+	RootSignature m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
+	//PipelineState m_pipelieState;
 
 	//std::vector<std::unique_ptr<FrameResource>> m_frameResources;
 
@@ -92,10 +93,11 @@ class AppTest : public D3DApp
 	//UINT m_currentFrameResourceIndex = 0;
 	//UINT gNumFrameResources = 3;
 
-	std::unordered_map<std::string, ComPtr<ID3D10Blob>> m_shaders;
+	//std::unordered_map<std::string, std::shared_ptr<Shader>> m_shaders;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
+	UINT64 frameFences[3] = { 0, 0, 0 };
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -126,38 +128,22 @@ public:
 
 	void BuildEmptyRootSignature()
 	{
-		CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+		RootParameter constantRoot = RootParameter();
+		constantRoot.InitAsConstants(0, 1);
 
-		// Create a single descriptor table of CBVs.
-		CD3DX12_DESCRIPTOR_RANGE cbvTable;
-		cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-		slotRootParameter[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_ALL);
-
-		// A root signature is an array of root parameters.
-		CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(1, slotRootParameter, 0, nullptr,
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-		// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-		ComPtr<ID3DBlob> serializedRootSig = nullptr;
-		ComPtr<ID3DBlob> errorBlob = nullptr;
-		HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-			serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
-
-		if (errorBlob != nullptr)
-		{
-			::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-		}
-		ThrowIfFailed(hr);
-
-		ThrowIfFailed(s_device->GetComPtr()->CreateRootSignature(
-			0,
-			serializedRootSig->GetBufferPointer(),
-			serializedRootSig->GetBufferSize(),
-			IID_PPV_ARGS(&m_rootSignature)));
+		m_rootSignature = RootSignature(1, 0);
+		m_rootSignature[0] = constantRoot;
+		m_rootSignature.Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	}
 
 	void BuildPSO()
 	{
+		//m_pipelieState = PipelineState();
+		//m_pipelieState.InitializeDefaultStates();
+		//m_pipelieState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		//m_pipelieState.SetShader(m_shaders["basicVS"], ShaderType::Vertex);
+		//m_pipelieState.SetShader(m_shaders["basicPS"], ShaderType::Pixel);
+
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 
@@ -238,15 +224,12 @@ public:
 			PostQuitMessage(0);
 		}
 
+		UINT64 currentFrame = frameFences[m_swapchain->CurrentBufferIndex];
 
-		//m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % gNumFrameResources;
-		//m_currentFrameResource = m_frameResources[m_currentFrameResourceIndex].get();
-
-		//if (m_currentFrameResource->Fence != 0)
-		//{
-		//	s_commandQueueManager->GetGraphicsQueue().WaitForFence(m_currentFrameResource->Fence);
-		//}
-
+		if (currentFrame != 0)
+		{
+			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
+		}
 	}
 
 	virtual void Draw(const GameTime& gt) override
@@ -256,7 +239,7 @@ public:
 		context->m_commandList->GetComPtr()->RSSetViewports(1, &mScreenViewport);
 		context->m_commandList->GetComPtr()->RSSetScissorRects(1, &mScissorRect);
 
-		context->m_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
 		float clearDepth = m_depthStencilBuffer->GetClearDepth();
 		float clearStencil = m_depthStencilBuffer->GetClearStencil();
@@ -280,20 +263,15 @@ public:
 
 		context->m_commandList->GetComPtr()->DrawIndexedInstanced(3, 1, 0, 0, 0);
 
-		context->m_commandList->TransitionResource(CurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
+
+		frameFences[m_swapchain->CurrentBufferIndex] = context->Finish();
 
 
-		context->Finish();
 
-
-
-		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0,0));
-
-
+		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0, DXGI_PRESENT_ALLOW_TEARING));
 
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
-
-
 	}
 };
 

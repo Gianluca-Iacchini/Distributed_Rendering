@@ -24,7 +24,7 @@ Swapchain::Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat) :
 	m_swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	m_swapchainDesc.Scaling = DXGI_SCALING_STRETCH;
 	m_swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	m_swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	m_swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
 }
 
@@ -57,7 +57,7 @@ void Swapchain::Resize(UINT width, UINT height)
 	}
 
 	ThrowIfFailed(m_swapchain->ResizeBuffers(BufferCount, width, height, 
-		m_backBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+		m_backBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING));
 
 	for (int i = 0; i < BufferCount; i++)
 	{

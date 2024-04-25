@@ -6,6 +6,8 @@
 
 class Resource
 {
+	friend class CommandContext;
+
 public:
 	Resource() : 
 		m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN), 

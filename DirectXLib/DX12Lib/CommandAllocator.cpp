@@ -32,7 +32,6 @@ CommandAllocatorPool::~CommandAllocatorPool()
 }
 
 #include <iostream>
-#include <chrono>
 
 CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceValue)
 {

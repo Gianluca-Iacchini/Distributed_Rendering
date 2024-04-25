@@ -116,7 +116,7 @@ namespace Graphics
 
 	void Shutdown()
 	{
-
+		s_device = nullptr;
 	}
 }
 

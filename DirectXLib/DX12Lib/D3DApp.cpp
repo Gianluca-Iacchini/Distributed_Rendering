@@ -112,12 +112,6 @@ int D3DApp::Run()
 		float elapsedTime = endFrame - startFrame;
 
 		float sleepTime = (1.f / 200.f) - elapsedTime;
-
-		if (sleepTime > 0.0f)
-		{
-			
-			Sleep(static_cast<DWORD>(sleepTime * 1000));
-		}
 	}
 
 	return static_cast<int>(msg.wParam);
@@ -166,10 +160,7 @@ void D3DApp::OnResize()
 	m_depthStencilBuffer->GetComPtr().Reset();
 	m_depthStencilBuffer->Create(mClientWidth, mClientHeight, mDepthStencilFormat);
 
-
-
-	//auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	context->m_commandList->TransitionResource(m_depthStencilBuffer->Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	context->TransitionResource(*m_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 
 	
 	context->Finish();
@@ -250,9 +241,9 @@ void D3DApp::FlushCommandQueue()
 	s_commandQueueManager->GetGraphicsQueue().Flush();
 }
 
-ComPtr<ID3D12Resource> D3DApp::CurrentBackBuffer() const
+ColorBuffer& D3DApp::CurrentBackBuffer() const
 {
-	return m_swapchain->GetCurrentBackBuffer().Get();
+	return m_swapchain->GetCurrentBackBuffer();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::CurrentBackBufferView() const
@@ -292,22 +283,5 @@ void D3DApp::CalculateFrameStats()
 
 			m_initalTime = frameTime;
 	}
-
-	//if ((frameTime - m_initalTime).count() - timeElapsed >= 1.0f)
-	//{
-	//	float fps = (float)frameCount;
-	//	float mspf = 1000.0f / fps;
-
-	//	std::wstring fpsStr = std::to_wstring(fps);
-	//	std::wstring mspfStr = std::to_wstring(mspf);
-
-	//	std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
-
-	//	SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
-
-	//	frameCount = 0;
-
-	//	timeElapsed += 1.0f;
-	//}
 }
 

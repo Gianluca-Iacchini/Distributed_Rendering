@@ -5,6 +5,7 @@
 
 #include <wrl.h>
 
+class ColorBuffer;
 class DepthBuffer;
 class DX12Window;
 class Device;
@@ -55,7 +56,7 @@ protected:
 	void CreateSwapChain();
 	void FlushCommandQueue();
 
-	ComPtr<ID3D12Resource> CurrentBackBuffer() const;
+	ColorBuffer& CurrentBackBuffer() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
