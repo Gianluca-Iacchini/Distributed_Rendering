@@ -7,12 +7,14 @@ class CommandAllocatorPool;
 class CommandQueueManager;
 class CommandAllocator;
 class CommandList;
+class CommandContextManager;
 
 namespace Graphics
 {
 	extern DescriptorAllocator s_descriptorAllocators[];
 	extern std::shared_ptr<Device> s_device;
 	extern std::unique_ptr<CommandQueueManager> s_commandQueueManager;
+	extern std::unique_ptr<CommandContextManager> s_commandContextManager;
 
 	bool Initialize();
 	void Shutdown();

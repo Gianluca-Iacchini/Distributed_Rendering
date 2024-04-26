@@ -21,11 +21,11 @@ public:
 		m_nextState((D3D12_RESOURCE_STATES)-1)
 	{}
 
-	~Resource() { Destroy(); }
+	~Resource() { OnDestroy(); }
 
 	D3D12_RESOURCE_DESC GetDesc() const { return m_resource->GetDesc(); }
 
-	virtual void Destroy()
+	virtual void OnDestroy()
 	{
 		m_resource = nullptr;
 		m_gpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;

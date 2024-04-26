@@ -67,6 +67,20 @@ public:
 	CommandQueue& GetGraphicsQueue() { return m_graphicsQueue; }
 	CommandQueue& GetComputeQueue() { return m_computeQueue; }
 	CommandQueue& GetCopyQueue() { return m_copyQueue; }
+	CommandQueue& GetQueue(D3D12_COMMAND_LIST_TYPE type) 
+	{
+		switch (type)
+		{
+		case D3D12_COMMAND_LIST_TYPE_DIRECT:
+			return m_graphicsQueue;
+		case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+			return m_computeQueue;
+		case D3D12_COMMAND_LIST_TYPE_COPY:
+			return m_copyQueue;
+		default:
+			return m_graphicsQueue;
+		}
+	};
 
 	void CreateCommandList(D3D12_COMMAND_LIST_TYPE type, OUT CommandList** cmdList, OUT CommandAllocator** cmdAllocator);
 

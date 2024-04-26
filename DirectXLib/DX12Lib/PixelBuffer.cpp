@@ -41,7 +41,7 @@ void PixelBuffer::AssociateWithResource(Microsoft::WRL::ComPtr<ID3D12Resource> r
 
 void PixelBuffer::CreateTextureResource(Device& device, const D3D12_RESOURCE_DESC& resourceDesc, D3D12_CLEAR_VALUE clearValue)
 {
-    Destroy();
+    OnDestroy();
 
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
     ThrowIfFailed(device->CreateCommittedResource(&heapProps, 

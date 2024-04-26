@@ -40,9 +40,6 @@ D3DApp::~D3DApp()
 	FlushCommandQueue();
 	
 	Graphics::Shutdown();
-
-	if (context != nullptr)
-		delete context;
 }
 
 HINSTANCE D3DApp::AppInst() const
@@ -130,9 +127,6 @@ bool D3DApp::Initialize()
 	if (!InitDirect3D())
 		return false;
 
-	context = new CommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	context->Initialize();
-
 	// Do the initial resize code.
 	OnResize();
 
@@ -148,7 +142,7 @@ void D3DApp::OnResize()
 
 
 
-
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	m_swapchain->Resize(mClientWidth, mClientHeight);
 
@@ -163,8 +157,7 @@ void D3DApp::OnResize()
 	context->TransitionResource(*m_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 
 	
-	context->Finish();
-	FlushCommandQueue();
+	context->Finish(true);
 
 	mScreenViewport.TopLeftX = 0;
 	mScreenViewport.TopLeftY = 0;

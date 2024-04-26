@@ -16,6 +16,7 @@
 #include "DX12Lib/GraphicsCore.h"
 #include "DX12Lib/CommandContext.h"
 #include "DX12Lib/RootSignature.h"
+#include "DX12Lib/CommandContext.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -146,7 +147,7 @@ public:
 		m_pipelineState.Finalize();
 	}
 
-	void BuildVertexData()
+	void BuildVertexData(CommandContext* context)
 	{
 		std::uint16_t triangleIndices[3] = { 0, 1, 2 };
 
@@ -178,16 +179,15 @@ public:
 		if (!D3DApp::Initialize())
 			return false;
 
-		context->Reset();
+		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 
 		BuildEmptyRootSignature();
 		BuildShadersAndInputLayout();
 		BuildPSO();
-		BuildVertexData();
+		BuildVertexData(context);
 
-		context->Finish();
-		FlushCommandQueue();
+		context->Finish(true);
 
 		return true;
 	}
@@ -214,7 +214,7 @@ public:
 
 	virtual void Draw(const GameTime& gt) override
 	{
-		context->Reset();
+		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		context->m_commandList->GetComPtr()->RSSetViewports(1, &mScreenViewport);
 		context->m_commandList->GetComPtr()->RSSetScissorRects(1, &mScissorRect);

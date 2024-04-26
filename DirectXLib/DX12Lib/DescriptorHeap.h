@@ -97,6 +97,7 @@ public:
 
 	bool ValidateHandle(const DescriptorHandle& handle) const;
 
+
 	uint32_t GetDescriptorSize() const { return m_descriptorSize; }
 
 private:

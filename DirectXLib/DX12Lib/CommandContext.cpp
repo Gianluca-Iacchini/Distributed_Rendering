@@ -6,7 +6,11 @@
 #include "Resource.h"
 
 
+using namespace Microsoft::WRL;
+using namespace Graphics;
+
 CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
+	: m_type(type), m_resourceBarrier{}
 {
 	m_currentAllocator = nullptr;
 	m_commandList = nullptr;
@@ -19,13 +23,13 @@ CommandContext::~CommandContext()
 	
 	if (m_currentAllocator != nullptr)
 	{
-		Graphics::s_commandQueueManager->GetGraphicsQueue().DiscardAllocator(0, m_currentAllocator);
+		s_commandQueueManager->GetGraphicsQueue().DiscardAllocator(0, m_currentAllocator);
 	}
 }
 
 void CommandContext::Initialize()
 {
-	Graphics::s_commandQueueManager->CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, &m_commandList, &m_currentAllocator);
+	s_commandQueueManager->CreateCommandList(m_type, &m_commandList, &m_currentAllocator);
 }
 
 #include <iostream>
@@ -73,21 +77,96 @@ void CommandContext::FlushResourceBarriers()
 	}
 }
 
-void CommandContext::Reset()
+void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])
 {
-	m_currentAllocator = Graphics::s_commandQueueManager->GetGraphicsQueue().RequestAllocator();
-	m_commandList->Reset(*m_currentAllocator);
+	auto context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_COPY);
 
+	assert(false);
+	UpdateSubresources(context->m_commandList->Get(), dest.Get(), dest.Get(), 0, 0, numSubresources, subresources);
+
+	context->TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	context->Finish(true);
 }
 
-UINT64 CommandContext::Finish()
+void CommandContext::Reset()
 {
-	CommandQueue& queue = Graphics::s_commandQueueManager->GetGraphicsQueue();
+	m_currentAllocator = s_commandQueueManager->GetGraphicsQueue().RequestAllocator();
+	m_commandList->Reset(*m_currentAllocator);
+	m_numBarriersToFlush = 0;
+}
+
+UINT64 CommandContext::Flush(bool waitForCompletion)
+{
+	CommandQueue& queue = s_commandQueueManager->GetQueue(m_type);
+
+	UINT64 fenceValue = queue.ExecuteCommandList(*m_commandList);
+
+	if (waitForCompletion)
+		queue.WaitForFence(fenceValue);
+
+	m_commandList->Reset(*m_currentAllocator);
+
+	return fenceValue;
+}
+
+UINT64 CommandContext::Finish(bool waitForCompletion)
+{
+	CommandQueue& queue = s_commandQueueManager->GetQueue(m_type);
 
 	UINT64 fenceValue = queue.ExecuteCommandList(*m_commandList);
 	queue.DiscardAllocator(fenceValue, m_currentAllocator);
 	m_currentAllocator = nullptr;
 
+	if (waitForCompletion)
+		queue.WaitForFence(fenceValue);
+
+	s_commandContextManager->FreeContext(this);
+
 	return fenceValue;
 }
 
+CommandContext* CommandContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE type)
+{
+	std::lock_guard<std::mutex> lock(m_contextAllocationMutex);
+
+	auto& availableContexts = m_availableContexts[type];
+	
+	CommandContext* context = nullptr;
+
+	if (availableContexts.empty())
+	{
+		context = new CommandContext(type);
+		m_contextPool[type].emplace_back(context);
+		context->Initialize();
+		return context;
+	}
+
+	context = availableContexts.front();
+	availableContexts.pop();
+
+	assert(context != nullptr && "Context is null");
+
+	context->Reset();
+
+	return context;
+}
+
+void CommandContextManager::FreeContext(CommandContext* usedContext)
+{
+	assert(usedContext != nullptr && "Used context is null");
+	std::lock_guard<std::mutex> lock(m_contextAllocationMutex);
+	m_availableContexts[usedContext->m_type].push(usedContext);
+}
+
+void CommandContextManager::DestroyAllContexts()
+{
+	// LinearAllocator DestroyAll
+	// DynamicDescriptorHeap DestroyAll
+	
+	for (uint32_t i = 0; i < 4; ++i)
+	{
+		m_contextPool[i].clear();
+	}
+
+}

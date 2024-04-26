@@ -6,6 +6,7 @@
 #include "CommandQueue.h"
 #include "CommandList.h"
 #include "dxgidebug.h"
+#include "CommandContext.h"
 
 using namespace Microsoft::WRL;
 
@@ -22,6 +23,8 @@ namespace Graphics
 	std::shared_ptr<Device> Graphics::s_device = nullptr;
 
 	std::unique_ptr<CommandQueueManager> Graphics::s_commandQueueManager = nullptr;
+
+	std::unique_ptr<CommandContextManager> s_commandContextManager = nullptr;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -111,12 +114,16 @@ namespace Graphics
 
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
+			s_commandContextManager = std::make_unique<CommandContextManager>();
+
 		return true;
 	}
 
 	void Shutdown()
 	{
 		s_device = nullptr;
+		s_commandQueueManager = nullptr;
+		s_commandContextManager = nullptr;
 	}
 }
 
