@@ -1,6 +1,7 @@
 #ifndef  GRAPHICS_CORE_H
 #define GRAPHICS_CORE_H
 #include "DX12Lib/DescriptorHeap.h"
+#include "GraphicsMemory.h"
 
 class Device;
 class CommandAllocatorPool;
@@ -15,6 +16,7 @@ namespace Graphics
 	extern std::shared_ptr<Device> s_device;
 	extern std::unique_ptr<CommandQueueManager> s_commandQueueManager;
 	extern std::unique_ptr<CommandContextManager> s_commandContextManager;
+	extern std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory;
 
 	bool Initialize();
 	void Shutdown();

@@ -17,6 +17,8 @@
 #include "DX12Lib/CommandContext.h"
 #include "DX12Lib/RootSignature.h"
 #include "DX12Lib/CommandContext.h"
+#include "DX12Lib/Texture.h"
+#include <fstream>
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -187,6 +189,7 @@ public:
 		BuildPSO();
 		BuildVertexData(context);
 
+
 		context->Finish(true);
 
 		return true;
@@ -247,9 +250,9 @@ public:
 
 		frameFences[m_swapchain->CurrentBufferIndex] = context->Finish();
 
-
-
 		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0, DXGI_PRESENT_ALLOW_TEARING));
+		
+		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
 	}

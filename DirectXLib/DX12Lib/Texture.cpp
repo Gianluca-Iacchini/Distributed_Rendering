@@ -1,5 +1,7 @@
 #include "Texture.h"
 #include "GraphicsCore.h"
+#include "CommandContext.h"
+#include <iostream>
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
@@ -26,7 +28,7 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-    D3D12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
     ThrowIfFailed(s_device->GetComPtr()->CreateCommittedResource(
 		&heapProps,
@@ -41,7 +43,7 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
     texResourceData.RowPitch = rowPitchBytes;
     texResourceData.SlicePitch = rowPitchBytes * Height;
 
-    // Update subresources;
+    CommandContext::InitializeTexture(*this, 1, &texResourceData);
 
     if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
     {
@@ -98,6 +100,8 @@ void Texture::CreateFromTGAMemory(const void* _filePtr, bool sRGB)
         }
         break;
     }
+
+    std::cout << "Image width: " << imageWidth << "Image height: " << imageHeight << std::endl;
 
     Create2D(4 * imageWidth, imageWidth, imageHeight, sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, formattedData);
 

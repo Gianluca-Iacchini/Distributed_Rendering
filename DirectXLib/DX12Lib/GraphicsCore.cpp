@@ -8,6 +8,7 @@
 #include "dxgidebug.h"
 #include "CommandContext.h"
 
+
 using namespace Microsoft::WRL;
 
 namespace Graphics
@@ -25,6 +26,8 @@ namespace Graphics
 	std::unique_ptr<CommandQueueManager> Graphics::s_commandQueueManager = nullptr;
 
 	std::unique_ptr<CommandContextManager> s_commandContextManager = nullptr;
+
+	std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory = nullptr;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -115,6 +118,7 @@ namespace Graphics
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
 			s_commandContextManager = std::make_unique<CommandContextManager>();
+			s_graphicsMemory = std::make_unique<DirectX::GraphicsMemory>(*s_device);
 
 		return true;
 	}
@@ -124,6 +128,7 @@ namespace Graphics
 		s_device = nullptr;
 		s_commandQueueManager = nullptr;
 		s_commandContextManager = nullptr;
+		s_graphicsMemory = nullptr;
 	}
 }
 

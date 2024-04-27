@@ -4,6 +4,7 @@
 #include "CommandAllocator.h"
 #include "GraphicsCore.h"
 #include "Resource.h"
+#include "GraphicsMemory.h"
 
 
 using namespace Microsoft::WRL;
@@ -77,12 +78,19 @@ void CommandContext::FlushResourceBarriers()
 	}
 }
 
+void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
+{
+	s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
+}
+
 void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])
 {
+	UINT64 uploadBufferSize = GetRequiredIntermediateSize(dest.Get(), 0, numSubresources);
+
 	auto context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_COPY);
 
-	assert(false);
-	UpdateSubresources(context->m_commandList->Get(), dest.Get(), dest.Get(), 0, 0, numSubresources, subresources);
+	DirectX::GraphicsResource uploadBuffer = s_graphicsMemory->Allocate(uploadBufferSize);
+	UpdateSubresources(context->m_commandList->Get(), uploadBuffer.Resource(), dest.Get(), 0, 0, numSubresources, subresources);
 
 	context->TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ);
 
