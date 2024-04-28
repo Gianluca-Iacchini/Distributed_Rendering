@@ -1,4 +1,29 @@
-float gTime : register(b0);
+cbuffer Commons : register(b0)
+{
+    float4x4 view : packoffset(c0);
+    float4x4 invView : packoffset(c4);
+    float4x4 proj : packoffset(c8);
+    float4x4 invProj : packoffset(c12);
+    float4x4 viewProj : packoffset(c16);
+    float4x4 invViewProj : packoffset(c20);
+    float3 eyePos : packoffset(c24);
+    float nearPlane : packoffset(c24.w);
+    float2 renderTargetSize : packoffset(c25);
+    float2 invRenderTargetSize : packoffset(c25.z);
+
+    float farPlane : packoffset(c26);
+    float totalTime : packoffset(c26.y);
+    float deltaTime : packoffset(c26.z);
+};
+
+cbuffer Object : register(b1)
+{
+    float4x4 world : packoffset(c0);
+    float4x4 invWorld : packoffset(c4);
+    float4x4 texTransform : packoffset(c8);
+    uint materialIndex : packoffset(c12);
+};
+
 Texture2D gTex : register(t0);
 
 SamplerState gSampler : register(s0);
@@ -20,16 +45,22 @@ struct VertexOut
 VertexOut VS(VertexIn vIn)
 {   
     VertexOut vOut;
-    vOut.PosH = float4(vIn.PosL, 1.0f);
-    vOut.PosH.x += 0.5f * sin(gTime);
-    vOut.PosH.y += 0.5f * cos(gTime);
+    float3 sinCos = float3(sin(totalTime), cos(totalTime), sin(totalTime)) * 0.5f;
+    float4 posW = mul(float4(vIn.PosL + sinCos, 1.0f), world);
+    vOut.PosH = mul(posW, viewProj);
     vOut.Tex = vIn.Tex;
     vOut.Color = vIn.Color;
+    
+    //vOut.PosH = float4(vIn.PosL, 1.0f);
+    //vOut.PosH.x += 0.5f * sin(totalTime);
+    //vOut.PosH.y += 0.5f * cos(totalTime);
+    //vOut.Tex = vIn.Tex;
+    //vOut.Color = vIn.Color;
     return vOut;
 }
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
-    //return float4(pIn.Tex, 1.0f, 1.0f);
+    //return float4(, 0.0f, 0.0f, 1.0f);
     return gTex.Sample(gSampler, pIn.Tex);
 }

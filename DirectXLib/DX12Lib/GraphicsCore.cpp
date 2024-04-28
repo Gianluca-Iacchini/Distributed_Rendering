@@ -32,6 +32,8 @@ namespace Graphics
 
 	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings = nullptr;
 
+	extern std::unique_ptr<DirectX::Mouse> s_mouse = nullptr;
+
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
 		UINT i = 0;

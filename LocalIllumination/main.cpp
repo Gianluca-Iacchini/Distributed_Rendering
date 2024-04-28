@@ -23,6 +23,9 @@
 #include "DX12Lib/SamplerDesc.h"
 #include "GraphicsMemory.h"
 #include "GeometricPrimitive.h"
+#include "DX12Lib/CommonConstants.h"
+#include "DX12Lib/Camera.h"
+#include "Mouse.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -79,10 +82,11 @@ class AppTest : public D3DApp
 {
 	Vertex quadVertices[4] =
 	{
+		// Front face
 		{ XMFLOAT3(-1.f, -1.f, 0.0f), XMFLOAT2(0.0, 1.0f) ,XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
 		{ XMFLOAT3(1.f, -1.f, 0.0f), XMFLOAT2(1.f, 1.f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
 		{ XMFLOAT3(-1.f, 1.f, 0.0f), XMFLOAT2(0.f, 0.f) ,XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
-		{ XMFLOAT3(1.f, 1.f, 0.0f), XMFLOAT2(1.f, 0.f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)}
+		{ XMFLOAT3(1.f, 1.f, 0.0f), XMFLOAT2(1.f, 0.f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)},
 	};
 
 	VertexResourceData m_vertexData;
@@ -103,6 +107,17 @@ class AppTest : public D3DApp
 	DescriptorHandle m_textureHandle;
 
 	Texture* m_texture = nullptr;
+
+	CostantBufferCommons m_costantBufferCommons;
+	ConstantBufferObject m_costantBufferObject;
+
+	DirectX::GraphicsResource m_commonResources[3];
+	DirectX::GraphicsResource m_objectResources[3];
+
+	Camera camera;
+
+	UINT lastMouseX;
+	UINT lastMouseY;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -156,9 +171,10 @@ public:
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
 
-		m_rootSignature = std::make_shared<RootSignature>(2, 1);
-		(*m_rootSignature)[0].InitAsConstants(0, 1);
-		(*m_rootSignature)[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		m_rootSignature = std::make_shared<RootSignature>(3, 1);
+		(*m_rootSignature)[0].InitAsConstantBuffer(0);
+		(*m_rootSignature)[1].InitAsConstantBuffer(1);
+		(*m_rootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	
@@ -220,16 +236,67 @@ public:
 		BuildPSO();
 		BuildVertexData(context);
 
+		camera.SetPosition(0.0f, 0.0f, -2.0f);
 
 		context->Finish(true);
+
+		s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
 		return true;
 	}
 
+	void UpdateCommonConstants(const GameTime& gt)
+	{
+		XMMATRIX view = camera.GetView();
+		XMMATRIX invView = XMMatrixInverse(nullptr, view);
+		XMMATRIX proj = camera.GetProjection();
+		XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
+		XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+		XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
+
+
+
+		XMStoreFloat4x4(&m_costantBufferCommons.view, DirectX::XMMatrixTranspose(view));
+		XMStoreFloat4x4(&m_costantBufferCommons.invView, DirectX::XMMatrixTranspose(invView));
+		XMStoreFloat4x4(&m_costantBufferCommons.projection, DirectX::XMMatrixTranspose(proj));
+		XMStoreFloat4x4(&m_costantBufferCommons.invProjection, DirectX::XMMatrixTranspose(invProj));
+		XMStoreFloat4x4(&m_costantBufferCommons.viewProjection, DirectX::XMMatrixTranspose(viewProj));
+		XMStoreFloat4x4(&m_costantBufferCommons.invViewProjection, DirectX::XMMatrixTranspose(invViewProj));
+		m_costantBufferCommons.eyePosition = camera.GetPosition3f();
+		m_costantBufferCommons.nearPlane = camera.GetNearZ();
+		m_costantBufferCommons.renderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
+		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
+		m_costantBufferCommons.farPlane = camera.GetFarZ();
+		m_costantBufferCommons.totalTime = gt.TotalTime();
+		m_costantBufferCommons.deltaTime = gt.DeltaTime();
+
+		m_commonResources[m_swapchain->CurrentBufferIndex] = s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
+
+		m_objectResources[m_swapchain->CurrentBufferIndex] = s_graphicsMemory->AllocateConstant(m_costantBufferObject);
+	}
+
+	void MoveCamera()
+	{
+		auto state = s_mouse->GetState();
+		if (state.positionMode == Mouse::MODE_RELATIVE)
+		{
+
+			float dx = XMConvertToRadians(0.25f * static_cast<float>(state.x));
+			float dy = XMConvertToRadians(0.25f * static_cast<float>(state.y));
+
+			camera.Pitch(dy);
+			camera.Yaw(dx);
+		}
+	}
+
 	virtual void Update(const GameTime& gt) override
 	{
+		UINT64 currentFrame = frameFences[m_swapchain->CurrentBufferIndex];
+		if (currentFrame != 0)
+		{
+			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
+		}
 
-		auto start = std::chrono::high_resolution_clock::now();
 		auto kbState = keyboard.GetState();
 		tracker.Update(kbState);
 
@@ -237,13 +304,18 @@ public:
 		{
 			PostQuitMessage(0);
 		}
-
-		UINT64 currentFrame = frameFences[m_swapchain->CurrentBufferIndex];
-
-		if (currentFrame != 0)
+		if (kbState.A)
 		{
-			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
+			camera.Strafe(-1.0f * gt.DeltaTime());
 		}
+if (kbState.D)
+		{
+			camera.Strafe(1.0f * gt.DeltaTime());
+		}
+
+		MoveCamera();
+		camera.UpdateViewMatrix();
+		UpdateCommonConstants(gt);
 	}
 
 	virtual void Draw(const GameTime& gt) override
@@ -267,10 +339,9 @@ public:
 
 		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature->Get());
 
-		float time = gt.TotalTime();
-
-		context->m_commandList->GetComPtr()->SetGraphicsRoot32BitConstants(0, 1, &time, 0);
-		context->m_commandList->GetComPtr()->SetGraphicsRootDescriptorTable(1, m_textureHandle);
+		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, m_commonResources[m_swapchain->CurrentBufferIndex].GpuAddress());
+		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(1, m_objectResources[m_swapchain->CurrentBufferIndex].GpuAddress());
+		context->m_commandList->GetComPtr()->SetGraphicsRootDescriptorTable(2, m_textureHandle);
 
 		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
@@ -292,12 +363,19 @@ public:
 			if (FAILED(hr))
 			{
 				DeviceRemovedHandler();
-				assert(false);
+				ThrowIfFailed(hr);
 			}
 		}
 
 		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
+	}
+
+	virtual void OnResize() override
+	{
+		D3DApp::OnResize();
+
+		camera.SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
 	}
 };
 

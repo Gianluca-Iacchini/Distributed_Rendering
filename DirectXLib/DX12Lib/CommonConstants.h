@@ -1,0 +1,29 @@
+#pragma once
+
+#include "Helpers.h"
+
+__declspec(align(16)) struct CostantBufferCommons
+{
+	DirectX::XMFLOAT4X4 view = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 invView = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 projection = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 invProjection = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 viewProjection = MathHelper::Identity4x4() ;
+	DirectX::XMFLOAT4X4 invViewProjection = MathHelper::Identity4x4();
+	DirectX::XMFLOAT3 eyePosition = { 0.0f, 0.0f, 0.0f };
+	float nearPlane = 0.0f;
+	DirectX::XMFLOAT2 renderTargetSize = { 0.0f, 0.0f };
+	DirectX::XMFLOAT2 invRenderTargetSize = { 0.0f, 0.0f };
+	float farPlane = 1.0f;
+	float totalTime = 0.0f;
+	float deltaTime = 0.0f;
+};
+
+__declspec(align(16)) struct ConstantBufferObject
+{
+	DirectX::XMFLOAT4X4 world = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 invWorld = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 texTransform = MathHelper::Identity4x4();
+	UINT materialIndex = 1;
+};
+

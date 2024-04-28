@@ -180,6 +180,9 @@ bool D3DApp::InitMainWindow()
 
 	m_dx12Window->Show();
 
+	Graphics::s_mouse = std::make_unique<DirectX::Mouse>();
+	s_mouse->SetWindow(m_dx12Window->GetWindowHandle());
+
 	return true;
 }
 
