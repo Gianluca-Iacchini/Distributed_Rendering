@@ -72,9 +72,9 @@ void DescriptorHeap::Create(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount)
 	m_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	m_desc.NodeMask = 0;
 
-	ThrowIfFailed(m_device.GetComPtr()->CreateDescriptorHeap(&m_desc, IID_PPV_ARGS(m_heap.ReleaseAndGetAddressOf())));
+	ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateDescriptorHeap(&m_desc, IID_PPV_ARGS(m_heap.ReleaseAndGetAddressOf())));
 
-	m_descriptorSize = m_device.GetDescriptorSize(type);
+	m_descriptorSize = Graphics::s_device->GetDescriptorSize(type);
 	m_numFreeDescriptors = m_desc.NumDescriptors;
 	m_firstHandle = DescriptorHandle(m_heap->GetCPUDescriptorHandleForHeapStart(),
 		m_heap->GetGPUDescriptorHandleForHeapStart());

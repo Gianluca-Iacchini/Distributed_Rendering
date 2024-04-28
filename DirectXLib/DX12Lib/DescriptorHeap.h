@@ -80,7 +80,7 @@ private:
 class DescriptorHeap
 {
 public:
-	DescriptorHeap(Device& device) : m_device(device){}
+	DescriptorHeap() {}
 	~DescriptorHeap() { Destroy(); }
 	void Create(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount);
 	void Destroy() { m_heap = nullptr; }
@@ -101,7 +101,6 @@ public:
 	uint32_t GetDescriptorSize() const { return m_descriptorSize; }
 
 private:
-	Device& m_device;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_heap;
 	D3D12_DESCRIPTOR_HEAP_DESC m_desc = {};
 	uint32_t m_descriptorSize = 0;

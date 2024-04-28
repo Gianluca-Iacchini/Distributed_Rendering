@@ -4,7 +4,7 @@
 
 using namespace Microsoft::WRL;
 
-CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE type) : m_type(type)
+CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE type) : m_type(type), m_allocatorPool(type)
 {
 
 }
@@ -131,5 +131,5 @@ void CommandQueueManager::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, OUT Co
 	assert(*cmdAllocator != nullptr && "Failed to initialize command allocator.");
 
 
-	*cmdList = new CommandList(m_device, **cmdAllocator);
+	*cmdList = new CommandList(m_device, **cmdAllocator, type);
 }

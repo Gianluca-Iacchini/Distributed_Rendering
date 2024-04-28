@@ -54,56 +54,32 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
     s_device->GetComPtr()->CreateShaderResourceView(m_resource.Get(), nullptr, m_hCpuDescriptorHandle);
 }
 
-void Texture::CreateFromTGAMemory(const void* _filePtr, bool sRGB)
+void Texture::CreateFromTGAFile(const std::wstring& filename, bool sRGB)
 {
-    const uint8_t* filePtr = (const uint8_t*)_filePtr;
+    DirectX::TexMetadata texMetaData;
+    DirectX::ScratchImage scratchImage;
 
-    // Skip first two bytes
-    filePtr += 2;
+    ThrowIfFailed(DirectX::LoadFromTGAFile(filename.c_str(), &texMetaData, scratchImage));
 
-    /*uint8_t imageTypeCode =*/ *filePtr++;
+    if (sRGB)
+        texMetaData.format = DirectX::MakeSRGB(texMetaData.format);
 
-    // Ignore another 9 bytes
-    filePtr += 9;
+    D3D12_RESOURCE_DESC texDesc = {};
 
-    uint16_t imageWidth = *(uint16_t*)filePtr;
-    filePtr += sizeof(uint16_t);
-    uint16_t imageHeight = *(uint16_t*)filePtr;
-    filePtr += sizeof(uint16_t);
-    uint8_t bitCount = *filePtr++;
-
-    // Ignore another byte
-    filePtr++;
-
-    uint32_t* formattedData = new uint32_t[imageWidth * imageHeight];
-    uint32_t* iter = formattedData;
-
-    uint8_t numChannels = bitCount / 8;
-    uint32_t numBytes = imageWidth * imageHeight * numChannels;
-
-    switch (numChannels)
+    switch (texMetaData.dimension)
     {
+    case DirectX::TEX_DIMENSION_TEXTURE1D:
+        texDesc = CD3DX12_RESOURCE_DESC::Tex1D(texMetaData.format, texMetaData.width, (UINT16)texMetaData.arraySize);
+    	break;
+    case DirectX::TEX_DIMENSION_TEXTURE2D:
+        texDesc = CD3DX12_RESOURCE_DESC::Tex2D(texMetaData.format, texMetaData.width, (UINT)texMetaData.height, (UINT16)texMetaData.arraySize);
+		break;
+    case DirectX::TEX_DIMENSION_TEXTURE3D:
+		texDesc = CD3DX12_RESOURCE_DESC::Tex3D(texMetaData.format, texMetaData.width, (UINT)texMetaData.height, (UINT16)texMetaData.depth);
     default:
-        break;
-    case 3:
-        for (uint32_t byteIdx = 0; byteIdx < numBytes; byteIdx += 3)
-        {
-            *iter++ = 0xff000000 | filePtr[0] << 16 | filePtr[1] << 8 | filePtr[2];
-            filePtr += 3;
-        }
-        break;
-    case 4:
-        for (uint32_t byteIdx = 0; byteIdx < numBytes; byteIdx += 4)
-        {
-            *iter++ = filePtr[3] << 24 | filePtr[0] << 16 | filePtr[1] << 8 | filePtr[2];
-            filePtr += 4;
-        }
+        throw std::exception("Invalid texture dimension");
         break;
     }
 
-    std::cout << "Image width: " << imageWidth << "Image height: " << imageHeight << std::endl;
-
-    Create2D(4 * imageWidth, imageWidth, imageHeight, sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, formattedData);
-
-    delete[] formattedData;
+    Create2D(scratchImage.GetImage(0, 0, 0)->rowPitch, texMetaData.width, texMetaData.height, texMetaData.format, scratchImage.GetImage(0, 0, 0)->pixels);
 }

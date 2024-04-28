@@ -1,5 +1,9 @@
 #include "Helpers.h"
 #include <comdef.h>
+#include "GraphicsMemory.h"
+#include "GraphicsCore.h"
+#include "ResourceUploadBatch.h"
+#include "CommandQueue.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -52,38 +56,36 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Utils::CreateDefaultBuffer(Microsoft::WRL
 	Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
 
 {
-	ComPtr<ID3D12Resource> defaultBuffer;
+	DirectX::ResourceUploadBatch resourceUpload(device.Get());
+	resourceUpload.Begin(D3D12_COMMAND_LIST_TYPE_COPY);
 
-	auto defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+	DirectX::SharedGraphicsResource buffer;
+	ComPtr<ID3D12Resource> staticBuffer;
 
-	ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, 
-		D3D12_HEAP_FLAG_NONE, 
-		&bufferDesc,
+	buffer = Graphics::s_graphicsMemory->Allocate(byteSize);
+	memcpy(buffer.Memory(), initData, byteSize);
+
+	CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
+
+	auto desc = CD3DX12_RESOURCE_DESC::Buffer(buffer.Size());
+
+	ThrowIfFailed(device->CreateCommittedResource(
+		&defaultHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
-		IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
+		IID_PPV_ARGS(staticBuffer.GetAddressOf())));
 
-	ThrowIfFailed(device->CreateCommittedResource(&uploadHeap,
-		D3D12_HEAP_FLAG_NONE,
-		&bufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+	resourceUpload.Upload(staticBuffer.Get(), buffer);
 
-	D3D12_SUBRESOURCE_DATA subresourceData = {};
-	subresourceData.pData = initData;
-	subresourceData.RowPitch = byteSize;
-	subresourceData.SlicePitch = subresourceData.RowPitch;
+	resourceUpload.Transition(staticBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
+	buffer.Reset();
 
-	auto transition = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-	cmdList->ResourceBarrier(1, &transition);
+	auto finish = resourceUpload.End(Graphics::s_commandQueueManager->GetCopyQueue().Get());
 
-	transition = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-	UpdateSubresources<1>(cmdList.Get(), defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subresourceData);
-	cmdList->ResourceBarrier(1, &transition);
+	finish.wait();
 
-	return defaultBuffer;
+	return staticBuffer;
 }

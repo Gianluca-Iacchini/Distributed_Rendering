@@ -6,62 +6,68 @@ using namespace Graphics;
 
 void RootSignature::InitStaticSampler(UINT nRegister, const D3D12_SAMPLER_DESC& samplerDesc, D3D12_SHADER_VISIBILITY visibility)
 {
-	assert(m_numInitializedSamplers < m_staticSamplers.size());
+	assert(m_numInitializedSamplers < m_numStaticSamplers);
 
-	D3D12_STATIC_SAMPLER_DESC* desc = &m_staticSamplers[m_numInitializedSamplers++];
+	D3D12_STATIC_SAMPLER_DESC& desc = m_staticSamplers[m_numInitializedSamplers++];
 
-	desc->Filter = samplerDesc.Filter;
-	desc->AddressU = samplerDesc.AddressU;
-	desc->AddressV = samplerDesc.AddressV;
-	desc->AddressW = samplerDesc.AddressW;
-	desc->MipLODBias = samplerDesc.MipLODBias;
-	desc->MaxAnisotropy = samplerDesc.MaxAnisotropy;
-	desc->ComparisonFunc = samplerDesc.ComparisonFunc;
-	desc->BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-	desc->MinLOD = samplerDesc.MinLOD;
-	desc->MaxLOD = samplerDesc.MaxLOD;
-	desc->ShaderRegister = nRegister;
-	desc->RegisterSpace = 0;
-	desc->ShaderVisibility = visibility;
+	desc.Filter = samplerDesc.Filter;
+	desc.AddressU = samplerDesc.AddressU;
+	desc.AddressV = samplerDesc.AddressV;
+	desc.AddressW = samplerDesc.AddressW;
+	desc.MipLODBias = samplerDesc.MipLODBias;
+	desc.MaxAnisotropy = samplerDesc.MaxAnisotropy;
+	desc.ComparisonFunc = samplerDesc.ComparisonFunc;
+	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	desc.MinLOD = samplerDesc.MinLOD;
+	desc.MaxLOD = samplerDesc.MaxLOD;
+	desc.ShaderRegister = nRegister;
+	desc.RegisterSpace = 0;
+	desc.ShaderVisibility = visibility;
 
-	if (desc->AddressU == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
-		desc->AddressV == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
-		desc->AddressW == D3D12_TEXTURE_ADDRESS_MODE_BORDER)
+	if (desc.AddressU == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
+		desc.AddressV == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
+		desc.AddressW == D3D12_TEXTURE_ADDRESS_MODE_BORDER)
 	{
 
 		if (samplerDesc.BorderColor[3] == 1.0f)
 		{
 			if (samplerDesc.BorderColor[0] == 1.0f)
-				desc->BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+				desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
 			else if (samplerDesc.BorderColor[0] == 0.0f)
-				desc->BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+				desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
 		}
 		else
 		{
-			desc->BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+			desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 		}
 	}
 }
+
+#include <iostream>
 
 void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS flags)
 {
 	if (m_finalized)
 		return;
 
-	assert(m_staticSamplers.size() == m_numInitializedSamplers);
+	assert(m_numStaticSamplers == m_numInitializedSamplers);
 
 	D3D12_ROOT_SIGNATURE_DESC desc;
-	desc.NumParameters = static_cast<UINT>(m_rootParameters.size());
-	desc.pParameters = (const D3D12_ROOT_PARAMETER*)m_rootParameters.data();
-	desc.NumStaticSamplers = static_cast<UINT>(m_staticSamplers.size());
-	desc.pStaticSamplers = (const D3D12_STATIC_SAMPLER_DESC*)m_staticSamplers.data();
+	desc.NumParameters = m_numParameters;
+	desc.pParameters = (const D3D12_ROOT_PARAMETER*)m_rootParameters.get();
+	desc.NumStaticSamplers = m_numStaticSamplers;
+	desc.pStaticSamplers = (const D3D12_STATIC_SAMPLER_DESC*)m_staticSamplers.get();
 	desc.Flags = flags;
+
+	auto& param = m_rootParameters.get()[1];
+
+	std::cout << m_rootParameters.get()[1].m_rootParameter.ParameterType << std::endl;
 
 	m_descirptorTableBitMap = 0;
 	m_samplerTableBitMap = 0;
 
 
-	for (UINT param = 0; param < m_rootParameters.size(); param++)
+	for (UINT param = 0; param < m_numParameters; param++)
 	{
 		const D3D12_ROOT_PARAMETER& rootParam = desc.pParameters[param];
 		m_descriptorTableSize[param] = 0;

@@ -19,6 +19,10 @@
 #include "DX12Lib/CommandContext.h"
 #include "DX12Lib/Texture.h"
 #include <fstream>
+#include "DX12Lib/DescriptorHeap.h"
+#include "DX12Lib/SamplerDesc.h"
+#include "GraphicsMemory.h"
+#include "GeometricPrimitive.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -26,8 +30,10 @@ using namespace Graphics;
 
 struct Vertex
 {
-	Vertex(XMFLOAT3 p, XMFLOAT4 c) : Pos(p), Color(c) {}
+	Vertex(XMFLOAT3 p, XMFLOAT2 tc, XMFLOAT4 c) : Pos(p), TexCoord(tc), Color(c) {}
+
 	XMFLOAT3 Pos;
+	XMFLOAT2 TexCoord;
 	XMFLOAT4 Color;
 };
 
@@ -71,11 +77,12 @@ struct VertexResourceData
 
 class AppTest : public D3DApp
 {
-	Vertex triangleVertices[3] =
+	Vertex quadVertices[4] =
 	{
-		{ XMFLOAT3(0.0f, 0.5f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) }
+		{ XMFLOAT3(-1.f, -1.f, 0.0f), XMFLOAT2(0.0, 1.0f) ,XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
+		{ XMFLOAT3(1.f, -1.f, 0.0f), XMFLOAT2(1.f, 1.f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
+		{ XMFLOAT3(-1.f, 1.f, 0.0f), XMFLOAT2(0.f, 0.f) ,XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
+		{ XMFLOAT3(1.f, 1.f, 0.0f), XMFLOAT2(1.f, 0.f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)}
 	};
 
 	VertexResourceData m_vertexData;
@@ -92,11 +99,19 @@ class AppTest : public D3DApp
 
 	UINT64 frameFences[3] = { 0, 0, 0 };
 
+	DescriptorHeap m_textures;
+	DescriptorHandle m_textureHandle;
+
+	Texture* m_texture = nullptr;
+
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
 	AppTest(const AppTest& rhs) = delete;
 	AppTest& operator=(const AppTest& rhs) = delete;
 	~AppTest() { 
+
+		if (m_texture)
+			delete m_texture;
 
 		FlushCommandQueue();
 		
@@ -120,19 +135,33 @@ public:
 		m_inputLayout =
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+
 		};
 
+		m_texture = new Texture();
+		m_texture->CreateFromTGAFile(srcDir + L"\\Textures\\lion.tga", false);
+
+
+		m_textures.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 32);
+		m_textureHandle = m_textures.Alloc(1);
+
+		s_device->GetComPtr()->CopyDescriptorsSimple(1, m_textureHandle, m_texture->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
+
 
 	void BuildEmptyRootSignature()
 	{
-		RootParameter constantRoot = RootParameter();
-		constantRoot.InitAsConstants(0, 1);
+		SamplerDesc DefaultSamplerDesc;
+		DefaultSamplerDesc.MaxAnisotropy = 8;
 
-		m_rootSignature = std::make_shared<RootSignature>(1, 0);
-		(*m_rootSignature)[0] = constantRoot;
+		m_rootSignature = std::make_shared<RootSignature>(2, 1);
+		(*m_rootSignature)[0].InitAsConstants(0, 1);
+		(*m_rootSignature)[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	
 	}
 
 	void BuildPSO()
@@ -151,18 +180,18 @@ public:
 
 	void BuildVertexData(CommandContext* context)
 	{
-		std::uint16_t triangleIndices[3] = { 0, 1, 2 };
+		std::uint16_t triangleIndices[6] = { 0, 2, 1, 1, 2, 3 };
 
-		const UINT vbByteSize = (UINT)sizeof(triangleVertices);
-		const UINT ibByteSize = 3 * (UINT)sizeof(std::uint16_t);
+		const UINT vbByteSize = (UINT)sizeof(quadVertices);
+		const UINT ibByteSize = 6 * (UINT)sizeof(std::uint16_t);
 
 		ZeroMemory(&m_vertexData, sizeof(VertexResourceData));
 
 		ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_vertexData.VertexBufferCPU));
-		CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), triangleVertices, vbByteSize);
+		CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), quadVertices, vbByteSize);
 
 		ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_vertexData.IndexBufferCPU));
-		CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), triangleIndices, ibByteSize);
+		CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), quadVertices, ibByteSize);
 
 		m_vertexData.VertexBufferByteSize = vbByteSize;
 		m_vertexData.IndexBufferByteSize = ibByteSize;
@@ -171,7 +200,9 @@ public:
 		m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
 
 
-		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), triangleVertices, vbByteSize, m_vertexData.VertexBufferUploader);
+
+
+		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), quadVertices, vbByteSize, m_vertexData.VertexBufferUploader);
 
 		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
 	}
@@ -232,11 +263,14 @@ public:
 
 		context->m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
+		context->BindDescriptorHeaps(m_textures);
+
 		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature->Get());
 
 		float time = gt.TotalTime();
 
 		context->m_commandList->GetComPtr()->SetGraphicsRoot32BitConstants(0, 1, &time, 0);
+		context->m_commandList->GetComPtr()->SetGraphicsRootDescriptorTable(1, m_textureHandle);
 
 		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
@@ -244,16 +278,25 @@ public:
 		context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
 		context->m_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		context->m_commandList->GetComPtr()->DrawIndexedInstanced(3, 1, 0, 0, 0);
+		context->m_commandList->GetComPtr()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
 
 		frameFences[m_swapchain->CurrentBufferIndex] = context->Finish();
 
-		ThrowIfFailed(m_swapchain->GetComPointer()->Present(0, DXGI_PRESENT_ALLOW_TEARING));
-		
-		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		HRESULT hr = m_swapchain->GetComPointer()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 
+		if (FAILED(hr))
+		{
+			hr = s_device->GetComPtr()->GetDeviceRemovedReason();
+			if (FAILED(hr))
+			{
+				DeviceRemovedHandler();
+				assert(false);
+			}
+		}
+
+		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
 	}
 };

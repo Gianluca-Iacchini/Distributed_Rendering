@@ -7,6 +7,7 @@
 #include <sstream>
 #include <dxgi1_6.h>
 #include <directx/d3dx12.h>
+#include "DirectXTex.h"
 #include <cassert>
 #include <string>
 #include <unordered_map>

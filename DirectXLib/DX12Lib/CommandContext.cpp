@@ -24,7 +24,7 @@ CommandContext::~CommandContext()
 	
 	if (m_currentAllocator != nullptr)
 	{
-		s_commandQueueManager->GetGraphicsQueue().DiscardAllocator(0, m_currentAllocator);
+		s_commandQueueManager->GetQueue(m_type).DiscardAllocator(0, m_currentAllocator);
 	}
 }
 
@@ -78,6 +78,14 @@ void CommandContext::FlushResourceBarriers()
 	}
 }
 
+void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
+{
+	ID3D12DescriptorHeap* heaps[] = { heap.Get() };
+	m_commandList->GetComPtr()->SetDescriptorHeaps(1, heaps);
+
+	m_commandList->GetComPtr()->SetDescriptorHeaps(_countof(heaps), heaps);
+}
+
 void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
 {
 	s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
@@ -87,10 +95,11 @@ void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D
 {
 	UINT64 uploadBufferSize = GetRequiredIntermediateSize(dest.Get(), 0, numSubresources);
 
-	auto context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_COPY);
+	auto context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	DirectX::GraphicsResource uploadBuffer = s_graphicsMemory->Allocate(uploadBufferSize);
-	UpdateSubresources(context->m_commandList->Get(), uploadBuffer.Resource(), dest.Get(), 0, 0, numSubresources, subresources);
+	
+	UpdateSubresources(context->m_commandList->Get(), dest.Get(), uploadBuffer.Resource(), 0, 0, numSubresources, subresources);
 
 	context->TransitionResource(dest, D3D12_RESOURCE_STATE_GENERIC_READ);
 
@@ -99,7 +108,7 @@ void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D
 
 void CommandContext::Reset()
 {
-	m_currentAllocator = s_commandQueueManager->GetGraphicsQueue().RequestAllocator();
+	m_currentAllocator = s_commandQueueManager->GetQueue(m_type).RequestAllocator();
 	m_commandList->Reset(*m_currentAllocator);
 	m_numBarriersToFlush = 0;
 }

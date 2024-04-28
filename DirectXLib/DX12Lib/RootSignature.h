@@ -96,19 +96,21 @@ public:
 
 	~RootSignature() {}
 
-	void Reset(UINT numRootParameters, UINT numStaticSamplers)
+	void Reset(UINT numRootParameters, UINT numStaticSamplers = 0)
 	{
 		if (numRootParameters > 0)
-			m_rootParameters.resize(numRootParameters);
+			m_rootParameters.reset(new RootParameter[numRootParameters]);
 		else
-			m_rootParameters.clear();
-
+			m_rootParameters = nullptr;
+	
+		m_numParameters = numRootParameters;
 
 		if (numStaticSamplers > 0)
-			m_staticSamplers.resize(numStaticSamplers);
+			m_staticSamplers.reset(new D3D12_STATIC_SAMPLER_DESC[numStaticSamplers]);
 		else
-			m_staticSamplers.clear();
+			m_staticSamplers = nullptr;
 
+		m_numStaticSamplers = numStaticSamplers;
 		m_numInitializedSamplers = 0;
 	}
 
@@ -119,6 +121,8 @@ public:
 private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSignature;
 	UINT m_numInitializedSamplers = 0;
+	UINT m_numParameters = 0;
+	UINT m_numStaticSamplers = 0;
 	D3D12_ROOT_SIGNATURE_DESC m_rootSignatureDesc;
 	bool m_finalized = false;
 
@@ -126,8 +130,8 @@ private:
 	uint32_t m_samplerTableBitMap = 0;
 	uint32_t m_descriptorTableSize[16];
 
-	std::vector<RootParameter> m_rootParameters;
-	std::vector<D3D12_STATIC_SAMPLER_DESC> m_staticSamplers;
+	std::unique_ptr<RootParameter[]> m_rootParameters;
+	std::unique_ptr<D3D12_STATIC_SAMPLER_DESC[]> m_staticSamplers;
 
 public:
 	ID3D12RootSignature* Get() { return m_rootSignature.Get(); }
@@ -135,8 +139,13 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> GetComPtr() { return m_rootSignature; }
 	
 	RootParameter& operator[] (size_t i) {
-		assert(i < m_rootParameters.size());
-		return m_rootParameters[i]; 
+		assert(i < m_numParameters);
+		return m_rootParameters.get()[i]; 
+	}
+
+	RootParameter& operator[] (size_t i) const {
+		assert(i < m_numParameters);
+		return m_rootParameters.get()[i];
 	}
 };
 

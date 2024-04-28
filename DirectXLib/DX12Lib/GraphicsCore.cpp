@@ -8,6 +8,7 @@
 #include "dxgidebug.h"
 #include "CommandContext.h"
 
+#include <iostream>
 
 using namespace Microsoft::WRL;
 
@@ -28,6 +29,8 @@ namespace Graphics
 	std::unique_ptr<CommandContextManager> s_commandContextManager = nullptr;
 
 	std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory = nullptr;
+
+	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings = nullptr;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -90,6 +93,13 @@ namespace Graphics
 		}
 		#endif
 
+		#if defined(DRED)
+		{
+			ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&s_dredSettings)));
+			s_dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			s_dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		}
+		#endif
 		auto factory = CIDXGIFactory();
 
 		s_device = std::make_shared<Device>();
@@ -130,5 +140,32 @@ namespace Graphics
 		s_commandContextManager = nullptr;
 		s_graphicsMemory = nullptr;
 	}
+
+
+	void DeviceRemovedHandler()
+	{
+#if defined(DRED)
+		Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedData1> pDred;
+		ThrowIfFailed(s_device->GetComPtr()->QueryInterface(IID_PPV_ARGS(&pDred)));
+
+		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput;
+		D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
+		ThrowIfFailed(pDred->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput));
+		ThrowIfFailed(pDred->GetPageFaultAllocationOutput(&DredPageFaultOutput));
+		
+
+		auto crumb = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+
+		while (crumb != nullptr)
+		{
+			for (UINT i = 0; i < crumb->BreadcrumbCount; i++)
+			{
+				std::cout << "***DRED Auto Breadcrumb: " << crumb->pCommandHistory[i] << std::endl;
+			} 
+			crumb = crumb->pNext;
+		}
+#endif
+	}
+
 }
 

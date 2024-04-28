@@ -6,6 +6,7 @@
 #define MAX_RESOURCE_BARRIERS 16
 
 class Resource;
+class DescriptorHeap;
 
 class CommandContext
 {
@@ -20,7 +21,8 @@ public:
 
 	void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
 	void FlushResourceBarriers();
-	
+	void BindDescriptorHeaps(DescriptorHeap heap);
+
 	static void CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 	static void InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[]);
 

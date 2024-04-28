@@ -21,7 +21,7 @@ public:
 	DirectX::XMFLOAT3 GetLook3f() const;
 	
 	float GetNearZ() const;
-	float GetFarZ() const;
+	float GetFarZ() const; 
 	float GetAspect() const;
 	float GetFovY() const;
 	float GetFovX() const;

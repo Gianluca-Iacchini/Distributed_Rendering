@@ -215,6 +215,13 @@ bool D3DApp::InitDirect3D()
 	if (!Graphics::Initialize())
 		return false;
 
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"Failed to initialize COM", 0, 0);
+		return false;
+	}
+
 	CreateSwapChain();
 
 	m_depthStencilBuffer = std::make_shared<DepthBuffer>();

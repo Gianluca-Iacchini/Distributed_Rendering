@@ -2,6 +2,7 @@
 #define GRAPHICS_CORE_H
 #include "DX12Lib/DescriptorHeap.h"
 #include "GraphicsMemory.h"
+#include "Helpers.h"
 
 class Device;
 class CommandAllocatorPool;
@@ -17,9 +18,11 @@ namespace Graphics
 	extern std::unique_ptr<CommandQueueManager> s_commandQueueManager;
 	extern std::unique_ptr<CommandContextManager> s_commandContextManager;
 	extern std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory;
+	extern Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings;
 
 	bool Initialize();
 	void Shutdown();
+	void DeviceRemovedHandler();
 
 	inline D3D12_CPU_DESCRIPTOR_HANDLE AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count = 1)
 	{

@@ -11,7 +11,7 @@ project(DistributedRendering)
 SET(ASSETS_DIR ${PROJECT_SOURCE_DIR}/Assets/)
 
 
-
+add_subdirectory(DirectXTex)
 add_subdirectory(DirectXTK12)
 add_subdirectory(DirectXLib)
 add_subdirectory(LocalIllumination)
