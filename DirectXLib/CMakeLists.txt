@@ -14,6 +14,7 @@ add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx)
 target_link_libraries(DirectXLib 
+    PUBLIC assimp
     PUBLIC DirectXTex
     PUBLIC DirectXTK12
     PUBLIC d3d12.lib

@@ -1,6 +1,9 @@
 [submodule "DirectXTK12"]
-	path = DirectXTK12
+	path = extern/DirectXTK12
 	url = https://github.com/microsoft/DirectXTK12.git
 [submodule "DirectXTex"]
-	path = DirectXTex
+	path = extern/DirectXTex
 	url = https://github.com/microsoft/DirectXTex.git
+[submodule "assimp"]
+	path = extern/assimp
+	url = https://github.com/assimp/assimp

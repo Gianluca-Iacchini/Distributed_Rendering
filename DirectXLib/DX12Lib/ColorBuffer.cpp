@@ -1,5 +1,6 @@
 #include "ColorBuffer.h"
 #include "GraphicsCore.h"
+#include "assimp/ai_assert.h"
 
 using namespace Microsoft::WRL;
 
