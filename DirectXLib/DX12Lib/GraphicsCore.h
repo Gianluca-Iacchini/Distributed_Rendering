@@ -20,6 +20,7 @@ namespace Graphics
 	extern std::unique_ptr<CommandContextManager> s_commandContextManager;
 	extern std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory;
 	extern Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings;
+	
 
 	extern std::unique_ptr<DirectX::Mouse> s_mouse;
 

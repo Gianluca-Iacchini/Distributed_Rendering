@@ -31,15 +31,15 @@ SamplerState gSampler : register(s0);
 struct VertexIn
 {
     float3 PosL : POSITION;
+    float3 Normal : NORMAL;
     float2 Tex : TEXCOORD;
-    float4 Color : COLOR;
 };
 
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
+    float3 NormalW : NORMAL;
     float2 Tex : TEXCOORD;
-    float4 Color : COLOR;
 };
 
 VertexOut VS(VertexIn vIn)
@@ -47,20 +47,14 @@ VertexOut VS(VertexIn vIn)
     VertexOut vOut;
     float3 sinCos = float3(sin(totalTime), cos(totalTime), sin(totalTime)) * 0.5f;
     float4 posW = mul(float4(vIn.PosL + sinCos, 1.0f), world);
+    vOut.NormalW = mul(vIn.Normal, (float3x3)world);
     vOut.PosH = mul(posW, viewProj);
     vOut.Tex = vIn.Tex;
-    vOut.Color = vIn.Color;
     
-    //vOut.PosH = float4(vIn.PosL, 1.0f);
-    //vOut.PosH.x += 0.5f * sin(totalTime);
-    //vOut.PosH.y += 0.5f * cos(totalTime);
-    //vOut.Tex = vIn.Tex;
-    //vOut.Color = vIn.Color;
     return vOut;
 }
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
-    //return float4(, 0.0f, 0.0f, 1.0f);
     return gTex.Sample(gSampler, pIn.Tex);
 }

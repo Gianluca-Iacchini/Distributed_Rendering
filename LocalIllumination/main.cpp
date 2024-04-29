@@ -26,6 +26,8 @@
 #include "DX12Lib/CommonConstants.h"
 #include "DX12Lib/Camera.h"
 #include "Mouse.h"
+#include "ResourceUploadBatch.h"
+#include "Model.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -103,7 +105,7 @@ class AppTest : public D3DApp
 
 	UINT64 frameFences[3] = { 0, 0, 0 };
 
-	DescriptorHeap m_textures;
+	::DescriptorHeap m_textures;
 	DescriptorHandle m_textureHandle;
 
 	Texture* m_texture = nullptr;
@@ -116,8 +118,7 @@ class AppTest : public D3DApp
 
 	Camera camera;
 
-	UINT lastMouseX;
-	UINT lastMouseY;
+	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -150,9 +151,8 @@ public:
 		m_inputLayout =
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		};
 
 		m_texture = new Texture();
@@ -196,31 +196,44 @@ public:
 
 	void BuildVertexData(CommandContext* context)
 	{
-		std::uint16_t triangleIndices[6] = { 0, 2, 1, 1, 2, 3 };
-
-		const UINT vbByteSize = (UINT)sizeof(quadVertices);
-		const UINT ibByteSize = 6 * (UINT)sizeof(std::uint16_t);
-
-		ZeroMemory(&m_vertexData, sizeof(VertexResourceData));
-
-		ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_vertexData.VertexBufferCPU));
-		CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), quadVertices, vbByteSize);
-
-		ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_vertexData.IndexBufferCPU));
-		CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), quadVertices, ibByteSize);
-
-		m_vertexData.VertexBufferByteSize = vbByteSize;
-		m_vertexData.IndexBufferByteSize = ibByteSize;
-
-		m_vertexData.VertexBufferStride = sizeof(Vertex);
-		m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
 
 
+		//std::uint16_t triangleIndices[6] = { 0, 2, 1, 1, 2, 3 };
+
+		//const UINT vbByteSize = (UINT)sizeof(quadVertices);
+		//const UINT ibByteSize = 6 * (UINT)sizeof(std::uint16_t);
+
+		//ZeroMemory(&m_vertexData, sizeof(VertexResourceData));
+
+		//ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_vertexData.VertexBufferCPU));
+		//CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), quadVertices, vbByteSize);
+
+		//ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_vertexData.IndexBufferCPU));
+		//CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), quadVertices, ibByteSize);
+
+		//m_vertexData.VertexBufferByteSize = vbByteSize;
+		//m_vertexData.IndexBufferByteSize = ibByteSize;
+
+		//m_vertexData.VertexBufferStride = sizeof(Vertex);
+		//m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
 
 
-		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), quadVertices, vbByteSize, m_vertexData.VertexBufferUploader);
 
-		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
+
+		//m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), quadVertices, vbByteSize, m_vertexData.VertexBufferUploader);
+
+		//m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
+	
+		m_shape = DirectX::GeometricPrimitive::CreateCube(1.0f, false);
+		
+		DirectX::ResourceUploadBatch resourceUpload(s_device->Get());
+		resourceUpload.Begin();
+
+		m_shape->LoadStaticBuffers(s_device->Get(), resourceUpload);
+
+		auto uploadResourcesFinished = resourceUpload.End(s_commandQueueManager->GetGraphicsQueue().Get());
+
+		uploadResourcesFinished.wait();
 	}
 
 	virtual bool Initialize() override
@@ -345,11 +358,13 @@ if (kbState.D)
 
 		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
-		context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_vertexData.VertexBufferView());
-		context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
-		context->m_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_shape->);
+		//context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
+		//context->m_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		context->m_commandList->GetComPtr()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+		//context->m_commandList->GetComPtr()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
+		m_shape->Draw(context->m_commandList->Get());
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
 
