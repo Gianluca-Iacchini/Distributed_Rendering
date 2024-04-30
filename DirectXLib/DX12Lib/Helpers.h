@@ -19,18 +19,9 @@
 
 extern const int gNumFrameResources;
 
-inline std::wstring ToWstring(const char* stringLiteral) 
-{
 
-    std::string sourceDirNarrow(stringLiteral);
 
-    // Convert to std::wstring using wstringstream
-    std::wstringstream wss;
-    wss << sourceDirNarrow.c_str();
-    std::wstring sourceDirWide = wss.str();
 
-    return sourceDirWide;
-}
 
 inline std::string HrToString(HRESULT hr)
 {
@@ -52,18 +43,13 @@ public:
     int LineNumber = -1;
 };
 
-inline std::wstring AnsiToWString(const std::string& str)
-{
-    WCHAR buffer[512];
-	MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
-	return std::wstring(buffer);
-}
+
 
 #ifndef ThrowIfFailed
 #define ThrowIfFailed(x)                                              \
 {                                                                     \
     HRESULT hr__ = (x);                                               \
-    std::wstring wfn = AnsiToWString(__FILE__);                       \
+    std::wstring wfn = Utils::ToWstring(__FILE__);                       \
     if(FAILED(hr__)) { throw DxException(hr__, L#x, wfn, __LINE__); } \
 }
 #endif
@@ -92,11 +78,38 @@ public:
         const std::string& entryPoint,
         const std::string& target);
 
-    static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(Microsoft::WRL::ComPtr<ID3D12Device>& device,
-        		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>& cmdList,
+    static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(Microsoft::WRL::ComPtr<ID3D12Device> device,
         		const void* initData,
-        		UINT64 byteSize,
-        		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer);
+        		UINT64 byteSize);
+
+    static inline std::string ToString(const std::wstring& wstr)
+    {
+        std::string str;
+        size_t size;
+        str.resize(wstr.length());
+        wcstombs_s(&size, &str[0], str.size() + 1, wstr.c_str(), wstr.size());
+        return str;
+    }
+
+    static inline std::wstring ToWstring(const char* stringLiteral)
+    {
+
+        std::string sourceDirNarrow(stringLiteral);
+
+        // Convert to std::wstring using wstringstream
+        std::wstringstream wss;
+        wss << sourceDirNarrow.c_str();
+        std::wstring sourceDirWide = wss.str();
+
+        return sourceDirWide;
+    }
+
+    static inline std::wstring ToWstring(const std::string& str)
+    {
+        WCHAR buffer[512];
+        MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
+        return std::wstring(buffer);
+    }
 };
 
 struct SubmeshGeometry

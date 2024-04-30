@@ -49,11 +49,9 @@ Microsoft::WRL::ComPtr<ID3DBlob> Utils::Compile(const std::wstring& filename, co
 	return byteCode;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Utils::CreateDefaultBuffer(Microsoft::WRL::ComPtr<ID3D12Device>& device,
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>& cmdList,
+Microsoft::WRL::ComPtr<ID3D12Resource> Utils::CreateDefaultBuffer(Microsoft::WRL::ComPtr<ID3D12Device> device,
 	const void* initData,
-	UINT64 byteSize,
-	Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
+	UINT64 byteSize)
 
 {
 	DirectX::ResourceUploadBatch resourceUpload(device.Get());

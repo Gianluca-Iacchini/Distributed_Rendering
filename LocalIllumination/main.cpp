@@ -27,7 +27,8 @@
 #include "DX12Lib/Camera.h"
 #include "Mouse.h"
 #include "ResourceUploadBatch.h"
-#include "Model.h"
+#include "DX12Lib/Model.h"
+#include "DX12Lib/Mesh.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -35,11 +36,11 @@ using namespace Graphics;
 
 struct Vertex
 {
-	Vertex(XMFLOAT3 p, XMFLOAT2 tc, XMFLOAT4 c) : Pos(p), TexCoord(tc), Color(c) {}
+	Vertex(XMFLOAT3 p, XMFLOAT3 n, XMFLOAT2 tc) : Pos(p), TexCoord(tc), Normal(n) {}
 
 	XMFLOAT3 Pos;
+	XMFLOAT3 Normal;
 	XMFLOAT2 TexCoord;
-	XMFLOAT4 Color;
 };
 
 struct VertexResourceData
@@ -78,6 +79,8 @@ struct VertexResourceData
 
 		return ibv;
 	}
+
+	
 };
 
 class AppTest : public D3DApp
@@ -85,10 +88,10 @@ class AppTest : public D3DApp
 	Vertex quadVertices[4] =
 	{
 		// Front face
-		{ XMFLOAT3(-1.f, -1.f, 0.0f), XMFLOAT2(0.0, 1.0f) ,XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
-		{ XMFLOAT3(1.f, -1.f, 0.0f), XMFLOAT2(1.f, 1.f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
-		{ XMFLOAT3(-1.f, 1.f, 0.0f), XMFLOAT2(0.f, 0.f) ,XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
-		{ XMFLOAT3(1.f, 1.f, 0.0f), XMFLOAT2(1.f, 0.f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)},
+		{ XMFLOAT3(-1.f, -1.f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT2(0.0, 1.0f)},
+		{ XMFLOAT3(1.f, -1.f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.f, 1.f)},
+		{ XMFLOAT3(-1.f, 1.f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.f, 0.f)},
+		{ XMFLOAT3(1.f, 1.f, 0.0f), XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(1.f, 0.f)},
 	};
 
 	VertexResourceData m_vertexData;
@@ -120,6 +123,10 @@ class AppTest : public D3DApp
 
 	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
 
+	std::vector<std::shared_ptr<Mesh>> m_meshes;
+
+	float cameraSpeed = 100.0f;
+
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
 	AppTest(const AppTest& rhs) = delete;
@@ -136,7 +143,7 @@ public:
 
 	void BuildShadersAndInputLayout()
 	{
-		std::wstring srcDir = ToWstring(SOURCE_DIR);
+		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
 		std::wstring shaderFile = srcDir + L"\\Shaders\\Basic.hlsl";
 
 		std::shared_ptr<Shader> vertexShader = std::make_shared<Shader>(shaderFile, "VS", "vs_5_1");
@@ -187,7 +194,7 @@ public:
 		m_pipelineState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_pipelineState.SetShader(mp_shaders["basicVS"], ShaderType::Vertex);
 		m_pipelineState.SetShader(mp_shaders["basicPS"], ShaderType::Pixel);
-		m_pipelineState.SetInputLayout(m_inputLayout);
+		m_pipelineState.SetInputLayout(VertexPositionNormalTexture::InputLayout.pInputElementDescs, VertexPositionNormalTexture::InputLayout.NumElements);
 		m_pipelineState.SetRootSignature(m_rootSignature);
 		m_pipelineState.SetRenderTargetFormat(mBackBufferFormat, mDepthStencilFormat, 1, 0);
 
@@ -198,42 +205,42 @@ public:
 	{
 
 
-		//std::uint16_t triangleIndices[6] = { 0, 2, 1, 1, 2, 3 };
+		std::uint16_t triangleIndices[6] = { 0, 2, 1, 1, 2, 3 };
 
-		//const UINT vbByteSize = (UINT)sizeof(quadVertices);
-		//const UINT ibByteSize = 6 * (UINT)sizeof(std::uint16_t);
+		const UINT vbByteSize = (UINT)sizeof(quadVertices);
+		const UINT ibByteSize = 6 * (UINT)sizeof(std::uint16_t);
 
-		//ZeroMemory(&m_vertexData, sizeof(VertexResourceData));
+		ZeroMemory(&m_vertexData, sizeof(VertexResourceData));
 
-		//ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_vertexData.VertexBufferCPU));
-		//CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), quadVertices, vbByteSize);
+		ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_vertexData.VertexBufferCPU));
+		CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), quadVertices, vbByteSize);
 
-		//ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_vertexData.IndexBufferCPU));
-		//CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), quadVertices, ibByteSize);
+		ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_vertexData.IndexBufferCPU));
+		CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), triangleIndices, ibByteSize);
 
-		//m_vertexData.VertexBufferByteSize = vbByteSize;
-		//m_vertexData.IndexBufferByteSize = ibByteSize;
+		m_vertexData.VertexBufferByteSize = vbByteSize;
+		m_vertexData.IndexBufferByteSize = ibByteSize;
 
-		//m_vertexData.VertexBufferStride = sizeof(Vertex);
-		//m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
-
-
+		m_vertexData.VertexBufferStride = sizeof(Vertex);
+		m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
 
 
-		//m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), quadVertices, vbByteSize, m_vertexData.VertexBufferUploader);
 
-		//m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), context->m_commandList->GetComPtr(), triangleIndices, ibByteSize, m_vertexData.IndexBufferUploader);
+
+		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), quadVertices, vbByteSize);
+
+		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), triangleIndices, ibByteSize);
 	
-		m_shape = DirectX::GeometricPrimitive::CreateCube(1.0f, false);
+		//m_shape = DirectX::GeometricPrimitive::CreateCube(1.0f, false);
 		
-		DirectX::ResourceUploadBatch resourceUpload(s_device->Get());
-		resourceUpload.Begin();
+		//DirectX::ResourceUploadBatch resourceUpload(s_device->Get());
+		//resourceUpload.Begin();
 
-		m_shape->LoadStaticBuffers(s_device->Get(), resourceUpload);
+		//m_shape->LoadStaticBuffers(s_device->Get(), resourceUpload);
 
-		auto uploadResourcesFinished = resourceUpload.End(s_commandQueueManager->GetGraphicsQueue().Get());
+		//auto uploadResourcesFinished = resourceUpload.End(s_commandQueueManager->GetGraphicsQueue().Get());
 
-		uploadResourcesFinished.wait();
+		//uploadResourcesFinished.wait();
 	}
 
 	virtual bool Initialize() override
@@ -248,6 +255,15 @@ public:
 		BuildShadersAndInputLayout();
 		BuildPSO();
 		BuildVertexData(context);
+
+		Model model = Model();
+
+		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
+
+		m_meshes = model.LoadFromFile(sourcePath.c_str());
+
+		assert(m_meshes.size() > 0);
+
 
 		camera.SetPosition(0.0f, 0.0f, -2.0f);
 
@@ -317,13 +333,21 @@ public:
 		{
 			PostQuitMessage(0);
 		}
+		if (kbState.W)
+		{
+			camera.Walk(cameraSpeed * gt.DeltaTime());
+		}
+		if (kbState.S)
+		{
+			camera.Walk(-cameraSpeed * gt.DeltaTime());
+		}
 		if (kbState.A)
 		{
-			camera.Strafe(-1.0f * gt.DeltaTime());
+			camera.Strafe(-cameraSpeed * gt.DeltaTime());
 		}
-if (kbState.D)
+		if (kbState.D)
 		{
-			camera.Strafe(1.0f * gt.DeltaTime());
+			camera.Strafe(cameraSpeed * gt.DeltaTime());
 		}
 
 		MoveCamera();
@@ -358,19 +382,34 @@ if (kbState.D)
 
 		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
-		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_shape->);
+		for (UINT i = 0; i < m_meshes.size(); i++)
+		{
+			context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_meshes[i]->VertexBufferView());
+			context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_meshes[i]->IndexBufferView());
+			context->m_commandList->GetComPtr()->IASetPrimitiveTopology(m_meshes[i]->m_primitiveTopology);
+
+			context->m_commandList->GetComPtr()->DrawIndexedInstanced(m_meshes[i]->m_numIndices, 1, 0, 0, 0);
+		}
+
+		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_mesh->VertexBufferView());
+		//context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_mesh->IndexBufferView());
+		//context->m_commandList->GetComPtr()->IASetPrimitiveTopology(m_mesh->m_primitiveTopology);
+
+		//context->m_commandList->GetComPtr()->DrawIndexedInstanced(m_mesh->m_numIndices, 1, 0, 0, 0);
+
+		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_vertexData.VertexBufferView());
 		//context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
 		//context->m_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		//context->m_commandList->GetComPtr()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
-		m_shape->Draw(context->m_commandList->Get());
+		//m_shape->Draw(context->m_commandList->Get());
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
 
 		frameFences[m_swapchain->CurrentBufferIndex] = context->Finish();
 
-		HRESULT hr = m_swapchain->GetComPointer()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+		HRESULT hr = m_swapchain->GetComPointer()->Present(0, 0);
 
 		if (FAILED(hr))
 		{
@@ -390,7 +429,7 @@ if (kbState.D)
 	{
 		D3DApp::OnResize();
 
-		camera.SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
+		camera.SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 10000.0f);
 	}
 };
 

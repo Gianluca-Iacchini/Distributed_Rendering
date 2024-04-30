@@ -36,6 +36,7 @@ public:
 	void SetRasterizerState(const D3D12_RASTERIZER_DESC& rasterizerDesc) { m_psoDesc.RasterizerState = rasterizerDesc; }
 	void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& depthStencilDesc) { m_psoDesc.DepthStencilState = depthStencilDesc; }
 	void SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout);
+	void SetInputLayout(const D3D12_INPUT_ELEMENT_DESC* inputLayout, UINT numElements);
 	void SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE type) { m_psoDesc.PrimitiveTopologyType = type; }
 	void SetDepthTargetFormat(DXGI_FORMAT format, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(0, nullptr, format, msaaCount, msaaQuality); }
 	void SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(1, &rtvFormat, dsvFormat, msaaCount, msaaQuality); }

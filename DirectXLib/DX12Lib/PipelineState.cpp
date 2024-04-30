@@ -8,26 +8,7 @@
 using namespace Microsoft::WRL;
 using namespace Graphics;
 
-//PipelineState::PipelineState(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthStencilFormat, D3D12_GRAPHICS_PIPELINE_STATE_DESC* psoDesc)
-//{
-//	if (psoDesc != nullptr)
-//	{
-//		m_psoDesc = *psoDesc;
-//	}
-//	else
-//	{
-//		ZeroMemory(&m_psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-//		m_psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-//		m_psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-//		m_psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-//		m_psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-//		m_psoDesc.NumRenderTargets = 1;
-//		m_psoDesc.RTVFormats[0] = backBufferFormat;
-//		m_psoDesc.SampleDesc.Count = 1;
-//		m_psoDesc.SampleDesc.Quality = 0;
-//		m_psoDesc.DSVFormat = depthStencilFormat;
-//	}
-//}
+
 
 void PipelineState::SetShader(std::shared_ptr<Shader> shader, ShaderType shaderType)
 {
@@ -69,13 +50,20 @@ void PipelineState::InitializeDefaultStates()
 {
 	this->SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
 	this->SetRasterizerState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
-	this->SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+	this->SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT)); 
+	
 }
 
 void PipelineState::SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout)
 {
 	m_psoDesc.InputLayout.NumElements = static_cast<UINT>(inputLayout.size());
 	m_psoDesc.InputLayout.pInputElementDescs = inputLayout.data();
+}
+
+void PipelineState::SetInputLayout(const D3D12_INPUT_ELEMENT_DESC* inputLayout, UINT numElements)
+{
+	m_psoDesc.InputLayout.NumElements = numElements;
+	m_psoDesc.InputLayout.pInputElementDescs = inputLayout;
 }
 
 void PipelineState::SetRootSignature(std::shared_ptr<RootSignature> rootSignature)

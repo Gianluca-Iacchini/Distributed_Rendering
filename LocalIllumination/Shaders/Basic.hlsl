@@ -30,7 +30,7 @@ SamplerState gSampler : register(s0);
 
 struct VertexIn
 {
-    float3 PosL : POSITION;
+    float3 PosL : SV_Position;
     float3 Normal : NORMAL;
     float2 Tex : TEXCOORD;
 };
@@ -45,8 +45,8 @@ struct VertexOut
 VertexOut VS(VertexIn vIn)
 {   
     VertexOut vOut;
-    float3 sinCos = float3(sin(totalTime), cos(totalTime), sin(totalTime)) * 0.5f;
-    float4 posW = mul(float4(vIn.PosL + sinCos, 1.0f), world);
+    //float3 sinCos = float3(sin(totalTime), cos(totalTime), sin(totalTime)) * 0.5f;
+    float4 posW = mul(float4(vIn.PosL, 1.0f), world);
     vOut.NormalW = mul(vIn.Normal, (float3x3)world);
     vOut.PosH = mul(posW, viewProj);
     vOut.Tex = vIn.Tex;
