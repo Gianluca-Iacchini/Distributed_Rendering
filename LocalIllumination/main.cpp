@@ -123,7 +123,7 @@ class AppTest : public D3DApp
 
 	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
 
-	std::vector<std::shared_ptr<Mesh>> m_meshes;
+	Model m_model;
 
 	float cameraSpeed = 100.0f;
 
@@ -256,14 +256,11 @@ public:
 		BuildPSO();
 		BuildVertexData(context);
 
-		Model model = Model();
-
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 
-		m_meshes = model.LoadFromFile(sourcePath.c_str());
+		bool loaded = m_model.LoadFromFile(sourcePath.c_str());
 
-		assert(m_meshes.size() > 0);
-
+		assert(loaded && "Model not loaded");
 
 		camera.SetPosition(0.0f, 0.0f, -2.0f);
 
@@ -382,14 +379,7 @@ public:
 
 		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
-		for (UINT i = 0; i < m_meshes.size(); i++)
-		{
-			context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_meshes[i]->VertexBufferView());
-			context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_meshes[i]->IndexBufferView());
-			context->m_commandList->GetComPtr()->IASetPrimitiveTopology(m_meshes[i]->m_primitiveTopology);
-
-			context->m_commandList->GetComPtr()->DrawIndexedInstanced(m_meshes[i]->m_numIndices, 1, 0, 0, 0);
-		}
+		m_model.Draw(*context);
 
 		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_mesh->VertexBufferView());
 		//context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_mesh->IndexBufferView());

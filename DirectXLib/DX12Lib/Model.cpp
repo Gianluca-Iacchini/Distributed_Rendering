@@ -5,11 +5,13 @@
 #include "iostream"
 #include "Mesh.h"
 #include "GraphicsCore.h"
+#include "CommandList.h"
+#include "CommandContext.h"
 
 using namespace Assimp;
 using namespace Graphics;
 
-std::vector<std::shared_ptr<Mesh>> Model::LoadFromFile(const std::wstring filename)
+bool Model::LoadFromFile(const std::wstring filename)
 {
     Importer importer;
 
@@ -26,8 +28,6 @@ std::vector<std::shared_ptr<Mesh>> Model::LoadFromFile(const std::wstring filena
     assert(scene != nullptr && "Failed to load scene");
 
     UINT numMeshes = scene->mNumMeshes;
-    
-    std::vector<std::shared_ptr<Mesh>> meshes;
 
     for (UINT i = 0; i < numMeshes; i++)
     {
@@ -75,23 +75,44 @@ std::vector<std::shared_ptr<Mesh>> Model::LoadFromFile(const std::wstring filena
         
         DXGI_FORMAT indexFormat = DXGI_FORMAT_R32_UINT;
 
-        //if (indices.size() > 65535 / 4)
-        //{
-        //    indexFormat = DXGI_FORMAT_R32_UINT;
-        //}
-
         newMesh->m_indexBufferFormat = indexFormat;
         newMesh->m_numIndices = indices.size();
         newMesh->m_indexBufferByteSize = sizeof(UINT) * newMesh->m_numIndices;
         newMesh->m_indexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), indices.data(), newMesh->m_indexBufferByteSize);
 
-        meshes.push_back(newMesh);
+        m_meshes.push_back(newMesh);
     }
 
-    return meshes;
+    return true;
 }
 
-std::vector<std::shared_ptr<Mesh>> Model::LoadFromFile(const char* filename)
+bool Model::LoadFromFile(const char* filename)
 {
     return LoadFromFile(Utils::ToWstring(filename));
+}
+
+void Model::Draw(ID3D12GraphicsCommandList* commandList)
+{
+    assert(commandList != nullptr && "CommandList is null");
+
+    for (auto mesh : m_meshes)
+    {
+        auto vertexBufferView = mesh->VertexBufferView();
+		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        auto indexBufferView = mesh->IndexBufferView();
+		commandList->IASetIndexBuffer(&indexBufferView);
+		commandList->IASetPrimitiveTopology(mesh->m_primitiveTopology);
+		commandList->DrawIndexedInstanced(mesh->m_numIndices, 1, 0, 0, 0);
+	}
+}
+
+void Model::Draw(CommandList& commandList)
+{
+    Draw(commandList.Get());
+}
+
+void Model::Draw(CommandContext& context)
+{
+    assert(context.m_commandList != nullptr && "CommandList is null");
+	Draw(*context.m_commandList);
 }
