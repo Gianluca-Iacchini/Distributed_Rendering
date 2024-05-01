@@ -137,12 +137,23 @@ namespace Graphics
 
 	void Shutdown()
 	{
-		s_device = nullptr;
+		s_commandQueueManager->GetGraphicsQueue().Flush();
+		s_commandQueueManager->GetComputeQueue().Flush();
+		s_commandQueueManager->GetCopyQueue().Flush();
+
+		if (s_device != nullptr)
+		{
+			auto hr = s_device->GetComPtr()->GetDeviceRemovedReason();
+			ThrowIfFailed(hr);
+			s_device = nullptr;
+		}
+
 		s_commandQueueManager = nullptr;
 		s_commandContextManager = nullptr;
 		s_graphicsMemory = nullptr;
 	}
 
+#define DRED
 
 	void DeviceRemovedHandler()
 	{

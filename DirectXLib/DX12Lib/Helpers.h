@@ -17,6 +17,7 @@
 #include <array>
 #include "MathHelper.h"
 
+
 extern const int gNumFrameResources;
 
 
@@ -43,15 +44,58 @@ public:
     int LineNumber = -1;
 };
 
+inline std::wstring AnsiToWstring(const std::string& str)
+{
+    WCHAR buffer[512];
+    MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
+    return std::wstring(buffer);
+}
 
+inline void Print(const char* msg) { printf("%s", msg); }
+inline void Print(const wchar_t* msg) { wprintf(L"%ws", msg); }
+
+inline void PrintSubMessage(const char* format, ...)
+{
+    Print("--> ");
+    char buffer[256];
+    va_list ap;
+    va_start(ap, format);
+    vsprintf_s(buffer, 256, format, ap);
+    va_end(ap);
+    Print(buffer);
+    Print("\n");
+}
+inline void PrintSubMessage(const wchar_t* format, ...)
+{
+    Print("--> ");
+    wchar_t buffer[256];
+    va_list ap;
+    va_start(ap, format);
+    vswprintf(buffer, 256, format, ap);
+    va_end(ap);
+    Print(buffer);
+    Print("\n");
+}
+
+inline void PrintSubMessage(void)
+{
+}
+
+#include <iostream>
+
+#define STRINGIFY(x) #x
+#define STRINGIFY_BUILTIN(x) STRINGIFY(x)
 
 #ifndef ThrowIfFailed
-#define ThrowIfFailed(x)                                              \
-{                                                                     \
-    HRESULT hr__ = (x);                                               \
-    std::wstring wfn = Utils::ToWstring(__FILE__);                       \
-    if(FAILED(hr__)) { throw DxException(hr__, L#x, wfn, __LINE__); } \
-}
+#define ThrowIfFailed( hr, ... ) \
+        if (FAILED(hr)) { \
+            Print("\nHRESULT failed in " STRINGIFY_BUILTIN(__FILE__) " @ " STRINGIFY_BUILTIN(__LINE__) "\n"); \
+            PrintSubMessage("hr = 0x%08X", hr); \
+            PrintSubMessage(__VA_ARGS__); \
+            Print("\n"); \
+            fflush(stdout); \
+            __debugbreak(); \
+        }
 #endif
 
 // From Microsoft mini engine

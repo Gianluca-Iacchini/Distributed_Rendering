@@ -56,5 +56,6 @@ VertexOut VS(VertexIn vIn)
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
-    return gTex.Sample(gSampler, pIn.Tex);
+    return float4(normalize(pIn.NormalW), 1.0f);
+    //return gTex.Sample(gSampler, pIn.Tex);
 }

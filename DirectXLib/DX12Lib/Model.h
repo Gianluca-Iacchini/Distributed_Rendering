@@ -20,8 +20,18 @@ public:
 	void Draw(CommandList& commandList);
 	void Draw(CommandContext& context);
 
+private:
+	void BuildVertexBuffer(UINT stride, UINT numVertices);
+	void BuildIndexBuffer(DXGI_FORMAT format, UINT numIndices);
+
 protected:
 	std::vector<std::shared_ptr<Mesh>> m_meshes;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
+
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 };
 

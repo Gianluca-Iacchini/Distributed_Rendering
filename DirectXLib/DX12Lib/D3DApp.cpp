@@ -37,9 +37,9 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 
 D3DApp::~D3DApp()
 {
-	FlushCommandQueue();
-	
 	Graphics::Shutdown();
+
+	FreeConsole();
 }
 
 HINSTANCE D3DApp::AppInst() const

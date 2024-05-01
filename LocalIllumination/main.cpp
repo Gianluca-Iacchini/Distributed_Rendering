@@ -133,12 +133,10 @@ public:
 	AppTest& operator=(const AppTest& rhs) = delete;
 	~AppTest() { 
 
+		FlushCommandQueue();
+
 		if (m_texture)
 			delete m_texture;
-
-		FlushCommandQueue();
-		
-		FreeConsole();
 	};
 
 	void BuildShadersAndInputLayout()

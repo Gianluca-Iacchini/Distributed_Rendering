@@ -20,48 +20,51 @@ bool Model::LoadFromFile(const std::wstring filename)
     importer.SetPropertyFloat(AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 80.0f);
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE);
 
-    unsigned int preprocessFlags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_OptimizeGraph |
-        aiProcess_ConvertToLeftHanded | aiProcess_GenBoundingBoxes;
+    unsigned int preprocessFlags = aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_Triangulate; 
+    /*| aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_GenBoundingBoxes;*/
 
     const aiScene* scene = importer.ReadFile(filenameStr, preprocessFlags);
 
     assert(scene != nullptr && "Failed to load scene");
 
-    UINT numMeshes = scene->mNumMeshes;
+    std::vector<DirectX::VertexPositionNormalTexture> vertices;
+    std::vector<UINT> indices;
 
-    for (UINT i = 0; i < numMeshes; i++)
+    UINT totalVertices = 0;
+    UINT totalIndices = 0;
+
+    for (UINT i = 0; i < scene->mNumMeshes; i++)
     {
-        auto mesh = scene->mMeshes[i];
+        auto assimpMesh = scene->mMeshes[i];
 
         std::shared_ptr<Mesh> newMesh = std::make_shared<Mesh>();
-        
-        std::vector<DirectX::VertexPositionNormalTexture> vertices(mesh->mNumVertices);
 
 
-        for (UINT v = 0; v < mesh->mNumVertices; v++)
+        for (UINT v = 0; v < assimpMesh->mNumVertices; v++)
         {
-            if (mesh->HasPositions())
-                vertices[v].position = { mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z };
+            DirectX::VertexPositionNormalTexture vertex;
+
+            if (assimpMesh->HasPositions())
+                vertex.position = { assimpMesh->mVertices[v].x, assimpMesh->mVertices[v].y, assimpMesh->mVertices[v].z };
             
-            if (mesh->HasNormals())
-                vertices[v].normal = { mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z };
+            if (assimpMesh->HasNormals())
+                vertex.normal = { assimpMesh->mNormals[v].x, assimpMesh->mNormals[v].y, assimpMesh->mNormals[v].z };
             
-            if (mesh->HasTextureCoords(0))
-                vertices[v].textureCoordinate = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
+            if (assimpMesh->HasTextureCoords(0))
+                vertex.textureCoordinate = { assimpMesh->mTextureCoords[0][v].x, assimpMesh->mTextureCoords[0][v].y };
+        
+            
+            vertices.push_back(vertex);
         }
 
-        newMesh->m_vertexBufferByteSize = sizeof(DirectX::VertexPositionNormalTexture) * mesh->mNumVertices;
-        newMesh->m_vertexBufferStride = sizeof(DirectX::VertexPositionNormalTexture);
-        newMesh->m_vertexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), vertices.data(), newMesh->m_vertexBufferByteSize);
 
-        assert(mesh->HasFaces() && "Mesh has no faces");
+        assert(assimpMesh->HasFaces() && "Mesh has no faces");
 
-        std::vector<UINT> indices;
-        UINT numFaces = mesh->mNumFaces;
+        UINT numIndices = 0;
 
-        for (UINT j = 0; j < numFaces; j++)
+        for (UINT j = 0; j < assimpMesh->mNumFaces; j++)
         {
-            const aiFace& face = mesh->mFaces[j];
+            const aiFace& face = assimpMesh->mFaces[j];
 
             if (face.mNumIndices == 3)
             {
@@ -69,19 +72,33 @@ bool Model::LoadFromFile(const std::wstring filename)
                 indices.push_back(face.mIndices[1]);
                 indices.push_back(face.mIndices[2]);
 			}
-            //assert(face.mNumIndices == 3 && "Mesh face doesn't have 3 indices");
 
+            numIndices += face.mNumIndices;
         }
         
+        
+
         DXGI_FORMAT indexFormat = DXGI_FORMAT_R32_UINT;
 
-        newMesh->m_indexBufferFormat = indexFormat;
-        newMesh->m_numIndices = indices.size();
-        newMesh->m_indexBufferByteSize = sizeof(UINT) * newMesh->m_numIndices;
-        newMesh->m_indexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), indices.data(), newMesh->m_indexBufferByteSize);
+
+        newMesh->m_primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        newMesh->m_numIndices = numIndices;
+        newMesh->m_indexStart = totalIndices;
+        newMesh->m_vertexStart = totalVertices;
+
+        totalVertices += assimpMesh->mNumVertices;
+        totalIndices += numIndices;
+
 
         m_meshes.push_back(newMesh);
     }
+
+    UINT vertexStride = sizeof(DirectX::VertexPositionNormalTexture);
+    m_vertexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), vertices.data(), vertexStride * vertices.size());
+    BuildVertexBuffer(vertexStride, vertices.size());
+    
+    m_indexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), indices.data(), sizeof(UINT) * indices.size());
+    BuildIndexBuffer(DXGI_FORMAT_R32_UINT, indices.size());
 
     return true;
 }
@@ -95,14 +112,14 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
 {
     assert(commandList != nullptr && "CommandList is null");
 
+    commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+    commandList->IASetIndexBuffer(&m_indexBufferView);
+
     for (auto mesh : m_meshes)
     {
-        auto vertexBufferView = mesh->VertexBufferView();
-		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-        auto indexBufferView = mesh->IndexBufferView();
-		commandList->IASetIndexBuffer(&indexBufferView);
+
 		commandList->IASetPrimitiveTopology(mesh->m_primitiveTopology);
-		commandList->DrawIndexedInstanced(mesh->m_numIndices, 1, 0, 0, 0);
+		commandList->DrawIndexedInstanced(mesh->m_numIndices, 1, mesh->m_indexStart, mesh->m_vertexStart, 0);
 	}
 }
 
@@ -115,4 +132,18 @@ void Model::Draw(CommandContext& context)
 {
     assert(context.m_commandList != nullptr && "CommandList is null");
 	Draw(*context.m_commandList);
+}
+
+void Model::BuildVertexBuffer(UINT stride, UINT numVertices)
+{
+    m_vertexBufferView.BufferLocation = m_vertexBufferResource->GetGPUVirtualAddress();
+    m_vertexBufferView.StrideInBytes = stride;
+    m_vertexBufferView.SizeInBytes = stride * numVertices;
+}
+
+void Model::BuildIndexBuffer(DXGI_FORMAT format, UINT numIndices)
+{
+    m_indexBufferView.BufferLocation = m_indexBufferResource->GetGPUVirtualAddress();
+	m_indexBufferView.Format = format;
+	m_indexBufferView.SizeInBytes = sizeof(UINT) * numIndices;
 }

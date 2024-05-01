@@ -95,7 +95,7 @@ void PipelineState::SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVF
 
 void PipelineState::Finalize()
 {
-	ThrowIfFailed(s_device->GetComPtr()->CreateGraphicsPipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())))
+	ThrowIfFailed(s_device->GetComPtr()->CreateGraphicsPipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
 }
 
 
