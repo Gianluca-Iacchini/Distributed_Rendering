@@ -4,6 +4,7 @@
 #include "GraphicsMemory.h"
 #include "Helpers.h"
 #include "Mouse.h"
+#include "Texture.h"
 
 class Device;
 class CommandAllocatorPool;
@@ -20,7 +21,7 @@ namespace Graphics
 	extern std::unique_ptr<CommandContextManager> s_commandContextManager;
 	extern std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory;
 	extern Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings;
-	
+	extern std::unique_ptr<TextureManager> s_textureManager;
 
 	extern std::unique_ptr<DirectX::Mouse> s_mouse;
 

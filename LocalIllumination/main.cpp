@@ -43,59 +43,9 @@ struct Vertex
 	XMFLOAT2 TexCoord;
 };
 
-struct VertexResourceData
-{
-	ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
-	ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
-
-	ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
-	ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
-
-	ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
-	ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
-
-	UINT VertexBufferStride = 0;
-	UINT VertexBufferByteSize = 0;
-	DXGI_FORMAT IndexBufferFormat = DXGI_FORMAT_R16_UINT;
-	UINT IndexBufferByteSize = 0;
-
-
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
-	{
-		D3D12_VERTEX_BUFFER_VIEW vbv;
-		vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
-		vbv.StrideInBytes = VertexBufferStride;
-		vbv.SizeInBytes = VertexBufferByteSize;
-
-		return vbv;
-	}
-
-	D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
-	{
-		D3D12_INDEX_BUFFER_VIEW ibv;
-		ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
-		ibv.Format = IndexBufferFormat;
-		ibv.SizeInBytes = IndexBufferByteSize;
-
-		return ibv;
-	}
-
-	
-};
 
 class AppTest : public D3DApp
 {
-	Vertex quadVertices[4] =
-	{
-		// Front face
-		{ XMFLOAT3(-1.f, -1.f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT2(0.0, 1.0f)},
-		{ XMFLOAT3(1.f, -1.f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.f, 1.f)},
-		{ XMFLOAT3(-1.f, 1.f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.f, 0.f)},
-		{ XMFLOAT3(1.f, 1.f, 0.0f), XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(1.f, 0.f)},
-	};
-
-	VertexResourceData m_vertexData;
-
 	Keyboard keyboard;
 	DirectX::Keyboard::KeyboardStateTracker tracker;
 
@@ -108,10 +58,6 @@ class AppTest : public D3DApp
 
 	UINT64 frameFences[3] = { 0, 0, 0 };
 
-	::DescriptorHeap m_textures;
-	DescriptorHandle m_textureHandle;
-
-	Texture* m_texture = nullptr;
 
 	CostantBufferCommons m_costantBufferCommons;
 	ConstantBufferObject m_costantBufferObject;
@@ -134,9 +80,6 @@ public:
 	~AppTest() { 
 
 		FlushCommandQueue();
-
-		if (m_texture)
-			delete m_texture;
 	};
 
 	void BuildShadersAndInputLayout()
@@ -159,15 +102,6 @@ public:
 			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		};
-
-		m_texture = new Texture();
-		m_texture->CreateFromTGAFile(srcDir + L"\\Textures\\lion.tga", false);
-
-
-		m_textures.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 32);
-		m_textureHandle = m_textures.Alloc(1);
-
-		s_device->GetComPtr()->CopyDescriptorsSimple(1, m_textureHandle, m_texture->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
 
@@ -198,49 +132,6 @@ public:
 
 		m_pipelineState.Finalize();
 	}
-
-	void BuildVertexData(CommandContext* context)
-	{
-
-
-		std::uint16_t triangleIndices[6] = { 0, 2, 1, 1, 2, 3 };
-
-		const UINT vbByteSize = (UINT)sizeof(quadVertices);
-		const UINT ibByteSize = 6 * (UINT)sizeof(std::uint16_t);
-
-		ZeroMemory(&m_vertexData, sizeof(VertexResourceData));
-
-		ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_vertexData.VertexBufferCPU));
-		CopyMemory(m_vertexData.VertexBufferCPU->GetBufferPointer(), quadVertices, vbByteSize);
-
-		ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_vertexData.IndexBufferCPU));
-		CopyMemory(m_vertexData.IndexBufferCPU->GetBufferPointer(), triangleIndices, ibByteSize);
-
-		m_vertexData.VertexBufferByteSize = vbByteSize;
-		m_vertexData.IndexBufferByteSize = ibByteSize;
-
-		m_vertexData.VertexBufferStride = sizeof(Vertex);
-		m_vertexData.IndexBufferFormat = DXGI_FORMAT_R16_UINT;
-
-
-
-
-		m_vertexData.VertexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), quadVertices, vbByteSize);
-
-		m_vertexData.IndexBufferGPU = Utils::CreateDefaultBuffer(s_device->GetComPtr(), triangleIndices, ibByteSize);
-	
-		//m_shape = DirectX::GeometricPrimitive::CreateCube(1.0f, false);
-		
-		//DirectX::ResourceUploadBatch resourceUpload(s_device->Get());
-		//resourceUpload.Begin();
-
-		//m_shape->LoadStaticBuffers(s_device->Get(), resourceUpload);
-
-		//auto uploadResourcesFinished = resourceUpload.End(s_commandQueueManager->GetGraphicsQueue().Get());
-
-		//uploadResourcesFinished.wait();
-	}
-
 	virtual bool Initialize() override
 	{
 		if (!D3DApp::Initialize())
@@ -252,10 +143,10 @@ public:
 		BuildEmptyRootSignature();
 		BuildShadersAndInputLayout();
 		BuildPSO();
-		BuildVertexData(context);
 
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 
+		m_model.ModelFolder = Utils::ToWstring(SOURCE_DIR) + L"\\Models";
 		bool loaded = m_model.LoadFromFile(sourcePath.c_str());
 
 		assert(loaded && "Model not loaded");
@@ -367,15 +258,14 @@ public:
 
 		context->m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-		context->BindDescriptorHeaps(m_textures);
-
 		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature->Get());
+
+		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, m_commonResources[m_swapchain->CurrentBufferIndex].GpuAddress());
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(1, m_objectResources[m_swapchain->CurrentBufferIndex].GpuAddress());
-		context->m_commandList->GetComPtr()->SetGraphicsRootDescriptorTable(2, m_textureHandle);
 
-		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
+
 
 		m_model.Draw(*context);
 

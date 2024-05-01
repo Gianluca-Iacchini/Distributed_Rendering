@@ -32,7 +32,9 @@ namespace Graphics
 
 	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings = nullptr;
 
-	extern std::unique_ptr<DirectX::Mouse> s_mouse = nullptr;
+	std::unique_ptr<DirectX::Mouse> s_mouse = nullptr;
+
+	std::unique_ptr<TextureManager> s_textureManager = std::make_unique<TextureManager>();
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{

@@ -3,6 +3,7 @@
 #include "CommandContext.h"
 #include <iostream>
 
+
 using namespace Microsoft::WRL;
 using namespace Graphics;
 
@@ -52,6 +53,8 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
 
     // Not passing a srv desc here, so the view will be created with the default values
     s_device->GetComPtr()->CreateShaderResourceView(m_resource.Get(), nullptr, m_hCpuDescriptorHandle);
+
+    m_isLoaded = true;
 }
 
 void Texture::CreateFromTGAFile(const std::wstring& filename, bool sRGB)
@@ -82,4 +85,34 @@ void Texture::CreateFromTGAFile(const std::wstring& filename, bool sRGB)
     }
 
     Create2D(scratchImage.GetImage(0, 0, 0)->rowPitch, texMetaData.width, texMetaData.height, texMetaData.format, scratchImage.GetImage(0, 0, 0)->pixels);
+}
+
+SharedTexture TextureManager::LoadFromFile(const std::wstring& filename, bool sRGB)
+{
+    SharedTexture texture = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+
+        std::wstring key = filename;
+
+        if (sRGB)
+            key += L"_sRGB";
+
+        auto cacheTexture = m_textureCache.find(key);
+
+        if (cacheTexture != m_textureCache.end())
+        {
+            texture = cacheTexture->second;
+            texture->WaitForLoad();
+            return texture;
+        }
+
+        texture = std::make_shared<Texture>();
+        m_textureCache[key] = texture;
+    }
+
+    texture->CreateFromTGAFile(filename, sRGB);
+
+    return texture;
 }

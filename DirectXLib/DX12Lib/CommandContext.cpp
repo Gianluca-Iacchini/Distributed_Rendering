@@ -82,8 +82,6 @@ void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
 {
 	ID3D12DescriptorHeap* heaps[] = { heap.Get() };
 	m_commandList->GetComPtr()->SetDescriptorHeaps(1, heaps);
-
-	m_commandList->GetComPtr()->SetDescriptorHeaps(_countof(heaps), heaps);
 }
 
 void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
