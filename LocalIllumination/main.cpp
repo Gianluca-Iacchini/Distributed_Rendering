@@ -146,7 +146,6 @@ public:
 
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 
-		m_model.ModelFolder = Utils::ToWstring(SOURCE_DIR) + L"\\Models";
 		bool loaded = m_model.LoadFromFile(sourcePath.c_str());
 
 		assert(loaded && "Model not loaded");

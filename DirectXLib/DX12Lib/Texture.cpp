@@ -4,6 +4,7 @@
 #include <iostream>
 
 
+
 using namespace Microsoft::WRL;
 using namespace Graphics;
 
@@ -37,7 +38,7 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
 		&texDesc,
 		m_currentState,
 		nullptr,
-		IID_PPV_ARGS(m_resource.ReleaseAndGetAddressOf())));
+		IID_PPV_ARGS(m_resource.GetAddressOf())));
 
     D3D12_SUBRESOURCE_DATA texResourceData;
     texResourceData.pData = initData;
@@ -87,6 +88,25 @@ void Texture::CreateFromTGAFile(const std::wstring& filename, bool sRGB)
     Create2D(scratchImage.GetImage(0, 0, 0)->rowPitch, texMetaData.width, texMetaData.height, texMetaData.format, scratchImage.GetImage(0, 0, 0)->pixels);
 }
 
+TextureManager::TextureManager()
+{
+    UINT32 defaultTextureData[(UINT)DefaultTextures::NUM_DEFAULT_TEXTURES]
+    {
+        0xFFFF00FF, // Magenta
+        0xFF000000, // Black Opaque
+        0x00000000, // Black Transparent
+        0xFFFFFFFF, // White Opaque
+        0x00FFFFFF, // White Transparent
+        0x80808080  // Normal Map
+    };
+
+    for (UINT i = 0; i < (UINT)TextureManager::DefaultTextures::NUM_DEFAULT_TEXTURES; ++i)
+    {
+        std::wstring defaultName = L"DefaultTexture" + std::to_wstring(i);
+		this->DefaultTextures[i] = CreateTexture2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &defaultTextureData[i], defaultName);
+	}
+}
+
 SharedTexture TextureManager::LoadFromFile(const std::wstring& filename, bool sRGB)
 {
     SharedTexture texture = nullptr;
@@ -113,6 +133,36 @@ SharedTexture TextureManager::LoadFromFile(const std::wstring& filename, bool sR
     }
 
     texture->CreateFromTGAFile(filename, sRGB);
+
+    return texture;
+}
+
+SharedTexture TextureManager::CreateTexture2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT format, const void* initData, const std::wstring& name)
+{
+    SharedTexture texture = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+
+        std::wstring key = name;
+
+        if (name == L"")
+            key = L"Texture2D_" + std::to_wstring(rowPitchBytes) + L"rpb" + std::to_wstring(Width) + L"x" + std::to_wstring(Height) + L"_" + std::to_wstring(format);
+
+        auto cacheTexture = m_textureCache.find(key);
+
+        if (cacheTexture != m_textureCache.end())
+        {
+            texture = cacheTexture->second;
+            texture->WaitForLoad();
+            return texture;
+        }
+
+        texture = std::make_shared<Texture>();
+        m_textureCache[key] = texture;
+    }
+
+    texture->Create2D(rowPitchBytes, Width, Height, format, initData);
 
     return texture;
 }

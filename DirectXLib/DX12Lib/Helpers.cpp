@@ -4,6 +4,7 @@
 #include "GraphicsCore.h"
 #include "ResourceUploadBatch.h"
 #include "CommandQueue.h"
+#include <filesystem>
 
 using Microsoft::WRL::ComPtr;
 
@@ -87,3 +88,48 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Utils::CreateDefaultBuffer(Microsoft::WRL
 
 	return staticBuffer;
 }
+
+std::wstring Utils::GetFileName(const std::wstring& filepath)
+{
+	namespace fs = std::filesystem;
+
+	auto fsfilepath = fs::path(filepath);
+
+	assert(fs::exists(fsfilepath) && "File not found");
+
+	std::wstring filename = fsfilepath.filename().wstring();
+
+	return filename;
+}
+
+std::wstring Utils::GetFileDirectory(const std::wstring& filepath)
+{
+	namespace fs = std::filesystem;
+
+	auto fsfilepath = fs::path(filepath);
+
+	assert(fs::exists(fsfilepath) && "File not found");
+
+	std::wstring directoryPath = fsfilepath.parent_path().wstring();
+
+	return directoryPath;
+}
+
+std::wstring Utils::GetWorkingDirectory()
+{
+	return std::filesystem::current_path().wstring();
+}
+
+void Utils::SetWorkingDirectory(const std::wstring& path)
+{
+	namespace fs = std::filesystem;
+
+	auto filesystempath = fs::path(path);
+
+	assert(fs::exists(filesystempath) && "Directory not found");
+	assert(fs::is_directory(filesystempath) && "Path is not a directory");
+
+	fs::current_path(filesystempath);
+}
+
+std::wstring Utils::StartingWorkingDirectoryPath = std::filesystem::current_path().wstring();

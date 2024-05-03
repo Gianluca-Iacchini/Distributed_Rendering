@@ -2,7 +2,7 @@
 #include "Helpers.h"
 #include "assimp/scene.h"
 #include "DX12Lib/DescriptorHeap.h"
-#include "Texture.h"
+#include "Material.h"
 
 class Mesh;
 class CommandContext;
@@ -17,8 +17,9 @@ public:
 	bool LoadFromFile(const std::wstring filename);
 	bool LoadFromFile(const char* filename);
 
-	void LoadTexture(const std::wstring filename);
-	void LoadTexture(const aiScene* scene);
+	void LoadMaterials(const aiScene* scene);
+
+	void LoadMeshes(const aiScene* scene);
 
 	std::vector<std::shared_ptr<Mesh>> GetMeshes() const { return m_meshes; }
 
@@ -26,7 +27,6 @@ public:
 	void Draw(CommandList& commandList);
 	void Draw(CommandContext& context);
 
-	std::wstring ModelFolder;
 
 private:
 	void BuildVertexBuffer(UINT stride, UINT numVertices);
@@ -34,6 +34,7 @@ private:
 
 protected:
 	std::vector<std::shared_ptr<Mesh>> m_meshes;
+	std::vector<SharedMaterial> m_materials;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
@@ -42,7 +43,5 @@ protected:
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	DescriptorHeap m_textureHeap;
-
-	std::vector<std::pair<SharedTexture, DescriptorHandle>> m_materials;
 };
 

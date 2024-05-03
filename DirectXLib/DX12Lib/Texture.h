@@ -49,10 +49,25 @@ using SharedTexture = std::shared_ptr<Texture>;
 class TextureManager
 {
 public:
-	TextureManager() = default;
+	enum class DefaultTextures
+	{
+		MAGENTA = 0,
+		BLACK_OPAQUE,
+		BLACK_TRANSPARENT,
+		WHITE_OPAQUE,
+		WHITE_TRANSPARENT,
+		NORMAL_MAP,
+		NUM_DEFAULT_TEXTURES
+	};
+
+public:
+	TextureManager();
 	~TextureManager() = default;
 
 	SharedTexture LoadFromFile(const std::wstring& filename, bool sRGB);
+	SharedTexture CreateTexture2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT format, const void* initData, const std::wstring& texName = L"");
+	
+	SharedTexture DefaultTextures[(UINT)DefaultTextures::NUM_DEFAULT_TEXTURES];
 
 private:
 	std::unordered_map<std::wstring, std::shared_ptr<Texture>> m_textureCache;

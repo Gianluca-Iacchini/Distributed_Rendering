@@ -26,8 +26,39 @@ bool Model::LoadFromFile(const std::wstring filename)
 
     assert(scene != nullptr && "Failed to load scene");
 
-    this->LoadTexture(scene);
+    std::wstring directoryPath = Utils::GetFileDirectory(filename);
+    Utils::SetWorkingDirectory(directoryPath);
 
+    this->LoadMaterials(scene);
+    this->LoadMeshes(scene);
+
+    Utils::SetWorkingDirectory(Utils::StartingWorkingDirectoryPath);
+
+    return true;
+}
+
+bool Model::LoadFromFile(const char* filename)
+{
+    return LoadFromFile(Utils::ToWstring(filename));
+}
+
+void Model::LoadMaterials(const aiScene* scene)
+{
+    m_textureHeap.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
+
+    m_materials.resize(scene->mNumMaterials);
+
+    for (UINT i = 0; i < scene->mNumMaterials; i++)
+    {
+        aiMaterial* material = scene->mMaterials[i];
+
+        auto builder = s_materialManager->CreateMaterialBuilder();
+        m_materials[i] = builder.BuildFromAssimpMaterial(material, &m_textureHeap);
+    }
+}
+
+void Model::LoadMeshes(const aiScene* scene)
+{
     std::vector<DirectX::VertexPositionNormalTexture> vertices;
     std::vector<UINT> indices;
 
@@ -46,14 +77,14 @@ bool Model::LoadFromFile(const std::wstring filename)
 
             if (assimpMesh->HasPositions())
                 vertex.position = { assimpMesh->mVertices[v].x, assimpMesh->mVertices[v].y, assimpMesh->mVertices[v].z };
-            
+
             if (assimpMesh->HasNormals())
                 vertex.normal = { assimpMesh->mNormals[v].x, assimpMesh->mNormals[v].y, assimpMesh->mNormals[v].z };
-            
+
             if (assimpMesh->HasTextureCoords(0))
                 vertex.textureCoordinate = { assimpMesh->mTextureCoords[0][v].x, assimpMesh->mTextureCoords[0][v].y };
-        
-            
+
+
             vertices.push_back(vertex);
         }
 
@@ -70,12 +101,12 @@ bool Model::LoadFromFile(const std::wstring filename)
                 indices.push_back(face.mIndices[0]);
                 indices.push_back(face.mIndices[1]);
                 indices.push_back(face.mIndices[2]);
-			}
+            }
 
             numIndices += face.mNumIndices;
         }
-        
-        
+
+
 
         DXGI_FORMAT indexFormat = DXGI_FORMAT_R32_UINT;
 
@@ -89,59 +120,16 @@ bool Model::LoadFromFile(const std::wstring filename)
         totalIndices += numIndices;
 
         newMesh->m_materialIndex = assimpMesh->mMaterialIndex;
-        
-        if (newMesh->m_materialIndex == 12)
-            newMesh->m_materialIndex = 0;
-        
+
         m_meshes.push_back(newMesh);
     }
 
     UINT vertexStride = sizeof(DirectX::VertexPositionNormalTexture);
     m_vertexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), vertices.data(), vertexStride * vertices.size());
     BuildVertexBuffer(vertexStride, vertices.size());
-    
+
     m_indexBufferResource = Utils::CreateDefaultBuffer(s_device->GetComPtr(), indices.data(), sizeof(UINT) * indices.size());
     BuildIndexBuffer(DXGI_FORMAT_R32_UINT, indices.size());
-
-    return true;
-}
-
-bool Model::LoadFromFile(const char* filename)
-{
-    return LoadFromFile(Utils::ToWstring(filename));
-}
-
-void Model::LoadTexture(const aiScene* scene)
-{
-    m_textureHeap.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
-
-    m_materials = std::vector<std::pair<SharedTexture, DescriptorHandle>>(scene->mNumMaterials);
-
-    for (UINT i = 0; i < scene->mNumMaterials; i++)
-    {
-        aiMaterial* material = scene->mMaterials[i];
-
-        UINT16 diffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
-
-        if (diffuseCount > 0)
-        {
-            aiString texturePath;
-            material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
-
-            std::wstring texturePathW = Utils::ToWstring(texturePath.C_Str());
-
-            SharedTexture texture = s_textureManager->LoadFromFile(ModelFolder + L"\\" + texturePathW, false);
-            DescriptorHandle handle = m_textureHeap.Alloc(1);
-
-            s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, texture->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-            m_materials[i] = std::make_pair(texture, handle);
-        }
-        else
-        {
-            m_materials[i] = std::make_pair(nullptr, DescriptorHandle());
-        }
-    }
 }
 
 void Model::Draw(ID3D12GraphicsCommandList* commandList)
@@ -156,8 +144,9 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
 
     for (auto mesh : m_meshes)
     {
-        DescriptorHandle handle = m_materials[mesh->m_materialIndex].second;
-        commandList->SetGraphicsRootDescriptorTable(2, handle);
+        UINT textureIndex = m_materials[mesh->m_materialIndex]->m_textureSRVIndexStart;
+
+        commandList->SetGraphicsRootDescriptorTable(2, m_textureHeap[textureIndex]);
 		commandList->IASetPrimitiveTopology(mesh->m_primitiveTopology);
 		commandList->DrawIndexedInstanced(mesh->m_numIndices, 1, mesh->m_indexStart, mesh->m_vertexStart, 0);
 	}

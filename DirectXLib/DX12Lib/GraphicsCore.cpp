@@ -34,7 +34,9 @@ namespace Graphics
 
 	std::unique_ptr<DirectX::Mouse> s_mouse = nullptr;
 
-	std::unique_ptr<TextureManager> s_textureManager = std::make_unique<TextureManager>();
+	std::unique_ptr<TextureManager> s_textureManager = nullptr;
+
+	std::unique_ptr<MaterialManager> s_materialManager = nullptr;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -133,6 +135,8 @@ namespace Graphics
 			s_commandQueueManager->Create();
 			s_commandContextManager = std::make_unique<CommandContextManager>();
 			s_graphicsMemory = std::make_unique<DirectX::GraphicsMemory>(*s_device);
+			s_textureManager = std::make_unique<TextureManager>();
+			s_materialManager = std::make_unique<MaterialManager>();
 
 		return true;
 	}
@@ -154,8 +158,6 @@ namespace Graphics
 		s_commandContextManager = nullptr;
 		s_graphicsMemory = nullptr;
 	}
-
-#define DRED
 
 	void DeviceRemovedHandler()
 	{

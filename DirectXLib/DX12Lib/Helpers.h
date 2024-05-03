@@ -16,6 +16,7 @@
 #include <d3dcompiler.h>
 #include <array>
 #include "MathHelper.h"
+#include <filesystem>
 
 
 extern const int gNumFrameResources;
@@ -154,6 +155,13 @@ public:
         MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
         return std::wstring(buffer);
     }
+
+    static std::wstring GetFileName(const std::wstring& filepath);
+    static std::wstring GetFileDirectory(const std::wstring& filepath);
+    static std::wstring GetWorkingDirectory();
+    static void SetWorkingDirectory(const std::wstring& path);
+
+    static std::wstring StartingWorkingDirectoryPath;
 };
 
 struct SubmeshGeometry
@@ -222,23 +230,23 @@ struct MaterialConstants
     DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();;
 };
 
-struct Material
-{
-    std::string Name;
-
-    int MatCBIndex = -1;
-
-    int DiffuseSrvHeapIndex = -1;
-
-    int NormalSrvHeapIndex = -1;
-
-    int NumFramesDirty = gNumFrameResources;
-
-    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-    float Roughness = 0.25f;
-    DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
-};
+//struct Material
+//{
+//    std::string Name;
+//
+//    int MatCBIndex = -1;
+//
+//    int DiffuseSrvHeapIndex = -1;
+//
+//    int NormalSrvHeapIndex = -1;
+//
+//    int NumFramesDirty = gNumFrameResources;
+//
+//    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+//    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+//    float Roughness = 0.25f;
+//    DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
+//};
 
 //struct Texture
 //{
