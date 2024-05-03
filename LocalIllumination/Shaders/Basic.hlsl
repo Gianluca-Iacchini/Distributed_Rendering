@@ -24,7 +24,7 @@ cbuffer Object : register(b1)
     uint materialIndex : packoffset(c12);
 };
 
-Texture2D gTex : register(t0);
+Texture2D gTex[6] : register(t0);
 
 SamplerState gSampler : register(s0);
 
@@ -57,5 +57,5 @@ VertexOut VS(VertexIn vIn)
 float4 PS(VertexOut pIn) : SV_TARGET
 {
     //return float4(normalize(pIn.NormalW), 1.0f);
-    return gTex.Sample(gSampler, pIn.Tex);
+    return gTex[0].Sample(gSampler, pIn.Tex);
 }

@@ -113,7 +113,7 @@ public:
 		m_rootSignature = std::make_shared<RootSignature>(3, 1);
 		(*m_rootSignature)[0].InitAsConstantBuffer(0);
 		(*m_rootSignature)[1].InitAsConstantBuffer(1);
-		(*m_rootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		(*m_rootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);
 		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	

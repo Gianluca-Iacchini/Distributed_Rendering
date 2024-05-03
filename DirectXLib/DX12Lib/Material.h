@@ -11,6 +11,7 @@ enum class TextureType
 	AMBIENT,
 	EMISSIVE,
 	NORMAL_MAP,
+	BUMP_MAP,
 	NUM_TEXTURE_TYPES
 };
 
@@ -41,13 +42,13 @@ class MaterialBuilder
 
 public:
 
-	void AddTexture(aiTextureType assimpTextureType, aiString texturePath = aiString(""));
+	void AddTexture(aiTextureType assimpTextureType, aiString& texturePath);
 	void AddTexture(TextureType textureType, SharedTexture texture = nullptr);
-	SharedTexture GetDefaultTexture(TextureType textureType);
+	SharedTexture GetDefaultTextureForType(TextureType textureType);
 	SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap = nullptr);
 	SharedMaterial Build(std::wstring& materialName, DescriptorHeap* textureHeap = nullptr);
 
-	TextureType GetDefaultTextureForType(aiTextureType assimpTextureType)
+	TextureType AssimpToTextureType(aiTextureType assimpTextureType)
 	{
 		switch (assimpTextureType)
 		{
@@ -61,8 +62,10 @@ public:
 				return TextureType::EMISSIVE;
 			case aiTextureType_NORMALS:
 				return TextureType::NORMAL_MAP;
-		default:
-			return TextureType::DIFFUSE;
+			case aiTextureType_HEIGHT:
+				return TextureType::BUMP_MAP;
+			default:
+				return TextureType::DIFFUSE;
 		}
 	}
 
