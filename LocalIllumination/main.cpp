@@ -62,9 +62,6 @@ class AppTest : public D3DApp
 	CostantBufferCommons m_costantBufferCommons;
 	ConstantBufferObject m_costantBufferObject;
 
-	DirectX::GraphicsResource m_commonResources[3];
-	DirectX::GraphicsResource m_objectResources[3];
-
 	Camera camera;
 
 	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
@@ -110,10 +107,11 @@ public:
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
 
-		m_rootSignature = std::make_shared<RootSignature>(3, 1);
+		m_rootSignature = std::make_shared<RootSignature>(4, 1);
 		(*m_rootSignature)[0].InitAsConstantBuffer(0);
 		(*m_rootSignature)[1].InitAsConstantBuffer(1);
-		(*m_rootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);
+		(*m_rootSignature)[2].InitAsConstantBuffer(2);
+		(*m_rootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);
 		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	
@@ -183,10 +181,6 @@ public:
 		m_costantBufferCommons.farPlane = camera.GetFarZ();
 		m_costantBufferCommons.totalTime = gt.TotalTime();
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
-
-		m_commonResources[m_swapchain->CurrentBufferIndex] = s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
-
-		m_objectResources[m_swapchain->CurrentBufferIndex] = s_graphicsMemory->AllocateConstant(m_costantBufferObject);
 	}
 
 	void MoveCamera()
@@ -261,26 +255,16 @@ public:
 
 		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
 
-		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, m_commonResources[m_swapchain->CurrentBufferIndex].GpuAddress());
-		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(1, m_objectResources[m_swapchain->CurrentBufferIndex].GpuAddress());
+		auto commonRes = s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
+		auto objectRes = s_graphicsMemory->AllocateConstant(m_costantBufferObject);
+
+		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, commonRes.GpuAddress());
+		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(1, objectRes.GpuAddress());
 
 
 
 		m_model.Draw(*context);
 
-		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_mesh->VertexBufferView());
-		//context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_mesh->IndexBufferView());
-		//context->m_commandList->GetComPtr()->IASetPrimitiveTopology(m_mesh->m_primitiveTopology);
-
-		//context->m_commandList->GetComPtr()->DrawIndexedInstanced(m_mesh->m_numIndices, 1, 0, 0, 0);
-
-		//context->m_commandList->GetComPtr()->IASetVertexBuffers(0, 1, &m_vertexData.VertexBufferView());
-		//context->m_commandList->GetComPtr()->IASetIndexBuffer(&m_vertexData.IndexBufferView());
-		//context->m_commandList->GetComPtr()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		//context->m_commandList->GetComPtr()->DrawIndexedInstanced(6, 1, 0, 0, 0);
-
-		//m_shape->Draw(context->m_commandList->Get());
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
 

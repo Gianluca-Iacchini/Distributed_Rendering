@@ -3,6 +3,7 @@
 #include "Helpers.h"
 #include "Texture.h"
 #include "assimp/material.h"
+#include "GraphicsMemory.h"
 
 enum class TextureType
 {
@@ -17,6 +18,43 @@ enum class TextureType
 
 class MaterialManager;
 class MaterialBuilder;
+class DescriptorHandle;
+
+__declspec(align(16)) struct MaterialConstant
+{
+public:
+	MaterialConstant(
+		const DirectX::XMFLOAT4 diffuseColor = {1.0f, 1.0f, 1.0f, 1.0f},
+		const DirectX::XMFLOAT4 specularColor = {1.0f, 1.0f, 1.0f, 1.0f},
+		const DirectX::XMFLOAT4 ambientColor = {0.0f, 0.0f, 0.0f, 1.0f},
+		const DirectX::XMFLOAT4 emissiveColor = {0.0f, 0.0f, 0.0f, 1.0f},
+		const float opacity = 1.0f,
+		const float shininess = 128.0f,
+		const float indexOfRefraction = 1.0f,
+		const float bumpIntensity = 1.0f) 
+		:
+		DiffuseColor(diffuseColor),
+		SpecularColor(specularColor),
+		AmbientColor(ambientColor),
+		EmissiveColor(emissiveColor),
+		Opacity(opacity),
+		Shininess(shininess),
+		IndexOfRefraction(indexOfRefraction),
+		BumpIntensity(bumpIntensity)
+	{}
+
+public:
+
+	DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	DirectX::XMFLOAT4 AmbientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+	DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	float Opacity = 1.0f;
+	float Shininess = 128.0f;
+	float IndexOfRefraction = 1.0f;
+	float BumpIntensity = 1.0f;
+};
 
 class Material
 {
@@ -26,12 +64,41 @@ class Material
 public:
 	Material() = default;
 
+	DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	DirectX::XMFLOAT4 AmbientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+	DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+	
+	float Opacity = 1.0f;
+	float Shininess = 128.0f;
+	float IndexOfRefraction = 1.0f;
+	float BumpIntensity = 1.0f;
+
+public:
+	void UseMaterial(ID3D12GraphicsCommandList* cmdList);
 	std::wstring& GetName() { return m_name; }
-	UINT m_textureSRVIndexStart = 0;
+
+private:
+	MaterialConstant CreateMaterialConstant()
+	{
+		return MaterialConstant(
+			DiffuseColor,
+			SpecularColor,
+			AmbientColor,
+			EmissiveColor,
+			Opacity,
+			Shininess,
+			IndexOfRefraction,
+			BumpIntensity
+		);
+	}
+
+	DirectX::GraphicsResource CreateMaterialBuffer();
+
 private:
 	std::wstring m_name;
 	SharedTexture m_textures[(UINT)TextureType::NUM_TEXTURE_TYPES];
-
+	DescriptorHandle m_textureSRVHandles[(UINT)TextureType::NUM_TEXTURE_TYPES];
 };
 
 using SharedMaterial = std::shared_ptr<Material>;
@@ -47,6 +114,16 @@ public:
 	SharedTexture GetDefaultTextureForType(TextureType textureType);
 	SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap = nullptr);
 	SharedMaterial Build(std::wstring& materialName, DescriptorHeap* textureHeap = nullptr);
+
+	void SetDiffuseColor(DirectX::XMFLOAT4 diffuseColor) { m_material->DiffuseColor = diffuseColor; }
+	void SetSpecularColor(DirectX::XMFLOAT4 specularColor) { m_material->SpecularColor = specularColor; }
+	void SetAmbientColor(DirectX::XMFLOAT4 ambientColor) { m_material->AmbientColor = ambientColor; }
+	void SetEmissiveColor(DirectX::XMFLOAT4 emissiveColor) { m_material->EmissiveColor = emissiveColor; }
+
+	void SetOpacity(float opacity) { m_material->Opacity = opacity; }
+	void SetShininess(float shininess) { m_material->Shininess = shininess; }
+	void SetIndexOfRefraction(float indexOfRefraction) { m_material->IndexOfRefraction = indexOfRefraction; }
+	void SetBumpIntensity(float bumpIntensity) { m_material->BumpIntensity = bumpIntensity; }
 
 	TextureType AssimpToTextureType(aiTextureType assimpTextureType)
 	{
@@ -77,6 +154,9 @@ private:
 		m_material = std::make_shared<Material>();
 	}
 
+	void LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap);
+	void LoadAssimpConstants(aiMaterial* assimpMaterial);
+
 private:
 	SharedMaterial m_material;
 	MaterialManager* m_materialManager;
@@ -91,6 +171,8 @@ public:
 	MaterialManager() = default;
 	//SharedMaterial LoadMaterial(const )
 	MaterialBuilder CreateMaterialBuilder() { return MaterialBuilder(this); }
+
+	DirectX::GraphicsResource CreateMaterialBuffer(Material* const material);
 
 	SharedMaterial GetMaterial(std::wstring& materialName);
 	void AddMaterial(SharedMaterial material);

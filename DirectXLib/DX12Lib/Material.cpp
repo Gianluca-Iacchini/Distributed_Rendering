@@ -55,6 +55,43 @@ SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMateri
 
 	m_material = std::make_shared<Material>();
 
+	LoadAssimpTextures(assimpMaterial, textureHeap);
+	LoadAssimpConstants(assimpMaterial);
+
+	return Build(materialName, textureHeap);
+}
+
+SharedMaterial MaterialBuilder::Build(std::wstring& materialName, DescriptorHeap* textureHeap)
+{
+	m_material->m_name = materialName;
+
+	for (UINT i = 0; i < (UINT)TextureType::NUM_TEXTURE_TYPES; ++i)
+	{
+		if (m_material->m_textures[i] == nullptr)
+		{
+			m_material->m_textures[i] = GetDefaultTextureForType((TextureType)i);
+		}
+
+		if (textureHeap != nullptr)
+		{
+			DescriptorHandle handle = textureHeap->Alloc(1);
+			s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, m_material->m_textures[i]->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			// Store the handle to be used in the root signature.
+			// Technically we could just store the first handle, but for now we store all of them.
+			m_material->m_textureSRVHandles[i] = handle;
+		}
+	}
+
+	m_materialManager->AddMaterial(m_material);
+
+	return m_material;
+}
+
+void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap)
+{
+	assert(assimpMaterial != nullptr);
+
 	// Texture types to check.
 	// Height map is checked separately since normal maps might used the height map slot.
 	aiTextureType textureTypes[] =
@@ -70,7 +107,7 @@ SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMateri
 	for (UINT i = 0; i < _countof(textureTypes); ++i)
 	{
 		aiTextureType textureType = textureTypes[i];
-			
+
 		if (assimpMaterial->GetTextureCount(textureType) > 0)
 		{
 			assimpMaterial->GetTexture(textureType, 0, &texturePath);
@@ -107,37 +144,44 @@ SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMateri
 	{
 		AddTexture(TextureType::BUMP_MAP);
 	}
-
-
-	return Build(materialName, textureHeap);
 }
 
-SharedMaterial MaterialBuilder::Build(std::wstring& materialName, DescriptorHeap* textureHeap)
+void MaterialBuilder::LoadAssimpConstants(aiMaterial* assimpMaterial)
 {
-	m_material->m_name = materialName;
+	assert(assimpMaterial != nullptr);
 
-	for (UINT i = 0; i < (UINT)TextureType::NUM_TEXTURE_TYPES; ++i)
-	{
-		if (m_material->m_textures[i] == nullptr)
-		{
-			m_material->m_textures[i] = GetDefaultTextureForType((TextureType)i);
-		}
+	aiColor4D   diffuseColor;
+	aiColor4D   specularColor;
+	aiColor4D   ambientColor;
+	aiColor4D   emissiveColor;
+	float       opacity;
+	float       indexOfRefraction;
+	float       shininess;
+	float       bumpIntensity;
 
-		if (textureHeap != nullptr)
-		{
-			DescriptorHandle handle = textureHeap->Alloc(1);
-			s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, m_material->m_textures[i]->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	if (assimpMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == aiReturn_SUCCESS)
+		m_material->DiffuseColor = DirectX::XMFLOAT4(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a);
 
-			if (i == 0)
-			{
-				m_material->m_textureSRVIndexStart = textureHeap->GetOffsetOfHandle(handle);
-			}
-		}
-	}
+	if (assimpMaterial->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == aiReturn_SUCCESS)
+		m_material->SpecularColor = DirectX::XMFLOAT4(specularColor.r, specularColor.g, specularColor.b, specularColor.a);
 
-	m_materialManager->AddMaterial(m_material);
+	if (assimpMaterial->Get(AI_MATKEY_COLOR_AMBIENT, ambientColor) == aiReturn_SUCCESS)
+		m_material->AmbientColor = DirectX::XMFLOAT4(ambientColor.r, ambientColor.g, ambientColor.b, ambientColor.a);
 
-	return m_material;
+	if (assimpMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == aiReturn_SUCCESS)
+		m_material->EmissiveColor = DirectX::XMFLOAT4(emissiveColor.r, emissiveColor.g, emissiveColor.b, emissiveColor.a);
+
+	if (assimpMaterial->Get(AI_MATKEY_OPACITY, opacity) == aiReturn_SUCCESS)
+		m_material->Opacity = opacity;
+
+	if (assimpMaterial->Get(AI_MATKEY_REFRACTI, indexOfRefraction) == aiReturn_SUCCESS)
+		m_material->IndexOfRefraction = indexOfRefraction;
+
+	if (assimpMaterial->Get(AI_MATKEY_SHININESS, shininess) == aiReturn_SUCCESS)
+		m_material->Shininess = shininess;
+
+	if (assimpMaterial->Get(AI_MATKEY_BUMPSCALING, bumpIntensity) == aiReturn_SUCCESS)
+		m_material->BumpIntensity = bumpIntensity;
 }
 
 void MaterialManager::AddMaterial(SharedMaterial material)
@@ -165,4 +209,18 @@ SharedMaterial MaterialManager::GetMaterial(std::wstring& materialName)
 	}
 
 	return nullptr;
+}
+
+DirectX::GraphicsResource Material::CreateMaterialBuffer()
+{
+	return Graphics::s_graphicsMemory->AllocateConstant(CreateMaterialConstant());
+}
+
+void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
+{
+	cmdList->SetGraphicsRootConstantBufferView(2, CreateMaterialBuffer().GpuAddress());
+
+	// We only need to set the first texture since they are all contiguous in the heap.
+	// The root signature knows how many are to be used.
+	cmdList->SetGraphicsRootDescriptorTable(3, m_textureSRVHandles[0]);
 }

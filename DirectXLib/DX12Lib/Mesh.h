@@ -2,7 +2,6 @@
 #include "Helpers.h"
 #include "GraphicsMemory.h"
 #include "VertexTypes.h"
-#include "Material.h"
 #include "DX12Lib/DescriptorHeap.h"
 
 class Mesh
@@ -12,6 +11,8 @@ class Mesh
 public:
 	Mesh() {};
 	~Mesh() {};
+
+	void Draw(ID3D12GraphicsCommandList* cmdList);
 
 	D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	UINT m_numIndices = 0;

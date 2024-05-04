@@ -144,11 +144,9 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
 
     for (auto mesh : m_meshes)
     {
-        UINT textureIndex = m_materials[mesh->m_materialIndex]->m_textureSRVIndexStart;
-
-        commandList->SetGraphicsRootDescriptorTable(2, m_textureHeap[textureIndex]);
-		commandList->IASetPrimitiveTopology(mesh->m_primitiveTopology);
-		commandList->DrawIndexedInstanced(mesh->m_numIndices, 1, mesh->m_indexStart, mesh->m_vertexStart, 0);
+        SharedMaterial mat = m_materials[mesh->m_materialIndex];
+        mat->UseMaterial(commandList);
+        mesh->Draw(commandList);
 	}
 }
 
