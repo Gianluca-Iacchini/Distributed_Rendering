@@ -58,12 +58,27 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
     m_isLoaded = true;
 }
 
-void Texture::CreateFromTGAFile(const std::wstring& filename, bool sRGB)
+void Texture::CreateFromFile(const std::wstring& filename, bool sRGB)
 {
     DirectX::TexMetadata texMetaData;
     DirectX::ScratchImage scratchImage;
 
-    ThrowIfFailed(DirectX::LoadFromTGAFile(filename.c_str(), &texMetaData, scratchImage));
+    if (filename.substr(filename.find_last_of(L".") + 1) == L"tga")
+    {
+        ThrowIfFailed(DirectX::LoadFromTGAFile(filename.c_str(), DirectX::TGA_FLAGS_NONE, &texMetaData, scratchImage));
+    }
+    else if (filename.substr(filename.find_last_of(L".") + 1) == L"dds")
+    {
+        ThrowIfFailed(DirectX::LoadFromDDSFile(filename.c_str(), DirectX::DDS_FLAGS_NONE, &texMetaData, scratchImage));
+    }
+    else if (filename.substr(filename.find_last_of(L".") + 1) == L"jpg" || filename.substr(filename.find_last_of(L".") + 1) == L"png")
+    {
+        ThrowIfFailed(DirectX::LoadFromWICFile(filename.c_str(), DirectX::WIC_FLAGS_NONE, &texMetaData, scratchImage));
+    }
+    else
+        throw std::exception("Invalid texture file format");
+
+
 
     if (sRGB)
         texMetaData.format = DirectX::MakeSRGB(texMetaData.format);
@@ -74,12 +89,12 @@ void Texture::CreateFromTGAFile(const std::wstring& filename, bool sRGB)
     {
     case DirectX::TEX_DIMENSION_TEXTURE1D:
         texDesc = CD3DX12_RESOURCE_DESC::Tex1D(texMetaData.format, texMetaData.width, (UINT16)texMetaData.arraySize);
-    	break;
+        break;
     case DirectX::TEX_DIMENSION_TEXTURE2D:
         texDesc = CD3DX12_RESOURCE_DESC::Tex2D(texMetaData.format, texMetaData.width, (UINT)texMetaData.height, (UINT16)texMetaData.arraySize);
-		break;
+        break;
     case DirectX::TEX_DIMENSION_TEXTURE3D:
-		texDesc = CD3DX12_RESOURCE_DESC::Tex3D(texMetaData.format, texMetaData.width, (UINT)texMetaData.height, (UINT16)texMetaData.depth);
+        texDesc = CD3DX12_RESOURCE_DESC::Tex3D(texMetaData.format, texMetaData.width, (UINT)texMetaData.height, (UINT16)texMetaData.depth);
     default:
         throw std::exception("Invalid texture dimension");
         break;
@@ -132,7 +147,8 @@ SharedTexture TextureManager::LoadFromFile(const std::wstring& filename, bool sR
         m_textureCache[key] = texture;
     }
 
-    texture->CreateFromTGAFile(filename, sRGB);
+
+    texture->CreateFromFile(filename, sRGB);
 
     return texture;
 }

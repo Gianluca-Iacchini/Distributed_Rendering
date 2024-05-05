@@ -10,7 +10,10 @@
 
 #include <iostream>
 
+
 using namespace Microsoft::WRL;
+
+#define DRED
 
 namespace Graphics
 {
@@ -178,6 +181,7 @@ namespace Graphics
 			for (UINT i = 0; i < crumb->BreadcrumbCount; i++)
 			{
 				std::cout << "***DRED Auto Breadcrumb: " << crumb->pCommandHistory[i] << std::endl;
+				std::cout << "LAST VALUE: " << crumb->pLastBreadcrumbValue << std::endl;
 			} 
 			crumb = crumb->pNext;
 		}

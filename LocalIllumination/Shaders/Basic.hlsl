@@ -21,11 +21,11 @@ VertexOut VS(VertexIn vIn)
 {   
     VertexOut vOut;
     
-    float4 posW = mul(float4(vIn.PosL, 1.0f), world);
+    float4 posW = mul(float4(vIn.PosL, 1.0f), oWorld);
     
     vOut.PosW = posW.xyz;
-    vOut.NormalW = mul(vIn.NormalL, (float3x3)world);
-    vOut.PosH = mul(posW, viewProj);
+    vOut.NormalW = mul(vIn.NormalL, (float3x3)oWorld);
+    vOut.PosH = mul(posW, cViewProj);
     vOut.Tex = vIn.Tex;
     
     return vOut;
@@ -33,21 +33,25 @@ VertexOut VS(VertexIn vIn)
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
-    float4 diffuseColor = diffuse;
-    diffuseColor *= diffuseTex.Sample(gSampler, pIn.Tex);
+
     
     pIn.NormalW = normalize(pIn.NormalW);
     
     // Get normal from normal map. Compute Z from X and Y.
-    float3 normalMapSample = ComputeTwoChannelNormal(normalMap.Sample(gSampler, pIn.Tex).xy);
+    float3 normalMapSample = ComputeTwoChannelNormal(gNormalMap.Sample(gSampler, pIn.Tex).xy);
     // Compute TBN matrix from position, normal and texture coordinates.
     float3x3 tbn = CalculateTBN(pIn.PosW, pIn.NormalW, pIn.Tex);
     // Transform normal from tangent space to world space
     float3 normal = normalize(mul(normalMapSample, tbn));
     
-    //return float4(normalize(pIn.NormalW), 1.0f);
-    //return diffuseTex.Sample(gSampler, pIn.Tex);
+    float3 toEyeW = normalize(cEyePos - pIn.PosW);
     
-    return float4(normal.xyz, 1);
+    float4 diffuse = gMaterial.diffuseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
+    float4 ambient = gMaterial.ambientColor * gAmbientTex.Sample(gSampler, pIn.Tex) * ambientLightStrength;
+    
+    float4 lightResult = float4(ComputeDirectionalLight(cDirLight, gMaterial, normal, toEyeW), 0.0f);
 
+    float4 litColor = diffuse + ambient + lightResult;
+    
+    return litColor;
 }

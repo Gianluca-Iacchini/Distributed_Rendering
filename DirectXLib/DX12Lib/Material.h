@@ -101,6 +101,13 @@ private:
 	DescriptorHandle m_textureSRVHandles[(UINT)TextureType::NUM_TEXTURE_TYPES];
 };
 
+class PBRMaterial : public Material
+{
+public:
+	PBRMaterial() = default;
+	
+};
+
 using SharedMaterial = std::shared_ptr<Material>;
 
 class MaterialBuilder

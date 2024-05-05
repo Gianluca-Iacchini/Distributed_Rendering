@@ -87,6 +87,7 @@ void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
 void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
 {
 	s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
+	s_graphicsMemory->Commit(s_commandQueueManager->GetCopyQueue().Get());
 }
 
 void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])

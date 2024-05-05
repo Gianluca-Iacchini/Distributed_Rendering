@@ -30,8 +30,7 @@ private:
 	void Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT format, const void* initData);
 	void Create3D(size_t rowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT format, const void* initData);
 
-	void CreateFromTGAFile(const std::wstring& filename, bool sRGB);
-	void CreateFromDDSFile(const std::wstring filename, bool sRGB) {};
+	void CreateFromFile(const std::wstring& filename, bool sRGB);
 
 	void WaitForLoad() const { while ((volatile bool&)m_isLoaded == false) { std::this_thread::yield(); } }
 

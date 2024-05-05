@@ -181,6 +181,12 @@ public:
 		m_costantBufferCommons.farPlane = camera.GetFarZ();
 		m_costantBufferCommons.totalTime = gt.TotalTime();
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
+
+		Light dirLight;
+		dirLight.Direction = XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
+		dirLight.Color = XMFLOAT3(0.45f, 0.45f, 0.45f);
+
+		m_costantBufferCommons.lights[0] = dirLight;
 	}
 
 	void MoveCamera()
