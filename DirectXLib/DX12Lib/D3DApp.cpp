@@ -207,6 +207,9 @@ bool D3DApp::InitConsole()
 		// Sync C++ and C standard streams
 		std::ios::sync_with_stdio();
 
+		// Initialize spdlog
+		Logger::Init();
+
 		return true;
 	}
 

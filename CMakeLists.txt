@@ -4,7 +4,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 
 
-add_compile_definitions(_UNICODE UNICODE)
+add_compile_definitions(_UNICODE UNICODE SPDLOG_WCHAR_TO_UTF8_SUPPORT)
 
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib) # Output directory for static lib (.LIB)
@@ -36,6 +36,9 @@ set_target_properties (DirectXTex texassemble texconv texdiag ddsview
 		FOLDER DirectXTex
 )
 
+
+
+add_subdirectory(extern/spdlog)
 
 add_subdirectory(extern/DirectXTK12)
 add_subdirectory(DirectXLib)

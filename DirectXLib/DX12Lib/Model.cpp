@@ -7,11 +7,15 @@
 #include "CommandList.h"
 #include "CommandContext.h"
 
+
 using namespace Assimp;
 using namespace Graphics;
 
 bool Model::LoadFromFile(const std::wstring filename)
 {
+
+    DXLIB_CORE_INFO(L"Loading model from file {0}", filename);
+
     Importer importer;
 
     std::string filenameStr = Utils::ToString(filename);
@@ -24,6 +28,7 @@ bool Model::LoadFromFile(const std::wstring filename)
 
     const aiScene* scene = importer.ReadFile(filenameStr, preprocessFlags);
 
+
     assert(scene != nullptr && "Failed to load scene");
 
     std::wstring directoryPath = Utils::GetFileDirectory(filename);
@@ -33,6 +38,8 @@ bool Model::LoadFromFile(const std::wstring filename)
     this->LoadMeshes(scene);
 
     Utils::SetWorkingDirectory(Utils::StartingWorkingDirectoryPath);
+
+    DXLIB_CORE_INFO(L"Model loaded successfully");
 
     return true;
 }

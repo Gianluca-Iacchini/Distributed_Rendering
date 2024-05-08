@@ -17,6 +17,7 @@ target_link_libraries(DirectXLib
     PUBLIC assimp
     PUBLIC DirectXTex
     PUBLIC DirectXTK12
+    PUBLIC spdlog
     PUBLIC d3d12.lib
     PUBLIC dxgi.lib
     PUBLIC dxguid.lib)

@@ -1,6 +1,8 @@
 #pragma once
+
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+
 #include <Windows.h> // For HRESULT
 #include <stdexcept>
 
@@ -17,12 +19,9 @@
 #include <array>
 #include "MathHelper.h"
 #include <filesystem>
-
+#include "Logger.h"
 
 extern const int gNumFrameResources;
-
-
-
 
 
 inline std::string HrToString(HRESULT hr)
