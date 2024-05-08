@@ -1,11 +1,10 @@
+#include <DX12Lib/pch.h>
 #include "DX12Lib/Helpers.h"
 #include "DX12Lib/D3DApp.h"
-#include <iostream>
 #include "DX12Lib/CIDXGIFactory.h"
 #include "Keyboard.h"
 #include "DX12Lib/Shader.h"
 #include "Dx12Lib/PipelineState.h"
-#include "DX12Lib/Helpers.h"
 #include "FrameResource.h"
 #include "DX12Lib/Fence.h"
 #include "DX12Lib/CommandQueue.h"
@@ -13,12 +12,10 @@
 #include "DX12Lib/CommandAllocator.h"
 #include "DX12Lib/Swapchain.h"
 #include "DX12Lib/DepthBuffer.h"
-#include "DX12Lib/GraphicsCore.h"
 #include "DX12Lib/CommandContext.h"
 #include "DX12Lib/RootSignature.h"
 #include "DX12Lib/CommandContext.h"
 #include "DX12Lib/Texture.h"
-#include <fstream>
 #include "DX12Lib/DescriptorHeap.h"
 #include "DX12Lib/SamplerDesc.h"
 #include "GraphicsMemory.h"
@@ -33,6 +30,7 @@
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using namespace Graphics;
+using namespace DX12Lib;
 
 struct Vertex
 {
@@ -86,10 +84,11 @@ public:
 	void BuildShadersAndInputLayout()
 	{
 		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
-		std::wstring shaderFile = srcDir + L"\\Shaders\\Basic.hlsl";
+		std::wstring VSshaderFile = srcDir + L"\\Shaders\\Basic_VS.hlsl";
+		std::wstring PSshaderFile = srcDir + L"\\Shaders\\Basic_PS.hlsl";
 
-		std::shared_ptr<Shader> vertexShader = std::make_shared<Shader>(shaderFile, "VS", "vs_5_1");
-		std::shared_ptr<Shader> pixelShader = std::make_shared<Shader>(shaderFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> vertexShader = std::make_shared<Shader>(VSshaderFile, "VS", "vs_5_1");
+		std::shared_ptr<Shader> pixelShader = std::make_shared<Shader>(PSshaderFile, "PS", "ps_5_1");
 
 		vertexShader->Compile();
 		pixelShader->Compile();
@@ -152,7 +151,9 @@ public:
 
 		assert(loaded && "Model not loaded");
 
-		camera.SetPosition(0.0f, 0.0f, -2.0f);
+		camera.SetPosition(0.0f, 250.0f, 0.0f);
+
+		camera.LookAt(camera.GetPosition3f(), XMFLOAT3(1000.f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f));
 
 		context->Finish(true);
 
@@ -234,11 +235,14 @@ public:
 		{
 			camera.Strafe(cameraSpeed * gt.DeltaTime());
 		}
-
-
-
-
-		
+		if (kbState.E)
+		{
+			camera.Lift(cameraSpeed * gt.DeltaTime());
+		}
+		if (kbState.Q)
+		{
+			camera.Lift(-cameraSpeed * gt.DeltaTime());
+		}
 	}
 
 	virtual void Update(const GameTime& gt) override

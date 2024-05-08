@@ -1,5 +1,8 @@
+#include "pch.h"
 #include "Adapter.h"
 #include "CIDXGIFactory.h"
+
+using namespace DX12Lib;
 
 using Microsoft::WRL::ComPtr;
 

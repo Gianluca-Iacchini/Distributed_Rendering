@@ -1,8 +1,9 @@
+#include "pch.h"
+
 #include "DescriptorHeap.h"
-#include "Device.h"
-#include "GraphicsCore.h"
 
 using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 DescriptorAllocator::DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type)
 	: m_descriptorHeapType(type), m_currentHeap(nullptr), m_descriptorSize(0)

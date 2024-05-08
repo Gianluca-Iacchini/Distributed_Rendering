@@ -1,50 +1,52 @@
-#include "Helpers.h"
+#pragma once
 
-#ifndef SHADER_H
-#define SHADER_H
+#include <d3d12.h>
+#include <wrl/client.h>
 
-class Shader
-{
-public:
-	Shader(const std::wstring& shaderFilePath, const std::string& entryPoint, const std::string& shaderTarget);
-	void AddShaderMacro(const std::string& define, const std::string& value);
-	void AddShaderMacro(const std::vector<D3D_SHADER_MACRO>& defines);
-	void AddShaderMacro(const D3D_SHADER_MACRO* defines, size_t num);
-	void AddShaderMacro(const D3D_SHADER_MACRO& define);
+namespace DX12Lib {
 
-	void Compile();
-	Microsoft::WRL::ComPtr<ID3DBlob> GetShaderByteBlob() { return m_shaderByteBlob; };
+	class Shader
+	{
+	public:
+		Shader(const std::wstring& shaderFilePath, const std::string& entryPoint, const std::string& shaderTarget);
+		void AddShaderMacro(const std::string& define, const std::string& value);
+		void AddShaderMacro(const std::vector<D3D_SHADER_MACRO>& defines);
+		void AddShaderMacro(const D3D_SHADER_MACRO* defines, size_t num);
+		void AddShaderMacro(const D3D_SHADER_MACRO& define);
 
-	~Shader();
+		void Compile();
+		Microsoft::WRL::ComPtr<ID3DBlob> GetShaderByteBlob() { return m_shaderByteBlob; };
 
-private:
-	std::wstring m_shaderFilePath;
-	std::string m_entryPoint;
-	std::string m_shaderTarget;
+		~Shader();
 
-	Microsoft::WRL::ComPtr<ID3DBlob> m_shaderByteBlob = nullptr;
-	Microsoft::WRL::ComPtr<ID3DBlob> m_shaderErrorBlob = nullptr;
-	std::vector<D3D_SHADER_MACRO> m_shaderDefines;
+	private:
+		std::wstring m_shaderFilePath;
+		std::string m_entryPoint;
+		std::string m_shaderTarget;
+
+		Microsoft::WRL::ComPtr<ID3DBlob> m_shaderByteBlob = nullptr;
+		Microsoft::WRL::ComPtr<ID3DBlob> m_shaderErrorBlob = nullptr;
+		std::vector<D3D_SHADER_MACRO> m_shaderDefines;
 
 
 
-public:
-	std::string CompileErrorMessage;
-	/// <summary>
-	/// Input layout for this shader (only for vertex shaders)
-	/// </summary>
-	std::vector<D3D12_INPUT_ELEMENT_DESC> InputLayout;
+	public:
+		std::string CompileErrorMessage;
+		/// <summary>
+		/// Input layout for this shader (only for vertex shaders)
+		/// </summary>
+		std::vector<D3D12_INPUT_ELEMENT_DESC> InputLayout;
 
-public:
+	public:
 
-	Shader(Shader&&) = default;
-	Shader& operator=(Shader&&) = default;
+		Shader(Shader&&) = default;
+		Shader& operator=(Shader&&) = default;
 
-	Shader(const Shader&) = delete;
-	Shader& operator=(const Shader&) = delete;
-};
+		Shader(const Shader&) = delete;
+		Shader& operator=(const Shader&) = delete;
+	};
 
-#endif // !SHADER_H
+}
 
 
 

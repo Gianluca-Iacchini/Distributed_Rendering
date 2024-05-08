@@ -1,6 +1,8 @@
+#include "pch.h"
 #include "Camera.h"
 
 using namespace DirectX;
+using namespace DX12Lib;
 
 Camera::Camera()
 {
@@ -184,6 +186,16 @@ void Camera::Walk(float d)
 	XMVECTOR l = XMLoadFloat3(&m_look);
 	XMVECTOR p = XMLoadFloat3(&m_position);
 	XMStoreFloat3(&m_position, XMVectorMultiplyAdd(s, l, p));
+
+	m_viewDirty = true;
+}
+
+void Camera::Lift(float d)
+{
+	XMVECTOR s = XMVectorReplicate(d);
+	XMVECTOR u = XMLoadFloat3(&m_up);
+	XMVECTOR p = XMLoadFloat3(&m_position);
+	XMStoreFloat3(&m_position, XMVectorMultiplyAdd(s, u, p));
 
 	m_viewDirty = true;
 }

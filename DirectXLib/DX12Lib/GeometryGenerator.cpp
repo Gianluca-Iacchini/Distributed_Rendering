@@ -1,4 +1,7 @@
+#include "pch.h"
 #include "GeometryGenerator.h"
+
+using namespace DX12Lib;
 
 GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float height, float depth, uint32_t numSubdivisions)
 {

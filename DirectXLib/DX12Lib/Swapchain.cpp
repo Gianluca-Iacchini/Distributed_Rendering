@@ -1,12 +1,12 @@
+#include "pch.h"
 #include "Swapchain.h"
 #include "CIDXGIFactory.h"
 #include "DX12Window.h"
 #include "CommandQueue.h"
 #include "Resource.h"
-#include "GraphicsCore.h"
-#include "CIDXGIFactory.h"
 
 using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 
 Swapchain::Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat) : 
@@ -36,7 +36,13 @@ void Swapchain::Initialize(CommandQueue& commandQueue)
 {
 	m_swapchain.Reset();
 
-	auto factory = CIDXGIFactory();
+	UINT flags = 0;
+
+#ifdef DEBUG || _DEBUG
+		flags = DXGI_CREATE_FACTORY_DEBUG;
+#endif // DEBUG
+
+	auto factory = CIDXGIFactory(flags);
 
 	ThrowIfFailed(factory->CreateSwapChainForHwnd(
 		commandQueue.Get(), // The command queue associated with rendering

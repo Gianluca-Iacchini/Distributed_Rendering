@@ -1,45 +1,45 @@
-#ifndef DEVICE_H
-#define DEVICE_H
+#pragma once
 
-#include "Helpers.h"
+#include <d3d12.h>
 
-class Adapter;
-class CommandList;
-class CommandQueue;
-class CommandAllocator;
+namespace DX12Lib {
 
-class Device
-{
-public:
+	class Adapter;
+	class CommandList;
+	class CommandQueue;
+	class CommandAllocator;
 
-	Device();
-	~Device();
+	class Device
+	{
+	public:
 
-	bool Initialize(Adapter* adapter = nullptr);
-	
-	UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const { return m_device->GetDescriptorHandleIncrementSize(type); };
+		Device();
+		~Device();
+
+		bool Initialize(Adapter* adapter = nullptr);
+
+		UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const { return m_device->GetDescriptorHandleIncrementSize(type); };
 
 
-	UINT RtvDescriptorSize = 0;
-	UINT DsvDescriptorSize = 0;
-	UINT CbvSrvUavDescriptorSize = 0;
-	UINT SamplerDescriptorSize = 0;
+		UINT RtvDescriptorSize = 0;
+		UINT DsvDescriptorSize = 0;
+		UINT CbvSrvUavDescriptorSize = 0;
+		UINT SamplerDescriptorSize = 0;
 
-private:
+	private:
 
-	Microsoft::WRL::ComPtr<ID3D12Device> m_device;
+		Microsoft::WRL::ComPtr<ID3D12Device> m_device;
 
-public:
-	operator ID3D12Device* () const { return m_device.Get(); }
+	public:
+		operator ID3D12Device* () const { return m_device.Get(); }
 
-	ID3D12Device* operator->() const { return m_device.Get(); }
+		ID3D12Device* operator->() const { return m_device.Get(); }
 
-	ID3D12Device* Get() const { return m_device.Get(); }
-	ID3D12Device** GetAddressOf() { return m_device.GetAddressOf(); }
-	Microsoft::WRL::ComPtr<ID3D12Device> GetComPtr() const { return m_device; }
-};
-
-#endif // !DEVICE_H
+		ID3D12Device* Get() const { return m_device.Get(); }
+		ID3D12Device** GetAddressOf() { return m_device.GetAddressOf(); }
+		Microsoft::WRL::ComPtr<ID3D12Device> GetComPtr() const { return m_device; }
+	};
+}
 
 
 

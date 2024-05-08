@@ -1,8 +1,9 @@
+#include "pch.h"
 #include "Shader.h"
-#include <filesystem>
-#include <iostream>
+
 
 using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 Shader::Shader(const std::wstring& shaderFilePath, const std::string& entryPoint, const std::string& shaderTarget)
 	: m_shaderFilePath(shaderFilePath), m_entryPoint(entryPoint), m_shaderTarget(shaderTarget)

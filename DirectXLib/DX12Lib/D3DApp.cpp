@@ -1,3 +1,5 @@
+#include "pch.h"
+
 #include "D3DApp.h"
 #include <WindowsX.h>
 #include <iostream>
@@ -19,6 +21,7 @@
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
+using namespace DX12Lib;
 
 D3DApp* D3DApp::m_App = nullptr;
 
@@ -100,7 +103,7 @@ int D3DApp::Run()
 
 		m_Time.Tick();
 
-		CalculateFrameStats();
+		CalculateFrameStats(m_Time);
 		Update(m_Time);
 		Draw(m_Time);
 
@@ -262,32 +265,30 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::DepthStencilView() const
 	return m_depthStencilBuffer->GetDSV();
 }
 
-void D3DApp::CalculateFrameStats()
+void D3DApp::CalculateFrameStats(GameTime& gt)
 {
 	static int frameCount = 0;
-	static double timeElapsed = 0.0f;
+	static double lastTime = 0.0f;
 
 	frameCount++;
 
-	auto frameTime = std::chrono::high_resolution_clock::now();
-	double elapsedSeconds = std::chrono::duration<double>(frameTime - m_initalTime).count();
+	float frameTime = gt.TotalTime();
 
-	if (elapsedSeconds >= 1.0)
+	if (frameTime - lastTime >= 1.0)
 	{
-		
-			float fps = (float)frameCount;
-			float mspf = 1000.0f / fps;
+		float fps = (float)frameCount;
+		float mspf = 1000.0f / fps;
 
-			std::wstring fpsStr = std::to_wstring(fps);
-			std::wstring mspfStr = std::to_wstring(mspf);
+		std::wstring fpsStr = std::to_wstring(fps);
+		std::wstring mspfStr = std::to_wstring(mspf);
 
-			std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
+		std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
 
-			SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
+		SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
 
-			frameCount = 0;
+		frameCount = 0;
 
-			m_initalTime = frameTime;
+		lastTime = frameTime;
 	}
 }
 

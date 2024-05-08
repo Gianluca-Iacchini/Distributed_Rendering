@@ -1,10 +1,10 @@
+#include "pch.h"
 #include "Helpers.h"
 #include <comdef.h>
 #include "GraphicsMemory.h"
-#include "GraphicsCore.h"
 #include "ResourceUploadBatch.h"
 #include "CommandQueue.h"
-#include <filesystem>
+
 
 using Microsoft::WRL::ComPtr;
 

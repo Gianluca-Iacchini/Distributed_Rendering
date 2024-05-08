@@ -6,6 +6,7 @@ file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h" "${CMAKE_CURREN
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_FILES})
 
 add_library(DirectXLib STATIC "${SOURCE_FILES}")
+target_precompile_headers(DirectXLib PRIVATE "DX12Lib/pch.h")
 
 set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
 

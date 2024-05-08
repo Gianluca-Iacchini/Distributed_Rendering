@@ -1,58 +1,61 @@
-#include "Helpers.h"
+#pragma once
+
 #include "ColorBuffer.h"
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <wrl/client.h>
 
-#ifndef SWAPCHAIN_H
-#define SWAPCHAIN_H
+namespace DX12Lib {
 
-class CIDXGIFactory;
-class DX12Window;
-class CommandQueue;
+	class CIDXGIFactory;
+	class DX12Window;
+	class CommandQueue;
 
-class Swapchain
-{
-public:
-	Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
-	~Swapchain();
+	class Swapchain
+	{
+	public:
+		Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+		~Swapchain();
 
-	void Initialize(CommandQueue& commandQueue);
+		void Initialize(CommandQueue& commandQueue);
 
-	void Resize(UINT width, UINT height);
+		void Resize(UINT width, UINT height);
 
-	ColorBuffer& GetBackBuffer(unsigned int index) { return m_backBuffers[index]; }
-	ColorBuffer& GetCurrentBackBuffer() { return m_backBuffers[CurrentBufferIndex]; }
+		ColorBuffer& GetBackBuffer(unsigned int index) { return m_backBuffers[index]; }
+		ColorBuffer& GetCurrentBackBuffer() { return m_backBuffers[CurrentBufferIndex]; }
 
-public:
-	static const unsigned int BufferCount = 3;
-	unsigned int CurrentBufferIndex = 0;
+	public:
+		static const unsigned int BufferCount = 3;
+		unsigned int CurrentBufferIndex = 0;
 
 
-private:
-	DXGI_SWAP_CHAIN_DESC1 m_swapchainDesc = {};
+	private:
+		DXGI_SWAP_CHAIN_DESC1 m_swapchainDesc = {};
 
-	bool m_isMsaaEnabled = false;
-	unsigned int m_msaaQuality = 0;
-	
-	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		bool m_isMsaaEnabled = false;
+		unsigned int m_msaaQuality = 0;
 
-	DX12Window& m_window;
-	Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
-	
-	ColorBuffer m_backBuffers[BufferCount];
+		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-public:
+		DX12Window& m_window;
+		Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
 
-	Swapchain(Swapchain&& other) = default;
-	Swapchain& operator=(Swapchain&& other) = default;
+		ColorBuffer m_backBuffers[BufferCount];
 
-	Swapchain(Swapchain&) = delete;
-	Swapchain& operator=(Swapchain&) = delete;
+	public:
 
-	Microsoft::WRL::ComPtr<IDXGISwapChain> GetComPointer() { return m_swapchain; }
-	IDXGISwapChain1* Get() { return m_swapchain.Get(); }
-	IDXGISwapChain1** GetAddressOf() { return m_swapchain.GetAddressOf(); }
-};
+		Swapchain(Swapchain&& other) = default;
+		Swapchain& operator=(Swapchain&& other) = default;
 
-#endif // !SWAPCHAIN_H
+		Swapchain(Swapchain&) = delete;
+		Swapchain& operator=(Swapchain&) = delete;
+
+		Microsoft::WRL::ComPtr<IDXGISwapChain> GetComPointer() { return m_swapchain; }
+		IDXGISwapChain1* Get() { return m_swapchain.Get(); }
+		IDXGISwapChain1** GetAddressOf() { return m_swapchain.GetAddressOf(); }
+	};
+
+}
 
 
 

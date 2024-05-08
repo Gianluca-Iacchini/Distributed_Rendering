@@ -1,10 +1,10 @@
+#include "pch.h"
 #include "Texture.h"
-#include "GraphicsCore.h"
 #include "CommandContext.h"
-#include <iostream>
 
 
 
+using namespace DX12Lib;
 using namespace Microsoft::WRL;
 using namespace Graphics;
 
@@ -120,6 +120,8 @@ TextureManager::TextureManager()
         std::wstring defaultName = L"DefaultTexture" + std::to_wstring(i);
 		this->DefaultTextures[i] = CreateTexture2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &defaultTextureData[i], defaultName);
 	}
+
+    CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
 }
 
 SharedTexture TextureManager::LoadFromFile(const std::wstring& filename, bool sRGB)

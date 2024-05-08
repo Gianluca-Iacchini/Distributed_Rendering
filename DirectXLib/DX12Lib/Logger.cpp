@@ -1,4 +1,7 @@
+#include "pch.h"
 #include "Logger.h"
+
+using namespace DX12Lib;
 
 std::shared_ptr<spdlog::logger> Logger::s_coreLogger;
 std::shared_ptr<spdlog::logger> Logger::s_clientLogger;

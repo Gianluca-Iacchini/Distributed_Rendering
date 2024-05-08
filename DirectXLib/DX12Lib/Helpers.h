@@ -1,25 +1,16 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-
-#include <Windows.h> // For HRESULT
-#include <stdexcept>
-
-#include <sstream>
-#include <dxgi1_6.h>
-#include <directx/d3dx12.h>
-#include "DirectXTex.h"
-#include <cassert>
 #include <string>
-#include <unordered_map>
-#include <DirectXColors.h>
-#include <DirectXCollision.h>
-#include <d3dcompiler.h>
-#include <array>
-#include "MathHelper.h"
-#include <filesystem>
-#include "Logger.h"
+#include <iostream>
+#include <sstream>
+#include <wrl/client.h>
+#include <Windows.h>
+#include <d3d12.h>
+
+// From Microsoft mini engine
+#define D3D12_GPU_VIRTUAL_ADDRESS_NULL    ((D3D12_GPU_VIRTUAL_ADDRESS)0)
+#define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
+#define CONSTANT_BUFFER_SIZE 256
 
 extern const int gNumFrameResources;
 
@@ -46,7 +37,7 @@ public:
 
 inline std::wstring AnsiToWstring(const std::string& str)
 {
-    WCHAR buffer[512];
+    WCHAR  buffer[512];
     MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
     return std::wstring(buffer);
 }
@@ -81,7 +72,7 @@ inline void PrintSubMessage(void)
 {
 }
 
-#include <iostream>
+
 
 #define STRINGIFY(x) #x
 #define STRINGIFY_BUILTIN(x) STRINGIFY(x)
@@ -98,10 +89,7 @@ inline void PrintSubMessage(void)
         }
 #endif
 
-// From Microsoft mini engine
-#define D3D12_GPU_VIRTUAL_ADDRESS_NULL    ((D3D12_GPU_VIRTUAL_ADDRESS)0)
-#define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
-#define CONSTANT_BUFFER_SIZE 256
+
 
 class Utils
 {
@@ -163,90 +151,10 @@ public:
     static std::wstring StartingWorkingDirectoryPath;
 };
 
-struct SubmeshGeometry
-{
-    UINT indexCount = 0;
-    UINT startIndexLocation = 0;
-    INT baseVertexLocation = 0;
 
-    DirectX::BoundingBox bounds;
-};
 
-struct MeshGeometry
-{
-    std::string Name;
 
-    Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
-    Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
-
-    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
-
-    UINT VertexByteStride = 0;
-    UINT VertexBufferByteSize = 0;
-
-    DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
-    UINT IndexBufferByteSize = 0;
-
-    std::unordered_map<std::string, SubmeshGeometry> DrawArgs;
-
-    D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
-    {
-        D3D12_VERTEX_BUFFER_VIEW vbv;
-        vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
-        vbv.SizeInBytes = VertexBufferByteSize;
-        vbv.StrideInBytes = VertexByteStride;
-
-        return vbv;
-	}
-
-    D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
-    {
-		D3D12_INDEX_BUFFER_VIEW ibv;
-		ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
-		ibv.Format = IndexFormat;
-		ibv.SizeInBytes = IndexBufferByteSize;
-
-        return ibv;
-	}
-
-    void DisposeUploaders()
-    {
-		VertexBufferUploader = nullptr;
-		IndexBufferUploader = nullptr;
-	}
-};
-
-//struct Material
-//{
-//    std::string Name;
-//
-//    int MatCBIndex = -1;
-//
-//    int DiffuseSrvHeapIndex = -1;
-//
-//    int NormalSrvHeapIndex = -1;
-//
-//    int NumFramesDirty = gNumFrameResources;
-//
-//    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-//    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-//    float Roughness = 0.25f;
-//    DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
-//};
-
-//struct Texture
-//{
-//    std::string Name;
-//
-//    std::wstring Filename;
-//
-//    Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
-//    Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
-//};
 
 
 

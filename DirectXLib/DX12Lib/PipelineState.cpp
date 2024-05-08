@@ -1,12 +1,11 @@
+#include "pch.h"
 #include "PipelineState.h"
-#include "Device.h"
 #include "Shader.h"
-#include <iostream>
-#include "GraphicsCore.h"
 #include "RootSignature.h"
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
+using namespace DX12Lib;
 
 
 

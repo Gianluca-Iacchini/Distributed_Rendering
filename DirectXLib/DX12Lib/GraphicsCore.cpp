@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "GraphicsCore.h"
-#include "Device.h"
 #include "CIDXGIFactory.h"
 #include "Adapter.h"
 #include "CommandAllocator.h"
@@ -8,10 +8,10 @@
 #include "dxgidebug.h"
 #include "CommandContext.h"
 
-#include <iostream>
 
 
 using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 #define DRED
 
@@ -94,11 +94,14 @@ namespace Graphics
 
 	bool Initialize()
 	{
+		UINT dxgiFactoryFlags = 0;
+
 		#if defined(DEBUG) || defined (_DEBUG)
 		{
 			Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
 			ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 			debugController->EnableDebugLayer();
+			dxgiFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 		}
 		#endif
 
@@ -109,7 +112,7 @@ namespace Graphics
 			s_dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 		}
 		#endif
-		auto factory = CIDXGIFactory();
+		auto factory = CIDXGIFactory(dxgiFactoryFlags);
 
 		s_device = std::make_shared<Device>();
 

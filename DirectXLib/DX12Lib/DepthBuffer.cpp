@@ -1,9 +1,11 @@
+#include "pch.h"
+
 #include "DepthBuffer.h"
-#include "GraphicsCore.h"
 
 
 using namespace Graphics;
 using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 void DepthBuffer::Create(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr)
 {

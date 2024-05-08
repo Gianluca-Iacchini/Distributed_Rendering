@@ -1,7 +1,10 @@
+#include "pch.h"
 #include "SamplerDesc.h"
-#include "GraphicsCore.h"
+
 
 using namespace Graphics;
+using namespace DX12Lib;
+
 
 D3D12_CPU_DESCRIPTOR_HANDLE SamplerDesc::CreateDescriptor(void)
 {

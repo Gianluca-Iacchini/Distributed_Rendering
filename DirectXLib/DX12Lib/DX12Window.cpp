@@ -1,4 +1,10 @@
+#include "pch.h"
+
 #include "DX12Window.h"
+#include "Mouse.h"
+#include "Keyboard.h"
+
+using namespace DX12Lib;
 
 LRESULT CALLBACK
 MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

@@ -1,6 +1,9 @@
+#include "pch.h"
+
 #include "CommandQueue.h"
-#include "Device.h"
 #include "CommandList.h"
+
+using namespace DX12Lib;
 
 using namespace Microsoft::WRL;
 

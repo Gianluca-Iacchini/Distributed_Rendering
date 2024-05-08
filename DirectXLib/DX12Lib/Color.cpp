@@ -1,6 +1,8 @@
+#include "pch.h"
 #include "Color.h"
 
 using namespace DirectX;
+using namespace DX12Lib;
 
 Color Color::ToSRGB() const
 {

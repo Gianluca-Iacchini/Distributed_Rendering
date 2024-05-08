@@ -1,14 +1,16 @@
+#include "pch.h"
+
 #include "CommandContext.h"
 #include "CommandQueue.h"
 #include "CommandList.h"
 #include "CommandAllocator.h"
-#include "GraphicsCore.h"
 #include "Resource.h"
 #include "GraphicsMemory.h"
 
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
+using namespace DX12Lib;
 
 CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
 	: m_type(type), m_resourceBarrier{}
@@ -87,7 +89,7 @@ void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
 void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
 {
 	s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
-	s_graphicsMemory->Commit(s_commandQueueManager->GetCopyQueue().Get());
+	//s_graphicsMemory->Commit(s_commandQueueManager->GetCopyQueue().Get());
 }
 
 void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])

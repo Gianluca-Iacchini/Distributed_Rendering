@@ -1,7 +1,8 @@
+#include "pch.h"
 #include "Material.h"
-#include "GraphicsCore.h"
 
 using namespace Graphics;
+using namespace DX12Lib;
 
 void MaterialBuilder::AddTexture(aiTextureType assimpTextureType, aiString& texturePath)
 {

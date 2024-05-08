@@ -1,34 +1,33 @@
-#include "Helpers.h"
-#include "Keyboard.h"
-#include "Mouse.h"
+#pragma once
 
-#ifndef DX12WINDOW_H
-#define DX12WINDOW_H
+#include <Windows.h>
+#include <string>
 
-class DX12Window
-{
-public:
-	DX12Window(HINSTANCE hInstance, int width, int height, std::wstring windowTitle);
-	~DX12Window() {};
+namespace DX12Lib {
 
-	bool Create();
-	void Show();
-	HWND GetWindowHandle() const { return m_hwnd; }
-	int GetWidth() const { return m_width; }
-	int GetHeight() const { return m_height; }
-	std::wstring GetWindowTitle() const { return m_windowTitle; }
-	void SetWindowTitle(std::wstring title);
+	class DX12Window
+	{
+	public:
+		DX12Window(HINSTANCE hInstance, int width, int height, std::wstring windowTitle);
+		~DX12Window() {};
 
-private:
-	WNDCLASSEX m_windowClass;
-	HINSTANCE m_hInstance;
-	HWND m_hwnd;
-	int m_width;
-	int m_height;
-	std::wstring m_windowTitle;
-};
+		bool Create();
+		void Show();
+		HWND GetWindowHandle() const { return m_hwnd; }
+		int GetWidth() const { return m_width; }
+		int GetHeight() const { return m_height; }
+		std::wstring GetWindowTitle() const { return m_windowTitle; }
+		void SetWindowTitle(std::wstring title);
 
-#endif // !DX12WINDOW_H
+	private:
+		WNDCLASSEX m_windowClass;
+		HINSTANCE m_hInstance;
+		HWND m_hwnd;
+		int m_width;
+		int m_height;
+		std::wstring m_windowTitle;
+	};
+}
 
 
 

@@ -1,7 +1,10 @@
+#include "pch.h"
+
 #include "Device.h"
 #include "DX12Lib/Adapter.h"
 
 using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 Device::Device()
 {

@@ -1,12 +1,14 @@
+#include "pch.h"
+
 #include "Model.h"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
-#include "iostream"
 #include "Mesh.h"
-#include "GraphicsCore.h"
 #include "CommandList.h"
 #include "CommandContext.h"
 
+
+using namespace DX12Lib;
 
 using namespace Assimp;
 using namespace Graphics;

@@ -42,3 +42,17 @@ Texture2D gBumpMap : register(t6);
 
 SamplerState gSampler : register(s0);
 
+struct VertexIn
+{
+    float3 PosL : SV_Position;
+    float3 NormalL : NORMAL;
+    float2 Tex : TEXCOORD;
+};
+
+struct VertexOut
+{
+    float4 PosH : SV_POSITION;
+    float3 PosW : POSITION;
+    float3 NormalW : NORMAL;
+    float2 Tex : TEXCOORD;
+};

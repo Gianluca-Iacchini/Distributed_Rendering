@@ -1,6 +1,7 @@
+#include "pch.h"
 #include "CommandAllocator.h"
-#include "Device.h"
-#include "GraphicsCore.h"
+
+using namespace DX12Lib;
 
 using namespace Microsoft::WRL;
 
@@ -30,8 +31,6 @@ CommandAllocatorPool::~CommandAllocatorPool()
 
 	m_commandAllocatorPool.clear();
 }
-
-#include <iostream>
 
 CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceValue)
 {

@@ -1,4 +1,8 @@
+#include "pch.h"
+
 #include "Mesh.h"
+
+using namespace DX12Lib;
 
 void Mesh::Draw(ID3D12GraphicsCommandList* cmdList)
 {

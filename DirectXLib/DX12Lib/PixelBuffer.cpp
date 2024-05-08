@@ -1,4 +1,7 @@
+#include "pch.h"
 #include "PixelBuffer.h"
+
+using namespace DX12Lib;
 
 D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D(UINT width, UINT height, UINT arraySize, UINT numMips, DXGI_FORMAT format, UINT flags)
 {

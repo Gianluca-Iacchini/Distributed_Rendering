@@ -1,8 +1,11 @@
+#include "pch.h"
+
 #include "RootSignature.h"
-#include "GraphicsCore.h"
+
 
 using namespace Microsoft::WRL;
 using namespace Graphics;
+using namespace DX12Lib;
 
 void RootSignature::InitStaticSampler(UINT nRegister, const D3D12_SAMPLER_DESC& samplerDesc, D3D12_SHADER_VISIBILITY visibility)
 {
@@ -60,8 +63,6 @@ void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS flags)
 	desc.Flags = flags;
 
 	auto& param = m_rootParameters.get()[1];
-
-	std::cout << m_rootParameters.get()[1].m_rootParameter.ParameterType << std::endl;
 
 	m_descirptorTableBitMap = 0;
 	m_samplerTableBitMap = 0;

@@ -1,5 +1,8 @@
+#include "pch.h"
+
 #include "Fence.h"
-#include "Device.h"
+
+using namespace DX12Lib;
 
 Fence::Fence(Device& device, UINT64 lastFenceValue, UINT64 nextFenceValue)
 	: m_lastFenceValue(lastFenceValue), CurrentFenceValue(nextFenceValue)

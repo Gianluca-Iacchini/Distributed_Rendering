@@ -1,5 +1,7 @@
+#include "pch.h"
 #include "UploadBuffer.h"
-#include "Device.h"
+
+using namespace DX12Lib;
 
 template<typename T>
 inline UploadBuffer<T>::UploadBuffer(Device& device, UINT elementCount, bool isConstantBuffer) 

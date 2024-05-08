@@ -1,36 +1,5 @@
 #include "Common.hlsli"
 
-
-
-struct VertexIn
-{
-    float3 PosL : SV_Position;
-    float3 NormalL : NORMAL;
-    float2 Tex : TEXCOORD;
-};
-
-struct VertexOut
-{
-    float4 PosH : SV_POSITION;
-    float3 PosW : POSITION;
-    float3 NormalW : NORMAL;
-    float2 Tex : TEXCOORD;
-};
-
-VertexOut VS(VertexIn vIn)
-{   
-    VertexOut vOut;
-    
-    float4 posW = mul(float4(vIn.PosL, 1.0f), oWorld);
-    
-    vOut.PosW = posW.xyz;
-    vOut.NormalW = mul(vIn.NormalL, (float3x3)oWorld);
-    vOut.PosH = mul(posW, cViewProj);
-    vOut.Tex = vIn.Tex;
-    
-    return vOut;
-}
-
 float4 PS(VertexOut pIn) : SV_TARGET
 {
 

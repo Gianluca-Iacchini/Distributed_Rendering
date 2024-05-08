@@ -1,9 +1,10 @@
+#include "pch.h"
 #include "CommandList.h"
 #include "CommandAllocator.h"
 #include "PipelineState.h"
-#include "Device.h"
 
-
+using namespace Microsoft::WRL;
+using namespace DX12Lib;
 
 CommandList::CommandList(Device& device, CommandAllocator& cmdAllocator, D3D12_COMMAND_LIST_TYPE cmdType, std::shared_ptr<PipelineState> pipelineState)
 	: m_cmdType(cmdType), m_pipelineState(pipelineState)

@@ -1,65 +1,63 @@
-#include "Helpers.h"
-#include "DescriptorHeap.h"
+#pragma once
 
-#ifndef RESOURCE_H
-#define RESOURCE_H
+#include <wrl.h>
+#include <d3d12.h>
 
-class Resource
-{
-	friend class CommandContext;
+namespace DX12Lib {
 
-public:
-	Resource() : 
-		m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN), 
-		m_currentState(D3D12_RESOURCE_STATE_COMMON), 
-		m_nextState((D3D12_RESOURCE_STATES)-1)
-	{}
-	Resource(ID3D12Resource* resource, D3D12_RESOURCE_STATES currentState) :
-		m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN),
-		m_resource(resource),
-		m_currentState(currentState),
-		m_nextState((D3D12_RESOURCE_STATES)-1)
-	{}
-
-	~Resource() { OnDestroy(); }
-
-	D3D12_RESOURCE_DESC GetDesc() const { return m_resource->GetDesc(); }
-
-	virtual void OnDestroy()
+	class Resource
 	{
-		m_resource = nullptr;
-		m_gpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-		m_versionID += 1;
-	}
+		friend class CommandContext;
 
-protected:
+	public:
+		Resource() :
+			m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN),
+			m_currentState(D3D12_RESOURCE_STATE_COMMON),
+			m_nextState((D3D12_RESOURCE_STATES)-1)
+		{}
+		Resource(ID3D12Resource* resource, D3D12_RESOURCE_STATES currentState) :
+			m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN),
+			m_resource(resource),
+			m_currentState(currentState),
+			m_nextState((D3D12_RESOURCE_STATES)-1)
+		{}
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_resource;
-	D3D12_GPU_VIRTUAL_ADDRESS m_gpuVirtualAddress;
-	D3D12_RESOURCE_STATES m_currentState;
-	D3D12_RESOURCE_STATES m_nextState;
+		~Resource() { OnDestroy(); }
 
-	uint32_t m_versionID = 0;
+		D3D12_RESOURCE_DESC GetDesc() const { return m_resource->GetDesc(); }
 
-public:
+		virtual void OnDestroy()
+		{
+			m_resource = nullptr;
+			m_gpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+			m_versionID += 1;
+		}
 
-	ID3D12Resource* operator->() const { return m_resource.Get(); }
-	operator ID3D12Resource* () const { return m_resource.Get(); }
+	protected:
 
-	ID3D12Resource* Get() const { return m_resource.Get(); }
-	ID3D12Resource** GetAddressOf() { return m_resource.GetAddressOf(); }
-	Microsoft::WRL::ComPtr<ID3D12Resource> GetComPtr() const { return m_resource; }
-	void ResetComPtr() { m_resource.Reset(); }
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_resource;
+		D3D12_GPU_VIRTUAL_ADDRESS m_gpuVirtualAddress;
+		D3D12_RESOURCE_STATES m_currentState;
+		D3D12_RESOURCE_STATES m_nextState;
 
-	Resource(Resource&&) = default;
-	Resource& operator=(Resource&&) = default;
+		uint32_t m_versionID = 0;
 
-	Resource(Resource&) = delete;
-	Resource& operator=(Resource&) = delete;
-};
+	public:
 
+		ID3D12Resource* operator->() const { return m_resource.Get(); }
+		operator ID3D12Resource* () const { return m_resource.Get(); }
 
+		ID3D12Resource* Get() const { return m_resource.Get(); }
+		ID3D12Resource** GetAddressOf() { return m_resource.GetAddressOf(); }
+		Microsoft::WRL::ComPtr<ID3D12Resource> GetComPtr() const { return m_resource; }
+		void ResetComPtr() { m_resource.Reset(); }
 
-#endif // !RESOURCE_H
+		Resource(Resource&&) = default;
+		Resource& operator=(Resource&&) = default;
+
+		Resource(Resource&) = delete;
+		Resource& operator=(Resource&) = delete;
+	};
+}
 
 

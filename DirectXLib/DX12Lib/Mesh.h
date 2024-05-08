@@ -1,27 +1,28 @@
 #pragma once
-#include "Helpers.h"
+
 #include "GraphicsMemory.h"
 #include "VertexTypes.h"
-#include "DX12Lib/DescriptorHeap.h"
 
-class Mesh
-{
-	friend class Model;
+#include "d3d12.h"
 
-public:
-	Mesh() {};
-	~Mesh() {};
+namespace DX12Lib {
 
-	void Draw(ID3D12GraphicsCommandList* cmdList);
+	class Mesh
+	{
+		friend class Model;
 
-	D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	UINT m_numIndices = 0;
-	UINT m_vertexStart = 0;
-	UINT m_indexStart = 0;;
+	public:
+		Mesh() {};
+		~Mesh() {};
 
-	UINT m_materialIndex = 0;
+		void Draw(ID3D12GraphicsCommandList* cmdList);
 
-private:
-	//std::vector<DescriptorHandle> m_textureHandle;
-};
+		D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		UINT m_numIndices = 0;
+		UINT m_vertexStart = 0;
+		UINT m_indexStart = 0;;
 
+		UINT m_materialIndex = 0;
+
+	};
+}

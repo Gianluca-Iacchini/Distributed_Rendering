@@ -9,7 +9,7 @@
 struct FrameResource
 {
 public:
-	FrameResource(Device& device, uint64_t value)
+	FrameResource(DX12Lib::Device& device, uint64_t value)
 	{
 
 	}
@@ -20,7 +20,7 @@ public:
 
 	}
 
-	CommandAllocator* CmdListAlloc;
+	DX12Lib::CommandAllocator* CmdListAlloc;
 
 	UINT64 Fence = 0;
 };
