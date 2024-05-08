@@ -47,11 +47,15 @@ float4 PS(VertexOut pIn) : SV_TARGET
     float3 toEyeW = normalize(cEyePos - pIn.PosW);
     
     float4 diffuse = gMaterial.diffuseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
-    float4 ambient = gMaterial.ambientColor * gAmbientTex.Sample(gSampler, pIn.Tex) * ambientLightStrength;
+    float4 ambient = gMaterial.ambientColor * gAmbientTex.Sample(gSampler, pIn.Tex);
+    float4 specular = gMaterial.specularColor * gSpecularTex.Sample(gSampler, pIn.Tex);
+    float shininess = gMaterial.shininess * gShininessTex.Sample(gSampler, pIn.Tex).r;
     
-    float4 lightResult = float4(ComputeDirectionalLight(cDirLight, gMaterial, normal, toEyeW), 0.0f);
+    SurfaceData surfData = { normal, toEyeW, saturate(dot(normal, toEyeW)), shininess, gMaterial.refractiveIndex, diffuse.rgb };
 
-    float4 litColor = diffuse + ambient + lightResult;
+    LightResult lres = ComputeDirectionalLight(cDirLight, surfData);
+
+    float3 result = diffuse.rgb * lres.diffuse + specular.rgb * lres.specular + ambient.rgb * lres.ambient;
     
-    return litColor;
+    return float4(result, diffuse.a);
 }

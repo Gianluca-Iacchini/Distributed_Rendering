@@ -5,7 +5,7 @@ using namespace Graphics;
 
 void MaterialBuilder::AddTexture(aiTextureType assimpTextureType, aiString& texturePath)
 {
-	TextureType textureType = AssimpToTextureType(assimpTextureType);
+	MaterialTextureType textureType = AssimpToTextureType(assimpTextureType);
 
 	std::wstring texturePathW = Utils::ToWstring(texturePath.C_Str());
 	SharedTexture texture = s_textureManager->LoadFromFile(texturePathW, false);
@@ -13,7 +13,7 @@ void MaterialBuilder::AddTexture(aiTextureType assimpTextureType, aiString& text
 	AddTexture(textureType, texture);
 }
 
-void MaterialBuilder::AddTexture(TextureType textureType, SharedTexture texture)
+void MaterialBuilder::AddTexture(MaterialTextureType textureType, SharedTexture texture)
 {
 	SharedTexture matTexture = texture;
 	if (texture == nullptr)
@@ -24,20 +24,20 @@ void MaterialBuilder::AddTexture(TextureType textureType, SharedTexture texture)
 	m_material->m_textures[(UINT)textureType] = matTexture;
 }
 
-SharedTexture MaterialBuilder::GetDefaultTextureForType(TextureType textureType)
+SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType textureType)
 {
 	switch (textureType)
 	{
-	case TextureType::DIFFUSE:
+	case MaterialTextureType::DIFFUSE:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
-	case TextureType::SPECULAR:
+	case MaterialTextureType::SPECULAR:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
-	case TextureType::AMBIENT:
+	case MaterialTextureType::AMBIENT:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
-	case TextureType::EMISSIVE:
+	case MaterialTextureType::EMISSIVE:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
-	case TextureType::NORMAL_MAP:
-	case TextureType::BUMP_MAP:
+	case MaterialTextureType::NORMAL_MAP:
+	case MaterialTextureType::BUMP_MAP:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
 	default:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
@@ -65,11 +65,11 @@ SharedMaterial MaterialBuilder::Build(std::wstring& materialName, DescriptorHeap
 {
 	m_material->m_name = materialName;
 
-	for (UINT i = 0; i < (UINT)TextureType::NUM_TEXTURE_TYPES; ++i)
+	for (UINT i = 0; i < (UINT)MaterialTextureType::NUM_TEXTURE_TYPES; ++i)
 	{
 		if (m_material->m_textures[i] == nullptr)
 		{
-			m_material->m_textures[i] = GetDefaultTextureForType((TextureType)i);
+			m_material->m_textures[i] = GetDefaultTextureForType((MaterialTextureType)i);
 		}
 
 		if (textureHeap != nullptr)
@@ -100,6 +100,7 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorH
 		aiTextureType_SPECULAR,
 		aiTextureType_AMBIENT,
 		aiTextureType_EMISSIVE,
+		aiTextureType_SHININESS,
 		aiTextureType_NORMALS,
 	};
 
@@ -134,15 +135,15 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorH
 		// the normal map will be replaced by the one in the height map slot.
 		// (If the model has both a normal map and a height map then both will be initiated in the appropiate slots)
 		if (DirectX::BitsPerPixel(texture->GetDesc().Format) >= 24)
-			AddTexture(TextureType::NORMAL_MAP, texture);
+			AddTexture(MaterialTextureType::NORMAL_MAP, texture);
 		else
-			AddTexture(TextureType::BUMP_MAP, texture);
+			AddTexture(MaterialTextureType::BUMP_MAP, texture);
 	}
 	// Load default texture for height map.
 	// We don't have to worry about normal map defaul texture since it is set in the loop above (if no normal map is found)
 	else
 	{
-		AddTexture(TextureType::BUMP_MAP);
+		AddTexture(MaterialTextureType::BUMP_MAP);
 	}
 }
 

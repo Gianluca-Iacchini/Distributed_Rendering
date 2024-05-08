@@ -35,8 +35,9 @@ Texture2D gDiffuseTex : register(t0);
 Texture2D gSpecularTex : register(t1);
 Texture2D gAmbientTex : register(t2);
 Texture2D gEmissiveTex : register(t3);
-Texture2D gNormalMap : register(t4);
-Texture2D gBumpMap : register(t5);
+Texture2D gShininessTex : register(t4);
+Texture2D gNormalMap : register(t5);
+Texture2D gBumpMap : register(t6);
 
 
 SamplerState gSampler : register(s0);

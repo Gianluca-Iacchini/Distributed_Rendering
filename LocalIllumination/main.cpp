@@ -70,6 +70,10 @@ class AppTest : public D3DApp
 
 	float cameraSpeed = 100.0f;
 
+	float m_theta = 1.25f * XM_PI;
+	float m_phi = XM_PIDIV4;
+	XMFLOAT2 m_modifier = XMFLOAT2(0.85f, 0.85f);
+
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
 	AppTest(const AppTest& rhs) = delete;
@@ -111,7 +115,7 @@ public:
 		(*m_rootSignature)[0].InitAsConstantBuffer(0);
 		(*m_rootSignature)[1].InitAsConstantBuffer(1);
 		(*m_rootSignature)[2].InitAsConstantBuffer(2);
-		(*m_rootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);
+		(*m_rootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, (UINT)MaterialTextureType::NUM_TEXTURE_TYPES);
 		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	
@@ -183,8 +187,10 @@ public:
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
 
 		Light dirLight;
-		dirLight.Direction = XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
-		dirLight.Color = XMFLOAT3(0.45f, 0.45f, 0.45f);
+		XMVECTOR lightDir = MathHelper::SphericalToCartesian(1.0f, m_theta, m_phi); //XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
+		
+		XMStoreFloat3(&dirLight.Direction, lightDir);
+		dirLight.Color = XMFLOAT3(1.3f, 1.3f, 1.3f);
 
 		m_costantBufferCommons.lights[0] = dirLight;
 	}
@@ -203,14 +209,8 @@ public:
 		}
 	}
 
-	virtual void Update(const GameTime& gt) override
+	void UpdateKeyboard(const GameTime& gt)
 	{
-		UINT64 currentFrame = frameFences[m_swapchain->CurrentBufferIndex];
-		if (currentFrame != 0)
-		{
-			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
-		}
-
 		auto kbState = keyboard.GetState();
 		tracker.Update(kbState);
 
@@ -235,6 +235,34 @@ public:
 			camera.Strafe(cameraSpeed * gt.DeltaTime());
 		}
 
+
+
+
+		
+	}
+
+	virtual void Update(const GameTime& gt) override
+	{
+		UINT64 currentFrame = frameFences[m_swapchain->CurrentBufferIndex];
+		if (currentFrame != 0)
+		{
+			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
+		}
+
+		// Update sun orientation
+		m_theta +=  m_modifier.x * gt.DeltaTime();
+		m_phi += m_modifier.y * gt.DeltaTime();
+
+		if (m_phi > XM_PI || m_phi < -XM_PI)
+			m_modifier.y = -m_modifier.y;
+		
+		if (m_theta > XM_PI || m_theta < -XM_PI)
+			m_modifier.x = -m_modifier.x;
+
+
+
+
+		UpdateKeyboard(gt);
 		MoveCamera();
 		camera.UpdateViewMatrix();
 		UpdateCommonConstants(gt);

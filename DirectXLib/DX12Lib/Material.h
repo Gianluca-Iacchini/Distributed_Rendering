@@ -5,14 +5,26 @@
 #include "assimp/material.h"
 #include "GraphicsMemory.h"
 
-enum class TextureType
+enum class MaterialTextureType
 {
 	DIFFUSE = 0,
 	SPECULAR = 1,
 	AMBIENT,
 	EMISSIVE,
+	SHININESS,
 	NORMAL_MAP,
 	BUMP_MAP,
+	NUM_TEXTURE_TYPES
+};
+
+enum class PBRMaterialTextureType
+{
+	ALBEDO = 0,
+	EMISSIVE,
+	NORMAL,
+	METALLIC,
+	ROUGHNESS,
+	OCCLUSION,
 	NUM_TEXTURE_TYPES
 };
 
@@ -97,8 +109,8 @@ private:
 
 private:
 	std::wstring m_name;
-	SharedTexture m_textures[(UINT)TextureType::NUM_TEXTURE_TYPES];
-	DescriptorHandle m_textureSRVHandles[(UINT)TextureType::NUM_TEXTURE_TYPES];
+	SharedTexture m_textures[(UINT)MaterialTextureType::NUM_TEXTURE_TYPES];
+	DescriptorHandle m_textureSRVHandles[(UINT)MaterialTextureType::NUM_TEXTURE_TYPES];
 };
 
 class PBRMaterial : public Material
@@ -117,8 +129,8 @@ class MaterialBuilder
 public:
 
 	void AddTexture(aiTextureType assimpTextureType, aiString& texturePath);
-	void AddTexture(TextureType textureType, SharedTexture texture = nullptr);
-	SharedTexture GetDefaultTextureForType(TextureType textureType);
+	void AddTexture(MaterialTextureType textureType, SharedTexture texture = nullptr);
+	SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
 	SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap = nullptr);
 	SharedMaterial Build(std::wstring& materialName, DescriptorHeap* textureHeap = nullptr);
 
@@ -132,24 +144,26 @@ public:
 	void SetIndexOfRefraction(float indexOfRefraction) { m_material->IndexOfRefraction = indexOfRefraction; }
 	void SetBumpIntensity(float bumpIntensity) { m_material->BumpIntensity = bumpIntensity; }
 
-	TextureType AssimpToTextureType(aiTextureType assimpTextureType)
+	MaterialTextureType AssimpToTextureType(aiTextureType assimpTextureType)
 	{
 		switch (assimpTextureType)
 		{
 			case aiTextureType_DIFFUSE:
-				return TextureType::DIFFUSE;
+				return MaterialTextureType::DIFFUSE;
 			case aiTextureType_SPECULAR:
-				return TextureType::SPECULAR;
+				return MaterialTextureType::SPECULAR;
 			case aiTextureType_AMBIENT:
-				return TextureType::AMBIENT;
+				return MaterialTextureType::AMBIENT;
 			case aiTextureType_EMISSIVE:
-				return TextureType::EMISSIVE;
+				return MaterialTextureType::EMISSIVE;
+			case aiTextureType_SHININESS:
+				return MaterialTextureType::SHININESS;
 			case aiTextureType_NORMALS:
-				return TextureType::NORMAL_MAP;
+				return MaterialTextureType::NORMAL_MAP;
 			case aiTextureType_HEIGHT:
-				return TextureType::BUMP_MAP;
+				return MaterialTextureType::BUMP_MAP;
 			default:
-				return TextureType::DIFFUSE;
+				return MaterialTextureType::DIFFUSE;
 		}
 	}
 

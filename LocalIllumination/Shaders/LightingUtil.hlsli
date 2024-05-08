@@ -23,7 +23,14 @@ struct Material
     float bumpIntensity;
 };
 
-static const float4 ambientLightStrength = float4(0.2f, 0.2f, 0.3f, 1.0f);
+static const float3 ambientLightStrength = float3(0.2f, 0.2f, 0.3f);
+
+struct LightResult
+{
+    float3 diffuse;
+    float3 specular;
+    float3 ambient;
+};
 
 // Light data utility structured used to pass light data to various lighting functions
 struct LightData
@@ -32,6 +39,16 @@ struct LightData
     float3 NdotL; // Dot product of normal and light vector
     float3 LdotH; // Dot product of light vector and half vector
     float3 NdotH; // Dot product of normal and half vector
+};
+
+struct SurfaceData
+{
+    float3 normal;
+    float3 toEye;
+    float NdotV;
+    float shininess;
+    float refractiveIndex;
+    float3 diffuseCol;
 };
 
 /* https://github.com/microsoft/DirectXTK12/blob/main/Src/Shaders/Utilities.fxh */
@@ -63,39 +80,53 @@ float3 ComputeTwoChannelNormal(float2 normal)
     return float3(xy.x, xy.y, z);
 }
 
-float3 SchlickFresnel(float shininess, float3 normal, float3 lightVec)
+float3 SchlickFresnel3(float shininess, float3 normal, float3 lightVec)
 {
     float3 R0 = (shininess-1) / (shininess + 1);
     R0 = R0 * R0;
     
-    float f0 = 1.0f - saturate(dot(normal, lightVec));
+    float f0 = 1.0f - max(dot(normal, lightVec), 0);
     
     return R0 + (1.0f - R0) * pow(f0, 5.0f);
 }
 
-float3 BlinnPhong(float3 lightVec, float3 lightStrength, float3 normal, float3 toEye, Material mat)
-{    
-    // Light vector is the opposite of the light direction
-    float3 halfVec = normalize(lightVec + toEye);
+float SchlickFresnel(float shininess, float3 normal, float3 lightVec)
+{
+    float R0 = (shininess - 1) / (shininess + 1);
+    R0 = R0 * R0;
     
-    float roughness = (mat.shininess + 8.0f) * pow(max(dot(halfVec, normal), 0.0f), mat.shininess) / 8.0f;
-    float3 fresnelFactor = SchlickFresnel(mat.shininess, normal, lightVec);
+    float f0 = 1.0f - max(dot(normal, lightVec), 0);
     
-    float3 specAlbedo = fresnelFactor * roughness;
-    
-    specAlbedo = specAlbedo / (specAlbedo + 1.0f);
-    
-    return (mat.diffuseColor.rgb + specAlbedo) * lightStrength;
+    return R0 + (1.0f - R0) * pow(f0, 5.0f);
 }
 
-float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEye)
+float3 Specular(float3 lightVec, SurfaceData surfData)
+{    
+    // Light vector is the opposite of the light direction
+    float3 halfVec = normalize(lightVec + surfData.toEye);
+    
+    float roughness = (surfData.shininess + 8.0f) * pow(max(dot(halfVec, surfData.normal), 0.0f), surfData.shininess) / 8.0f;
+    float3 fresnelFactor = SchlickFresnel3(surfData.shininess, surfData.normal, lightVec);
+    
+    float3 spec = fresnelFactor * roughness;
+    
+    spec = spec / (spec + 1.0f);
+    
+    return spec;
+}
+
+LightResult ComputeDirectionalLight(Light L, SurfaceData surfData)
 {
     float3 lightVec = -L.lDirection;
     
-    float3 NdotL = max(dot(normal, lightVec), 0.0f);
-    float3 lightStrenght = L.lColor * NdotL;
+    float3 NdotL = max(dot(surfData.normal, lightVec), 0.0f);
     
-    return BlinnPhong(lightVec, lightStrenght,  normal, toEye, mat);
+    LightResult lres;
+    lres.diffuse = L.lColor * NdotL;
+    lres.specular = Specular(lightVec, surfData);
+    lres.ambient = ambientLightStrength;
+    
+    return lres;
 
 }
 
