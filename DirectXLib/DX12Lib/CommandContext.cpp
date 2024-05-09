@@ -89,7 +89,6 @@ void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
 void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
 {
 	s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
-	//s_graphicsMemory->Commit(s_commandQueueManager->GetCopyQueue().Get());
 }
 
 void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])
@@ -116,6 +115,8 @@ void CommandContext::Reset()
 
 UINT64 CommandContext::Flush(bool waitForCompletion)
 {
+	FlushResourceBarriers();
+
 	CommandQueue& queue = s_commandQueueManager->GetQueue(m_type);
 
 	UINT64 fenceValue = queue.ExecuteCommandList(*m_commandList);
@@ -130,6 +131,8 @@ UINT64 CommandContext::Flush(bool waitForCompletion)
 
 UINT64 CommandContext::Finish(bool waitForCompletion)
 {
+	FlushResourceBarriers();
+
 	CommandQueue& queue = s_commandQueueManager->GetQueue(m_type);
 
 	UINT64 fenceValue = queue.ExecuteCommandList(*m_commandList);

@@ -153,7 +153,10 @@ public:
 
 		camera.SetPosition(0.0f, 250.0f, 0.0f);
 
-		camera.LookAt(camera.GetPosition3f(), XMFLOAT3(1000.f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f));
+		auto cameraPos = camera.GetPosition3f();
+		auto cameraLookAt = XMFLOAT3(cameraPos.x + 1.0f, cameraPos.y, cameraPos.z);
+
+		camera.LookAt(cameraPos, XMFLOAT3(cameraLookAt), XMFLOAT3(0.0f, 1.0f, 0.0f));
 
 		context->Finish(true);
 

@@ -24,7 +24,7 @@ void CommandQueue::Create(Device& device)
 	queueDesc.Type = m_type;
 
 	ThrowIfFailed(device.GetComPtr()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_commandQueue.GetAddressOf())));
-	m_fence = std::make_unique<Fence>(device, (UINT64)m_type << 56 | 1, (UINT64)m_type << 56);
+	m_fence = std::make_unique<Fence>(device, (UINT64)m_type << 56, (UINT64)m_type << 56 | 1);
 	m_fence->GetComPtr()->Signal((UINT64)m_type << 56);
 }
 
