@@ -70,7 +70,7 @@ class AppTest : public D3DApp
 
 	float m_theta = 1.25f * XM_PI;
 	float m_phi = XM_PIDIV4;
-	XMFLOAT2 m_modifier = XMFLOAT2(0.85f, 0.85f);
+	XMFLOAT2 m_modifier = XMFLOAT2(0.75f, 0.75f);
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -114,7 +114,7 @@ public:
 		(*m_rootSignature)[0].InitAsConstantBuffer(0);
 		(*m_rootSignature)[1].InitAsConstantBuffer(1);
 		(*m_rootSignature)[2].InitAsConstantBuffer(2);
-		(*m_rootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, (UINT)MaterialTextureType::NUM_TEXTURE_TYPES);
+		(*m_rootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
 		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	
@@ -259,12 +259,6 @@ public:
 		// Update sun orientation
 		m_theta +=  m_modifier.x * gt.DeltaTime();
 		m_phi += m_modifier.y * gt.DeltaTime();
-
-		if (m_phi > XM_PI || m_phi < -XM_PI)
-			m_modifier.y = -m_modifier.y;
-		
-		if (m_theta > XM_PI || m_theta < -XM_PI)
-			m_modifier.x = -m_modifier.x;
 
 
 

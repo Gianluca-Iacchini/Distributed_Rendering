@@ -4,7 +4,7 @@
 #include "GraphicsMemory.h"
 #include "Mouse.h"
 #include "Texture.h"
-#include "Material.h"
+#include "MaterialManager.h"
 
 
 namespace DX12Lib {

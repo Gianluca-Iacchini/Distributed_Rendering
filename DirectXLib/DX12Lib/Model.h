@@ -1,7 +1,7 @@
 #pragma once
 #include "assimp/scene.h"
 #include "DX12Lib/DescriptorHeap.h"
-#include "Material.h"
+#include "MaterialManager.h"
 #include "d3d12.h"
 #include <wrl/client.h>
 

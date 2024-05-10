@@ -13,17 +13,18 @@ struct Light
 struct Material
 {
     float4 diffuseColor;
+    float4 emissiveColor;
     float4 specularColor;
     float4 ambientColor;
-    float4 emissiveColor;
-    
+
+    float bumpIntensity;
     float opacity;
     float shininess;
     float refractiveIndex;
-    float bumpIntensity;
 };
 
-static const float3 ambientLightStrength = float3(0.2f, 0.2f, 0.3f);
+
+static const float3 ambientLightStrength = float3(0.2f, 0.2f, 0.2f);
 
 struct LightResult
 {
@@ -80,9 +81,20 @@ float3 ComputeTwoChannelNormal(float2 normal)
     return float3(xy.x, xy.y, z);
 }
 
-float3 SchlickFresnel3(float shininess, float3 normal, float3 lightVec)
+
+float3 SchlickFresnel3(float refractiveIndex, float3 normal, float3 lightVec)
 {
-    float3 R0 = (shininess-1) / (shininess + 1);
+    float3 R0 = (refractiveIndex-1) / (refractiveIndex + 1);
+    R0 = R0 * R0;
+    
+    float f0 = 1.0f - saturate(dot(normal, lightVec));
+    
+    return R0 + (1.0f - R0) * pow(f0, 5.0f);
+}
+
+float SchlickFresnel(float refractiveIndex, float3 normal, float3 lightVec)
+{
+    float R0 = (refractiveIndex - 1) / (refractiveIndex + 1);
     R0 = R0 * R0;
     
     float f0 = 1.0f - max(dot(normal, lightVec), 0);
@@ -90,14 +102,12 @@ float3 SchlickFresnel3(float shininess, float3 normal, float3 lightVec)
     return R0 + (1.0f - R0) * pow(f0, 5.0f);
 }
 
-float SchlickFresnel(float shininess, float3 normal, float3 lightVec)
+float Spec(float3 lightVec, SurfaceData surfData)
 {
-    float R0 = (shininess - 1) / (shininess + 1);
-    R0 = R0 * R0;
+    float3 R = normalize(reflect(-lightVec, surfData.normal));
+    float RdotV = max(0, dot(R, surfData.toEye));
     
-    float f0 = 1.0f - max(dot(normal, lightVec), 0);
-    
-    return R0 + (1.0f - R0) * pow(f0, 5.0f);
+    return pow(RdotV, surfData.shininess);
 }
 
 float3 Specular(float3 lightVec, SurfaceData surfData)
@@ -106,7 +116,7 @@ float3 Specular(float3 lightVec, SurfaceData surfData)
     float3 halfVec = normalize(lightVec + surfData.toEye);
     
     float roughness = (surfData.shininess + 8.0f) * pow(max(dot(halfVec, surfData.normal), 0.0f), surfData.shininess) / 8.0f;
-    float3 fresnelFactor = SchlickFresnel3(surfData.shininess, surfData.normal, lightVec);
+    float3 fresnelFactor = SchlickFresnel3(surfData.refractiveIndex, surfData.normal, lightVec);
     
     float3 spec = fresnelFactor * roughness;
     
@@ -123,8 +133,12 @@ LightResult ComputeDirectionalLight(Light L, SurfaceData surfData)
     
     LightResult lres;
     lres.diffuse = L.lColor * NdotL;
-    lres.specular = Specular(lightVec, surfData);
-    lres.ambient = ambientLightStrength;
+    lres.specular = Spec(lightVec, surfData) * L.lColor;
+    lres.ambient = ambientLightStrength * L.lColor;
+   
+    lres.diffuse = saturate(lres.diffuse);
+    lres.specular = saturate(lres.specular);
+    lres.ambient = saturate(lres.ambient);
     
     return lres;
 
