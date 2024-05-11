@@ -1,6 +1,6 @@
-set(VERTEX_SHADERS Shaders/Basic_VS.hlsl)
-set(PIXEL_SHADERS Shaders/Basic_PS.hlsl)
-set(INCLUDE_SHADERS Shaders/Default.hlsli Shaders/Common.hlsli Shaders/LightingUtil.hlsli)
+set(VERTEX_SHADERS )
+set(PIXEL_SHADERS )
+set(INCLUDE_SHADERS )
 
 set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
 

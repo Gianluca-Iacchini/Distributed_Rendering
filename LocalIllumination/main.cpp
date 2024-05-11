@@ -32,7 +32,7 @@ using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 
-#define USE_PBR 1
+#define USE_PBR 0
 
 struct Vertex
 {
