@@ -53,8 +53,6 @@ bool Model::LoadFromFile(const char* filename)
 
 void Model::LoadMaterials(const aiScene* scene)
 {
-    m_textureHeap.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
-
     m_materials.resize(scene->mNumMaterials);
 
     for (UINT i = 0; i < scene->mNumMaterials; i++)
@@ -62,7 +60,7 @@ void Model::LoadMaterials(const aiScene* scene)
         aiMaterial* material = scene->mMaterials[i];
 
         auto builder = s_materialManager->CreateMaterialBuilder();
-        m_materials[i] = builder.BuildFromAssimpMaterial(material, &m_textureHeap);
+        m_materials[i] = builder.BuildFromAssimpMaterial(material);
     }
 }
 
@@ -147,9 +145,6 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
 
     commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     commandList->IASetIndexBuffer(&m_indexBufferView);
-
-    ID3D12DescriptorHeap* heaps[] = { m_textureHeap.Get() };
-    commandList->SetDescriptorHeaps(1, heaps);
 
     for (auto mesh : m_meshes)
     {

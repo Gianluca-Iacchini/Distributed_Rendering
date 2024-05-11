@@ -15,8 +15,8 @@ namespace DX12Lib
 		void AddTexture(aiTextureType assimpTextureType, aiString& texturePath);
 		void AddTexture(MaterialTextureType textureType, SharedTexture texture = nullptr);
 		SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
-		SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap = nullptr);
-		SharedMaterial Build(std::wstring& materialName, DescriptorHeap* textureHeap = nullptr);
+		SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial);
+		SharedMaterial Build(std::wstring& materialName);
 
 		void SetDiffuseColor(DirectX::XMFLOAT4 diffuseColor) { m_material->DiffuseColor = diffuseColor; }
 		void SetSpecularColor(DirectX::XMFLOAT4 specularColor);
@@ -35,18 +35,18 @@ namespace DX12Lib
 
 
 	private:
-		MaterialBuilder(MaterialManager* manager, bool isPBR = false)
-			: m_materialManager(manager), m_isPBR(isPBR)
+		MaterialBuilder(MaterialManager* manager)
+			: m_materialManager(manager)
 		{
 		}
 
-		void LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap);
+		void LoadAssimpTextures(aiMaterial* assimpMaterial);
 		void LoadAssimpConstants(aiMaterial* assimpMaterial);
 
 	private:
-		bool m_isPBR = false;
 		SharedMaterial m_material;
 		MaterialManager* m_materialManager;
+		bool m_isPBR = false;
 	};
 
 
@@ -57,7 +57,7 @@ namespace DX12Lib
 	public:
 		MaterialManager() = default;
 		//SharedMaterial LoadMaterial(const )
-		MaterialBuilder CreateMaterialBuilder(bool isPBR = false) { return MaterialBuilder(this, isPBR); }
+		MaterialBuilder CreateMaterialBuilder() { return MaterialBuilder(this); }
 
 		DirectX::GraphicsResource CreateMaterialBuffer(Material* const material);
 

@@ -2,6 +2,7 @@
 
 #include "wrl/client.h"
 #include <d3d12.h>
+#include <VertexTypes.h>
 
 namespace DX12Lib {
 
@@ -44,6 +45,8 @@ namespace DX12Lib {
 		void SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(1, &rtvFormat, dsvFormat, msaaCount, msaaQuality); }
 		void SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFOrmat, UINT msaaCount, UINT msaaQuality);
 		void Finalize();
+
+		std::shared_ptr<RootSignature> GetRootSignature() const { return m_rootSignature; }
 
 	private:
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipelineState;

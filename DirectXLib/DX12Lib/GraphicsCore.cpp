@@ -7,6 +7,10 @@
 #include "CommandList.h"
 #include "dxgidebug.h"
 #include "CommandContext.h"
+#include "PipelineState.h"
+#include "Shader.h"
+#include "RootSignature.h"
+#include "SamplerDesc.h"
 
 
 
@@ -25,6 +29,9 @@ namespace Graphics
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV
 	};
 
+	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	DXGI_FORMAT m_depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
 	std::shared_ptr<Device> Graphics::s_device = nullptr;
 
 	std::unique_ptr<CommandQueueManager> Graphics::s_commandQueueManager = nullptr;
@@ -40,6 +47,12 @@ namespace Graphics
 	std::unique_ptr<TextureManager> s_textureManager = nullptr;
 
 	std::unique_ptr<MaterialManager> s_materialManager = nullptr;
+
+	std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap = nullptr;
+
+	std::unordered_map<std::wstring, std::shared_ptr<PipelineState>> s_PSOs;
+
+	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -92,6 +105,82 @@ namespace Graphics
 		}
 	}
 
+	void CreateDefaultShaders()
+	{
+		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
+		std::wstring VSshaderFile = srcDir + L"\\DX12Lib\\Shaders\\Basic_VS.hlsl";
+		std::wstring PSshaderFile = srcDir + L"\\DX12Lib\\Shaders\\Basic_PS.hlsl";
+		std::wstring PBRPSShaderFile = srcDir + L"\\DX12Lib\\Shaders\\BasicPBR_PS.hlsl";
+
+		std::shared_ptr<Shader> baseVertexShader = std::make_shared<Shader>(VSshaderFile, "VS", "vs_5_1");
+		std::shared_ptr<Shader> basePixelShader = std::make_shared<Shader>(PSshaderFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> PBRPixelShader = std::make_shared<Shader>(PBRPSShaderFile, "PS", "ps_5_1");
+
+		baseVertexShader->Compile();
+		basePixelShader->Compile();
+		PBRPixelShader->Compile();
+
+		s_shaders[L"basicVS"] = std::move(baseVertexShader);
+		s_shaders[L"basicPS"] = std::move(basePixelShader);
+		s_shaders[L"PBRBasicPS"] = std::move(PBRPixelShader);
+	}
+
+	void CreateDefaultPSOs()
+	{
+		SamplerDesc DefaultSamplerDesc;
+		DefaultSamplerDesc.MaxAnisotropy = 8;
+
+		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>(4, 1);
+		baseRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
+		(*baseRootSignature)[0].InitAsConstantBuffer(0);
+		(*baseRootSignature)[1].InitAsConstantBuffer(1);
+		(*baseRootSignature)[2].InitAsConstantBuffer(2);
+		(*baseRootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
+		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>(4, 1);
+		pbrRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
+		(*pbrRootSignature)[0].InitAsConstantBuffer(0);
+		(*pbrRootSignature)[1].InitAsConstantBuffer(1);
+		(*pbrRootSignature)[2].InitAsConstantBuffer(2);
+		(*pbrRootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
+		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+
+
+
+
+		std::shared_ptr<PipelineState> opaquePSO = std::make_shared<PipelineState>();
+		opaquePSO->InitializeDefaultStates();
+		opaquePSO->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs,\
+			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
+		opaquePSO->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		opaquePSO->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
+		opaquePSO->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
+		opaquePSO->SetShader(s_shaders[L"basicPS"], ShaderType::Pixel);
+		opaquePSO->SetRootSignature(baseRootSignature);
+		opaquePSO->Finalize();
+
+		// Duplicate content of opaquePSO
+		std::shared_ptr<PipelineState> PBRPSO = std::make_shared<PipelineState>();
+		PBRPSO->InitializeDefaultStates();
+		PBRPSO->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
+			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
+		PBRPSO->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		PBRPSO->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
+		PBRPSO->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
+		PBRPSO->SetShader(s_shaders[L"PBRBasicPS"], ShaderType::Pixel);
+		PBRPSO->SetRootSignature(pbrRootSignature);
+		PBRPSO->Finalize();
+
+
+
+
+
+		s_PSOs[L"opaquePSO"] = std::move(opaquePSO);
+		s_PSOs[L"PBRPSO"] = std::move(PBRPSO);
+	}
+
 	bool Initialize()
 	{
 		UINT dxgiFactoryFlags = 0;
@@ -140,9 +229,14 @@ namespace Graphics
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
 			s_commandContextManager = std::make_unique<CommandContextManager>();
+			s_textureHeap = std::make_shared<DescriptorHeap>();
+			s_textureHeap->Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
 			s_graphicsMemory = std::make_unique<DirectX::GraphicsMemory>(*s_device);
 			s_textureManager = std::make_unique<TextureManager>();
 			s_materialManager = std::make_unique<MaterialManager>();
+
+			CreateDefaultShaders();
+			CreateDefaultPSOs();
 
 		return true;
 	}

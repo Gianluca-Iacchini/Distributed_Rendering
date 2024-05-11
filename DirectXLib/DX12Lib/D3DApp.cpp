@@ -157,7 +157,7 @@ void D3DApp::OnResize()
 
 
 	m_depthStencilBuffer->GetComPtr().Reset();
-	m_depthStencilBuffer->Create(mClientWidth, mClientHeight, mDepthStencilFormat);
+	m_depthStencilBuffer->Create(mClientWidth, mClientHeight, m_depthStencilFormat);
 
 	context->TransitionResource(*m_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 
@@ -243,7 +243,7 @@ bool D3DApp::InitDirect3D()
 
 void D3DApp::CreateSwapChain()
 {
-	m_swapchain = std::make_unique<Swapchain>(*m_dx12Window, mBackBufferFormat);
+	m_swapchain = std::make_unique<Swapchain>(*m_dx12Window, m_backBufferFormat);
 	m_swapchain->Initialize(s_commandQueueManager->GetGraphicsQueue());
 }
 

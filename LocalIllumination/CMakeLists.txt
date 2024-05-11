@@ -6,9 +6,6 @@ set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
 
 source_group("Shaders" FILES ${SHADERS})
 
-set_source_files_properties(${SHADERS} PROPERTIES )
-set_source_files_properties(${SHADERS} PROPERTIES )
-
 set_source_files_properties( ${VERTEX_SHADERS} ${PIXEL_SHADERS}
     PROPERTIES
         VS_SHADER_OBJECT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Data/Shaders/%(Filename).cso"

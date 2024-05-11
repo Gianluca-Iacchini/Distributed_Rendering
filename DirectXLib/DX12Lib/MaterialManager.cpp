@@ -30,15 +30,15 @@ SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType text
 	switch (textureType)
 	{
 	case MaterialTextureType::DIFFUSE:
+	case MaterialTextureType::BASECOLOR:
+	case MaterialTextureType::AMBIENT:
+	case MaterialTextureType::SHININESS:
+	case MaterialTextureType::METALROUGHNESS:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
 	case MaterialTextureType::SPECULAR:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
-	case MaterialTextureType::AMBIENT:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
 	case MaterialTextureType::EMISSIVE:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
-	case MaterialTextureType::SHININESS:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
+		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
 	case MaterialTextureType::NORMAL_MAP:
 	case MaterialTextureType::BUMP_MAP:
 		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
@@ -47,7 +47,7 @@ SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType text
 	}
 }
 
-SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap)
+SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMaterial)
 {
 	std::wstring materialName = Utils::ToWstring(assimpMaterial->GetName().C_Str());
 
@@ -56,22 +56,33 @@ SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMateri
 	if (m_material != nullptr)
 		return m_material;
 
+	m_isPBR = false;
+	aiShadingMode shadingModel;
+	if (assimpMaterial->Get(AI_MATKEY_SHADING_MODEL, shadingModel) == AI_SUCCESS)
+	{
+		if (shadingModel == aiShadingMode_PBR_BRDF)
+			m_isPBR = true;
+	}
+
+
 	if (m_isPBR)
 		m_material = std::make_shared<PBRMaterial>();
 	else
 		m_material = std::make_shared<PhongMaterial>();
 
-	LoadAssimpTextures(assimpMaterial, textureHeap);
+	LoadAssimpTextures(assimpMaterial);
 	LoadAssimpConstants(assimpMaterial);
 
-	return Build(materialName, textureHeap);
+	return Build(materialName);
 }
 
-SharedMaterial MaterialBuilder::Build(std::wstring& materialName, DescriptorHeap* textureHeap)
+SharedMaterial MaterialBuilder::Build(std::wstring& materialName)
 {
 	m_material->m_name = materialName;
 
-	for (UINT i = 0; i < NUM_PHONG_TEXTURES; ++i)
+	UINT numTextures = m_isPBR ? NUM_PBR_TEXTURES : NUM_PHONG_TEXTURES;
+
+	for (UINT i = 0; i < numTextures; ++i)
 	{
 		if (m_material->m_textures[i] == nullptr)
 		{
@@ -79,16 +90,15 @@ SharedMaterial MaterialBuilder::Build(std::wstring& materialName, DescriptorHeap
 			m_material->SetTexture(textureType, GetDefaultTextureForType(textureType));
 		}
 
-		if (textureHeap != nullptr)
-		{
-			DescriptorHandle handle = textureHeap->Alloc(1);
-			s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, m_material->m_textures[i]->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-			// Store only the first texture handle. The rest of the texture are placed after this one in the heap
-			// The root signature already knows how many textures to use.			
-			if (i == 0)
-				m_material->m_firstTextureHandle = handle;
-		}
+		DescriptorHandle handle = s_textureHeap->Alloc(1);
+		s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, m_material->m_textures[i]->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		// Store only the first texture handle. The rest of the texture are placed after this one in the heap
+		// The root signature already knows how many textures to use.			
+		if (i == 0)
+			m_material->m_firstTextureHandle = handle;
+		
 	}
 
 	m_materialManager->AddMaterial(m_material);
@@ -96,7 +106,7 @@ SharedMaterial MaterialBuilder::Build(std::wstring& materialName, DescriptorHeap
 	return m_material;
 }
 
-void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorHeap* textureHeap)
+void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial)
 {
 	assert(assimpMaterial != nullptr);
 
@@ -104,6 +114,13 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial, DescriptorH
 	// Height map is checked separately since normal maps might used the height map slot.
 	aiTextureType textureTypes[] =
 	{
+		// PBR textures are checked first
+		aiTextureType_BASE_COLOR,
+		aiTextureType_METALNESS,
+		aiTextureType_DIFFUSE_ROUGHNESS,
+		aiTextureType_AMBIENT_OCCLUSION,
+
+		// Phong textures
 		aiTextureType_DIFFUSE,
 		aiTextureType_SPECULAR,
 		aiTextureType_AMBIENT,
@@ -162,7 +179,6 @@ void MaterialBuilder::SetSpecularColor(DirectX::XMFLOAT4 specColor)
 
 	if (phongMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set specular color on a non phong material");
 		return;
 	}
 
@@ -175,7 +191,6 @@ void MaterialBuilder::SetAmbientColor(DirectX::XMFLOAT4 ambColor)
 
 	if (phongMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set ambient color on a non phong material");
 		return;
 	}
 
@@ -188,7 +203,6 @@ void MaterialBuilder::SetOpacity(float opacity)
 
 	if (phongMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set opacity on a non phong material");
 		return;
 	}
 
@@ -202,7 +216,6 @@ void MaterialBuilder::SetShininess(float shininess)
 
 	if (phongMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set shininess on a non phong material");
 		return;
 	}
 
@@ -215,7 +228,6 @@ void MaterialBuilder::SetIndexOfRefraction(float ior)
 
 	if (phongMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set index of refraction on a non phong material");
 		return;
 	}
 
@@ -228,7 +240,6 @@ void DX12Lib::MaterialBuilder::SetRoughness(float roughness)
 
 	if (pbrMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set index of refraction on a non phong material");
 		return;
 	}
 
@@ -241,7 +252,6 @@ void DX12Lib::MaterialBuilder::SetMetallic(float metallic)
 
 	if (pbrMat == nullptr)
 	{
-		DXLIB_CORE_WARN("Trying to set index of refraction on a non phong material");
 		return;
 	}
 
@@ -267,6 +277,14 @@ MaterialTextureType DX12Lib::MaterialBuilder::AssimpToTextureType(aiTextureType 
 			return MaterialTextureType::NORMAL_MAP;
 		case aiTextureType_HEIGHT:
 			return MaterialTextureType::BUMP_MAP;
+		case aiTextureType_BASE_COLOR:
+			return MaterialTextureType::BASECOLOR;
+		case aiTextureType_METALNESS:
+			return MaterialTextureType::METALROUGHNESS;
+		case aiTextureType_DIFFUSE_ROUGHNESS:
+			return MaterialTextureType::METALROUGHNESS;
+		case aiTextureType_AMBIENT_OCCLUSION:
+			return MaterialTextureType::OCCLUSION;
 		default:
 			return MaterialTextureType::DIFFUSE;
 		}
@@ -311,6 +329,9 @@ void MaterialBuilder::LoadAssimpConstants(aiMaterial* assimpMaterial)
 
 	if (assimpMaterial->Get(AI_MATKEY_BUMPSCALING, bumpIntensity) == aiReturn_SUCCESS)
 		this->SetNormalScale(bumpIntensity);
+
+	if (assimpMaterial->Get(AI_MATKEY_BASE_COLOR, diffuseColor) == AI_SUCCESS)
+		m_material->DiffuseColor = DirectX::XMFLOAT4(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a);
 
 	if (assimpMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS)
 		this->SetMetallic(metallic);

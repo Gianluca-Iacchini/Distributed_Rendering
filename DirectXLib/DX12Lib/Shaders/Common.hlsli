@@ -31,14 +31,19 @@ cbuffer Object : register(b1)
 ConstantBuffer<Material> gMaterial : register(b2);
 
 
-Texture2D gDiffuseTex : register(t0);
-Texture2D gEmissiveTex : register(t1);
-Texture2D gNormalMap : register(t2);
-Texture2D gSpecularTex : register(t3);
-Texture2D gAmbientTex : register(t4);
+
+Texture2D gEmissiveTex : register(t0);
+Texture2D gNormalMap : register(t1);
+Texture2D gDiffuseTex : register(t2);
+#ifndef PBR
+Texture2D gSpecularTex : register(t3); 
+Texture2D gAmbientTex : register(t4); 
 Texture2D gShininessTex : register(t5);
 Texture2D gBumpMap : register(t6);
-
+#else
+Texture2D gMetallicRoughness : register(t3);
+Texture2D gOcclusion : register(t4);
+#endif
 
 SamplerState gSampler : register(s0);
 

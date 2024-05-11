@@ -14,6 +14,8 @@ namespace DX12Lib {
 	class CommandAllocator;
 	class CommandList;
 	class CommandContextManager;
+	class PipelineState;
+	class Shader;
 }
 
 namespace Graphics
@@ -26,8 +28,15 @@ namespace Graphics
 	extern Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings;
 	extern std::unique_ptr<DX12Lib::TextureManager> s_textureManager;
 	extern std::unique_ptr<DX12Lib::MaterialManager> s_materialManager;
+	extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::PipelineState>> s_PSOs;
+	extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::Shader>> s_shaders;
 
 	extern std::unique_ptr<DirectX::Mouse> s_mouse;
+
+	extern std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap;
+
+	extern DXGI_FORMAT m_backBufferFormat;
+	extern DXGI_FORMAT m_depthStencilFormat;
 
 	bool Initialize();
 	void Shutdown();

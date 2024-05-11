@@ -32,6 +32,8 @@ using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 
+#define USE_PBR 1
+
 struct Vertex
 {
 	Vertex(XMFLOAT3 p, XMFLOAT3 n, XMFLOAT2 tc) : Pos(p), TexCoord(tc), Normal(n) {}
@@ -47,12 +49,6 @@ class AppTest : public D3DApp
 	Keyboard keyboard;
 	DirectX::Keyboard::KeyboardStateTracker tracker;
 
-	std::shared_ptr<RootSignature> m_rootSignature;
-	PipelineState m_pipelineState;
-
-	std::unordered_map<std::string, std::shared_ptr<Shader>> mp_shaders;
-
-	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
 	UINT64 frameFences[3] = { 0, 0, 0 };
 
@@ -70,7 +66,10 @@ class AppTest : public D3DApp
 
 	float m_theta = 1.25f * XM_PI;
 	float m_phi = XM_PIDIV4;
-	XMFLOAT2 m_modifier = XMFLOAT2(0.75f, 0.75f);
+	XMFLOAT2 m_modifier = XMFLOAT2(0.45f, 0.45f);
+
+	std::shared_ptr<RootSignature> m_rootSignature;
+	std::shared_ptr<PipelineState> m_pipelineState;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -81,58 +80,6 @@ public:
 		FlushCommandQueue();
 	};
 
-	void BuildShadersAndInputLayout()
-	{
-		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
-		std::wstring VSshaderFile = srcDir + L"\\Shaders\\Basic_VS.hlsl";
-		std::wstring PSshaderFile = srcDir + L"\\Shaders\\Basic_PS.hlsl";
-
-		std::shared_ptr<Shader> vertexShader = std::make_shared<Shader>(VSshaderFile, "VS", "vs_5_1");
-		std::shared_ptr<Shader> pixelShader = std::make_shared<Shader>(PSshaderFile, "PS", "ps_5_1");
-
-		vertexShader->Compile();
-		pixelShader->Compile();
-
-		mp_shaders["basicVS"] = std::move(vertexShader);
-		mp_shaders["basicPS"] = std::move(pixelShader);
-
-		m_inputLayout =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		};
-	}
-
-
-	void BuildEmptyRootSignature()
-	{
-		SamplerDesc DefaultSamplerDesc;
-		DefaultSamplerDesc.MaxAnisotropy = 8;
-
-		m_rootSignature = std::make_shared<RootSignature>(4, 1);
-		(*m_rootSignature)[0].InitAsConstantBuffer(0);
-		(*m_rootSignature)[1].InitAsConstantBuffer(1);
-		(*m_rootSignature)[2].InitAsConstantBuffer(2);
-		(*m_rootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
-		m_rootSignature->InitStaticSampler(0, DefaultSamplerDesc);
-		m_rootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	
-	}
-
-	void BuildPSO()
-	{
-		m_pipelineState = PipelineState();
-		m_pipelineState.InitializeDefaultStates();
-		m_pipelineState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		m_pipelineState.SetShader(mp_shaders["basicVS"], ShaderType::Vertex);
-		m_pipelineState.SetShader(mp_shaders["basicPS"], ShaderType::Pixel);
-		m_pipelineState.SetInputLayout(VertexPositionNormalTexture::InputLayout.pInputElementDescs, VertexPositionNormalTexture::InputLayout.NumElements);
-		m_pipelineState.SetRootSignature(m_rootSignature);
-		m_pipelineState.SetRenderTargetFormat(mBackBufferFormat, mDepthStencilFormat, 1, 0);
-
-		m_pipelineState.Finalize();
-	}
 	virtual bool Initialize() override
 	{
 		if (!D3DApp::Initialize())
@@ -141,11 +88,16 @@ public:
 		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 
-		BuildEmptyRootSignature();
-		BuildShadersAndInputLayout();
-		BuildPSO();
 
+#if USE_PBR
+		m_pipelineState = s_PSOs[L"PBRPSO"];
+		m_rootSignature = m_pipelineState->GetRootSignature();
+		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\PBR\\sponza2.gltf");
+#else
+		m_pipelineState = s_PSOs[L"opaquePSO"];
+		m_rootSignature = m_pipelineState->GetRootSignature();
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
+#endif
 
 		bool loaded = m_model.LoadFromFile(sourcePath.c_str());
 
@@ -191,10 +143,10 @@ public:
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
 
 		Light dirLight;
-		XMVECTOR lightDir = MathHelper::SphericalToCartesian(1.0f, m_theta, m_phi); //XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
+		XMVECTOR lightDir = MathHelper::SphericalToCartesian(3.0, m_theta, m_phi); //XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
 		
 		XMStoreFloat3(&dirLight.Direction, lightDir);
-		dirLight.Color = XMFLOAT3(1.3f, 1.3f, 1.3f);
+		dirLight.Color = XMFLOAT3(0.6, 0.6, 0.6);
 
 		m_costantBufferCommons.lights[0] = dirLight;
 	}
@@ -288,7 +240,7 @@ public:
 
 		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature->Get());
 
-		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState.Get());
+		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState->Get());
 
 		auto commonRes = s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
 		auto objectRes = s_graphicsMemory->AllocateConstant(m_costantBufferObject);
@@ -296,7 +248,8 @@ public:
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, commonRes.GpuAddress());
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(1, objectRes.GpuAddress());
 
-
+		ID3D12DescriptorHeap* heaps[] = { s_textureHeap->Get() };
+		context->m_commandList->Get()->SetDescriptorHeaps(1, heaps);
 
 		m_model.Draw(*context);
 

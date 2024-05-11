@@ -46,8 +46,6 @@ void RootSignature::InitStaticSampler(UINT nRegister, const D3D12_SAMPLER_DESC& 
 	}
 }
 
-#include <iostream>
-
 void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS flags)
 {
 	if (m_finalized)

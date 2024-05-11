@@ -5,7 +5,35 @@ file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h" "${CMAKE_CURREN
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_FILES})
 
-add_library(DirectXLib STATIC "${SOURCE_FILES}")
+set(VERTEX_SHADERS DX12Lib/Shaders/Basic_VS.hlsl)
+set(PIXEL_SHADERS DX12Lib/Shaders/Basic_PS.hlsl)
+set(INCLUDE_SHADERS DX12Lib/Shaders/Default.hlsli DX12Lib/Shaders/Common.hlsli DX12Lib/Shaders/LightingUtil.hlsli)
+
+set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
+
+source_group("DX12Lib/Shaders" FILES ${SHADERS})
+
+set_source_files_properties( ${VERTEX_SHADERS} ${PIXEL_SHADERS}
+    PROPERTIES
+        VS_SHADER_OBJECT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Data/Shaders/%(Filename).cso"
+        VS_SHADER_MODEL 5.1
+        VS_SHADER_DISABLE_OPTIMIZATIONS $<$<CONFIG:Debug>:ON>
+        VS_SHADER_ENABLE_DEBUG $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:ON>
+)
+
+set_source_files_properties( ${VERTEX_SHADERS}
+    PROPERTIES 
+        VS_SHADER_TYPE Vertex
+	VS_SHADER_ENTRYPOINT VS
+)
+
+set_source_files_properties( ${PIXEL_SHADERS}
+    PROPERTIES 
+        VS_SHADER_TYPE Pixel
+	VS_SHADER_ENTRYPOINT PS
+)
+
+add_library(DirectXLib STATIC ${SOURCE_FILES} ${SHADERS})
 target_precompile_headers(DirectXLib PRIVATE "DX12Lib/pch.h")
 
 set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)

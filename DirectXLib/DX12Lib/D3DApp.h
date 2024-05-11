@@ -97,8 +97,7 @@ namespace DX12Lib {
 
 		std::wstring mMainWndCaption = L"D3D12 Application";
 		D3D_DRIVER_TYPE mD3DDriverType = D3D_DRIVER_TYPE_HARDWARE;
-		DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
 		int mClientWidth = 1920;
 		int mClientHeight = 1080;
 
