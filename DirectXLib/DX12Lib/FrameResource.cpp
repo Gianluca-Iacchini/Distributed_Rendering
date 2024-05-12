@@ -1,8 +1,6 @@
 #include "pch.h"
 
 #include "FrameResource.h"
-#include "CommandAllocator.h"
-#include "CommandQueue.h"
 
 using namespace DX12Lib;
 

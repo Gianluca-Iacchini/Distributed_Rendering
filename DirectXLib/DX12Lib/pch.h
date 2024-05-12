@@ -28,8 +28,21 @@
 
 
 // Engine
-#include "Logger.h"
-#include "MathHelper.h"
-#include "Helpers.h"
-#include "GraphicsCore.h"
-#include "Device.h"
+#include "Commons/Logger.h"
+#include "Commons/MathHelper.h"
+#include "Commons/Helpers.h"
+#include "Commons/CommandContext.h"
+#include "Commons/GraphicsCore.h"
+#include "DXWrapper/CommandQueue.h"
+#include "DXWrapper/CommandList.h"
+#include "DXWrapper/CommandAllocator.h"
+#include "DXWrapper/DescriptorHeap.h"
+#include "DXWrapper/RootSignature.h"
+#include "DXWrapper/PipelineState.h"
+#include "DXWrapper/SamplerDesc.h"
+#include "DXWrapper/Shader.h"
+#include "DXWrapper/Texture.h"
+#include "DXWrapper/DepthBuffer.h"
+#include "DXWrapper/ColorBuffer.h"
+
+#include "DXWrapper/Device.h"

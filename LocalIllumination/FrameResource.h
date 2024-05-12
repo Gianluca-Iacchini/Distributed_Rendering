@@ -1,7 +1,7 @@
-#include "DX12Lib/Helpers.h"
-#include "DX12Lib/CommandAllocator.h"
-#include "DX12Lib/Device.h"
-#include "DX12Lib/GraphicsCore.h"
+#include "DX12Lib/Commons/Helpers.h"
+#include "DX12Lib/DXWrapper/CommandAllocator.h"
+#include "DX12Lib/DXWrapper/Device.h"
+#include "DX12Lib/Commons/GraphicsCore.h"
 
 #ifndef MAINFRAME_RESOURCE_H
 #define MAINFRAME_RESOURCE_H

@@ -1,38 +1,25 @@
 #include <DX12Lib/pch.h>
-#include "DX12Lib/Helpers.h"
-#include "DX12Lib/D3DApp.h"
-#include "DX12Lib/CIDXGIFactory.h"
+
+#include "DX12Lib/Commons/D3DApp.h"
 #include "Keyboard.h"
-#include "DX12Lib/Shader.h"
-#include "Dx12Lib/PipelineState.h"
+
+#include "Dx12Lib/DXWrapper/PipelineState.h"
 #include "FrameResource.h"
-#include "DX12Lib/Fence.h"
-#include "DX12Lib/CommandQueue.h"
-#include "DX12Lib/CommandList.h"
-#include "DX12Lib/CommandAllocator.h"
-#include "DX12Lib/Swapchain.h"
-#include "DX12Lib/DepthBuffer.h"
-#include "DX12Lib/CommandContext.h"
-#include "DX12Lib/RootSignature.h"
-#include "DX12Lib/CommandContext.h"
-#include "DX12Lib/Texture.h"
-#include "DX12Lib/DescriptorHeap.h"
-#include "DX12Lib/SamplerDesc.h"
+#include "DX12Lib/DXWrapper/Swapchain.h"
 #include "GraphicsMemory.h"
 #include "GeometricPrimitive.h"
-#include "DX12Lib/CommonConstants.h"
-#include "DX12Lib/Camera.h"
+#include "DX12Lib/Commons/Camera.h"
 #include "Mouse.h"
 #include "ResourceUploadBatch.h"
-#include "DX12Lib/Model.h"
-#include "DX12Lib/Mesh.h"
+#include "DX12Lib/Models/Model.h"
+#include "DX12Lib/Models/Mesh.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 
-#define USE_PBR 0
+#define USE_PBR 1
 
 struct Vertex
 {
