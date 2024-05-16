@@ -17,14 +17,17 @@ namespace DX12Lib {
 		Model() {}
 		~Model() {}
 
-		bool LoadFromFile(const std::wstring filename);
-		bool LoadFromFile(const char* filename);
+		void LoadFromFile(const aiScene* scene);
 
 		void LoadMaterials(const aiScene* scene);
 
 		void LoadMeshes(const aiScene* scene);
 
-		std::vector<std::shared_ptr<Mesh>> GetMeshes() const { return m_meshes; }
+		const std::vector<std::shared_ptr<Mesh>>& GetMeshes() const { return m_meshes; }
+		std::shared_ptr<Mesh> GetMeshAt(int index) const { return m_meshes[index]; }
+
+		const std::vector<SharedMaterial>& GetMaterials() const { return m_materials; }
+		SharedMaterial GetMaterialAt(int index) const { return m_materials[index]; }
 
 		void Draw(ID3D12GraphicsCommandList* commandList);
 		void Draw(CommandList& commandList);

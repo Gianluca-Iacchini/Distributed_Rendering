@@ -29,6 +29,8 @@ namespace DX12Lib {
 			m_psoDesc.SampleMask = UINT_MAX;
 			m_psoDesc.SampleDesc.Count = 1;
 			m_psoDesc.InputLayout.NumElements = 0;
+
+			ThrowIfFailed(CoCreateGuid(&m_guid));
 		}
 		~PipelineState() {};
 
@@ -48,11 +50,14 @@ namespace DX12Lib {
 
 		std::shared_ptr<RootSignature> GetRootSignature() const { return m_rootSignature; }
 
+		std::wstring GetGUID() const { return Utils::GUIDToWstring(m_guid); }
+
 	private:
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipelineState;
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC m_psoDesc;
 		std::unordered_map<ShaderType, std::shared_ptr<Shader>> m_shaders;
 		std::shared_ptr<RootSignature> m_rootSignature;
+		GUID m_guid;
 
 	public:
 		PipelineState(PipelineState&& rhs) = default;
@@ -60,6 +65,8 @@ namespace DX12Lib {
 
 		PipelineState(const PipelineState& rhs) = delete;
 		PipelineState& operator=(const PipelineState& rhs) = delete;
+
+		bool operator==(const PipelineState& rhs) const { return m_guid == rhs.m_guid; }
 
 		ID3D12PipelineState* Get() const { return m_pipelineState.Get(); }
 		ID3D12PipelineState** GetAddressOf() { return m_pipelineState.GetAddressOf(); }

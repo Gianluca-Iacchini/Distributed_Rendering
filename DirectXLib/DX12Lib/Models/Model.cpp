@@ -12,42 +12,10 @@ using namespace DX12Lib;
 using namespace Assimp;
 using namespace Graphics;
 
-bool Model::LoadFromFile(const std::wstring filename)
+void Model::LoadFromFile(const aiScene* scene)
 {
-
-    DXLIB_CORE_INFO(L"Loading model from file {0}", filename);
-
-    Importer importer;
-
-    std::string filenameStr = Utils::ToString(filename);
-
-    importer.SetPropertyFloat(AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 80.0f);
-    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE);
-
-    unsigned int preprocessFlags = aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_Triangulate; 
-    /*| aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_GenBoundingBoxes;*/
-
-    const aiScene* scene = importer.ReadFile(filenameStr, preprocessFlags);
-
-
-    assert(scene != nullptr && "Failed to load scene");
-
-    std::wstring directoryPath = Utils::GetFileDirectory(filename);
-    Utils::SetWorkingDirectory(directoryPath);
-
     this->LoadMaterials(scene);
     this->LoadMeshes(scene);
-
-    Utils::SetWorkingDirectory(Utils::StartingWorkingDirectoryPath);
-
-    DXLIB_CORE_INFO(L"Model loaded successfully");
-
-    return true;
-}
-
-bool Model::LoadFromFile(const char* filename)
-{
-    return LoadFromFile(Utils::ToWstring(filename));
 }
 
 void Model::LoadMaterials(const aiScene* scene)
@@ -165,12 +133,12 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
     if (m_PBRMaterialCount > 0)
         commandList->SetGraphicsRootShaderResourceView(3, m_pbrMaterialBuffer->GetGPUVirtualAddress());
 
-    for (auto mesh : m_meshes)
-    {
-        SharedMaterial mat = m_materials[mesh->m_materialIndex];
-        mat->UseMaterial(commandList);
-        mesh->Draw(commandList);
-	}
+ //   for (auto mesh : m_meshes)
+ //   {
+ //       SharedMaterial mat = m_materials[mesh->m_materialIndex];
+ //       mat->UseMaterial(commandList);
+ //       mesh->Draw(commandList);
+	//}
 }
 
 void Model::Draw(CommandList& commandList)

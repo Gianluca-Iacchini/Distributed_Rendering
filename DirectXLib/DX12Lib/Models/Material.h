@@ -35,7 +35,13 @@ namespace DX12Lib {
 	class MaterialManager;
 	class MaterialBuilder;
 
-
+	enum class MaterialShadingModel
+	{
+		PHONG,
+		PBR,
+		UNLIT,
+		UNKNOWN
+	};
 
 	class Material
 	{
@@ -43,7 +49,7 @@ namespace DX12Lib {
 		friend class MaterialBuilder;
 
 	public:
-		Material() = default;
+		Material();
 
 		virtual ~Material()
 		{
@@ -56,6 +62,9 @@ namespace DX12Lib {
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) {}
 
+		virtual MaterialShadingModel ShadingModel() { return MaterialShadingModel::UNKNOWN; }
+
+		std::wstring GetDefaultPSO() { return m_defaultPSO; }
 	public:
 		DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -70,17 +79,19 @@ namespace DX12Lib {
 		std::wstring m_name;
 		SharedTexture* m_textures = nullptr;
 		DescriptorHandle m_firstTextureHandle;
+
+		std::wstring m_defaultPSO;
 	};
 
 	class PhongMaterial : public Material
 	{
 	public:
-		PhongMaterial()
-		{
-			m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
-		}
+		PhongMaterial();
+
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
+
+		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PHONG; }
 	public:
 		DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT4 AmbientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -98,12 +109,11 @@ namespace DX12Lib {
 	class PBRMaterial : public Material
 	{
 	public:
-		PBRMaterial()
-		{
-			m_textures = new SharedTexture[NUM_PBR_TEXTURES];
-		}
+		PBRMaterial();
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
+
+		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PBR; }
 
 	public:
 		float Metallic = 0.2f;

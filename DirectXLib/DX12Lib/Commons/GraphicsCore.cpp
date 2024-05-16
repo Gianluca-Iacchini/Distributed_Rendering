@@ -46,6 +46,8 @@ namespace Graphics
 
 	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
+	Renderer s_renderer;
+
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
 		UINT i = 0;
@@ -223,6 +225,7 @@ namespace Graphics
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
 			s_commandContextManager = std::make_unique<CommandContextManager>();
+			s_renderer = Renderer();
 			s_textureHeap = std::make_shared<DescriptorHeap>();
 			s_textureHeap->Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
 			s_graphicsMemory = std::make_unique<DirectX::GraphicsMemory>(*s_device);

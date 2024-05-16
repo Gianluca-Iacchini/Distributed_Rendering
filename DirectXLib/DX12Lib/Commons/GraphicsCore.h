@@ -5,6 +5,8 @@
 #include "Mouse.h"
 #include "DX12Lib/DXWrapper/Texture.h"
 #include "DX12Lib/Models/MaterialManager.h"
+#include "Renderer.h"
+
 
 
 namespace DX12Lib {
@@ -16,6 +18,7 @@ namespace DX12Lib {
 	class CommandContextManager;
 	class PipelineState;
 	class Shader;
+
 }
 
 namespace Graphics
@@ -34,6 +37,8 @@ namespace Graphics
 	extern std::unique_ptr<DirectX::Mouse> s_mouse;
 
 	extern std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap;
+
+	extern Renderer s_renderer;
 
 	extern DXGI_FORMAT m_backBufferFormat;
 	extern DXGI_FORMAT m_depthStencilFormat;

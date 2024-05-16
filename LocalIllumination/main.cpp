@@ -11,8 +11,7 @@
 #include "DX12Lib/Commons/Camera.h"
 #include "Mouse.h"
 #include "ResourceUploadBatch.h"
-#include "DX12Lib/Models/Model.h"
-#include "DX12Lib/Models/Mesh.h"
+#include "DX12Lib/Scene/Scene.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -47,7 +46,7 @@ class AppTest : public D3DApp
 
 	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
 
-	Model m_model;
+	Scene m_scene;
 
 	float cameraSpeed = 100.0f;
 
@@ -86,7 +85,7 @@ public:
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 #endif
 
-		bool loaded = m_model.LoadFromFile(sourcePath.c_str());
+		bool loaded = m_scene.AddFromFile(sourcePath.c_str());
 
 		assert(loaded && "Model not loaded");
 
@@ -238,7 +237,7 @@ public:
 		ID3D12DescriptorHeap* heaps[] = { s_textureHeap->Get() };
 		context->m_commandList->Get()->SetDescriptorHeaps(1, heaps);
 
-		m_model.Draw(*context);
+		m_scene.Render(context);
 
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);

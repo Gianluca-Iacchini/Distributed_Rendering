@@ -44,5 +44,7 @@
 #include "DXWrapper/Texture.h"
 #include "DXWrapper/DepthBuffer.h"
 #include "DXWrapper/ColorBuffer.h"
+#include "DX12Lib/Models/Material.h"
+#include "DX12Lib/Models/MaterialManager.h"
 
 #include "DXWrapper/Device.h"

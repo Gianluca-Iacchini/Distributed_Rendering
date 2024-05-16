@@ -66,7 +66,6 @@ namespace DX12Lib {
 		void CalculateFrameStats(GameTime& gt);
 
 	protected:
-		void SetMsAsTitle(float ms);
 
 		static D3DApp* m_App;
 

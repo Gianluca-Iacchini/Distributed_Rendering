@@ -8,6 +8,11 @@ using namespace DX12Lib;
 #define IS_PHONG(tex) ((UINT)tex < NUM_PHONG_TEXTURES)
 #define IS_PBR(tex) (IS_COMMON(tex) || ((UINT)tex >= PBR_TEXTURE_OFFSET))
 
+Material::Material()
+{
+	m_defaultPSO = L"opaquePSO";
+}
+
 
 void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 {
@@ -16,6 +21,12 @@ void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 	// We only need to set the first texture since they are all contiguous in the heap.
 	// The root signature knows how many are to be used.
 	cmdList->SetGraphicsRootDescriptorTable(4, m_firstTextureHandle);
+}
+
+PhongMaterial::PhongMaterial()
+{
+	m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
+	m_defaultPSO = L"opaquePSO";
 }
 
 ConstantBufferPhongMaterial DX12Lib::PhongMaterial::CreatePhongMaterialBuffer()
@@ -59,6 +70,12 @@ void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 			m_textures[(UINT)type] = texture;
 		}
 	}
+}
+
+PBRMaterial::PBRMaterial()
+{
+	m_textures = new SharedTexture[NUM_PBR_TEXTURES];
+	m_defaultPSO = L"PBRPSO";
 }
 
 void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)

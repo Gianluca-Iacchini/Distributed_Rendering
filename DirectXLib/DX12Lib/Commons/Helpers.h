@@ -6,6 +6,8 @@
 #include <wrl/client.h>
 #include <Windows.h>
 #include <d3d12.h>
+#include <assert.h>
+
 
 // From Microsoft mini engine
 #define D3D12_GPU_VIRTUAL_ADDRESS_NULL    ((D3D12_GPU_VIRTUAL_ADDRESS)0)
@@ -140,6 +142,16 @@ public:
         MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
         return std::wstring(buffer);
     }
+
+    static inline std::wstring GUIDToWstring(const GUID& guid)
+	{
+		WCHAR buffer[64];
+		UINT size = StringFromGUID2(guid, buffer, 64);
+		
+        assert(size > 0 && size < 64 && "GUIDToWstring failed");
+        
+        return std::wstring(buffer);
+	}
 
     static std::wstring GetFileName(const std::wstring& filepath);
     static std::wstring GetFileDirectory(const std::wstring& filepath);
