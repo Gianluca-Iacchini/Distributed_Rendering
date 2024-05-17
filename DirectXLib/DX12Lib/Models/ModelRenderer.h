@@ -18,7 +18,7 @@ namespace DX12Lib
 		{
 			assert(modelRenderer != nullptr);
 
-			MaterialPSO = L"opaquePSO";
+			MaterialPSO = PSO_PHONG_OPAQUE;
 			m_modelRenderer = modelRenderer;
 		}
 
@@ -50,7 +50,7 @@ namespace DX12Lib
 
 
 	public:
-		std::wstring MaterialPSO = L"opaquePSO";
+		std::wstring MaterialPSO = PSO_PHONG_OPAQUE;
 		ConstantBufferObject m_objectCB;
 
 	private:

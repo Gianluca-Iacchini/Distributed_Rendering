@@ -27,7 +27,7 @@ void Model::LoadMaterials(const aiScene* scene)
     {
         aiMaterial* material = scene->mMaterials[i];
 
-        auto builder = s_materialManager->CreateMaterialBuilder();
+        auto builder = Renderer::s_materialManager->CreateMaterialBuilder();
         m_materials[i] = builder.BuildFromAssimpMaterial(material);
         materialCBs[i] = m_materials[i]->BuildMaterialConstantBuffer();
     }

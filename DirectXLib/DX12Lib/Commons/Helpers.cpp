@@ -57,7 +57,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Utils::CreateDefaultBuffer(const void* in
 	DirectX::SharedGraphicsResource buffer;
 	ComPtr<ID3D12Resource> staticBuffer;
 
-	buffer = Graphics::s_graphicsMemory->Allocate(byteSize);
+	buffer = Graphics::Renderer::s_graphicsMemory->Allocate(byteSize);
 	memcpy(buffer.Memory(), initData, byteSize);
 
 	CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);

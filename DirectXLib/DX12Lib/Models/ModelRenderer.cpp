@@ -72,14 +72,14 @@ DirectX::GraphicsResource DX12Lib::MeshRenderer::GetObjectCB()
 	DirectX::XMStoreFloat4x4(&m_objectCB.invWorld, DirectX::XMMatrixTranspose(Node->GetWorldInverse()));
 	m_objectCB.texTransform = MathHelper::Identity4x4();
 	m_objectCB.materialIndex = m_mesh->m_materialIndex;
-	return Graphics::s_graphicsMemory->AllocateConstant(m_objectCB);
+	return Graphics::Renderer::s_graphicsMemory->AllocateConstant(m_objectCB);
 }
 
 void DX12Lib::ModelRenderer::Render()
 {
 	if (Model != nullptr)
 	{
-		Graphics::s_renderer.AddRendererToQueue(this);
+		Graphics::Renderer::AddRendererToQueue(this);
 	}
 }
 

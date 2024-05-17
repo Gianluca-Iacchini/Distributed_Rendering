@@ -7,7 +7,10 @@
 #include "DX12Lib/Models/MaterialManager.h"
 #include "Renderer.h"
 
-
+#define PSO_PHONG_OPAQUE L"phongOpaquePso"
+#define PSO_PHONG_TRANSPARENT L"phongTransparentPso"
+#define PSO_PBR_OPAQUE L"pbrOpaquePso"
+#define PSO_PBR_TRANSPARENT L"pbrTransparentPso"
 
 namespace DX12Lib {
 	class Device;
@@ -27,18 +30,11 @@ namespace Graphics
 	extern std::shared_ptr<DX12Lib::Device> s_device;
 	extern std::unique_ptr<DX12Lib::CommandQueueManager> s_commandQueueManager;
 	extern std::unique_ptr<DX12Lib::CommandContextManager> s_commandContextManager;
-	extern std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory;
 	extern Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings;
-	extern std::unique_ptr<DX12Lib::TextureManager> s_textureManager;
-	extern std::unique_ptr<DX12Lib::MaterialManager> s_materialManager;
-	extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::PipelineState>> s_PSOs;
-	extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::Shader>> s_shaders;
 
 	extern std::unique_ptr<DirectX::Mouse> s_mouse;
 
-	extern std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap;
 
-	extern Renderer s_renderer;
 
 	extern DXGI_FORMAT m_backBufferFormat;
 	extern DXGI_FORMAT m_depthStencilFormat;

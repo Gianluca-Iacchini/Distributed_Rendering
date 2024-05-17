@@ -9,7 +9,7 @@ void MaterialBuilder::AddTexture(aiTextureType assimpTextureType, aiString& text
 	MaterialTextureType textureType = AssimpToTextureType(assimpTextureType);
 
 	std::wstring texturePathW = Utils::ToWstring(texturePath.C_Str());
-	SharedTexture texture = s_textureManager->LoadFromFile(texturePathW, false);
+	SharedTexture texture = Renderer::s_textureManager->LoadFromFile(texturePathW, false);
 
 	AddTexture(textureType, texture);
 }
@@ -34,16 +34,16 @@ SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType text
 	case MaterialTextureType::AMBIENT:
 	case MaterialTextureType::SHININESS:
 	case MaterialTextureType::METALROUGHNESS:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
 	case MaterialTextureType::SPECULAR:
 	case MaterialTextureType::EMISSIVE:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
 	case MaterialTextureType::NORMAL_MAP:
 	case MaterialTextureType::BUMP_MAP:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
 	default:
-		return s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
 	}
 }
 
@@ -91,7 +91,7 @@ SharedMaterial MaterialBuilder::Build(std::wstring& materialName)
 		}
 
 
-		DescriptorHandle handle = s_textureHeap->Alloc(1);
+		DescriptorHandle handle = Renderer::s_textureHeap->Alloc(1);
 		s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, m_material->m_textures[i]->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		// Store only the first texture handle. The rest of the texture are placed after this one in the heap
@@ -153,7 +153,7 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial)
 		assimpMaterial->GetTexture(aiTextureType_HEIGHT, 0, &texturePath);
 
 		std::wstring texturePathW = Utils::ToWstring(texturePath.C_Str());
-		SharedTexture texture = s_textureManager->LoadFromFile(texturePathW, false);
+		SharedTexture texture = Renderer::s_textureManager->LoadFromFile(texturePathW, false);
 
 		// Height map usually has 8 bits per pixel, while normal map usuall has 24.
 		// If for some reason a material has a normal map and a normal map in the height map slot then

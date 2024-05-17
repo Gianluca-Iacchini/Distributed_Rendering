@@ -10,7 +10,7 @@ using namespace DX12Lib;
 
 Material::Material()
 {
-	m_defaultPSO = L"opaquePSO";
+	m_defaultPSO = PSO_PHONG_OPAQUE;
 }
 
 
@@ -24,7 +24,7 @@ void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 PhongMaterial::PhongMaterial()
 {
 	m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
-	m_defaultPSO = L"opaquePSO";
+	m_defaultPSO = PSO_PHONG_OPAQUE;
 }
 
 void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
@@ -57,7 +57,7 @@ ConstantBufferMaterial DX12Lib::PhongMaterial::BuildMaterialConstantBuffer()
 PBRMaterial::PBRMaterial()
 {
 	m_textures = new SharedTexture[NUM_PBR_TEXTURES];
-	m_defaultPSO = L"PBRPSO";
+	m_defaultPSO = PSO_PBR_OPAQUE;
 }
 
 void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
