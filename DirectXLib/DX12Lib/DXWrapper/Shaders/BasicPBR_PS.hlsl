@@ -3,7 +3,7 @@
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
-
+    PBRMaterial material = GetPBRMaterial(gMaterials[oMaterialIndex]);
     
     pIn.NormalW = normalize(pIn.NormalW);
     
@@ -16,14 +16,14 @@ float4 PS(VertexOut pIn) : SV_TARGET
     
     float3 V = normalize(cEyePos - pIn.PosW);
     
-    float4 emissive = gMaterial.emissiveColor * gEmissiveTex.Sample(gSampler, pIn.Tex);
-    float4 diffuse = gMaterial.baseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
+    float4 emissive = material.emissiveColor * gEmissiveTex.Sample(gSampler, pIn.Tex);
+    float4 diffuse = material.baseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
 
     // glTF stores roguhness in the G channel, metallic in the B channel and AO in the R channel
     float3 RMA = gMetallicRoughness.Sample(gSampler, pIn.Tex).rgb;
     
-    float roughness = gMaterial.roughness * RMA.g;
-    float metallic = gMaterial.metallic * RMA.b;
+    float roughness = material.roughness * RMA.g;
+    float metallic = material.metallic * RMA.b;
     float occlusion = RMA.r;
 
     

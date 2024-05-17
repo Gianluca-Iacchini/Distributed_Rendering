@@ -43,70 +43,39 @@ namespace DX12Lib {
 		UINT materialIndex = 1;
 	};
 
-
-	__declspec(align(16)) struct ConstantBufferPhongMaterial
+	__declspec(align(16)) struct ConstantBufferMaterial
 	{
-	public:
-		ConstantBufferPhongMaterial(
-			const DirectX::XMFLOAT4 diffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f },
-			const DirectX::XMFLOAT4 specularColor = { 1.0f, 1.0f, 1.0f, 1.0f },
-			const DirectX::XMFLOAT4 ambientColor = { 0.0f, 0.0f, 0.0f, 1.0f },
-			const DirectX::XMFLOAT4 emissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f },
-			const float opacity = 1.0f,
-			const float shininess = 128.0f,
-			const float indexOfRefraction = 1.0f,
-			const float normalScale = 1.0f)
-			:
-			DiffuseColor(diffuseColor),
-			EmissiveColor(emissiveColor),
-			SpecularColor(specularColor),
-			AmbientColor(ambientColor),
-			NormalScale(normalScale),
-			Opacity(opacity),
-			Shininess(shininess),
-			IndexOfRefraction(indexOfRefraction)
-		{
-		}
-
-	public:
-		DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-		DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-		DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-		DirectX::XMFLOAT4 AmbientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-		
-		float NormalScale = 1.0f;
-		float Opacity = 1.0f;
-		float Shininess = 128.0f;
-		float IndexOfRefraction = 1.0f;
-	};
-
-	__declspec(align(16)) struct ConstantBufferPBRMaterial
-	{
-	public:
-		ConstantBufferPBRMaterial(
-			const DirectX::XMFLOAT4 baseColor = { 1.0f, 1.0f, 1.0f, 1.0f },
-			const DirectX::XMFLOAT4 emissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f },
-			const float roughness = 0.4f,
-			const float metallic = 0.2f,
-			const float normalScale = 1.0f
+		ConstantBufferMaterial(
+			DirectX::XMFLOAT4 float4_0 = { 0.0f, 0.0f, 0.0f, 0.0f },
+			DirectX::XMFLOAT4 float4_1 = { 0.0f, 0.0f, 0.0f, 0.0f },
+			DirectX::XMFLOAT4 float4_2 = { 0.0f, 0.0f, 0.0f, 0.0f },
+			DirectX::XMFLOAT4 float4_3 = { 0.0f, 0.0f, 0.0f, 0.0f },
+			float float_0 = 0.0f,
+			float float_1 = 0.0f,
+			float float_2 = 0.0f,
+			float float_3 = 0.0f
 		)
 			:
-			BaseColor(baseColor),
-			EmissiveColor(emissiveColor),
-			Roughness(roughness),
-			Metallic(metallic),
-			NormalScale(normalScale)
+			Float4_0(float4_0),
+			Float4_1(float4_1),
+			Float4_2(float4_2),
+			Float4_3(float4_3),
+			Float_0(float_0),
+			Float_1(float_1),
+			Float_2(float_2),
+			Float_3(float_3)
 		{
 		}
-
 	public:
-		DirectX::XMFLOAT4 BaseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-		DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+		DirectX::XMFLOAT4 Float4_0 = { 0.0f, 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT4 Float4_1 = { 0.0f, 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT4 Float4_2 = { 0.0f, 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT4 Float4_3 = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-		float Roughness = 0.4f;
-		float Metallic = 0.2f;
-		float NormalScale = 1.0f;
+		float Float_0 = 0.0f;
+		float Float_1 = 0.0f;
+		float Float_2 = 0.0f;
+		float Float_3 = 0.0f;
 	};
 }
 

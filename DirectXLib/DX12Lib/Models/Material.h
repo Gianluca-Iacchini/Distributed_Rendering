@@ -65,15 +65,14 @@ namespace DX12Lib {
 		virtual MaterialShadingModel ShadingModel() { return MaterialShadingModel::UNKNOWN; }
 
 		std::wstring GetDefaultPSO() { return m_defaultPSO; }
+
+		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() { return ConstantBufferMaterial(); }
 	public:
 		DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 
 		float NormalScale = 1.0f;
-
-	protected:
-		virtual DirectX::GraphicsResource CreateMaterialBuffer() = 0;
 
 	protected:
 		std::wstring m_name;
@@ -92,6 +91,8 @@ namespace DX12Lib {
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
 
 		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PHONG; }
+
+		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 	public:
 		DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT4 AmbientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -100,10 +101,8 @@ namespace DX12Lib {
 		float Shininess = 128.0f;
 		float IndexOfRefraction = 1.0f;
 
-		ConstantBufferPhongMaterial CreatePhongMaterialBuffer();
-
 	protected:
-		virtual DirectX::GraphicsResource CreateMaterialBuffer() override;
+		
 	};
 
 	class PBRMaterial : public Material
@@ -115,14 +114,11 @@ namespace DX12Lib {
 
 		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PBR; }
 
+		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 	public:
 		float Metallic = 0.2f;
 		float Roughness = 0.4f;
 
-		ConstantBufferPBRMaterial CreatePBRMaterialBuffer();
-
-	protected:
-		virtual DirectX::GraphicsResource CreateMaterialBuffer() override;
 	};
 
 

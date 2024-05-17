@@ -20,15 +20,6 @@ using namespace DX12Lib;
 
 #define USE_PBR 1
 
-struct Vertex
-{
-	Vertex(XMFLOAT3 p, XMFLOAT3 n, XMFLOAT2 tc) : Pos(p), TexCoord(tc), Normal(n) {}
-
-	XMFLOAT3 Pos;
-	XMFLOAT3 Normal;
-	XMFLOAT2 TexCoord;
-};
-
 
 class AppTest : public D3DApp
 {

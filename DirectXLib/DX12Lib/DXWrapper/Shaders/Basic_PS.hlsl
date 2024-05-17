@@ -15,16 +15,17 @@ float4 PS(VertexOut pIn) : SV_TARGET
     
     float3 V = normalize(cEyePos - pIn.PosW);
     
-
-    float4 diffuse = gMaterial.diffuseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
-    float4 emissive = gMaterial.emissiveColor * gEmissiveTex.Sample(gSampler, pIn.Tex);
-    float4 ambient = gMaterial.ambientColor * gAmbientTex.Sample(gSampler, pIn.Tex);
+    PhongMaterial material = GetPhongMaterial(gMaterials[oMaterialIndex]);
+    
+    float4 diffuse = material.diffuseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
+    float4 emissive = material.emissiveColor * gEmissiveTex.Sample(gSampler, pIn.Tex);
+    float4 ambient = material.ambientColor * gAmbientTex.Sample(gSampler, pIn.Tex);
     float4 specular = gSpecularTex.Sample(gSampler, pIn.Tex);
-    float shininess = gMaterial.shininess * gShininessTex.Sample(gSampler, pIn.Tex).r;
+    float shininess = material.shininess * gShininessTex.Sample(gSampler, pIn.Tex).r;
 
-    if (any(gMaterial.specularColor.rgb))
+    if (any(material.specularColor.rgb))
     {
-        specular *= gMaterial.specularColor;
+        specular *= material.specularColor;
     }
     
     SurfaceData surfData;
@@ -34,7 +35,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     surfData.c_diff = diffuse.rgb;
     surfData.c_spec = specular.rgb;
     
-    float3 lightRes = ComputeDirectionalLight(cDirLight, surfData, shininess, gMaterial.refractiveIndex);    
+    float3 lightRes = ComputeDirectionalLight(cDirLight, surfData, shininess, material.refractiveIndex);    
     
     return float4(lightRes, diffuse.a);
 }

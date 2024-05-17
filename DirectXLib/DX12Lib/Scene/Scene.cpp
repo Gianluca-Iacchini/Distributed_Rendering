@@ -88,11 +88,6 @@ void Scene::Render(CommandContext* context)
 {
 	m_rootNode->Render(context);
 
-	auto firstChild = m_rootNode->GetChildAt(0);
-
-	auto rot = firstChild->GetRelativeRotationEulerAngles();
-	rot.y += 0.01f;
-	firstChild->SetRelativeRotation(rot);
 
 	s_renderer.Render(context);
 }

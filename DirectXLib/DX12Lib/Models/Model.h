@@ -30,29 +30,22 @@ namespace DX12Lib {
 		SharedMaterial GetMaterialAt(int index) const { return m_materials[index]; }
 
 		void Draw(ID3D12GraphicsCommandList* commandList);
-		void Draw(CommandList& commandList);
-		void Draw(CommandContext& context);
+		void Draw(CommandList* commandList);
+		void Draw(CommandContext* context);
 
 
 	private:
 		void BuildVertexBuffer(UINT stride, UINT numVertices);
 		void BuildIndexBuffer(DXGI_FORMAT format, UINT numIndices);
 
-		void BuildMaterialStructuredBuffers();
 
 	protected:
 		std::vector<std::shared_ptr<Mesh>> m_meshes;
 		std::vector<SharedMaterial> m_materials;
 
-		std::unordered_map<int, int> m_materialIndexMap;
-		UINT m_PBRMaterialCount = 0;
-		UINT m_phongMaterialCount = 0;
-
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
-
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_phongMaterialBuffer;
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_pbrMaterialBuffer;
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_materialBufferResource;
 
 		D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW m_indexBufferView;

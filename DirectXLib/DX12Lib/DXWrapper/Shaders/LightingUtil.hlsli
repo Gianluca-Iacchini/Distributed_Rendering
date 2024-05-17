@@ -10,31 +10,73 @@ struct Light
     float lSpotPower;
 };
 
-#ifdef PBR
-struct Material
+struct GenericMaterial
+{
+    float4 float4_0;
+    float4 float4_1;
+    float4 float4_2;
+    float4 float4_3;
+    
+    float float_0;
+    float float_1;
+    float float_2;
+    float float_3;
+};
+
+
+struct PBRMaterial
 {
     float4 baseColor;
     float4 emissiveColor;
     
-    float roughness;
     float metallic;
+    float roughness;
     float normalScale;
 };
-#else
-struct Material
+
+struct PhongMaterial
 {
     float4 diffuseColor;
     float4 emissiveColor;
     float4 specularColor;
     float4 ambientColor;
 
-    float bumpIntensity;
+    float normalScale;
     float opacity;
     float shininess;
     float refractiveIndex;
 };
-#endif
 
+PBRMaterial GetPBRMaterial(GenericMaterial material)
+{
+    PBRMaterial pbrMaterial;
+    
+    pbrMaterial.baseColor = material.float4_0;
+    pbrMaterial.emissiveColor = material.float4_1;
+    
+    pbrMaterial.normalScale = material.float_0;
+    pbrMaterial.metallic = material.float_1;
+    pbrMaterial.roughness = material.float_2;
+
+    return pbrMaterial;
+}
+
+PhongMaterial GetPhongMaterial(GenericMaterial material)
+{
+    PhongMaterial phongMaterial;
+    
+    phongMaterial.diffuseColor = material.float4_0;
+    phongMaterial.emissiveColor = material.float4_1;
+    phongMaterial.specularColor = material.float4_2;
+    phongMaterial.ambientColor = material.float4_3;
+    
+    phongMaterial.normalScale = material.float_0;
+    phongMaterial.opacity = material.float_1;
+    phongMaterial.shininess = material.float_2;
+    phongMaterial.refractiveIndex = material.float_3;
+    
+    return phongMaterial;
+}
 
 static const float3 ambientLightStrength = float3(0.13f, 0.13f, 0.13f);
 

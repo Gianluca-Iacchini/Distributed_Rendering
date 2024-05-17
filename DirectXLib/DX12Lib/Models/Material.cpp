@@ -16,49 +16,15 @@ Material::Material()
 
 void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 {
-	cmdList->SetGraphicsRootConstantBufferView(2, CreateMaterialBuffer().GpuAddress());
-
 	// We only need to set the first texture since they are all contiguous in the heap.
 	// The root signature knows how many are to be used.
-	cmdList->SetGraphicsRootDescriptorTable(4, m_firstTextureHandle);
+	cmdList->SetGraphicsRootDescriptorTable(3, m_firstTextureHandle);
 }
 
 PhongMaterial::PhongMaterial()
 {
 	m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
 	m_defaultPSO = L"opaquePSO";
-}
-
-ConstantBufferPhongMaterial DX12Lib::PhongMaterial::CreatePhongMaterialBuffer()
-{
-	ConstantBufferPhongMaterial cb;
-	cb.DiffuseColor = DiffuseColor;
-	cb.SpecularColor = SpecularColor;
-	cb.AmbientColor = AmbientColor;
-	cb.EmissiveColor = EmissiveColor;
-
-	cb.NormalScale = NormalScale;
-	cb.Opacity = Opacity;
-	cb.Shininess = Shininess;
-	cb.IndexOfRefraction = IndexOfRefraction;
-
-	return cb;
-}
-
-DirectX::GraphicsResource PhongMaterial::CreateMaterialBuffer()
-{
-	ConstantBufferPhongMaterial cb;
-	cb.DiffuseColor = DiffuseColor;
-	cb.SpecularColor = SpecularColor;
-	cb.AmbientColor = AmbientColor;
-	cb.EmissiveColor = EmissiveColor;
-
-	cb.NormalScale = NormalScale;
-	cb.Opacity = Opacity;
-	cb.Shininess = Shininess;
-	cb.IndexOfRefraction = IndexOfRefraction;
-
-	return Graphics::s_graphicsMemory->AllocateConstant<ConstantBufferPhongMaterial>(cb);
 }
 
 void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
@@ -70,6 +36,22 @@ void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 			m_textures[(UINT)type] = texture;
 		}
 	}
+}
+
+ConstantBufferMaterial DX12Lib::PhongMaterial::BuildMaterialConstantBuffer()
+{
+	ConstantBufferMaterial materialCB;
+
+	materialCB.Float4_0 = DiffuseColor;
+	materialCB.Float4_1 = EmissiveColor;
+	materialCB.Float4_2 = SpecularColor;
+	materialCB.Float4_3 = AmbientColor;
+	materialCB.Float_0 = NormalScale;
+	materialCB.Float_1 = Opacity;
+	materialCB.Float_2 = Shininess;
+	materialCB.Float_3 = IndexOfRefraction;
+
+	return materialCB;
 }
 
 PBRMaterial::PBRMaterial()
@@ -93,29 +75,17 @@ void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 	}
 }
 
-ConstantBufferPBRMaterial DX12Lib::PBRMaterial::CreatePBRMaterialBuffer()
+ConstantBufferMaterial DX12Lib::PBRMaterial::BuildMaterialConstantBuffer()
 {
-	ConstantBufferPBRMaterial cb;
-	cb.BaseColor = DiffuseColor;
-	cb.EmissiveColor = EmissiveColor;
+	ConstantBufferMaterial materialCB;
+	materialCB.Float4_0 = DiffuseColor;
+	materialCB.Float4_1 = EmissiveColor;
 
-	cb.NormalScale = NormalScale;
-	cb.Metallic = Metallic;
-	cb.Roughness = Roughness;
+	materialCB.Float_0 = NormalScale;
+	materialCB.Float_1 = Metallic;
+	materialCB.Float_2 = Roughness;
 
-	return cb;
+	return materialCB;
 }
 
-DirectX::GraphicsResource PBRMaterial::CreateMaterialBuffer()
-{
-	ConstantBufferPBRMaterial cb;
-	cb.BaseColor = DiffuseColor;
-	cb.EmissiveColor = EmissiveColor;
-	
-	cb.NormalScale = NormalScale;
-	cb.Metallic = Metallic;
-	cb.Roughness = Roughness;
-
-	return Graphics::s_graphicsMemory->AllocateConstant<ConstantBufferPBRMaterial>(cb);
-}
 

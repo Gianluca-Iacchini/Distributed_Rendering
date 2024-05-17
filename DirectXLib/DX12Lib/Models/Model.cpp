@@ -21,9 +21,7 @@ void Model::LoadFromFile(const aiScene* scene)
 void Model::LoadMaterials(const aiScene* scene)
 {
     m_materials.resize(scene->mNumMaterials);
-
-    int phongIndex = 0;
-    int pbrIndex = 0;
+    std::vector<ConstantBufferMaterial> materialCBs(scene->mNumMaterials);
 
     for (UINT i = 0; i < scene->mNumMaterials; i++)
     {
@@ -31,18 +29,11 @@ void Model::LoadMaterials(const aiScene* scene)
 
         auto builder = s_materialManager->CreateMaterialBuilder();
         m_materials[i] = builder.BuildFromAssimpMaterial(material);
-
-        // Mapping for materials structured buffer indices
-
-        int index = builder.IsPBR() ? pbrIndex++ : phongIndex++;
-
-        m_materialIndexMap[i] = index;
+        materialCBs[i] = m_materials[i]->BuildMaterialConstantBuffer();
     }
 
-    m_phongMaterialCount = phongIndex;
-    m_PBRMaterialCount = pbrIndex;
-
-    BuildMaterialStructuredBuffers();
+    UINT materialByteSize = sizeof(ConstantBufferMaterial) * materialCBs.size();
+    m_materialBufferResource = Utils::CreateDefaultBuffer(materialCBs.data(), materialByteSize);
 }
 
 void Model::LoadMeshes(const aiScene* scene)
@@ -109,7 +100,6 @@ void Model::LoadMeshes(const aiScene* scene)
 
 
         newMesh->m_materialIndex = assimpMesh->mMaterialIndex;
-        // newMesh->m_materialIndex = m_materialIndexMap[assimpMesh->mMaterialIndex];
 
         m_meshes.push_back(newMesh);
     }
@@ -129,27 +119,18 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
     commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     commandList->IASetIndexBuffer(&m_indexBufferView);
 
-
-    if (m_PBRMaterialCount > 0)
-        commandList->SetGraphicsRootShaderResourceView(3, m_pbrMaterialBuffer->GetGPUVirtualAddress());
-
- //   for (auto mesh : m_meshes)
- //   {
- //       SharedMaterial mat = m_materials[mesh->m_materialIndex];
- //       mat->UseMaterial(commandList);
- //       mesh->Draw(commandList);
-	//}
+    commandList->SetGraphicsRootShaderResourceView(2, m_materialBufferResource->GetGPUVirtualAddress());
 }
 
-void Model::Draw(CommandList& commandList)
+void Model::Draw(CommandList* commandList)
 {
-    Draw(commandList.Get());
+    Draw(commandList->Get());
 }
 
-void Model::Draw(CommandContext& context)
+void Model::Draw(CommandContext* context)
 {
-    assert(context.m_commandList != nullptr && "CommandList is null");
-	Draw(*context.m_commandList);
+    assert(context != nullptr && "CommandList is null");
+	Draw(context->m_commandList);
 }
 
 void Model::BuildVertexBuffer(UINT stride, UINT numVertices)
@@ -166,41 +147,3 @@ void Model::BuildIndexBuffer(DXGI_FORMAT format, UINT numIndices)
 	m_indexBufferView.SizeInBytes = sizeof(UINT) * numIndices;
 }
 
-void DX12Lib::Model::BuildMaterialStructuredBuffers()
-{
-    UINT phongMaterialSize = sizeof(ConstantBufferPhongMaterial) * m_phongMaterialCount;
-    UINT pbrMaterialSize = sizeof(ConstantBufferPBRMaterial) * m_PBRMaterialCount;
-
-    std::vector<ConstantBufferPhongMaterial> phongMaterials(m_phongMaterialCount);
-    std::vector<ConstantBufferPBRMaterial> pbrMaterials(m_PBRMaterialCount);
-
-    for (SharedMaterial mat : m_materials)
-    {
-        PhongMaterial* phongMat = dynamic_cast<PhongMaterial*>(mat.get());
-
-        if (phongMat != nullptr)
-        {
-            auto cb = phongMat->CreatePhongMaterialBuffer();
-            phongMaterials.push_back(cb);
-        }
-        else
-        {
-            PBRMaterial* pbrMat = dynamic_cast<PBRMaterial*>(mat.get());
-
-            if (pbrMat != nullptr)
-            {
-				auto cb = pbrMat->CreatePBRMaterialBuffer();
-				pbrMaterials.push_back(cb);
-			}
-            else
-            {
-                DXLIB_CORE_ERROR(L"Material is not of type Phong or PBR");
-            }
-        }
-    }
-
-    if (m_phongMaterialCount > 0)
-        m_phongMaterialBuffer = Utils::CreateDefaultBuffer(phongMaterials.data(), phongMaterialSize);
-    if (m_PBRMaterialCount > 0)
-        m_pbrMaterialBuffer = Utils::CreateDefaultBuffer(pbrMaterials.data(), pbrMaterialSize);
-}

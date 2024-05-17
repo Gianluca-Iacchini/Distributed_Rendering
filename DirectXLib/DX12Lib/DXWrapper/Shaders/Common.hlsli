@@ -28,8 +28,6 @@ cbuffer Object : register(b1)
     uint oMaterialIndex : packoffset(c12);
 };
 
-ConstantBuffer<Material> gMaterial : register(b2);
-
 
 
 Texture2D gEmissiveTex : register(t0);
@@ -46,7 +44,7 @@ Texture2D gOcclusion : register(t4);
 #endif
 
 
-StructuredBuffer<Material> gMaterials : register(t0, space1);
+StructuredBuffer<GenericMaterial> gMaterials : register(t0, space1);
 
 SamplerState gSampler : register(s0);
 

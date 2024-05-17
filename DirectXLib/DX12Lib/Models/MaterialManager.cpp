@@ -338,6 +338,7 @@ void MaterialBuilder::LoadAssimpConstants(aiMaterial* assimpMaterial)
 
 	if (assimpMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughenss) == AI_SUCCESS)
 		this->SetRoughness(roughenss);
+
 }
 
 
