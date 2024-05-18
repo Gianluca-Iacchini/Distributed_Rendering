@@ -56,10 +56,7 @@ namespace DX12Lib
 
 	public:
 		MaterialManager() = default;
-		//SharedMaterial LoadMaterial(const )
 		MaterialBuilder CreateMaterialBuilder() { return MaterialBuilder(this); }
-
-		DirectX::GraphicsResource CreateMaterialBuffer(Material* const material);
 
 		SharedMaterial GetMaterial(std::wstring& materialName);
 		void AddMaterial(SharedMaterial material);

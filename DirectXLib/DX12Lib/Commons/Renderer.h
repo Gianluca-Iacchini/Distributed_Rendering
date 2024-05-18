@@ -1,5 +1,12 @@
 #pragma once
 
+#define PSO_PHONG_OPAQUE L"phongOpaquePso"
+#define PSO_PHONG_TRANSPARENT L"phongTransparentPso"
+#define PSO_PHONG_ALPHA_TEST L"phongAlphaTestPso"
+#define PSO_PBR_OPAQUE L"pbrOpaquePso"
+#define PSO_PBR_TRANSPARENT L"pbrTransparentPso"
+#define PSO_PBR_ALPHA_TEST L"pbrAlphaTestPso"
+
 namespace DX12Lib
 {
 	class CommandContext;
@@ -7,6 +14,8 @@ namespace DX12Lib
 	class PipelineState;
 	class Shader;
 }
+
+
 
 namespace Graphics
 {
@@ -21,6 +30,7 @@ namespace Graphics
 
 		void Initialize();
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
+		void SetUpRenderFrame(DX12Lib::CommandContext* context);
 		void RenderLayers(DX12Lib::CommandContext* context);
 		void Shutdown();
 		

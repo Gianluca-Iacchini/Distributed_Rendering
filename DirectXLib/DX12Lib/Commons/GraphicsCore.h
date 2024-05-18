@@ -7,10 +7,7 @@
 #include "DX12Lib/Models/MaterialManager.h"
 #include "Renderer.h"
 
-#define PSO_PHONG_OPAQUE L"phongOpaquePso"
-#define PSO_PHONG_TRANSPARENT L"phongTransparentPso"
-#define PSO_PBR_OPAQUE L"pbrOpaquePso"
-#define PSO_PBR_TRANSPARENT L"pbrTransparentPso"
+
 
 namespace DX12Lib {
 	class Device;

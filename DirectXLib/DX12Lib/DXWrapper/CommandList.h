@@ -14,7 +14,7 @@ namespace DX12Lib {
 	public:
 		CommandList(Device& device, CommandAllocator& commandAllocator, D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE_DIRECT, std::shared_ptr<PipelineState> pipelineState = nullptr);
 
-		void SetPipelineState(std::shared_ptr<PipelineState> pipelineState) { m_pipelineState = pipelineState; }
+		void SetPipelineState(std::shared_ptr<PipelineState> pipelineState);
 
 		void Reset(CommandAllocator& cmdAllocator);
 

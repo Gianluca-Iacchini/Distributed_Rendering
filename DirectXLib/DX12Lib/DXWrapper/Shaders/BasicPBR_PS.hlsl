@@ -3,6 +3,17 @@
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
+
+    float4 diffuse = gDiffuseTex.Sample(gSampler, pIn.Tex);
+
+#ifdef ALPHA_TEST
+    if (diffuse.a < 0.1f)
+    {
+        discard;
+    }
+#endif
+    
+    
     PBRMaterial material = GetPBRMaterial(gMaterials[oMaterialIndex]);
     
     pIn.NormalW = normalize(pIn.NormalW);
@@ -17,8 +28,8 @@ float4 PS(VertexOut pIn) : SV_TARGET
     float3 V = normalize(cEyePos - pIn.PosW);
     
     float4 emissive = material.emissiveColor * gEmissiveTex.Sample(gSampler, pIn.Tex);
-    float4 diffuse = material.baseColor * gDiffuseTex.Sample(gSampler, pIn.Tex);
-
+    diffuse = diffuse * material.baseColor;
+    
     // glTF stores roguhness in the G channel, metallic in the B channel and AO in the R channel
     float3 RMA = gMetallicRoughness.Sample(gSampler, pIn.Tex).rgb;
     

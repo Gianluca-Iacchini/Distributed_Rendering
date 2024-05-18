@@ -18,7 +18,7 @@ using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 
-#define USE_PBR 1
+#define USE_PBR 0
 
 
 class AppTest : public D3DApp
@@ -71,7 +71,7 @@ public:
 		m_rootSignature = m_pipelineState->GetRootSignature();
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\PBR\\sponza2.gltf");
 #else
-		m_pipelineState = s_PSOs[PSO_PHONG_OPAQUE];
+		m_pipelineState = Renderer::s_PSOs[PSO_PHONG_OPAQUE];
 		m_rootSignature = m_pipelineState->GetRootSignature();
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 #endif
@@ -215,21 +215,17 @@ public:
 
 		context->m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-		context->m_commandList->GetComPtr()->SetGraphicsRootSignature(m_rootSignature->Get());
-
-		context->m_commandList->GetComPtr()->SetPipelineState(m_pipelineState->Get());
-
 		auto commonRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
-		auto objectRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferObject);
 
+
+		Renderer::SetUpRenderFrame(context);
+
+		
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, commonRes.GpuAddress());
-		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(1, objectRes.GpuAddress());
-
-		ID3D12DescriptorHeap* heaps[] = { Renderer::s_textureHeap->Get() };
-		context->m_commandList->Get()->SetDescriptorHeaps(1, heaps);
 
 		m_scene.Render(context);
 
+		Renderer::RenderLayers(context);
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
 

@@ -37,7 +37,8 @@ Texture2D gDiffuseTex : register(t2);
 Texture2D gSpecularTex : register(t3); 
 Texture2D gAmbientTex : register(t4); 
 Texture2D gShininessTex : register(t5);
-Texture2D gBumpMap : register(t6);
+Texture2D gOpacity : register(t6);
+Texture2D gBumpMap : register(t7);
 #else
 Texture2D gMetallicRoughness : register(t3);
 Texture2D gOcclusion : register(t4);

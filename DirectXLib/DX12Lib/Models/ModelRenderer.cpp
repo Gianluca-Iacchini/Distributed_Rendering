@@ -55,14 +55,16 @@ void DX12Lib::MeshRenderer::Render()
 
 }
 
-void DX12Lib::MeshRenderer::DrawMesh(ID3D12GraphicsCommandList* cmdList)
+void DX12Lib::MeshRenderer::DrawMesh(CommandContext* context)
 {
+	assert(context != nullptr && "Context is null");
+
 	if (m_mesh == nullptr || m_meshMaterial == nullptr)
 		return;
 
-	cmdList->SetGraphicsRootConstantBufferView(1, GetObjectCB().GpuAddress());
-	m_meshMaterial->UseMaterial(cmdList);
-	m_mesh->Draw(cmdList);
+	context->m_commandList->Get()->SetGraphicsRootConstantBufferView(1, GetObjectCB().GpuAddress());
+	m_meshMaterial->UseMaterial(context->m_commandList->Get());
+	m_mesh->Draw(context->m_commandList->Get());
 }
 
 DirectX::GraphicsResource DX12Lib::MeshRenderer::GetObjectCB()
@@ -83,8 +85,10 @@ void DX12Lib::ModelRenderer::Render()
 	}
 }
 
-void DX12Lib::ModelRenderer::DrawMeshes(ID3D12GraphicsCommandList* cmdList, std::wstring psoName)
+void DX12Lib::ModelRenderer::Draw(CommandContext* context, std::wstring psoName)
 {
+	assert(context != nullptr && "Context is null");
+
 	if (Model == nullptr)
 		return;
 
@@ -93,10 +97,10 @@ void DX12Lib::ModelRenderer::DrawMeshes(ID3D12GraphicsCommandList* cmdList, std:
 	if (batch == m_psoMeshRendererBatch.end())
 		return;
 
-	this->Model->Draw(cmdList);
+	this->Model->UseBuffers(context);
 
 	for (auto& mesh : batch->second)
 	{
-		mesh->DrawMesh(cmdList);
+		mesh->DrawMesh(context);
 	}
 }

@@ -6,7 +6,13 @@ file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h" "${CMAKE_CURREN
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_FILES})
 
 set(VERTEX_SHADERS DX12Lib/DXWrapper/Shaders/Basic_VS.hlsl)
-set(PIXEL_SHADERS DX12Lib/DXWrapper/Shaders/Basic_PS.hlsl DX12Lib/DXWrapper/Shaders/BasicPBR_PS.hlsl)
+
+set(PIXEL_SHADERS 
+	DX12Lib/DXWrapper/Shaders/Basic_PS.hlsl 
+ 	DX12Lib/DXWrapper/Shaders/BasicPBR_PS.hlsl 
+	DX12Lib/DXWrapper/Shaders/AlphaTest_PS.hlsl
+	DX12Lib/DXWrapper/Shaders/AlphaTestPBR_PS.hlsl)
+
 set(INCLUDE_SHADERS DX12Lib/DXWrapper/Shaders/Default.hlsli DX12Lib/DXWrapper/Shaders/Common.hlsli DX12Lib/DXWrapper/Shaders/LightingUtil.hlsli)
 
 set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})

@@ -133,6 +133,16 @@ void Model::Draw(CommandContext* context)
 	Draw(context->m_commandList);
 }
 
+void DX12Lib::Model::UseBuffers(CommandContext* context)
+{
+    assert(context != nullptr && "CommandList is null");
+
+    context->m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+    context->m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
+
+    context->m_commandList->Get()->SetGraphicsRootShaderResourceView(2, m_materialBufferResource->GetGPUVirtualAddress());
+}
+
 void Model::BuildVertexBuffer(UINT stride, UINT numVertices)
 {
     m_vertexBufferView.BufferLocation = m_vertexBufferResource->GetGPUVirtualAddress();

@@ -34,6 +34,8 @@ namespace DX12Lib {
 		}
 		~PipelineState() {};
 
+		void SetDesc(D3D12_GRAPHICS_PIPELINE_STATE_DESC desc) { m_psoDesc = desc; }
+
 		void SetShader(std::shared_ptr<Shader> shader, ShaderType type);
 		void InitializeDefaultStates();
 		void SetRootSignature(std::shared_ptr<RootSignature> rootSignature);
@@ -46,11 +48,14 @@ namespace DX12Lib {
 		void SetDepthTargetFormat(DXGI_FORMAT format, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(0, nullptr, format, msaaCount, msaaQuality); }
 		void SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(1, &rtvFormat, dsvFormat, msaaCount, msaaQuality); }
 		void SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFOrmat, UINT msaaCount, UINT msaaQuality);
+		void SetCullMode(D3D12_CULL_MODE cullMode) { m_psoDesc.RasterizerState.CullMode = cullMode; }
 		void Finalize();
 
 		std::shared_ptr<RootSignature> GetRootSignature() const { return m_rootSignature; }
 
 		std::wstring GetGUID() const { return Utils::GUIDToWstring(m_guid); }
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC GetDesc() const { return m_psoDesc; }
 
 	private:
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipelineState;

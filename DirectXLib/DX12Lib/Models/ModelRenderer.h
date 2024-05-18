@@ -9,6 +9,7 @@ namespace DX12Lib
 {
 	class ModelRenderer;
 	class Test;
+	class CommandContext;
 
 	class MeshRenderer : public Component
 	{
@@ -30,7 +31,7 @@ namespace DX12Lib
 
 		virtual void Render() override;
 
-		void DrawMesh(ID3D12GraphicsCommandList* cmdList);
+		void DrawMesh(CommandContext* context);
 
 		void SetMesh(std::shared_ptr<Mesh> mesh)
 		{
@@ -102,7 +103,7 @@ namespace DX12Lib
 
 		virtual void Render() override;
 
-		void DrawMeshes(ID3D12GraphicsCommandList* cmdList, std::wstring psoName);
+		void Draw(CommandContext* context, std::wstring psoName);
 	};
 
 }

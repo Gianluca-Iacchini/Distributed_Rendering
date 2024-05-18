@@ -2,7 +2,14 @@
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
-
+    float opacity = gOpacity.Sample(gSampler, pIn.Tex).r;
+    
+#ifdef ALPHA_TEST
+    if (opacity < 0.1f)
+    {
+        discard;
+    }
+#endif 
     
     pIn.NormalW = normalize(pIn.NormalW);
     
@@ -23,6 +30,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     float4 specular = gSpecularTex.Sample(gSampler, pIn.Tex);
     float shininess = material.shininess * gShininessTex.Sample(gSampler, pIn.Tex).r;
 
+    
     if (any(material.specularColor.rgb))
     {
         specular *= material.specularColor;

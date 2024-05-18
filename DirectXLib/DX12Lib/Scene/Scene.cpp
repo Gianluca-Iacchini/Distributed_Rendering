@@ -87,8 +87,6 @@ void Scene::Update(CommandContext* context)
 void Scene::Render(CommandContext* context)
 {
 	m_rootNode->Render(context);
-
-	Renderer::RenderLayers(context);
 }
 
 void DX12Lib::Scene::Draw(ID3D12GraphicsCommandList* cmdList)

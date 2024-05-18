@@ -1,7 +1,5 @@
 #include "DX12Lib/pch.h"
 #include "CommandList.h"
-#include "CommandAllocator.h"
-#include "PipelineState.h"
 
 using namespace Microsoft::WRL;
 using namespace DX12Lib;
@@ -16,6 +14,12 @@ CommandList::CommandList(Device& device, CommandAllocator& cmdAllocator, D3D12_C
 	}
 
 	ThrowIfFailed(device.GetComPtr()->CreateCommandList(0, cmdType, cmdAllocator.Get(), pso, IID_PPV_ARGS(&m_commandList)));
+}
+
+void DX12Lib::CommandList::SetPipelineState(std::shared_ptr<PipelineState> pipelineState)
+{
+	m_pipelineState = pipelineState;
+	m_commandList->SetPipelineState(m_pipelineState->Get());
 }
 
 /// <summary>

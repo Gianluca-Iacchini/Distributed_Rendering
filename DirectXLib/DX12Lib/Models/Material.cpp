@@ -21,6 +21,20 @@ void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(3, m_firstTextureHandle);
 }
 
+void DX12Lib::Material::SetTransparent(bool isTransparent)
+{
+	m_isTransparent = isTransparent;
+
+	if (m_isTransparent)
+	{
+		m_defaultPSO = PSO_PHONG_ALPHA_TEST;
+	}
+	else
+	{
+		m_defaultPSO = PSO_PHONG_OPAQUE;
+	}
+}
+
 PhongMaterial::PhongMaterial()
 {
 	m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
@@ -52,6 +66,11 @@ ConstantBufferMaterial DX12Lib::PhongMaterial::BuildMaterialConstantBuffer()
 	materialCB.Float_3 = IndexOfRefraction;
 
 	return materialCB;
+}
+
+void DX12Lib::PhongMaterial::SetTransparent(bool isTransparent)
+{
+	Material::SetTransparent(isTransparent);
 }
 
 PBRMaterial::PBRMaterial()
@@ -86,6 +105,20 @@ ConstantBufferMaterial DX12Lib::PBRMaterial::BuildMaterialConstantBuffer()
 	materialCB.Float_2 = Roughness;
 
 	return materialCB;
+}
+
+void DX12Lib::PBRMaterial::SetTransparent(bool isTransparent)
+{
+	m_isTransparent = isTransparent;
+
+	if (m_isTransparent)
+	{
+		m_defaultPSO = PSO_PBR_ALPHA_TEST;
+	}
+	else
+	{
+		m_defaultPSO = PSO_PBR_OPAQUE;
+	}
 }
 
 

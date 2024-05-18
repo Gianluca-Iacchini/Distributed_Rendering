@@ -34,6 +34,7 @@ SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType text
 	case MaterialTextureType::AMBIENT:
 	case MaterialTextureType::SHININESS:
 	case MaterialTextureType::METALROUGHNESS:
+	case MaterialTextureType::OPACITY:
 		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
 	case MaterialTextureType::SPECULAR:
 	case MaterialTextureType::EMISSIVE:
@@ -114,7 +115,11 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial)
 	// Height map is checked separately since normal maps might used the height map slot.
 	aiTextureType textureTypes[] =
 	{
-		// PBR textures are checked first
+		// Common
+		aiTextureType_EMISSIVE,
+		aiTextureType_NORMALS,
+
+		// PBR 
 		aiTextureType_BASE_COLOR,
 		aiTextureType_METALNESS,
 		aiTextureType_DIFFUSE_ROUGHNESS,
@@ -124,9 +129,8 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial)
 		aiTextureType_DIFFUSE,
 		aiTextureType_SPECULAR,
 		aiTextureType_AMBIENT,
-		aiTextureType_EMISSIVE,
 		aiTextureType_SHININESS,
-		aiTextureType_NORMALS,
+		aiTextureType_OPACITY
 	};
 
 	aiString texturePath;
@@ -138,7 +142,13 @@ void MaterialBuilder::LoadAssimpTextures(aiMaterial* assimpMaterial)
 		if (assimpMaterial->GetTextureCount(textureType) > 0)
 		{
 			if (assimpMaterial->GetTexture(textureType, 0, &texturePath) == AI_SUCCESS)
+			{
 				AddTexture(textureType, texturePath);
+
+				if (textureType == aiTextureType_OPACITY)
+					m_material->SetTransparent(true);
+			}
+
 		}
 		// Load default texture
 		else
@@ -206,8 +216,11 @@ void MaterialBuilder::SetOpacity(float opacity)
 		return;
 	}
 
+
 	phongMat->Opacity = opacity;
 
+	if (opacity < 1)
+		m_material->SetTransparent(true);
 }
 
 void MaterialBuilder::SetShininess(float shininess)
@@ -285,6 +298,8 @@ MaterialTextureType DX12Lib::MaterialBuilder::AssimpToTextureType(aiTextureType 
 			return MaterialTextureType::METALROUGHNESS;
 		case aiTextureType_AMBIENT_OCCLUSION:
 			return MaterialTextureType::OCCLUSION;
+		case aiTextureType_OPACITY:
+			return MaterialTextureType::OPACITY;
 		default:
 			return MaterialTextureType::DIFFUSE;
 		}
@@ -305,6 +320,7 @@ void MaterialBuilder::LoadAssimpConstants(aiMaterial* assimpMaterial)
 	float       bumpIntensity;
 	float		metallic;
 	float		roughenss;
+	aiString	transparency;
 
 	if (assimpMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == aiReturn_SUCCESS)
 		m_material->DiffuseColor = DirectX::XMFLOAT4(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a);
@@ -339,6 +355,9 @@ void MaterialBuilder::LoadAssimpConstants(aiMaterial* assimpMaterial)
 	if (assimpMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughenss) == AI_SUCCESS)
 		this->SetRoughness(roughenss);
 
+	if (assimpMaterial->Get("$mat.gltf.alphaMode", 0, 0, transparency) == AI_SUCCESS)
+		if (transparency != aiString("OPAQUE"))
+			m_material->SetTransparent(true);
 }
 
 

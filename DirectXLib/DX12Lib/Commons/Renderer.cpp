@@ -36,8 +36,17 @@ namespace Graphics::Renderer
 		m_renderers.push_back(renderer);
 	}
 
-	void RenderLayers(CommandContext* context)
+	void SetUpRenderFrame(DX12Lib::CommandContext* context)
 	{
+		ID3D12DescriptorHeap* heaps[] = { Renderer::s_textureHeap->Get() };
+		context->m_commandList->Get()->SetDescriptorHeaps(1, heaps);
+
+		context->m_commandList->SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE]);
+		context->m_commandList->Get()->SetGraphicsRootSignature(s_PSOs[PSO_PHONG_OPAQUE]->GetRootSignature()->Get());
+	}
+
+	void RenderLayers(CommandContext* context)
+	{ 
 		for (auto& pso : s_PSOs)
 		{
 			context->m_commandList->SetPipelineState(pso.second);
@@ -45,7 +54,7 @@ namespace Graphics::Renderer
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
-				mRenderer->DrawMeshes(context->m_commandList->Get(), pso.first);
+				mRenderer->Draw(context, pso.first);
 			}
 		}
 
@@ -66,21 +75,31 @@ namespace Graphics::Renderer
 	void CreateDefaultShaders()
 	{
 		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
-		std::wstring VSshaderFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_VS.hlsl";
-		std::wstring PSshaderFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_PS.hlsl";
-		std::wstring PBRPSShaderFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\BasicPBR_PS.hlsl";
+		std::wstring baseVSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_VS.hlsl";
+		std::wstring phongPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_PS.hlsl";
+		std::wstring pbrPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\BasicPBR_PS.hlsl";
 
-		std::shared_ptr<Shader> baseVertexShader = std::make_shared<Shader>(VSshaderFile, "VS", "vs_5_1");
-		std::shared_ptr<Shader> basePixelShader = std::make_shared<Shader>(PSshaderFile, "PS", "ps_5_1");
-		std::shared_ptr<Shader> PBRPixelShader = std::make_shared<Shader>(PBRPSShaderFile, "PS", "ps_5_1");
+		std::wstring alphaTestPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTest_PS.hlsl";
+		std::wstring alphaTestPBRPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTestPBR_PS.hlsl";
 
-		baseVertexShader->Compile();
-		basePixelShader->Compile();
-		PBRPixelShader->Compile();
+		std::shared_ptr<Shader> basicVS = std::make_shared<Shader>(baseVSFile, "VS", "vs_5_1");
+		std::shared_ptr<Shader> phongPS = std::make_shared<Shader>(phongPSFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> pbrPS = std::make_shared<Shader>(pbrPSFile, "PS", "ps_5_1");
 
-		s_shaders[L"basicVS"] = std::move(baseVertexShader);
-		s_shaders[L"basicPS"] = std::move(basePixelShader);
-		s_shaders[L"PBRBasicPS"] = std::move(PBRPixelShader);
+		std::shared_ptr<Shader> phongAlphaTestPS = std::make_shared<Shader>(alphaTestPSFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> pbrAlphaTestPS = std::make_shared<Shader>(alphaTestPBRPSFile, "PS", "ps_5_1");
+
+		basicVS->Compile();
+		phongPS->Compile();
+		pbrPS->Compile();
+		phongAlphaTestPS->Compile();
+		pbrAlphaTestPS->Compile();
+
+		s_shaders[L"basicVS"] = std::move(basicVS);
+		s_shaders[L"phongPS"] = std::move(phongPS);
+		s_shaders[L"pbrPS"] = std::move(pbrPS);
+		s_shaders[L"phongAlphaTestPS"] = std::move(phongAlphaTestPS);
+		s_shaders[L"pbrAlphaTestPS"] = std::move(pbrAlphaTestPS);
 	}
 
 	void CreateDefaultPSOs()
@@ -105,9 +124,6 @@ namespace Graphics::Renderer
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
-
-
-
 		std::shared_ptr<PipelineState> phongPso = std::make_shared<PipelineState>();
 		phongPso->InitializeDefaultStates();
 		phongPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
@@ -115,9 +131,23 @@ namespace Graphics::Renderer
 		phongPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		phongPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
 		phongPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
-		phongPso->SetShader(s_shaders[L"basicPS"], ShaderType::Pixel);
+		phongPso->SetShader(s_shaders[L"phongPS"], ShaderType::Pixel);
 		phongPso->SetRootSignature(baseRootSignature);
 		phongPso->Finalize();
+
+
+		std::shared_ptr<PipelineState> phongAlphaTestPso = std::make_shared<PipelineState>();
+		phongAlphaTestPso->InitializeDefaultStates();
+		phongAlphaTestPso->SetCullMode(D3D12_CULL_MODE_NONE);
+		phongAlphaTestPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
+			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
+		phongAlphaTestPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		phongAlphaTestPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
+		phongAlphaTestPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
+		phongAlphaTestPso->SetShader(s_shaders[L"phongAlphaTestPS"], ShaderType::Pixel);
+		phongAlphaTestPso->SetRootSignature(baseRootSignature);
+		phongAlphaTestPso->Finalize();
+
 
 		// Duplicate content of opaquePSO
 		std::shared_ptr<PipelineState> pbrPso = std::make_shared<PipelineState>();
@@ -127,15 +157,28 @@ namespace Graphics::Renderer
 		pbrPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		pbrPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
 		pbrPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
-		pbrPso->SetShader(s_shaders[L"PBRBasicPS"], ShaderType::Pixel);
+		pbrPso->SetShader(s_shaders[L"pbrPS"], ShaderType::Pixel);
 		pbrPso->SetRootSignature(pbrRootSignature);
 		pbrPso->Finalize();
 
-
+		std::shared_ptr<PipelineState> pbrAlphaTestPso = std::make_shared<PipelineState>();
+		pbrAlphaTestPso->InitializeDefaultStates();
+		pbrAlphaTestPso->SetCullMode(D3D12_CULL_MODE_NONE);
+		pbrAlphaTestPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
+			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
+		pbrAlphaTestPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		pbrAlphaTestPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
+		pbrAlphaTestPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
+		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
+		pbrAlphaTestPso->SetRootSignature(pbrRootSignature);
+		pbrAlphaTestPso->Finalize();
 
 
 
 		s_PSOs[PSO_PHONG_OPAQUE] = std::move(phongPso);
 		s_PSOs[PSO_PBR_OPAQUE] = std::move(pbrPso);
+
+		s_PSOs[PSO_PHONG_ALPHA_TEST] = std::move(phongAlphaTestPso);
+		s_PSOs[PSO_PBR_ALPHA_TEST] = std::move(pbrAlphaTestPso);
 	}
 }
