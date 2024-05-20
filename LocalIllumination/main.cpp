@@ -18,7 +18,7 @@ using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 
-#define USE_PBR 0
+#define USE_PBR 1
 
 
 class AppTest : public D3DApp
@@ -32,6 +32,7 @@ class AppTest : public D3DApp
 
 	CostantBufferCommons m_costantBufferCommons;
 	ConstantBufferObject m_costantBufferObject;
+	ConstantBufferCamera m_costantBufferCamera;
 
 	Camera camera;
 
@@ -105,17 +106,17 @@ public:
 
 
 
-		XMStoreFloat4x4(&m_costantBufferCommons.view, DirectX::XMMatrixTranspose(view));
-		XMStoreFloat4x4(&m_costantBufferCommons.invView, DirectX::XMMatrixTranspose(invView));
-		XMStoreFloat4x4(&m_costantBufferCommons.projection, DirectX::XMMatrixTranspose(proj));
-		XMStoreFloat4x4(&m_costantBufferCommons.invProjection, DirectX::XMMatrixTranspose(invProj));
-		XMStoreFloat4x4(&m_costantBufferCommons.viewProjection, DirectX::XMMatrixTranspose(viewProj));
-		XMStoreFloat4x4(&m_costantBufferCommons.invViewProjection, DirectX::XMMatrixTranspose(invViewProj));
-		m_costantBufferCommons.eyePosition = camera.GetPosition3f();
-		m_costantBufferCommons.nearPlane = camera.GetNearZ();
+		XMStoreFloat4x4(&m_costantBufferCamera.view, DirectX::XMMatrixTranspose(view));
+		XMStoreFloat4x4(&m_costantBufferCamera.invView, DirectX::XMMatrixTranspose(invView));
+		XMStoreFloat4x4(&m_costantBufferCamera.projection, DirectX::XMMatrixTranspose(proj));
+		XMStoreFloat4x4(&m_costantBufferCamera.invProjection, DirectX::XMMatrixTranspose(invProj));
+		XMStoreFloat4x4(&m_costantBufferCamera.viewProjection, DirectX::XMMatrixTranspose(viewProj));
+		XMStoreFloat4x4(&m_costantBufferCamera.invViewProjection, DirectX::XMMatrixTranspose(invViewProj));
+		m_costantBufferCamera.eyePosition = camera.GetPosition3f();
+		m_costantBufferCamera.nearPlane = camera.GetNearZ();
+		m_costantBufferCamera.farPlane = camera.GetFarZ();
 		m_costantBufferCommons.renderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
-		m_costantBufferCommons.farPlane = camera.GetFarZ();
 		m_costantBufferCommons.totalTime = gt.TotalTime();
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
 
@@ -202,26 +203,23 @@ public:
 	{
 		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		context->m_commandList->GetComPtr()->RSSetViewports(1, &mScreenViewport);
-		context->m_commandList->GetComPtr()->RSSetScissorRects(1, &mScissorRect);
+		context->SetViewportAndScissor(mScreenViewport, mScissorRect);
 
 		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-		float clearDepth = m_depthStencilBuffer->GetClearDepth();
-		float clearStencil = m_depthStencilBuffer->GetClearStencil();
+		context->ClearColor(CurrentBackBuffer(), Color::LightSteelBlue().GetPtr(), nullptr);
+		context->ClearDepthAndStencil(*m_depthStencilBuffer);
 
-		context->m_commandList->GetComPtr()->ClearRenderTargetView(CurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
-		context->m_commandList->GetComPtr()->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, clearDepth, clearStencil, 0, nullptr);
+		context->SetRenderTargets(1, &CurrentBackBufferView(), DepthStencilView());
 
-		context->m_commandList->GetComPtr()->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
 		auto commonRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
-
+		auto cameraRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCamera);
 
 		Renderer::SetUpRenderFrame(context);
-
 		
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, commonRes.GpuAddress());
+		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(2, cameraRes.GpuAddress());
 
 		m_scene.Render(context);
 

@@ -42,6 +42,23 @@ namespace DX12Lib {
 		Color FromSRGB() const;
 
 	public:
+		static Color Black() { return Color(0.0f, 0.0f, 0.0f, 1.0f); }
+		static Color White() { return Color(1.0f, 1.0f, 1.0f, 1.0f); }
+		static Color Red() { return Color(1.0f, 0.0f, 0.0f, 1.0f); }
+		static Color Green() { return Color(0.0f, 1.0f, 0.0f, 1.0f); }
+		static Color Blue() { return Color(0.0f, 0.0f, 1.0f, 1.0f); }
+		static Color Yellow() { return Color(1.0f, 1.0f, 0.0f, 1.0f); }
+		static Color Cyan() { return Color(0.0f, 1.0f, 1.0f, 1.0f); }
+		static Color Magenta() { return Color(1.0f, 0.0f, 1.0f, 1.0f); }
+		static Color LightSteelBlue () { return Color(0.69f, 0.77f, 0.87f, 1.0f); }
+		static Color LightGray() { return Color(0.75f, 0.75f, 0.75f, 1.0f); }
+		static Color DarkGray() { return Color(0.25f, 0.25f, 0.25f, 1.0f); }
+		static Color LightGreen() { return Color(0.56f, 0.93f, 0.56f, 1.0f); }
+		static Color LightYellow() { return Color(1.0f, 1.0f, 0.88f, 1.0f); }
+		static Color LightPink() { return Color(1.0f, 0.71f, 0.76f, 1.0f); }
+		static Color LightCyan() { return Color(0.88f, 1.0f, 1.0f, 1.0f); }
+
+
 		inline static Color Max(Color a, Color b)
 		{
 			return Color(DirectX::XMVectorMax(a.m_color, b.m_color));

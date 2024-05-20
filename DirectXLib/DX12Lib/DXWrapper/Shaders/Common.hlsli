@@ -2,22 +2,15 @@
 
 cbuffer Commons : register(b0)
 {
-    float4x4 cView : packoffset(c0);
-    float4x4 cInvView : packoffset(c4);
-    float4x4 cProj : packoffset(c8);
-    float4x4 cInvProj : packoffset(c12);
-    float4x4 cViewProj : packoffset(c16);
-    float4x4 cInvViewProj : packoffset(c20);
-    float3 cEyePos : packoffset(c24);
-    float cNearPlane : packoffset(c24.w);
-    float2 cRenderTargetSize : packoffset(c25);
-    float2 cInvRenderTargetSize : packoffset(c25.z);
+    float2 cRenderTargetSize : packoffset(c0);
+    float2 cInvRenderTargetSize : packoffset(c0.z);
 
-    float cFarPlane : packoffset(c26);
-    float cTotalTime : packoffset(c26.y);
-    float cDeltaTime : packoffset(c26.z);
+    float cTotalTime : packoffset(c1);
+    float cDeltaTime : packoffset(c1.y);
+    float _pad0 : packoffset(c1.z);
+    float _pad1 : packoffset(c1.w);
     
-    Light cDirLight : packoffset(c27);
+    Light cDirLight : packoffset(c2);
 };
 
 cbuffer Object : register(b1)
@@ -28,6 +21,18 @@ cbuffer Object : register(b1)
     uint oMaterialIndex : packoffset(c12);
 };
 
+cbuffer Camera : register(b2)
+{
+    float4x4 cView : packoffset(c0);
+    float4x4 cInvView : packoffset(c4);
+    float4x4 cProj : packoffset(c8);
+    float4x4 cInvProj : packoffset(c12);
+    float4x4 cViewProj : packoffset(c16);
+    float4x4 cInvViewProj : packoffset(c20);
+    float3 cEyePos : packoffset(c24);
+    float cNearPlane : packoffset(c24.w);
+    float cFarPlane : packoffset(c25);
+}
 
 
 Texture2D gEmissiveTex : register(t0);

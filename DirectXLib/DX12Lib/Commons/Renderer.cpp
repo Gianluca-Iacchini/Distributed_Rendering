@@ -107,20 +107,22 @@ namespace Graphics::Renderer
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
 
-		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>(4, 1);
+		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>(5, 1);
 		baseRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		(*baseRootSignature)[0].InitAsConstantBuffer(0);
 		(*baseRootSignature)[1].InitAsConstantBuffer(1);
-		(*baseRootSignature)[2].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-		(*baseRootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
+		(*baseRootSignature)[2].InitAsConstantBuffer(2);
+		(*baseRootSignature)[3].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*baseRootSignature)[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
 		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>(4, 1);
+		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>(5, 1);
 		pbrRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		(*pbrRootSignature)[0].InitAsConstantBuffer(0);
 		(*pbrRootSignature)[1].InitAsConstantBuffer(1);
-		(*pbrRootSignature)[2].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-		(*pbrRootSignature)[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
+		(*pbrRootSignature)[2].InitAsConstantBuffer(2);
+		(*pbrRootSignature)[3].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*pbrRootSignature)[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
@@ -135,44 +137,23 @@ namespace Graphics::Renderer
 		phongPso->SetRootSignature(baseRootSignature);
 		phongPso->Finalize();
 
-
-		std::shared_ptr<PipelineState> phongAlphaTestPso = std::make_shared<PipelineState>();
-		phongAlphaTestPso->InitializeDefaultStates();
-		phongAlphaTestPso->SetCullMode(D3D12_CULL_MODE_NONE);
-		phongAlphaTestPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
-			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
-		phongAlphaTestPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		phongAlphaTestPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
-		phongAlphaTestPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
-		phongAlphaTestPso->SetShader(s_shaders[L"phongAlphaTestPS"], ShaderType::Pixel);
-		phongAlphaTestPso->SetRootSignature(baseRootSignature);
-		phongAlphaTestPso->Finalize();
-
-
 		// Duplicate content of opaquePSO
 		std::shared_ptr<PipelineState> pbrPso = std::make_shared<PipelineState>();
-		pbrPso->InitializeDefaultStates();
-		pbrPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
-			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
-		pbrPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		pbrPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
-		pbrPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
+		*pbrPso = *phongPso;
 		pbrPso->SetShader(s_shaders[L"pbrPS"], ShaderType::Pixel);
-		pbrPso->SetRootSignature(pbrRootSignature);
 		pbrPso->Finalize();
 
-		std::shared_ptr<PipelineState> pbrAlphaTestPso = std::make_shared<PipelineState>();
-		pbrAlphaTestPso->InitializeDefaultStates();
-		pbrAlphaTestPso->SetCullMode(D3D12_CULL_MODE_NONE);
-		pbrAlphaTestPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
-			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
-		pbrAlphaTestPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		pbrAlphaTestPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
-		pbrAlphaTestPso->SetShader(s_shaders[L"basicVS"], ShaderType::Vertex);
-		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
-		pbrAlphaTestPso->SetRootSignature(pbrRootSignature);
-		pbrAlphaTestPso->Finalize();
+		std::shared_ptr<PipelineState> phongAlphaTestPso = std::make_shared<PipelineState>();
+		*phongAlphaTestPso = *phongPso;
+		phongAlphaTestPso->InitializeDefaultStates();
+		phongAlphaTestPso->SetCullMode(D3D12_CULL_MODE_NONE);
+		phongAlphaTestPso->SetShader(s_shaders[L"phongAlphaTestPS"], ShaderType::Pixel);
+		phongAlphaTestPso->Finalize();
 
+		std::shared_ptr<PipelineState> pbrAlphaTestPso = std::make_shared<PipelineState>();
+		*pbrAlphaTestPso = *phongAlphaTestPso;
+		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
+		pbrAlphaTestPso->Finalize();
 
 
 		s_PSOs[PSO_PHONG_OPAQUE] = std::move(phongPso);

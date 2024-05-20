@@ -65,18 +65,24 @@ namespace DX12Lib {
 		GUID m_guid;
 
 	public:
-		PipelineState(PipelineState&& rhs) = default;
-		PipelineState& operator=(PipelineState&& rhs) = default;
-
-		PipelineState(const PipelineState& rhs) = delete;
-		PipelineState& operator=(const PipelineState& rhs) = delete;
-
 		bool operator==(const PipelineState& rhs) const { return m_guid == rhs.m_guid; }
 
 		ID3D12PipelineState* Get() const { return m_pipelineState.Get(); }
 		ID3D12PipelineState** GetAddressOf() { return m_pipelineState.GetAddressOf(); }
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> GetComPtr() const { return m_pipelineState; }
 
+		void operator=(const PipelineState& rhs)
+		{
+			m_psoDesc = rhs.m_psoDesc;
+			m_rootSignature = rhs.m_rootSignature;
+
+			this->m_shaders.clear();
+
+			for (auto& shader : rhs.m_shaders)
+			{
+				this->m_shaders[shader.first] = shader.second;
+			}
+		}
 
 	};
 

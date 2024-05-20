@@ -12,6 +12,9 @@ namespace DX12Lib {
 	class DescriptorHeap;
 	class CommandAllocator;
 	class CommandList;
+	class DepthBuffer;
+	class ColorBuffer;
+	class Color;
 
 	class CommandContext
 	{
@@ -25,14 +28,19 @@ namespace DX12Lib {
 		void Reset();
 
 		void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
-		void FlushResourceBarriers();
 		void BindDescriptorHeaps(DescriptorHeap heap);
-
+		void ClearColor(ColorBuffer& target, D3D12_RECT* rect);
+		void ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect);
+		void ClearDepth(DepthBuffer& depthBuffer);
+		void ClearDepthAndStencil(DepthBuffer& depthBuffer);
+		void SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void SetDepthStencilTarget(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void SetViewportAndScissor(D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect);
 		static void CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 		static void InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[]);
 
 
-
+		void FlushResourceBarriers();
 		UINT64 Flush(bool waitForCompletion = false);
 		UINT64 Finish(bool waitForCompletion = false);
 

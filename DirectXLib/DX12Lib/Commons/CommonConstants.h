@@ -18,6 +18,20 @@ namespace DX12Lib {
 
 	__declspec(align(16)) struct CostantBufferCommons
 	{
+
+		DirectX::XMFLOAT2 renderTargetSize = { 0.0f, 0.0f };
+		DirectX::XMFLOAT2 invRenderTargetSize = { 0.0f, 0.0f };
+
+		float totalTime = 0.0f;
+		float deltaTime = 0.0f;
+		float _pad0 = 0.0f;
+		float _pad1 = 0.0f;
+
+		Light lights[MaxLights];
+	};
+
+	__declspec(align(16)) struct ConstantBufferCamera
+	{
 		DirectX::XMFLOAT4X4 view = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 invView = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 projection = MathHelper::Identity4x4();
@@ -26,13 +40,7 @@ namespace DX12Lib {
 		DirectX::XMFLOAT4X4 invViewProjection = MathHelper::Identity4x4();
 		DirectX::XMFLOAT3 eyePosition = { 0.0f, 0.0f, 0.0f };
 		float nearPlane = 0.0f;
-		DirectX::XMFLOAT2 renderTargetSize = { 0.0f, 0.0f };
-		DirectX::XMFLOAT2 invRenderTargetSize = { 0.0f, 0.0f };
 		float farPlane = 1.0f;
-		float totalTime = 0.0f;
-		float deltaTime = 0.0f;
-
-		Light lights[MaxLights];
 	};
 
 	__declspec(align(16)) struct ConstantBufferObject

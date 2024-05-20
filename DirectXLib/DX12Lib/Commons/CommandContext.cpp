@@ -83,6 +83,48 @@ void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
 	m_commandList->GetComPtr()->SetDescriptorHeaps(1, heaps);
 }
 
+void DX12Lib::CommandContext::ClearColor(ColorBuffer& target, D3D12_RECT* rect)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearRenderTargetView(target.GetRTV(), target.GetClearColor().GetPtr(), rect == nullptr? 0 : 1, rect);
+}
+
+void DX12Lib::CommandContext::ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearRenderTargetView(target.GetRTV(), color, rect == nullptr ? 0 : 1, rect);
+}
+
+void DX12Lib::CommandContext::ClearDepth(DepthBuffer& depthBuffer)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearDepthStencilView(depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depthBuffer.GetClearDepth(), depthBuffer.GetClearStencil(), 0, nullptr);
+}
+
+void DX12Lib::CommandContext::ClearDepthAndStencil(DepthBuffer& depthBuffer)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearDepthStencilView(depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depthBuffer.GetClearDepth(), depthBuffer.GetClearStencil(), 0, nullptr);
+}
+
+void DX12Lib::CommandContext::SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+{
+	m_commandList->Get()->OMSetRenderTargets(numRTVs, rtvs, FALSE, &dsv);
+}
+
+void DX12Lib::CommandContext::SetDepthStencilTarget(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+{
+	SetRenderTargets(0, nullptr, dsv);
+}
+
+void DX12Lib::CommandContext::SetViewportAndScissor(D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect)
+{
+	assert(scissorRect.left < scissorRect.right && scissorRect.top < scissorRect.bottom);
+
+	m_commandList->Get()->RSSetViewports(1, &viewport);
+	m_commandList->Get()->RSSetScissorRects(1, &scissorRect);
+}
+
 void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
 {
 	Renderer::s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
