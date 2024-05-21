@@ -276,6 +276,38 @@ DirectX::XMFLOAT3 DX12Lib::SceneNode::GetRelativeScale()
 	return Transform.GetRelativeScale3f();
 }
 
+void DX12Lib::SceneNode::Translate(float x, float y, float z)
+{
+
+	DirectX::XMVECTOR position = this->Transform.GetRelativePosition();
+	position = DirectX::XMVectorAdd(position, DirectX::XMVectorSet(x, y, z, 0.0f));
+	this->Transform.SetRelativePosition(position);
+}
+
+void DX12Lib::SceneNode::Translate(const DirectX::XMFLOAT3& translation, float value)
+{
+	this->Translate(translation.x * value, translation.y * value, translation.z * value);
+}
+
+void DX12Lib::SceneNode::Rotate(float pitch, float yaw, float roll)
+{
+	DirectX::XMVECTOR axis = DirectX::XMVectorSet(pitch, yaw, roll, 0.0f);
+	DirectX::XMVECTOR quaternion = this->Transform.GetRelativeRotation();
+
+	quaternion = DirectX::XMQuaternionMultiply(quaternion, DirectX::XMQuaternionRotationRollPitchYaw(pitch, yaw, roll));
+	
+	quaternion = DirectX::XMQuaternionNormalize(quaternion);
+	
+
+	this->Transform.SetRelativeRotation(quaternion);
+}
+
+void DX12Lib::SceneNode::Rotate(const DirectX::XMFLOAT3& axis, float value)
+{
+	this->Rotate(axis.x * value, axis.y * value , axis.z * value);
+}
+
+
 DirectX::XMFLOAT4X4 DX12Lib::SceneNode::GetWorldMatrix4x4()
 {
 	DirectX::XMFLOAT4X4 world;

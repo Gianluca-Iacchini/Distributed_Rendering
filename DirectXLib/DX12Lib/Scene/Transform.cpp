@@ -34,6 +34,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldRotation()
         XMVECTOR parentQuaternion = m_parent != nullptr ? m_parent->GetWorldRotation() : XMQuaternionIdentity();
         XMVECTOR relativeQuat = XMLoadFloat4(&m_relativeRot);
         worldRot = DirectX::XMQuaternionMultiply(parentQuaternion, relativeQuat);
+        worldRot = DirectX::XMQuaternionNormalize(worldRot);
 
         XMStoreFloat4(&m_worldRot, worldRot);
 
@@ -245,7 +246,7 @@ void DX12Lib::Transform::SetWorldRotation(DirectX::FXMVECTOR wrot)
     // Conjuate equals inverse for unit quaternions
     XMVECTOR invParentRot = DirectX::XMQuaternionConjugate(parentRot);
 
-    this->SetRelativeRotation(DirectX::XMQuaternionMultiply(invParentRot, wrot));
+    this->SetRelativeRotation(DirectX::XMQuaternionNormalize(DirectX::XMQuaternionMultiply(invParentRot, wrot)));
 }
 
 void DX12Lib::Transform::SetWorldScale(DirectX::FXMVECTOR wscale)

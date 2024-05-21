@@ -60,6 +60,15 @@ namespace DX12Lib
 		void SetRelativeScale(const DirectX::XMFLOAT3& scale);
 		void SetRelativeScale(float x, float y, float z);
 
+		void Translate(const DirectX::XMFLOAT3& translation, float value = 1.0f);
+		void Translate(float x, float y, float z);
+		void Rotate(const DirectX::XMFLOAT3& axis, float value = 1.0f);
+		void Rotate(float pitch, float yaw, float roll);
+
+		inline DirectX::XMFLOAT3 GetForward(){ return this->Transform.GetForward3f();}
+		inline DirectX::XMFLOAT3 GetRight()  { return this->Transform.GetRight3f(); }
+		inline DirectX::XMFLOAT3 GetUp() { return this->Transform.GetUp3f(); }
+
 		DirectX::XMFLOAT3 GetPosition();
 		DirectX::XMFLOAT3 GetRelativePosition();
 		DirectX::XMFLOAT4 GetRotationQuaternion();

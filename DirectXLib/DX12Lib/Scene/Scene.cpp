@@ -85,7 +85,7 @@ void DX12Lib::Scene::Init(CommandContext& context)
 	auto cameraChild = m_rootNode->AddChild();
 	m_camera = cameraChild->AddComponent<SceneCamera>();
 
-	m_camera->SetPosition(0, 50, 0);
+	cameraChild->SetPosition(0, 3, 0);
 
 	m_rootNode->Init(context);
 }

@@ -8,9 +8,8 @@ using namespace DirectX;
 
 void DX12Lib::SceneCamera::Init(CommandContext& context)
 {
+	DXLIB_CORE_INFO("SceneCamera::Init");
 	Camera::SetLens(0.25f * DirectX::XM_PI, (1920.f / 1080.f), 1.0f, 1000.0f);
-	Camera::SetPosition(this->Node->GetPosition());
-	Camera::UpdateViewMatrix();
 }
 
 void DX12Lib::SceneCamera::Update(CommandContext& context)
@@ -21,15 +20,10 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 	auto state = s_mouse->GetState();
 	if (state.positionMode == Mouse::MODE_RELATIVE)
 	{
-
-		float dx = XMConvertToRadians(0.25f * static_cast<float>(state.x));
-		float dy = XMConvertToRadians(0.25f * static_cast<float>(state.y));
-
 		auto rotation = this->Node->GetRotationEulerAngles();
-		rotation.x += state.y * deltaTime;
-		rotation.y += state.x * deltaTime;
+		this->Node->Rotate(Node->GetRight(), state.y * deltaTime);
+		this->Node->Rotate({ 0.0f, 1.0f, 0.0f }, state.x * deltaTime);
 
-		this->Node->SetRotationEulerAngles(rotation);
 	}
 
 	auto kbState = s_kbTracker->GetLastState();
@@ -37,29 +31,26 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 	if (s_kbTracker->IsKeyPressed(Keyboard::Escape))
 		PostQuitMessage(0);
 
-	auto pos = this->Node->GetPosition();
+	auto pos = Node->GetPosition();
 
-	XMVECTOR posXM = XMLoadFloat3(&pos);
-	XMVECTOR look = this->GetLook();
+
 
 	if (kbState.W)
-		posXM += transform.GetForward() * deltaTime;
+		this->Node->Translate(Node->GetForward(), deltaTime);
 	if (kbState.S)
-		posXM -= transform.GetForward() * deltaTime;
+		this->Node->Translate(Node->GetForward(), -deltaTime);
 	if (kbState.A)
-		posXM -= transform.GetRight() * deltaTime;
+		this->Node->Translate(Node->GetRight(), -deltaTime);
 	if (kbState.D)
-		posXM += transform.GetRight() * deltaTime;
+		this->Node->Translate(Node->GetRight(), deltaTime);
 	if (kbState.E)
-		posXM += XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) * deltaTime;
+		this->Node->Translate({0.0f, 1.0f, 0.0f }, deltaTime);
 	if (kbState.Q)
-		posXM -= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f ) * deltaTime;
+		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime);
 
-	XMStoreFloat3(&pos, posXM);
+	pos = Node->GetPosition();
 
-	this->Node->SetPosition(pos);
 
-	auto m_right = transform.GetRight3f();
 
 	if (Node->IsTransformDirty())
 		Camera::UpdateViewMatrix(transform.GetWorldPosition(), transform.GetUp(), transform.GetForward(), transform.GetRight());
