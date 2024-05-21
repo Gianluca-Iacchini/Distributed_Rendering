@@ -4,14 +4,15 @@
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
 #include "DX12Lib/Models/ModelRenderer.h"
+#include "SceneCamera.h"
 
 using namespace DX12Lib;
 using namespace Assimp;
 using namespace Graphics;
 
-Scene::Scene()
+Scene::Scene(GameTime& gTime) : m_time(gTime)
 {
-	m_rootNode = std::make_unique<SceneNode>();
+	m_rootNode = std::make_unique<SceneNode>(*this);
 	m_rootNode->Name = L"RootNode";
 }
 
@@ -79,14 +80,29 @@ bool DX12Lib::Scene::AddFromFile(const char* filename)
 	return this->AddFromFile(Utils::ToWstring(filename));
 }
 
-void Scene::Update(CommandContext* context)
+void DX12Lib::Scene::Init(CommandContext& context)
+{
+	auto cameraChild = m_rootNode->AddChild();
+	m_camera = cameraChild->AddComponent<SceneCamera>();
+
+	m_camera->SetPosition(0, 50, 0);
+
+	m_rootNode->Init(context);
+}
+
+void Scene::Update(CommandContext& context)
 {
 	m_rootNode->Update(context);
 }
 
-void Scene::Render(CommandContext* context)
+void Scene::Render(CommandContext& context)
 {
 	m_rootNode->Render(context);
+}
+
+void DX12Lib::Scene::OnResize(CommandContext& context)
+{
+	m_rootNode->OnResize(context);
 }
 
 void DX12Lib::Scene::Draw(ID3D12GraphicsCommandList* cmdList)

@@ -11,7 +11,7 @@ DX12Lib::MeshRenderer::~MeshRenderer()
 	}
 }
 
-void DX12Lib::MeshRenderer::Init()
+void DX12Lib::MeshRenderer::Init(CommandContext& context)
 {
 	m_objectCB = ConstantBufferObject();
 	DirectX::XMStoreFloat4x4(&m_objectCB.world, DirectX::XMMatrixTranspose(Node->GetWorldMatrix()));
@@ -20,13 +20,13 @@ void DX12Lib::MeshRenderer::Init()
 	m_objectCB.materialIndex = 0;
 }
 
-void DX12Lib::MeshRenderer::Update()
+void DX12Lib::MeshRenderer::Update(CommandContext& context)
 {
 	// If is visible (not occluded, inside frustum, etc)
 	m_isVisible = true;
 }
 
-void DX12Lib::MeshRenderer::Render()
+void DX12Lib::MeshRenderer::Render(CommandContext& context)
 {
 
 	if (m_modelRenderer == nullptr)
@@ -77,7 +77,7 @@ DirectX::GraphicsResource DX12Lib::MeshRenderer::GetObjectCB()
 	return Graphics::Renderer::s_graphicsMemory->AllocateConstant(m_objectCB);
 }
 
-void DX12Lib::ModelRenderer::Render()
+void DX12Lib::ModelRenderer::Render(CommandContext& context)
 {
 	if (Model != nullptr)
 	{

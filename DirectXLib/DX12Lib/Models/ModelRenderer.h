@@ -25,11 +25,11 @@ namespace DX12Lib
 
 		virtual ~MeshRenderer();
 
-		virtual void Init() override;
+		virtual void Init(CommandContext& context) override;
 
-		virtual void Update() override;
+		virtual void Update(CommandContext& context) override;
 
-		virtual void Render() override;
+		virtual void Render(CommandContext& context) override;
 
 		void DrawMesh(CommandContext* context);
 
@@ -94,14 +94,14 @@ namespace DX12Lib
 		}
 
 
-		virtual void Init() override {}
+		virtual void Init(CommandContext& context) override {}
 
-		virtual void Update() override
+		virtual void Update(CommandContext& context) override
 		{
 			
 		}
 
-		virtual void Render() override;
+		virtual void Render(CommandContext& context) override;
 
 		void Draw(CommandContext* context, std::wstring psoName);
 	};

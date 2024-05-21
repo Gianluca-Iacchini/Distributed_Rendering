@@ -12,6 +12,7 @@
 #include "Mouse.h"
 #include "ResourceUploadBatch.h"
 #include "DX12Lib/Scene/Scene.h"
+#include "DX12Lib/DXWrapper/Swapchain.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -23,22 +24,15 @@ using namespace DX12Lib;
 
 class AppTest : public D3DApp
 {
-	Keyboard keyboard;
-	DirectX::Keyboard::KeyboardStateTracker tracker;
-
-
 	UINT64 frameFences[3] = { 0, 0, 0 };
 
 
 	CostantBufferCommons m_costantBufferCommons;
 	ConstantBufferObject m_costantBufferObject;
-	ConstantBufferCamera m_costantBufferCamera;
-
-	Camera camera;
 
 	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
 
-	Scene m_scene;
+	std::unique_ptr<Scene> m_scene;
 
 	float cameraSpeed = 100.0f;
 
@@ -68,25 +62,17 @@ public:
 
 
 #if USE_PBR
-		m_pipelineState = Renderer::s_PSOs[PSO_PBR_OPAQUE];
-		m_rootSignature = m_pipelineState->GetRootSignature();
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\PBR\\sponza2.gltf");
 #else
-		m_pipelineState = Renderer::s_PSOs[PSO_PHONG_OPAQUE];
-		m_rootSignature = m_pipelineState->GetRootSignature();
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 #endif
+		m_scene = std::make_unique<Scene>(this->m_Time);
 
-		bool loaded = m_scene.AddFromFile(sourcePath.c_str());
+		bool loaded = m_scene->AddFromFile(sourcePath.c_str());
 
 		assert(loaded && "Model not loaded");
 
-		camera.SetPosition(0.0f, 250.0f, 0.0f);
-
-		auto cameraPos = camera.GetPosition3f();
-		auto cameraLookAt = XMFLOAT3(cameraPos.x + 1.0f, cameraPos.y, cameraPos.z);
-
-		camera.LookAt(cameraPos, XMFLOAT3(cameraLookAt), XMFLOAT3(0.0f, 1.0f, 0.0f));
+		m_scene->Init(*context);
 
 		context->Finish(true);
 
@@ -97,24 +83,7 @@ public:
 
 	void UpdateCommonConstants(const GameTime& gt)
 	{
-		XMMATRIX view = camera.GetView();
-		XMMATRIX invView = XMMatrixInverse(nullptr, view);
-		XMMATRIX proj = camera.GetProjection();
-		XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
-		XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-		XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
 
-
-
-		XMStoreFloat4x4(&m_costantBufferCamera.view, DirectX::XMMatrixTranspose(view));
-		XMStoreFloat4x4(&m_costantBufferCamera.invView, DirectX::XMMatrixTranspose(invView));
-		XMStoreFloat4x4(&m_costantBufferCamera.projection, DirectX::XMMatrixTranspose(proj));
-		XMStoreFloat4x4(&m_costantBufferCamera.invProjection, DirectX::XMMatrixTranspose(invProj));
-		XMStoreFloat4x4(&m_costantBufferCamera.viewProjection, DirectX::XMMatrixTranspose(viewProj));
-		XMStoreFloat4x4(&m_costantBufferCamera.invViewProjection, DirectX::XMMatrixTranspose(invViewProj));
-		m_costantBufferCamera.eyePosition = camera.GetPosition3f();
-		m_costantBufferCamera.nearPlane = camera.GetNearZ();
-		m_costantBufferCamera.farPlane = camera.GetFarZ();
 		m_costantBufferCommons.renderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
 		m_costantBufferCommons.totalTime = gt.TotalTime();
@@ -129,74 +98,24 @@ public:
 		m_costantBufferCommons.lights[0] = dirLight;
 	}
 
-	void MoveCamera()
-	{
-		auto state = s_mouse->GetState();
-		if (state.positionMode == Mouse::MODE_RELATIVE)
-		{
-
-			float dx = XMConvertToRadians(0.25f * static_cast<float>(state.x));
-			float dy = XMConvertToRadians(0.25f * static_cast<float>(state.y));
-
-			camera.Pitch(dy);
-			camera.Yaw(dx);
-		}
-	}
-
-	void UpdateKeyboard(const GameTime& gt)
-	{
-		auto kbState = keyboard.GetState();
-		tracker.Update(kbState);
-
-		if (tracker.IsKeyPressed(DirectX::Keyboard::Keys::Escape))
-		{
-			PostQuitMessage(0);
-		}
-		if (kbState.W)
-		{
-			camera.Walk(cameraSpeed * gt.DeltaTime());
-		}
-		if (kbState.S)
-		{
-			camera.Walk(-cameraSpeed * gt.DeltaTime());
-		}
-		if (kbState.A)
-		{
-			camera.Strafe(-cameraSpeed * gt.DeltaTime());
-		}
-		if (kbState.D)
-		{
-			camera.Strafe(cameraSpeed * gt.DeltaTime());
-		}
-		if (kbState.E)
-		{
-			camera.Lift(cameraSpeed * gt.DeltaTime());
-		}
-		if (kbState.Q)
-		{
-			camera.Lift(-cameraSpeed * gt.DeltaTime());
-		}
-	}
-
 	virtual void Update(const GameTime& gt) override
 	{
-		UINT64 currentFrame = frameFences[m_swapchain->CurrentBufferIndex];
-		if (currentFrame != 0)
-		{
-			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
-		}
+		Renderer::WaitForSwapchainBuffers();
 
 		// Update sun orientation
 		m_theta +=  m_modifier.x * gt.DeltaTime();
 		m_phi += m_modifier.y * gt.DeltaTime();
 
 
+		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
+		auto kbState = s_keyboard->GetState();
+		s_kbTracker->Update(kbState);
 
-		UpdateKeyboard(gt);
-		MoveCamera();
-		camera.UpdateViewMatrix();
 		UpdateCommonConstants(gt);
+		m_scene->Update(*context);
+
+		context->Finish(true);
 	}
 
 	virtual void Draw(const GameTime& gt) override
@@ -205,51 +124,43 @@ public:
 
 		context->SetViewportAndScissor(mScreenViewport, mScissorRect);
 
-		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		auto currentBackBuffer = Renderer::GetCurrentBackBuffer();
 
-		context->ClearColor(CurrentBackBuffer(), Color::LightSteelBlue().GetPtr(), nullptr);
-		context->ClearDepthAndStencil(*m_depthStencilBuffer);
+		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-		context->SetRenderTargets(1, &CurrentBackBufferView(), DepthStencilView());
+		context->ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
+		context->ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
+
+		context->SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
 
 
 		auto commonRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
-		auto cameraRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCamera);
 
 		Renderer::SetUpRenderFrame(context);
 		
 		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, commonRes.GpuAddress());
-		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(2, cameraRes.GpuAddress());
 
-		m_scene.Render(context);
+		m_scene->Render(*context);
 
 		Renderer::RenderLayers(context);
 
-		context->TransitionResource(CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, true);
+		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
 
-		frameFences[m_swapchain->CurrentBufferIndex] = context->Finish();
+		auto fenceVal = context->Finish(true);
 
-		HRESULT hr = m_swapchain->GetComPointer()->Present(0, 0);
-
-		if (FAILED(hr))
-		{
-			hr = s_device->GetComPtr()->GetDeviceRemovedReason();
-			if (FAILED(hr))
-			{
-				DeviceRemovedHandler();
-				ThrowIfFailed(hr);
-			}
-		}
-
-		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		m_swapchain->CurrentBufferIndex = (m_swapchain->CurrentBufferIndex + 1) % m_swapchain->BufferCount;
+		Renderer::Present(fenceVal);
 	}
 
 	virtual void OnResize() override
 	{
 		D3DApp::OnResize();
+		
+		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		camera.SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 10000.0f);
+		if (m_scene != nullptr)
+			m_scene->OnResize(*context);
+
+		context->Finish(true);
 	}
 };
 

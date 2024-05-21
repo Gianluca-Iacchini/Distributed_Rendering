@@ -27,6 +27,8 @@ namespace Graphics
 	std::unique_ptr<CommandQueueManager> Graphics::s_commandQueueManager = nullptr;
 	std::unique_ptr<CommandContextManager> s_commandContextManager = nullptr;
 	std::unique_ptr<DirectX::Mouse> s_mouse = nullptr;
+	std::unique_ptr<DirectX::Keyboard> s_keyboard = nullptr;
+	std::unique_ptr<DirectX::Keyboard::KeyboardStateTracker> s_kbTracker = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings = nullptr;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
@@ -128,6 +130,8 @@ namespace Graphics
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
 			s_commandContextManager = std::make_unique<CommandContextManager>();
+			s_keyboard = std::make_unique<DirectX::Keyboard>();
+			s_kbTracker = std::make_unique<DirectX::Keyboard::KeyboardStateTracker>();
 
 			Renderer::Initialize();
 

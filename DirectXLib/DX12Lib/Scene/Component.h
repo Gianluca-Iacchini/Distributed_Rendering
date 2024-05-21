@@ -5,18 +5,19 @@
 namespace DX12Lib
 {
 	class SceneNode;
+
 	class Component
 	{
 	public:
 		Component() {}
 		virtual ~Component() {}
 
-		virtual void Init() = 0;
-		virtual void Update() = 0;
-		virtual void Render() = 0;
+		virtual void Init(CommandContext& context) {}
+		virtual void Update(CommandContext& context) {}
+		virtual void Render(CommandContext& context) {}
+		virtual void OnResize(CommandContext& context) {}
 
 	public:
-		CommandContext* Context = nullptr;
 		SceneNode* Node = nullptr;
 	};
 }

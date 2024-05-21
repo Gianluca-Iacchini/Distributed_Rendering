@@ -52,11 +52,11 @@ namespace DX12Lib {
 		void Yaw(float angle);
 
 		void UpdateViewMatrix();
-	private:
+		void UpdateViewMatrix(DirectX::FXMVECTOR pos, DirectX::FXMVECTOR up, DirectX::FXMVECTOR forward,
+			DirectX::GXMVECTOR right);
+
+	protected:
 		DirectX::XMFLOAT3 m_position = { 0.0f, 0.0f, 0.0f };
-		DirectX::XMFLOAT3 m_right = { 1.0f, 0.0f, 0.0f };
-		DirectX::XMFLOAT3 m_up = { 0.0f, 1.0f, 0.0f };
-		DirectX::XMFLOAT3 m_look = { 0.0f, 0.0f, 1.0f };
 
 		float m_nearZ = 0.0f;
 		float m_farZ = 0.0f;
@@ -65,9 +65,15 @@ namespace DX12Lib {
 		float m_nearWindowHeight = 0.0f;
 		float m_farWindowHeight = 0.0f;
 
-		bool m_viewDirty = true;
-
 		DirectX::XMFLOAT4X4 m_view = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 m_proj = MathHelper::Identity4x4();
+
+
+		DirectX::XMFLOAT3 m_right = { 1.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT3 m_up = { 0.0f, 1.0f, 0.0f };
+		DirectX::XMFLOAT3 m_look = { 0.0f, 0.0f, 1.0f };
+		bool m_viewDirty = true;
+
+
 	};
 }

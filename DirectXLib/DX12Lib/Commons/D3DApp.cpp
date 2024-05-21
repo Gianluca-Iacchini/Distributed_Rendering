@@ -60,7 +60,7 @@ void D3DApp::Set4xMsaaState(bool value)
 		m_4xMsaaState = value;
 
 		// Recreate the swapchain and buffers with new multisample settings.
-		CreateSwapChain();
+		Renderer::InitializeSwapchain(m_dx12Window.get());
 		OnResize();
 	}
 }
@@ -126,7 +126,6 @@ bool D3DApp::Initialize()
 
 void D3DApp::OnResize()
 {
-	assert(m_swapchain);
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
@@ -135,17 +134,15 @@ void D3DApp::OnResize()
 
 	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	m_swapchain->Resize(mClientWidth, mClientHeight);
+	Renderer::s_swapchain->Resize(mClientWidth, mClientHeight);
 
-	m_swapchain->CurrentBufferIndex = 0;
-
-
+	Renderer::s_swapchain->CurrentBufferIndex = 0;
 
 
-	m_depthStencilBuffer->GetComPtr().Reset();
-	m_depthStencilBuffer->Create(mClientWidth, mClientHeight, m_depthStencilFormat);
+	Renderer::s_depthStencilBuffer->GetComPtr().Reset();
+	Renderer::s_depthStencilBuffer->Create(mClientWidth, mClientHeight, m_depthStencilFormat);
 
-	context->TransitionResource(*m_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+	context->TransitionResource(*Renderer::s_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 
 	
 	context->Finish(true);
@@ -219,38 +216,16 @@ bool D3DApp::InitDirect3D()
 		return false;
 	}
 
-	CreateSwapChain();
+	Renderer::InitializeSwapchain(m_dx12Window.get());
 
-	m_depthStencilBuffer = std::make_shared<DepthBuffer>();
+
 
 	return true;
-}
-
-
-void D3DApp::CreateSwapChain()
-{
-	m_swapchain = std::make_unique<Swapchain>(*m_dx12Window, m_backBufferFormat);
-	m_swapchain->Initialize(s_commandQueueManager->GetGraphicsQueue());
 }
 
 void D3DApp::FlushCommandQueue()
 {	
 	s_commandQueueManager->GetGraphicsQueue().Flush();
-}
-
-ColorBuffer& D3DApp::CurrentBackBuffer() const
-{
-	return m_swapchain->GetCurrentBackBuffer();
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::CurrentBackBufferView() const
-{
-	return m_swapchain->GetCurrentBackBuffer().GetRTV();
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::DepthStencilView() const
-{
-	return m_depthStencilBuffer->GetDSV();
 }
 
 void D3DApp::CalculateFrameStats(GameTime& gt)

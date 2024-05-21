@@ -56,12 +56,11 @@ namespace DX12Lib {
 		bool InitMainWindow();
 		bool InitConsole();
 		bool InitDirect3D();
-		void CreateSwapChain();
 		void FlushCommandQueue();
 
-		ColorBuffer& CurrentBackBuffer() const;
-		D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
-		D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
+		//ColorBuffer& CurrentBackBuffer() const;
+		//D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
+		//D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 		void CalculateFrameStats(GameTime& gt);
 
@@ -84,9 +83,6 @@ namespace DX12Lib {
 
 		std::unique_ptr<DX12Window> m_dx12Window;
 
-		std::unique_ptr<Swapchain> m_swapchain;
-		std::shared_ptr<DepthBuffer> m_depthStencilBuffer;
-
 		//std::unique_ptr<Fence> m_appFence;
 		UINT64 mCurrentFence = 0;
 
@@ -100,6 +96,5 @@ namespace DX12Lib {
 		int mClientWidth = 1920;
 		int mClientHeight = 1080;
 
-		std::chrono::high_resolution_clock::time_point m_initalTime;
 	};
 }

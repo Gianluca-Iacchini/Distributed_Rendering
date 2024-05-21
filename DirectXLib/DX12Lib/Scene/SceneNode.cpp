@@ -1,5 +1,6 @@
 #include "DX12Lib/pch.h"
 #include "SceneNode.h"
+#include "Scene.h"
 
 using namespace DX12Lib;
 
@@ -11,20 +12,28 @@ DX12Lib::SceneNode::~SceneNode()
 	m_components.clear();
 }
 
-void DX12Lib::SceneNode::Update(CommandContext* context)
+void DX12Lib::SceneNode::Init(CommandContext& context)
+{
+	for (std::unique_ptr<Component>& component : m_components)
+	{
+		component->Init(context);
+	}
+
+	for (auto& node : m_children)
+		node->Init(context);
+}
+
+void DX12Lib::SceneNode::Update(CommandContext& context)
 {
 	// Will only update if the transform is dirty
-	m_transform.Update();
+	Transform.Update();
 
-	if (context != nullptr)
+
+	for (std::unique_ptr<Component>& component : m_components)
 	{
-		for (std::unique_ptr<Component>& component : m_components)
-		{
-			component->Context = context;
-			component->Update();
-			component->Context = nullptr;
-		}
+		component->Update(context);
 	}
+	
 
 	for (auto& node : m_children) 
 		node->Update(context);
@@ -32,22 +41,30 @@ void DX12Lib::SceneNode::Update(CommandContext* context)
 
 }
 
-void DX12Lib::SceneNode::Render(CommandContext* context)
+void DX12Lib::SceneNode::Render(CommandContext& context)
 {
-	if (context == nullptr)
-		return;
+
 
 	for (std::unique_ptr<Component>& component : m_components)
 	{
-		component->Context = context;
-		component->Render();
-		component->Context = nullptr;
+		component->Render(context);
 	}
 
 
 	for (auto& node : m_children)
 		node->Render(context);
 	
+}
+
+void DX12Lib::SceneNode::OnResize(CommandContext& context)
+{
+	for (std::unique_ptr<Component>& component : m_components)
+	{
+		component->OnResize(context);
+	}
+
+	for (auto& node : m_children)
+		node->OnResize(context);
 }
 
 void DX12Lib::SceneNode::AddChild(SceneNode* node)
@@ -76,7 +93,7 @@ void DX12Lib::SceneNode::AddChild(SceneNode* node)
 
 SceneNode* DX12Lib::SceneNode::AddChild()
 {
-	std::unique_ptr<SceneNode> node = std::make_unique<SceneNode>();
+	std::unique_ptr<SceneNode> node = std::make_unique<SceneNode>(Scene);
 	SceneNode* nodePtr = node.get();
 
 	m_children.push_back(std::move(node));
@@ -118,7 +135,7 @@ SceneNode* DX12Lib::SceneNode::GetChild(SceneNode* node)
 
 void DX12Lib::SceneNode::PropagateDirtyTransform(UINT dirtyFlag)
 {
-	m_transform.SetDirty(dirtyFlag);
+	Transform.SetDirty(dirtyFlag);
 
 	for (auto& node : m_children)
 	{
@@ -132,7 +149,7 @@ void SceneNode::SetParent(SceneNode* parent)
 
 	if (parent != nullptr)
 	{
-		m_transform.m_parent = &parent->m_transform;
+		Transform.m_parent = &parent->Transform;
 	}
 
 	PropagateDirtyTransform();
@@ -141,7 +158,7 @@ void SceneNode::SetParent(SceneNode* parent)
 
 void DX12Lib::SceneNode::SetPosition(const DirectX::XMFLOAT3& position)
 {
-	m_transform.SetWorldPosition(position);
+	Transform.SetWorldPosition(position);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Position);
 }
 
@@ -152,16 +169,15 @@ void DX12Lib::SceneNode::SetPosition(float x, float y, float z)
 
 void DX12Lib::SceneNode::SetRotationQuaternion(const DirectX::XMFLOAT4& quatRotation)
 {
-	m_transform.SetWorldRotation(quatRotation);
+	Transform.SetWorldRotation(quatRotation);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Rotation);
 }
 
 void DX12Lib::SceneNode::SetRotationEulerAngles(const DirectX::XMFLOAT3& rotationEuler)
 {
 	DirectX::XMVECTOR rotation = DirectX::XMQuaternionRotationRollPitchYaw(rotationEuler.x, rotationEuler.y, rotationEuler.z);
-	m_transform.SetWorldRotation(rotation);
+	Transform.SetWorldRotation(rotation);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Rotation);
-
 }
 
 void DX12Lib::SceneNode::SetRotationEulerAngles(float pitch, float yaw, float roll)
@@ -171,7 +187,7 @@ void DX12Lib::SceneNode::SetRotationEulerAngles(float pitch, float yaw, float ro
 
 void DX12Lib::SceneNode::SetScale(const DirectX::XMFLOAT3& scale)
 {
-	m_transform.SetWorldScale(scale);
+	Transform.SetWorldScale(scale);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Scale);
 }
 
@@ -182,7 +198,7 @@ void DX12Lib::SceneNode::SetScale(float x, float y, float z)
 
 void DX12Lib::SceneNode::SetRelativePosition(const DirectX::XMFLOAT3& position)
 {
-	m_transform.SetRelativePosition(position);
+	Transform.SetRelativePosition(position);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Position);
 }
 
@@ -193,14 +209,14 @@ void DX12Lib::SceneNode::SetRelativePosition(float x, float y, float z)
 
 void DX12Lib::SceneNode::SetRelativeRotation(const DirectX::XMFLOAT4& quatRotation)
 {
-	m_transform.SetRelativeRotation(quatRotation);
+	Transform.SetRelativeRotation(quatRotation);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Rotation);
 }
 
 void DX12Lib::SceneNode::SetRelativeRotation(const DirectX::XMFLOAT3& rotationEuler)
 {
 	DirectX::XMVECTOR rotation = DirectX::XMQuaternionRotationRollPitchYaw(rotationEuler.x, rotationEuler.y, rotationEuler.z);
-	m_transform.SetRelativeRotation(rotation);
+	Transform.SetRelativeRotation(rotation);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Rotation);
 }
 
@@ -211,7 +227,7 @@ void DX12Lib::SceneNode::SetRelativeRotation(float pitch, float yaw, float roll)
 
 void DX12Lib::SceneNode::SetRelativeScale(const DirectX::XMFLOAT3& scale)
 {
-	m_transform.SetRelativeScale(scale);
+	Transform.SetRelativeScale(scale);
 	PropagateDirtyTransform((UINT)Transform::DirtyFlags::Scale);
 }
 
@@ -222,48 +238,48 @@ void DX12Lib::SceneNode::SetRelativeScale(float x, float y, float z)
 
 DirectX::XMFLOAT3 DX12Lib::SceneNode::GetPosition()
 {
-	return m_transform.GetWorldPosition3f();
+	return Transform.GetWorldPosition3f();
 }
 
 DirectX::XMFLOAT3 DX12Lib::SceneNode::GetRelativePosition()
 {
-	return m_transform.GetRelativePosition3f();
+	return Transform.GetRelativePosition3f();
 }
 
 DirectX::XMFLOAT4 DX12Lib::SceneNode::GetRotationQuaternion()
 {
-	return m_transform.GetWorldRotation4f();
+	return Transform.GetWorldRotation4f();
 }
 
 DirectX::XMFLOAT4 DX12Lib::SceneNode::GetRelativeRotationQuaternion()
 {
-	return m_transform.GetRelativeRotation4f();
+	return Transform.GetRelativeRotation4f();
 }
 
 DirectX::XMFLOAT3 DX12Lib::SceneNode::GetRotationEulerAngles()
 {
-	return m_transform.GetWorldRotationEuler3f();
+	return Transform.GetWorldRotationEuler3f();
 }
 
 DirectX::XMFLOAT3 DX12Lib::SceneNode::GetRelativeRotationEulerAngles()
 {
-	return m_transform.GetRelativeRotationEuler3f();
+	return Transform.GetRelativeRotationEuler3f();
 }
 
 DirectX::XMFLOAT3 DX12Lib::SceneNode::GetScale()
 {
-	return m_transform.GetWorldScale3f();
+	return Transform.GetWorldScale3f();
 }
 
 DirectX::XMFLOAT3 DX12Lib::SceneNode::GetRelativeScale()
 {
-	return m_transform.GetRelativeScale3f();
+	return Transform.GetRelativeScale3f();
 }
 
 DirectX::XMFLOAT4X4 DX12Lib::SceneNode::GetWorldMatrix4x4()
 {
 	DirectX::XMFLOAT4X4 world;
-	DirectX::XMStoreFloat4x4(&world, m_transform.GetWorld());
+	DirectX::XMStoreFloat4x4(&world, Transform.GetWorld());
 
 	return world;
 }
@@ -272,7 +288,7 @@ DirectX::XMFLOAT4X4 DX12Lib::SceneNode::GetWorldMatrix4x4()
 DirectX::XMFLOAT4X4 DX12Lib::SceneNode::GetWorldInverse4x4()
 {
 	DirectX::XMFLOAT4X4 world4x4;
-	DirectX::XMMATRIX world = DirectX::XMMatrixInverse(nullptr, m_transform.GetWorld());
+	DirectX::XMMATRIX world = DirectX::XMMatrixInverse(nullptr, Transform.GetWorld());
 	DirectX::XMStoreFloat4x4(&world4x4, world);
 
 	return world4x4;
@@ -280,11 +296,11 @@ DirectX::XMFLOAT4X4 DX12Lib::SceneNode::GetWorldInverse4x4()
 
 DirectX::XMMATRIX DX12Lib::SceneNode::GetWorldMatrix()
 {
-	return m_transform.GetWorld();
+	return Transform.GetWorld();
 }
 
 DirectX::XMMATRIX DX12Lib::SceneNode::GetWorldInverse()
 {
-	return DirectX::XMMatrixInverse(nullptr, m_transform.GetWorld());
+	return DirectX::XMMatrixInverse(nullptr, Transform.GetWorld());
 }
 

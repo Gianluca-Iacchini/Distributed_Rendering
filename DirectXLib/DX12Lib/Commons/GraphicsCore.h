@@ -3,6 +3,7 @@
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "GraphicsMemory.h"
 #include "Mouse.h"
+#include "Keyboard.h"
 #include "DX12Lib/DXWrapper/Texture.h"
 #include "DX12Lib/Models/MaterialManager.h"
 #include "Renderer.h"
@@ -30,7 +31,8 @@ namespace Graphics
 	extern Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings;
 
 	extern std::unique_ptr<DirectX::Mouse> s_mouse;
-
+	extern std::unique_ptr<DirectX::Keyboard> s_keyboard;
+	extern std::unique_ptr<DirectX::Keyboard::KeyboardStateTracker> s_kbTracker;
 
 
 	extern DXGI_FORMAT m_backBufferFormat;

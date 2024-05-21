@@ -1,6 +1,7 @@
 #include "DX12Lib/pch.h"
 #include "Renderer.h"
 #include "DX12Lib/Models/ModelRenderer.h"
+#include "DX12Lib/DXWrapper/Swapchain.h"
 
 using namespace DX12Lib;
 using namespace Graphics;
@@ -8,6 +9,9 @@ using namespace Graphics;
 namespace Graphics::Renderer
 {
 	std::vector<DX12Lib::ModelRenderer*> m_renderers;
+
+	std::unique_ptr<Swapchain> s_swapchain = nullptr;
+	std::unique_ptr<DepthBuffer> s_depthStencilBuffer = nullptr;
 	std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap = nullptr;
 	std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory = nullptr;
 	std::unique_ptr<TextureManager> s_textureManager = nullptr;
@@ -15,11 +19,15 @@ namespace Graphics::Renderer
 	std::unordered_map<std::wstring, std::shared_ptr<PipelineState>> s_PSOs;
 	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
+	UINT64 backBufferFences[3] = { 0, 0, 0 };
+
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
 
 	void Initialize()
 	{
+		s_depthStencilBuffer = std::make_unique<DepthBuffer>();
+
 		s_textureHeap = std::make_shared<DescriptorHeap>();
 		s_textureHeap->Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
 
@@ -70,6 +78,46 @@ namespace Graphics::Renderer
 		s_materialManager = nullptr;
 		s_PSOs.clear();
 		s_shaders.clear();
+	}
+
+	void InitializeSwapchain(DX12Lib::DX12Window* window)
+	{
+		s_swapchain = std::make_unique<Swapchain>(*window, m_backBufferFormat);
+		s_swapchain->Initialize(s_commandQueueManager->GetGraphicsQueue());
+	}
+
+	void WaitForSwapchainBuffers()
+	{
+		UINT64 currentFrame = backBufferFences[s_swapchain->CurrentBufferIndex];
+		if (currentFrame != 0)
+		{
+			s_commandQueueManager->GetGraphicsQueue().WaitForFence(currentFrame);
+		}
+	}
+
+	DX12Lib::ColorBuffer& GetCurrentBackBuffer()
+	{
+		return s_swapchain->GetCurrentBackBuffer();
+	}
+
+	void Present(UINT64 fenceVal)
+	{
+		backBufferFences[s_swapchain->CurrentBufferIndex] = fenceVal;
+
+		HRESULT hr = s_swapchain->GetComPointer()->Present(0, 0);
+
+		if (FAILED(hr))
+		{
+			hr = s_device->GetComPtr()->GetDeviceRemovedReason();
+			if (FAILED(hr))
+			{
+				DeviceRemovedHandler();
+				ThrowIfFailed(hr);
+			}
+		}
+
+		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		s_swapchain->CurrentBufferIndex = (s_swapchain->CurrentBufferIndex + 1) % s_swapchain->BufferCount;
 	}
 
 	void CreateDefaultShaders()

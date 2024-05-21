@@ -7,6 +7,17 @@ namespace DX12Lib
 	struct Transform
 	{
 		friend class SceneNode;
+
+	private:
+		enum class DirtyFlags
+		{
+			Position = 1 << 0,
+			Rotation = 1 << 1,
+			Scale = 1 << 2,
+
+			All = Position | Rotation | Scale
+		};
+
 	public:
 		Transform() :
 		m_relativePos(0.0f, 0.0f, 0.0f), m_relativeRot(0.0f, 0.0f, 0.0f, 1.0f), m_relativeScale(1.0f, 1.0f, 1.0f),
@@ -40,7 +51,13 @@ namespace DX12Lib
 		DirectX::XMMATRIX GetRelativeWorld();
 		DirectX::XMMATRIX GetWorld();
 
+		DirectX::XMFLOAT3 GetRight3f();
+		DirectX::XMFLOAT3 GetUp3f();
+		DirectX::XMFLOAT3 GetForward3f();
 
+		DirectX::XMVECTOR GetRight();
+		DirectX::XMVECTOR GetUp();
+		DirectX::XMVECTOR GetForward();
 
 		void SetRelativePosition(DirectX::FXMVECTOR pos);
 		void SetRelativeRotation(DirectX::FXMVECTOR rot);
@@ -60,7 +77,8 @@ namespace DX12Lib
 
 		void Update();
 
-		void SetDirty(UINT32 flag = 5);
+		void SetDirty(DirtyFlags flag);
+		void SetDirty(UINT32 flags = 5);
 
 	private:
 		DirectX::XMFLOAT3 QuaternionToEuler(DirectX::XMFLOAT4 quaternion) const;
@@ -80,16 +98,14 @@ namespace DX12Lib
 		DirectX::XMFLOAT3 m_worldScale;
 		DirectX::XMFLOAT4X4 m_world;
 
+		DirectX::XMFLOAT3 m_right = { 1.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT3 m_up = { 0.0f, 1.0f, 0.0f };
+		DirectX::XMFLOAT3 m_forward = { 0.0f, 0.0f, 1.0f };
+
 		UINT32 m_dirtyFlags = 0;
+		UINT32 m_dirtForFrame = 0;
 
-		enum class DirtyFlags
-		{
-			Position = 1 << 0,
-			Rotation = 1 << 1,
-			Scale = 1 << 2,
 
-			All = Position | Rotation | Scale
-		};
 	};
 }
 

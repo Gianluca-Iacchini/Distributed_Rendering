@@ -99,6 +99,7 @@ DirectX::XMMATRIX DX12Lib::Transform::GetRelativeWorld()
         worldMatrix = XMMatrixScalingFromVector(scale) * XMMatrixRotationQuaternion(rotation) * XMMatrixTranslationFromVector(position);
 
 		m_dirtyFlags = 0;
+        m_dirtForFrame = 0;
     }
 
     return worldMatrix;
@@ -119,9 +120,65 @@ DirectX::XMMATRIX DX12Lib::Transform::GetWorld()
         DirectX::XMStoreFloat4x4(&m_world, worldMatrix);
 
         m_dirtyFlags = 0;
+        m_dirtForFrame = 0;
     }
 
     return worldMatrix;
+}
+
+DirectX::XMVECTOR DX12Lib::Transform::GetRight()
+{
+    auto rotation = this->GetWorldRotation();
+
+    auto right = XMVector3Rotate(XMVectorSet(1.f, 0.f, 0.f, 0.f), rotation);
+
+    return XMVector3Normalize(right);
+
+}
+
+DirectX::XMVECTOR DX12Lib::Transform::GetUp()
+{
+    auto rotation = this->GetWorldRotation();
+
+	auto up = XMVector3Rotate(XMVectorSet(0.f, 1.f, 0.f, 0.f), rotation);
+
+	return XMVector3Normalize(up);
+}
+
+DirectX::XMVECTOR DX12Lib::Transform::GetForward()
+{
+    auto rotation = this->GetWorldRotation();
+
+	auto forward = XMVector3Rotate(XMVectorSet(0.f, 0.f, 1.f, 0.f), rotation);
+
+	return XMVector3Normalize(forward);
+}
+
+DirectX::XMFLOAT3 DX12Lib::Transform::GetRight3f()
+{
+    auto right = GetRight();
+
+    XMStoreFloat3(&m_right, right);
+
+    return m_right;
+}
+
+DirectX::XMFLOAT3 DX12Lib::Transform::GetUp3f()
+{
+    auto up = GetUp();
+
+	XMStoreFloat3(&m_up, up);
+
+	return m_up;
+}
+
+DirectX::XMFLOAT3 DX12Lib::Transform::GetForward3f()
+{
+    auto forward = GetForward();
+
+	XMStoreFloat3(&m_forward, forward);
+
+	return m_forward;
 }
 
 void DX12Lib::Transform::SetRelativePosition(DirectX::FXMVECTOR pos)
@@ -129,7 +186,7 @@ void DX12Lib::Transform::SetRelativePosition(DirectX::FXMVECTOR pos)
     // World position will be updated when GetWorldPosition is called since dirty flag is set
 
 	XMStoreFloat3(&m_relativePos, pos);
-	m_dirtyFlags |= (UINT)DirtyFlags::Position;
+    SetDirty(DirtyFlags::Position);
 }
 
 void DX12Lib::Transform::SetRelativeRotation(DirectX::FXMVECTOR rot)
@@ -137,7 +194,7 @@ void DX12Lib::Transform::SetRelativeRotation(DirectX::FXMVECTOR rot)
     // World rotation will be updated when GetWorldRotation is called since dirty flag is set
 
     XMStoreFloat4(&m_relativeRot, rot);
-	m_dirtyFlags |= (UINT)DirtyFlags::Rotation;
+    SetDirty(DirtyFlags::Rotation);
 }
 
 void DX12Lib::Transform::SetRelativeScale(DirectX::FXMVECTOR scale)
@@ -145,7 +202,7 @@ void DX12Lib::Transform::SetRelativeScale(DirectX::FXMVECTOR scale)
     // World scale will be updated when GetWorldScale is called since dirty flag is set
 
 	XMStoreFloat3(&m_relativeScale, scale);
-	m_dirtyFlags |= (UINT)DirtyFlags::Scale;
+    SetDirty(DirtyFlags::Scale);
 }
 
 void DX12Lib::Transform::SetRelativePosition(DirectX::XMFLOAT3 pos)
@@ -259,7 +316,14 @@ DirectX::XMFLOAT3 DX12Lib::Transform::QuaternionToEuler(DirectX::XMFLOAT4 quater
     
 }
 
-void DX12Lib::Transform::SetDirty(UINT32 flag)
+void DX12Lib::Transform::SetDirty(DirtyFlags flag)
 {
-    m_dirtyFlags |= flag;
+    m_dirtyFlags |= (UINT)flag;
+    m_dirtForFrame |= (UINT)flag;
+}
+
+void DX12Lib::Transform::SetDirty(UINT32 flags)
+{
+    m_dirtyFlags |= flags;
+	m_dirtForFrame |= flags;
 }

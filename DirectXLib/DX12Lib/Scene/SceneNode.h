@@ -7,20 +7,23 @@
 namespace DX12Lib
 {
 	class SceneNode;
+	class Scene;
 
 	using NodePtr = std::unique_ptr<SceneNode>;
 
 	class SceneNode
 	{
 	public:
-		SceneNode() : m_dirtyFlags(0) 
+		SceneNode(const DX12Lib::Scene& scene) : m_dirtyFlags(0), Scene(scene)
 		{
 			ThrowIfFailed(CoCreateGuid(&m_guid));
 		}
 		~SceneNode();
 
-		void Update(CommandContext* context);
-		void Render(CommandContext* context);
+		void Init(CommandContext&);
+		void Update(CommandContext& context);
+		void Render(CommandContext& context);
+		void OnResize(CommandContext&);
 
 		void AddChild(SceneNode* node);
 		SceneNode* AddChild();
@@ -37,8 +40,6 @@ namespace DX12Lib
 			T* returnPtr = componentPtr.get();
 
 			this->m_components.push_back(std::move(componentPtr));
-
-			returnPtr->Init();
 
 			return returnPtr;
 		}
@@ -73,6 +74,8 @@ namespace DX12Lib
 		DirectX::XMFLOAT4X4 GetWorldInverse4x4();
 		DirectX::XMMATRIX GetWorldInverse();
 
+		int GetChildCount() const { return m_children.size(); }
+
 		SceneNode* GetChildAt(UINT index) const 
 		{ 
 			assert(index < m_children.size());
@@ -80,9 +83,12 @@ namespace DX12Lib
 			return m_children[index].get(); 
 		}
 
+		bool IsTransformDirty() const { return this->Transform.m_dirtForFrame != 0; }
+
 	public:
 		std::wstring Name = L"";
-
+		Transform Transform;
+		const Scene& Scene;
 	public:
 		bool operator==(const SceneNode& other) const { return m_guid == other.m_guid; }
 
@@ -90,7 +96,8 @@ namespace DX12Lib
 		void PropagateDirtyTransform(UINT dirtyFlag = 5);
 
 	private:
-		Transform m_transform;
+
+
 		void SetParent(SceneNode* parent);
 
 		// Raw pointer because child nodes do not own their parent

@@ -20,3 +20,14 @@ void DX12Lib::ShadowBuffer::RenderShadowEnd(CommandContext* context)
 
 	context->TransitionResource(*this, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 }
+
+void DX12Lib::ShadowCamera::Update(CommandContext& context)
+{
+	auto pos = this->Node->GetPosition();
+
+	if (pos.x != m_lastCameraPos.x || pos.y != m_lastCameraPos.y || pos.z != m_lastCameraPos.z)
+	{
+		this->SetPosition(pos);
+		m_lastCameraPos = pos;
+	}
+}

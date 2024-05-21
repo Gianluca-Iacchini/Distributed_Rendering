@@ -13,6 +13,10 @@ namespace DX12Lib
 	class ModelRenderer;
 	class PipelineState;
 	class Shader;
+	class Swapchain;
+	class DepthBuffer;
+	class DX12Window;
+	class ColorBuffer;
 }
 
 
@@ -21,6 +25,8 @@ namespace Graphics
 {
 	namespace Renderer
 	{
+		extern std::unique_ptr<DX12Lib::Swapchain> s_swapchain;
+		extern std::unique_ptr<DX12Lib::DepthBuffer> s_depthStencilBuffer;
 		extern std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap;
 		extern std::unique_ptr<DirectX::GraphicsMemory> s_graphicsMemory;
 		extern std::unique_ptr<DX12Lib::TextureManager> s_textureManager;
@@ -33,7 +39,10 @@ namespace Graphics
 		void SetUpRenderFrame(DX12Lib::CommandContext* context);
 		void RenderLayers(DX12Lib::CommandContext* context);
 		void Shutdown();
-		
+		void InitializeSwapchain(DX12Lib::DX12Window* window);
+		void WaitForSwapchainBuffers();
+		DX12Lib::ColorBuffer& GetCurrentBackBuffer();
+		void Present(UINT64 fenceVal);
 	};
 }
 

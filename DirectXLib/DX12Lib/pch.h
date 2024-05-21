@@ -47,4 +47,7 @@
 #include "DX12Lib/Models/Material.h"
 #include "DX12Lib/Models/MaterialManager.h"
 
+#include "DX12Lib/Scene/SceneNode.h"
+#include "DX12Lib/Scene/Scene.h"
+
 #include "DXWrapper/Device.h"

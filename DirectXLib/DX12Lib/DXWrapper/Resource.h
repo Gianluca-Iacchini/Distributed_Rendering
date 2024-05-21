@@ -52,11 +52,6 @@ namespace DX12Lib {
 		Microsoft::WRL::ComPtr<ID3D12Resource> GetComPtr() const { return m_resource; }
 		void ResetComPtr() { m_resource.Reset(); }
 
-		Resource(Resource&&) = default;
-		Resource& operator=(Resource&&) = default;
-
-		Resource(Resource&) = delete;
-		Resource& operator=(Resource&) = delete;
 	};
 }
 
