@@ -77,7 +77,10 @@ void DX12Lib::SceneCamera::Render(CommandContext& context)
 
 	auto cbCamera = Renderer::s_graphicsMemory->AllocateConstant(m_constantBufferCamera);
 
-	context.m_commandList->Get()->SetGraphicsRootConstantBufferView(2, cbCamera.GpuAddress());
+	context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+		(UINT)Renderer::RootSignatureSlot::CameraCBV,
+		cbCamera.GpuAddress()
+	);
 }
 
 void DX12Lib::SceneCamera::OnResize(CommandContext& context)

@@ -2,6 +2,8 @@
 #include "ModelRenderer.h"
 #include "DX12Lib/Scene/SceneNode.h"
 
+using namespace Graphics::Renderer;
+
 DX12Lib::MeshRenderer::~MeshRenderer()
 {
 	if (m_IsInBatch)
@@ -62,7 +64,7 @@ void DX12Lib::MeshRenderer::DrawMesh(CommandContext* context)
 	if (m_mesh == nullptr || m_meshMaterial == nullptr)
 		return;
 
-	context->m_commandList->Get()->SetGraphicsRootConstantBufferView(1, GetObjectCB().GpuAddress());
+	context->m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, GetObjectCB().GpuAddress());
 	m_meshMaterial->UseMaterial(context->m_commandList->Get());
 	m_mesh->Draw(context->m_commandList->Get());
 }

@@ -89,13 +89,13 @@ public:
 		m_costantBufferCommons.totalTime = gt.TotalTime();
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
 
-		Light dirLight;
-		XMVECTOR lightDir = MathHelper::SphericalToCartesian(3.0, m_theta, m_phi); //XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
-		
-		XMStoreFloat3(&dirLight.Direction, lightDir);
-		dirLight.Color = XMFLOAT3(0.6, 0.6, 0.6);
+		//ConstantBufferLight dirLight;
+		//XMVECTOR lightDir = MathHelper::SphericalToCartesian(3.0, m_theta, m_phi); //XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
+		//
+		//XMStoreFloat3(&dirLight.Direction, lightDir);
+		//dirLight.Color = XMFLOAT3(0.6, 0.6, 0.6);
 
-		m_costantBufferCommons.lights[0] = dirLight;
+		//m_costantBufferCommons.light = dirLight;
 	}
 
 	virtual void Update(const GameTime& gt) override
@@ -138,7 +138,9 @@ public:
 
 		Renderer::SetUpRenderFrame(context);
 		
-		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(0, commonRes.GpuAddress());
+		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
+			(UINT)Renderer::RootSignatureSlot::CommonCBV, commonRes.GpuAddress()
+		);
 
 		m_scene->Render(*context);
 

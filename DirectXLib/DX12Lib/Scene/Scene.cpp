@@ -5,6 +5,7 @@
 #include "assimp/scene.h"
 #include "DX12Lib/Models/ModelRenderer.h"
 #include "SceneCamera.h"
+#include "LightComponent.h"
 
 using namespace DX12Lib;
 using namespace Assimp;
@@ -87,16 +88,25 @@ void DX12Lib::Scene::Init(CommandContext& context)
 
 	cameraChild->SetPosition(0, 3, 0);
 
+	auto lightNode = m_rootNode->AddChild();
+	auto light = lightNode->AddComponent<LightComponent>();
+	light->SetLightColor({ 0.6f, 0.6f, 0.6f });
+
+	lightNode->Rotate(lightNode->GetRight(), 0.5f);
+	
+
 	m_rootNode->Init(context);
 }
 
 void Scene::Update(CommandContext& context)
 {
+	LightComponent::UpdateLights(context);
 	m_rootNode->Update(context);
 }
 
 void Scene::Render(CommandContext& context)
 {
+	LightComponent::RenderLights(context);
 	m_rootNode->Render(context);
 }
 

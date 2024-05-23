@@ -18,7 +18,7 @@ void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 {
 	// We only need to set the first texture since they are all contiguous in the heap.
 	// The root signature knows how many are to be used.
-	cmdList->SetGraphicsRootDescriptorTable(4, m_firstTextureHandle);
+	cmdList->SetGraphicsRootDescriptorTable((UINT)Renderer::RootSignatureSlot::TextureSRV, m_firstTextureHandle);
 }
 
 void DX12Lib::Material::SetTransparent(bool isTransparent)

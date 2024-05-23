@@ -6,7 +6,7 @@ namespace DX12Lib {
 
 #define MaxLights 16
 
-	__declspec(align(16)) struct Light
+	__declspec(align(16)) struct ConstantBufferLight
 	{
 		DirectX::XMFLOAT3 Color = { 0.5f, 0.5f, 0.5f }; // All lights
 		float FalloffStart = 1.0f; // Point, spot
@@ -24,10 +24,10 @@ namespace DX12Lib {
 
 		float totalTime = 0.0f;
 		float deltaTime = 0.0f;
-		float _pad0 = 0.0f;
-		float _pad1 = 0.0f;
+		//float _pad0 = 0.0f;
+		//float _pad1 = 0.0f;
 
-		Light lights[MaxLights];
+		//ConstantBufferLight light;
 	};
 
 	__declspec(align(16)) struct ConstantBufferCamera

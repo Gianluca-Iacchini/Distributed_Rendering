@@ -2,12 +2,12 @@
 
 struct Light
 {
-    float3 lColor;
-    float lFallOffStart;
-    float3 lDirection;
-    float lFallOffEnd;
-    float3 lPosition;
-    float lSpotPower;
+    float3 color;
+    float fallOffStart;
+    float3 direction;
+    float fallOffEnd;
+    float3 position;
+    float spotPower;
 };
 
 struct GenericMaterial
@@ -166,13 +166,13 @@ float Spec(float3 lightVec, SurfaceData surfData, float shininess)
 
 float3 ComputeDirectionalLight(Light light, SurfaceData surfData, float shininess, float IoR)
 {
-    float3 L = -light.lDirection;
+    float3 L = -light.direction;
     
     float3 NdotL = max(dot(surfData.N, L), 0.0f);
     
 
-    float3 diffuse = light.lColor * NdotL;
-    float3 specular = light.lColor * Spec(L, surfData, shininess);
+    float3 diffuse = light.color * NdotL;
+    float3 specular = light.color * Spec(L, surfData, shininess);
 
    
     diffuse = saturate(diffuse);
@@ -230,7 +230,7 @@ float3 Specular_BRDF(SurfaceData surfData, float LdotH, float NdotH, float alpha
 
 float3 PBRDirectionalLight(Light Light, SurfaceData surfData, float roughness)
 {    
-    float3 L = normalize(-Light.lDirection);
+    float3 L = normalize(-Light.direction);
     
     
     float3 H = normalize(L + surfData.V);
@@ -244,5 +244,5 @@ float3 PBRDirectionalLight(Light Light, SurfaceData surfData, float roughness)
     float3 diffuse = Diffuse_Burley(surfData, roughness, LdotH, NdotL);
     float3 specular = Specular_BRDF(surfData, LdotH, NdotH, alpha);
     
-   return NdotL * Light.lColor * ((surfData.c_diff * diffuse) + specular);
+   return NdotL * Light.color * ((surfData.c_diff * diffuse) + specular);
 }

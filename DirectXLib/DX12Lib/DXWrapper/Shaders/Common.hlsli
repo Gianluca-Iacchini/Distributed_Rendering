@@ -7,10 +7,6 @@ cbuffer Commons : register(b0)
 
     float cTotalTime : packoffset(c1);
     float cDeltaTime : packoffset(c1.y);
-    float _pad0 : packoffset(c1.z);
-    float _pad1 : packoffset(c1.w);
-    
-    Light cDirLight : packoffset(c2);
 };
 
 cbuffer Object : register(b1)
@@ -50,7 +46,8 @@ Texture2D gOcclusion : register(t4);
 #endif
 
 
-StructuredBuffer<GenericMaterial> gMaterials : register(t0, space1);
+StructuredBuffer<Light> gLights : register(t0, space1);
+StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
 
 SamplerState gSampler : register(s0);
 

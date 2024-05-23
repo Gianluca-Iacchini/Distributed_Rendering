@@ -155,22 +155,24 @@ namespace Graphics::Renderer
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
 
-		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>(5, 1);
+		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>(6, 1);
 		baseRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
-		(*baseRootSignature)[0].InitAsConstantBuffer(0);
-		(*baseRootSignature)[1].InitAsConstantBuffer(1);
-		(*baseRootSignature)[2].InitAsConstantBuffer(2);
-		(*baseRootSignature)[3].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-		(*baseRootSignature)[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(2);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::TextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
 		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>(5, 1);
+		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>(6, 1);
 		pbrRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
-		(*pbrRootSignature)[0].InitAsConstantBuffer(0);
-		(*pbrRootSignature)[1].InitAsConstantBuffer(1);
-		(*pbrRootSignature)[2].InitAsConstantBuffer(2);
-		(*pbrRootSignature)[3].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-		(*pbrRootSignature)[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(2);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::TextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 

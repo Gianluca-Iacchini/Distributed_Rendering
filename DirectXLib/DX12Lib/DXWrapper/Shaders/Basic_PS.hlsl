@@ -43,7 +43,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     surfData.c_diff = diffuse.rgb;
     surfData.c_spec = specular.rgb;
     
-    float3 lightRes = ComputeDirectionalLight(cDirLight, surfData, shininess, material.refractiveIndex);    
+    float3 lightRes = ComputeDirectionalLight(gLights[0], surfData, shininess, material.refractiveIndex);    
     
     return float4(lightRes, diffuse.a);
 }

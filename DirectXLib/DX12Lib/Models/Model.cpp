@@ -11,6 +11,7 @@ using namespace DX12Lib;
 
 using namespace Assimp;
 using namespace Graphics;
+using namespace Renderer;
 
 void Model::LoadFromFile(const aiScene* scene)
 {
@@ -119,7 +120,7 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
     commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     commandList->IASetIndexBuffer(&m_indexBufferView);
 
-    commandList->SetGraphicsRootShaderResourceView(3, m_materialBufferResource->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootShaderResourceView((UINT)RootSignatureSlot::MaterialSRV, m_materialBufferResource->GetGPUVirtualAddress());
 }
 
 void Model::Draw(CommandList* commandList)
@@ -140,7 +141,7 @@ void DX12Lib::Model::UseBuffers(CommandContext* context)
     context->m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     context->m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
 
-    context->m_commandList->Get()->SetGraphicsRootShaderResourceView(3, m_materialBufferResource->GetGPUVirtualAddress());
+    context->m_commandList->Get()->SetGraphicsRootShaderResourceView((UINT)RootSignatureSlot::MaterialSRV, m_materialBufferResource->GetGPUVirtualAddress());
 }
 
 void Model::BuildVertexBuffer(UINT stride, UINT numVertices)

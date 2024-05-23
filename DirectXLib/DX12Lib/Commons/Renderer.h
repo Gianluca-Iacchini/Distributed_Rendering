@@ -25,6 +25,16 @@ namespace Graphics
 {
 	namespace Renderer
 	{
+		enum class RootSignatureSlot
+		{
+			CommonCBV = 0,
+			ObjectCBV = 1,
+			CameraCBV = 2,
+			LightSRV = 3,
+			MaterialSRV = 4,
+			TextureSRV = 5
+		};
+
 		extern std::unique_ptr<DX12Lib::Swapchain> s_swapchain;
 		extern std::unique_ptr<DX12Lib::DepthBuffer> s_depthStencilBuffer;
 		extern std::shared_ptr<DX12Lib::DescriptorHeap> s_textureHeap;

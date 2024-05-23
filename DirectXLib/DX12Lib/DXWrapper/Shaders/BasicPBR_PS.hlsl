@@ -46,7 +46,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     surfData.c_spec = lerp(kDielectricSpecular, diffuse.rgb, metallic) * occlusion;
     
     float3 lRes = emissive.rgb;
-    lRes += PBRDirectionalLight(cDirLight, surfData, roughness);
+    lRes += PBRDirectionalLight(gLights[0], surfData, roughness);
     lRes += surfData.c_diff * 0.13f;
     
     return float4(lRes, diffuse.a);
