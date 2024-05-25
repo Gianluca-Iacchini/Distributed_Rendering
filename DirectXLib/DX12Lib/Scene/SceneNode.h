@@ -92,7 +92,10 @@ namespace DX12Lib
 			return m_children[index].get(); 
 		}
 
-		bool IsTransformDirty() const { return this->Transform.m_dirtForFrame != 0; }
+		bool IsTransformDirty() const 
+		{ 
+			return this->Transform.m_dirtForFrame != 0; 
+		}
 
 	public:
 		std::wstring Name = L"";

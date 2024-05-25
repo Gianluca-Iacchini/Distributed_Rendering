@@ -100,7 +100,6 @@ DirectX::XMMATRIX DX12Lib::Transform::GetRelativeWorld()
         worldMatrix = XMMatrixScalingFromVector(scale) * XMMatrixRotationQuaternion(rotation) * XMMatrixTranslationFromVector(position);
 
 		m_dirtyFlags = 0;
-        m_dirtForFrame = 0;
     }
 
     return worldMatrix;
@@ -121,7 +120,6 @@ DirectX::XMMATRIX DX12Lib::Transform::GetWorld()
         DirectX::XMStoreFloat4x4(&m_world, worldMatrix);
 
         m_dirtyFlags = 0;
-        m_dirtForFrame = 0;
     }
 
     return worldMatrix;
@@ -290,30 +288,58 @@ void DX12Lib::Transform::Update()
 
 DirectX::XMFLOAT3 DX12Lib::Transform::QuaternionToEuler(DirectX::XMFLOAT4 quaternion) const
 {
-    const float xx = quaternion.x * quaternion.x;
-    const float yy = quaternion.y * quaternion.y;
-    const float zz = quaternion.z * quaternion.z;
+    // Extract quaternion components
+    float x = quaternion.x;
+    float y = quaternion.y;
+    float z = quaternion.z;
+    float w = quaternion.w;
 
-    const float m31 = 2.f * quaternion.x * quaternion.z + 2.f * quaternion.y * quaternion.w;
-    const float m32 = 2.f * quaternion.y * quaternion.z - 2.f * quaternion.x * quaternion.w;
-    const float m33 = 1.f - 2.f * xx - 2.f * yy;
+    float roll, pitch, yaw;
 
-    const float cy = sqrtf(m33 * m33 + m31 * m31);
-    const float cx = atan2f(-m32, cy);
-    if (cy > 16.f * FLT_EPSILON)
-    {
-        const float m12 = 2.f * quaternion.x * quaternion.y + 2.f * quaternion.z * quaternion.w;
-        const float m22 = 1.f - 2.f * xx - 2.f * zz;
+    // Calculate the Euler angles
+    // Pitch (x-axis rotation)
+    float sinr_cosp = 2 * (w * x + y * z);
+    float cosr_cosp = 1 - 2 * (x * x + y * y);
+    pitch = std::atan2(sinr_cosp, cosr_cosp);
 
-        return DirectX::XMFLOAT3(cx, atan2f(m31, m33), atan2f(m12, m22));
-    }
+    // Yaw (y-axis rotation)
+    float sinp = 2 * (w * y - z * x);
+    if (std::abs(sinp) >= 1)
+        yaw = std::copysign(XM_PI / 2, sinp); // Use 90 degrees if out of range
     else
-    {
-        const float m11 = 1.f - 2.f * yy - 2.f * zz;
-        const float m21 = 2.f * quaternion.x * quaternion.y - 2.f * quaternion.z * quaternion.w;
+        yaw = std::asin(sinp);
 
-        return DirectX::XMFLOAT3(cx, 0.f, atan2f(-m21, m11));
-    }
+    // Roll (z-axis rotation)
+    float siny_cosp = 2 * (w * z + x * y);
+    float cosy_cosp = 1 - 2 * (y * y + z * z);
+    roll = std::atan2(siny_cosp, cosy_cosp);
+
+    return DirectX::XMFLOAT3(pitch, yaw, roll);
+
+    //const float xx = quaternion.x * quaternion.x;
+    //const float yy = quaternion.y * quaternion.y;
+    //const float zz = quaternion.z * quaternion.z;
+
+    //const float m31 = 2.f * quaternion.x * quaternion.z + 2.f * quaternion.y * quaternion.w;
+    //const float m32 = 2.f * quaternion.y * quaternion.z - 2.f * quaternion.x * quaternion.w;
+    //const float m33 = 1.f - 2.f * xx - 2.f * yy;
+
+    //const float cy = sqrtf(m33 * m33 + m31 * m31);
+    //const float cx = atan2f(-m32, cy);
+    //if (cy > 16.f * FLT_EPSILON)
+    //{
+    //    const float m12 = 2.f * quaternion.x * quaternion.y + 2.f * quaternion.z * quaternion.w;
+    //    const float m22 = 1.f - 2.f * xx - 2.f * zz;
+
+    //    return DirectX::XMFLOAT3(cx, atan2f(m31, m33), atan2f(m12, m22));
+    //}
+    //else
+    //{
+    //    const float m11 = 1.f - 2.f * yy - 2.f * zz;
+    //    const float m21 = 2.f * quaternion.x * quaternion.y - 2.f * quaternion.z * quaternion.w;
+
+    //    return DirectX::XMFLOAT3(cx, 0.f, atan2f(-m21, m11));
+    //}
     
 }
 

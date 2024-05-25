@@ -10,6 +10,8 @@ VertexOut VS(VertexIn vIn)
     vOut.PosW = posW.xyz;
     vOut.NormalW = mul(vIn.NormalL, (float3x3)oWorld);
     vOut.PosH = mul(posW, cViewProj);
+    vOut.ShadowPosH = mul(posW, gLights[0].shadowMatrix);
+
     vOut.Tex = vIn.Tex;
     
     return vOut;

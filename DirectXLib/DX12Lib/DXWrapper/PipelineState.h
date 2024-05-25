@@ -47,7 +47,7 @@ namespace DX12Lib {
 		void SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE type) { m_psoDesc.PrimitiveTopologyType = type; }
 		void SetDepthTargetFormat(DXGI_FORMAT format, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(0, nullptr, format, msaaCount, msaaQuality); }
 		void SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, UINT msaaCount, UINT msaaQuality) { SetRenderTargetFormats(1, &rtvFormat, dsvFormat, msaaCount, msaaQuality); }
-		void SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFOrmat, UINT msaaCount, UINT msaaQuality);
+		void SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFormat, UINT msaaCount=1, UINT msaaQuality=0);
 		void SetCullMode(D3D12_CULL_MODE cullMode) { m_psoDesc.RasterizerState.CullMode = cullMode; }
 		void Finalize();
 

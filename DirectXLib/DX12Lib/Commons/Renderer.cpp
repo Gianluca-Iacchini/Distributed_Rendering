@@ -2,13 +2,26 @@
 #include "Renderer.h"
 #include "DX12Lib/Models/ModelRenderer.h"
 #include "DX12Lib/DXWrapper/Swapchain.h"
+#include "DX12Lib/Scene/LightComponent.h"
+#include "DX12Lib/Commons/ShadowMap.h"
+#include "DX12Lib/Scene/SceneCamera.h"
+
+#define PSO_SHADOW_OPAQUE L"ShadowOpaquePso"
+#define PSO_SHADOW_ALPHA_TEST L"ShadowAlphaTestPso"
+
+#define PSO_SHADOW_TEST L"ShadowTestPso"
 
 using namespace DX12Lib;
 using namespace Graphics;
 
 namespace Graphics::Renderer
 {
+	D3D12_VIEWPORT s_screenViewport;
+	D3D12_RECT s_scissorRect;
+
 	std::vector<DX12Lib::ModelRenderer*> m_renderers;
+	std::vector<DX12Lib::LightComponent*> m_lights;
+	SceneCamera* m_mainCamera = nullptr;
 
 	std::unique_ptr<Swapchain> s_swapchain = nullptr;
 	std::unique_ptr<DepthBuffer> s_depthStencilBuffer = nullptr;
@@ -19,7 +32,11 @@ namespace Graphics::Renderer
 	std::unordered_map<std::wstring, std::shared_ptr<PipelineState>> s_PSOs;
 	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
+	std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer = nullptr;
+
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
+
+	DescriptorHandle m_shadowMapSRVHandle;
 
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
@@ -35,6 +52,12 @@ namespace Graphics::Renderer
 		s_textureManager = std::make_unique<TextureManager>();
 		s_materialManager = std::make_unique<MaterialManager>();
 
+		s_shadowBuffer = std::make_unique<ShadowBuffer>();
+		s_shadowBuffer->Create(4096, 4096);
+
+		m_shadowMapSRVHandle = s_textureHeap->Alloc(1);
+		s_device->Get()->CopyDescriptorsSimple(1, m_shadowMapSRVHandle, s_shadowBuffer->GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 		CreateDefaultShaders();
 		CreateDefaultPSOs();
 	}
@@ -42,6 +65,18 @@ namespace Graphics::Renderer
 	void AddRendererToQueue(ModelRenderer* renderer)
 	{
 		m_renderers.push_back(renderer);
+	}
+
+	void AddLightToQueue(DX12Lib::LightComponent* light)
+	{
+		m_lights.push_back(light);
+	}
+
+	void AddMainCamera(DX12Lib::SceneCamera* camera)
+	{
+		assert(camera != nullptr && "Main camera cannot be null");
+
+		m_mainCamera = camera;
 	}
 
 	void SetUpRenderFrame(DX12Lib::CommandContext* context)
@@ -55,6 +90,69 @@ namespace Graphics::Renderer
 
 	void RenderLayers(CommandContext* context)
 	{ 
+		// Shadow pass opaque objects
+		s_shadowBuffer->RenderShadowStart(context);
+
+		auto shadowPso = s_PSOs[PSO_SHADOW_OPAQUE];
+		for (auto& light : m_lights)
+		{
+			context->m_commandList->SetPipelineState(shadowPso);
+			context->m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
+
+			auto shadowCamera = light->GetShadowCamera();
+			
+			context->m_commandList->Get()->SetGraphicsRootConstantBufferView(
+				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
+
+			for (ModelRenderer* mRenderer : m_renderers)
+			{
+				mRenderer->DrawOpaque(context);
+			}
+		}
+
+		shadowPso = s_PSOs[PSO_SHADOW_ALPHA_TEST];
+
+		// Shadow pass transparent objects
+		for (auto& light : m_lights)
+		{
+			context->m_commandList->SetPipelineState(shadowPso);
+			context->m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
+
+			auto shadowCamera = light->GetShadowCamera();
+			context->m_commandList->Get()->SetGraphicsRootConstantBufferView(
+				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
+
+			for (ModelRenderer* mRenderer : m_renderers)
+			{
+				mRenderer->DrawTransparent(context);
+			}
+		}
+		s_shadowBuffer->RenderShadowEnd(context);
+
+		context->SetViewportAndScissor(s_screenViewport, s_scissorRect);
+
+		auto currentBackBuffer = Renderer::GetCurrentBackBuffer();
+
+		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+		context->ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
+		context->ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
+
+		context->SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
+
+		context->m_commandList->Get()->SetGraphicsRootDescriptorTable(
+			(UINT)RootSignatureSlot::CommonTextureSRV, m_shadowMapSRVHandle);
+
+		static bool useMain = true;
+
+
+		if (s_kbTracker->IsKeyPressed(DirectX::Keyboard::Space))
+			useMain = !useMain;
+
+		if (useMain)
+			m_mainCamera->UseCamera(*context);
+
+		// Main pass opaque
 		for (auto& pso : s_PSOs)
 		{
 			context->m_commandList->SetPipelineState(pso.second);
@@ -62,11 +160,27 @@ namespace Graphics::Renderer
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
-				mRenderer->Draw(context, pso.first);
+				mRenderer->DrawBatchOpaque(context, pso.first);
+			}
+		}
+		
+		// Main pass transparent
+		for (auto& pso : s_PSOs)
+		{
+			context->m_commandList->SetPipelineState(pso.second);
+			context->m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
+
+			for (ModelRenderer* mRenderer : m_renderers)
+			{
+				mRenderer->DrawBatchTransparent(context, pso.first);
 			}
 		}
 
+		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
+
 		m_renderers.clear();
+		m_lights.clear();
+		m_mainCamera = nullptr;
 	}
 
 	void Shutdown()
@@ -126,28 +240,36 @@ namespace Graphics::Renderer
 		std::wstring baseVSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_VS.hlsl";
 		std::wstring phongPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_PS.hlsl";
 		std::wstring pbrPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\BasicPBR_PS.hlsl";
+		std::wstring depthVSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Depth_VS.hlsl";
 
 		std::wstring alphaTestPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTest_PS.hlsl";
 		std::wstring alphaTestPBRPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTestPBR_PS.hlsl";
+		std::wstring depthAlphaTestPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTestDepth_PS.hlsl";
 
 		std::shared_ptr<Shader> basicVS = std::make_shared<Shader>(baseVSFile, "VS", "vs_5_1");
 		std::shared_ptr<Shader> phongPS = std::make_shared<Shader>(phongPSFile, "PS", "ps_5_1");
 		std::shared_ptr<Shader> pbrPS = std::make_shared<Shader>(pbrPSFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> depthVS = std::make_shared<Shader>(depthVSFile, "VS", "vs_5_1");
 
 		std::shared_ptr<Shader> phongAlphaTestPS = std::make_shared<Shader>(alphaTestPSFile, "PS", "ps_5_1");
 		std::shared_ptr<Shader> pbrAlphaTestPS = std::make_shared<Shader>(alphaTestPBRPSFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> depthAlphaTestPS = std::make_shared<Shader>(depthAlphaTestPSFile, "PS", "ps_5_1");
 
 		basicVS->Compile();
 		phongPS->Compile();
 		pbrPS->Compile();
+		depthVS->Compile();
 		phongAlphaTestPS->Compile();
 		pbrAlphaTestPS->Compile();
+		depthAlphaTestPS->Compile();
 
 		s_shaders[L"basicVS"] = std::move(basicVS);
 		s_shaders[L"phongPS"] = std::move(phongPS);
 		s_shaders[L"pbrPS"] = std::move(pbrPS);
+		s_shaders[L"depthVS"] = std::move(depthVS);
 		s_shaders[L"phongAlphaTestPS"] = std::move(phongAlphaTestPS);
 		s_shaders[L"pbrAlphaTestPS"] = std::move(pbrAlphaTestPS);
+		s_shaders[L"depthAlphaTestPS"] = std::move(depthAlphaTestPS);
 	}
 
 	void CreateDefaultPSOs()
@@ -155,24 +277,38 @@ namespace Graphics::Renderer
 		SamplerDesc DefaultSamplerDesc;
 		DefaultSamplerDesc.MaxAnisotropy = 8;
 
-		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>(6, 1);
+		SamplerDesc ShadowSamplerDesc;
+		ShadowSamplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		ShadowSamplerDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+		ShadowSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		ShadowSamplerDesc.MipLODBias = 0.0f;
+		ShadowSamplerDesc.MaxAnisotropy = 16;
+		ShadowSamplerDesc.SetBorderColor(Color::Black());
+		
+		
+
+		std::shared_ptr<RootSignature> baseRootSignature = std::make_shared<RootSignature>((UINT)RootSignatureSlot::Count, 2);
 		baseRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
+		baseRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(2);
-		(*baseRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-		(*baseRootSignature)[(UINT)RootSignatureSlot::TextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, NUM_PHONG_TEXTURES);
 		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>(6, 1);
+		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>((UINT)RootSignatureSlot::Count, 2);
 		pbrRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
+		pbrRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(2);
-		(*pbrRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-		(*pbrRootSignature)[(UINT)RootSignatureSlot::TextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, NUM_PBR_TEXTURES);
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
@@ -205,11 +341,87 @@ namespace Graphics::Renderer
 		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
 		pbrAlphaTestPso->Finalize();
 
+		D3D12_RASTERIZER_DESC shadowRastDesc = {};
+		shadowRastDesc.FillMode = D3D12_FILL_MODE_SOLID;
+		shadowRastDesc.CullMode = D3D12_CULL_MODE_BACK;
+		shadowRastDesc.FrontCounterClockwise = FALSE;
+		shadowRastDesc.DepthBias = 300;
+		shadowRastDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+		shadowRastDesc.SlopeScaledDepthBias = 1.0;
+		shadowRastDesc.DepthClipEnable = TRUE;
+		shadowRastDesc.MultisampleEnable = FALSE;
+		shadowRastDesc.AntialiasedLineEnable = FALSE;
+		shadowRastDesc.ForcedSampleCount = 0;
+		shadowRastDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+		
+
+		D3D12_BLEND_DESC blendNoColorWrite = {};
+		blendNoColorWrite.IndependentBlendEnable = FALSE;
+		blendNoColorWrite.RenderTarget[0].BlendEnable = FALSE;
+		blendNoColorWrite.RenderTarget[0].LogicOpEnable = FALSE;
+		blendNoColorWrite.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendNoColorWrite.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendNoColorWrite.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		blendNoColorWrite.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		blendNoColorWrite.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+		blendNoColorWrite.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		blendNoColorWrite.RenderTarget[0].RenderTargetWriteMask = 0;
+
+		D3D12_DEPTH_STENCIL_DESC depthTestDesc = {};
+		depthTestDesc.DepthEnable = TRUE;
+		depthTestDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		depthTestDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		depthTestDesc.StencilEnable = FALSE;
+		depthTestDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+		depthTestDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+		depthTestDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		depthTestDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+		depthTestDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		depthTestDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		depthTestDesc.BackFace = depthTestDesc.FrontFace;
+
+		std::shared_ptr<PipelineState> shadowPso = std::make_shared<PipelineState>();
+		shadowPso->InitializeDefaultStates();
+		shadowPso->SetRasterizerState(shadowRastDesc);
+		shadowPso->SetBlendState(blendNoColorWrite);
+		shadowPso->SetDepthStencilState(depthTestDesc);
+		shadowPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
+					DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
+		shadowPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		shadowPso->SetRenderTargetFormats(0, nullptr, s_shadowBuffer->GetFormat());
+		shadowPso->SetShader(s_shaders[L"depthVS"], ShaderType::Vertex);
+		shadowPso->SetRootSignature(pbrRootSignature);
+		shadowPso->Finalize();
+
+		D3D12_RASTERIZER_DESC shadowAlphaTestRastDesc = shadowRastDesc;
+		shadowAlphaTestRastDesc.CullMode = D3D12_CULL_MODE_NONE;
+		std::shared_ptr<PipelineState> shadowAlphaTested = std::make_shared<PipelineState>();
+		*shadowAlphaTested = *shadowPso;
+		shadowAlphaTested->SetRasterizerState(shadowAlphaTestRastDesc);
+		shadowAlphaTested->SetShader(s_shaders[L"depthAlphaTestPS"], ShaderType::Pixel);
+		shadowAlphaTested->Finalize();
+
+		std::shared_ptr<PipelineState> shadowTestPso = std::make_shared<PipelineState>();
+		shadowTestPso->InitializeDefaultStates();
+		shadowTestPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
+					DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
+		shadowTestPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		shadowTestPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
+		shadowTestPso->SetShader(s_shaders[L"depthVS"], ShaderType::Vertex);
+		shadowTestPso->SetShader(s_shaders[L"depthAlphaTestPS"], ShaderType::Pixel);
+		shadowTestPso->SetRootSignature(pbrRootSignature);
+		shadowTestPso->Finalize();
 
 		s_PSOs[PSO_PHONG_OPAQUE] = std::move(phongPso);
 		s_PSOs[PSO_PBR_OPAQUE] = std::move(pbrPso);
 
 		s_PSOs[PSO_PHONG_ALPHA_TEST] = std::move(phongAlphaTestPso);
 		s_PSOs[PSO_PBR_ALPHA_TEST] = std::move(pbrAlphaTestPso);
+
+		s_PSOs[PSO_SHADOW_OPAQUE] = std::move(shadowPso);
+		s_PSOs[PSO_SHADOW_ALPHA_TEST] = std::move(shadowAlphaTested);
+
+		s_PSOs[PSO_SHADOW_TEST] = std::move(shadowTestPso);
 	}
 }

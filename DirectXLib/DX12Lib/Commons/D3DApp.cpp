@@ -144,17 +144,16 @@ void D3DApp::OnResize()
 
 	context->TransitionResource(*Renderer::s_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 
+	Renderer::s_screenViewport.TopLeftX = 0;
+	Renderer::s_screenViewport.TopLeftY = 0;
+	Renderer::s_screenViewport.Width = static_cast<float>(mClientWidth);
+	Renderer::s_screenViewport.Height = static_cast<float>(mClientHeight);
+	Renderer::s_screenViewport.MinDepth = 0.0f;
+	Renderer::s_screenViewport.MaxDepth = 1.0f;
+
+	Renderer::s_scissorRect = { 0, 0, mClientWidth, mClientHeight };
 	
 	context->Finish(true);
-
-	mScreenViewport.TopLeftX = 0;
-	mScreenViewport.TopLeftY = 0;
-	mScreenViewport.Width = static_cast<float>(mClientWidth);
-	mScreenViewport.Height = static_cast<float>(mClientHeight);
-	mScreenViewport.MinDepth = 0.0f;
-	mScreenViewport.MaxDepth = 1.0f;
-
-	mScissorRect = { 0, 0, mClientWidth, mClientHeight };
 }
 
 

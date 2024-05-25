@@ -22,9 +22,13 @@ namespace DX12Lib {
 		float GetFarWindowHeight() const;
 
 		void SetLens(float fovY, float aspect, float zn, float zf);
+		void SetOrthogonalBounds(DirectX::XMFLOAT3 center, DirectX::XMFLOAT3 halfExtents);
+		void SetOrthogonalBounds(float width, float height, float nearZ, float farZ);
 
 		DirectX::XMMATRIX GetView() const;
 		DirectX::XMMATRIX GetProjection() const;
+
+
 
 		DirectX::XMFLOAT4X4 GetView4x4f() const;
 		DirectX::XMFLOAT4X4 GetProjection4x4f() const;

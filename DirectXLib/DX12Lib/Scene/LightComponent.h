@@ -3,8 +3,11 @@
 #include "GraphicsMemory.h"
 #include "DX12Lib/Commons/CommonConstants.h"
 
+
 namespace DX12Lib
 {
+	class ShadowCamera;
+
 	class LightComponent : public Component
 	{
 
@@ -18,7 +21,9 @@ namespace DX12Lib
 		void SetLightColor(DirectX::XMFLOAT3 color) { m_lightCB.Color = color; }
 		void SetLightFalloff(float falloffStart, float falloffEnd) { m_lightCB.FalloffStart = falloffStart;  m_lightCB.FalloffEnd = falloffEnd; }
 				
-
+		bool CastsShadows() const { return m_doesCastShadows; }
+		void SetCastsShadows(bool value);
+		ShadowCamera* GetShadowCamera();
 	public:
 		static int GetLightCount() { return m_activeLights.size(); }
 		static void UpdateLights(CommandContext& context);
@@ -27,13 +32,18 @@ namespace DX12Lib
 	private:
 		static void RemoveLight(int index);
 
+	public:
+
+
 	private:
 		UINT m_lightIndex;
 		ConstantBufferLight m_lightCB;
-
+		std::unique_ptr<ShadowCamera> m_shadowCamera;
+		bool m_doesCastShadows = false;
 	private:
 		static std::vector<LightComponent*> m_activeLights;
 		static DirectX::GraphicsResource m_lightBufferSRV;
+
 	};
 }
 

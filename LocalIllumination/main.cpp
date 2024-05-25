@@ -122,18 +122,6 @@ public:
 	{
 		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		context->SetViewportAndScissor(mScreenViewport, mScissorRect);
-
-		auto currentBackBuffer = Renderer::GetCurrentBackBuffer();
-
-		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-		context->ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
-		context->ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
-
-		context->SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
-
-
 		auto commonRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
 
 		Renderer::SetUpRenderFrame(context);
@@ -145,8 +133,6 @@ public:
 		m_scene->Render(*context);
 
 		Renderer::RenderLayers(context);
-
-		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
 
 		auto fenceVal = context->Finish(true);
 

@@ -24,7 +24,7 @@ namespace DX12Lib
 		void OnResize(CommandContext& context);
 		void Draw(ID3D12GraphicsCommandList* cmdList);
 
-		void Traverse(ModelRenderer* model, aiNode* node, SceneNode* parent);
+		void TraverseModel(ModelRenderer* model, aiNode* node, SceneNode* parent);
 
 		inline const GameTime& Time() const { return m_time; }
 

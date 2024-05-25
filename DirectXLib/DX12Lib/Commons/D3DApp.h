@@ -86,10 +86,6 @@ namespace DX12Lib {
 		//std::unique_ptr<Fence> m_appFence;
 		UINT64 mCurrentFence = 0;
 
-
-		D3D12_VIEWPORT mScreenViewport;
-		D3D12_RECT mScissorRect;
-
 		std::wstring mMainWndCaption = L"D3D12 Application";
 		D3D_DRIVER_TYPE mD3DDriverType = D3D_DRIVER_TYPE_HARDWARE;
 

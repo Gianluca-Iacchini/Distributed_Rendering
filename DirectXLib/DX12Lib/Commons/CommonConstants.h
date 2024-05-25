@@ -14,6 +14,7 @@ namespace DX12Lib {
 		float FalloffEnd = 10.0f; // Point, spot
 		DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f }; // Point, spot
 		float SpotPower = 64.0f; // Spot
+		DirectX::XMFLOAT4X4 shadowTransform = MathHelper::Identity4x4();
 	};
 
 	__declspec(align(16)) struct CostantBufferCommons
@@ -38,6 +39,7 @@ namespace DX12Lib {
 		DirectX::XMFLOAT4X4 invProjection = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 viewProjection = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 invViewProjection = MathHelper::Identity4x4();
+		// Use by shadow cameras only.
 		DirectX::XMFLOAT3 eyePosition = { 0.0f, 0.0f, 0.0f };
 		float nearPlane = 0.0f;
 		float farPlane = 1.0f;

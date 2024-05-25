@@ -8,7 +8,6 @@ using namespace DirectX;
 
 void DX12Lib::SceneCamera::Init(CommandContext& context)
 {
-	DXLIB_CORE_INFO("SceneCamera::Init");
 	Camera::SetLens(0.25f * DirectX::XM_PI, (1920.f / 1080.f), 1.0f, 1000.0f);
 }
 
@@ -50,13 +49,21 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 
 	pos = Node->GetPosition();
 
-
-
 	if (Node->IsTransformDirty())
 		Camera::UpdateViewMatrix(transform.GetWorldPosition(), transform.GetUp(), transform.GetForward(), transform.GetRight());
 }
 
 void DX12Lib::SceneCamera::Render(CommandContext& context)
+{
+	Renderer::AddMainCamera(this);
+}
+
+void DX12Lib::SceneCamera::OnResize(CommandContext& context)
+{
+	Camera::SetLens(0.25f * DirectX::XM_PI, (1920.f / 1080.f), 1.0f, 1000.0f);
+}
+
+void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
 {
 	DirectX::XMMATRIX view = this->GetView();
 	DirectX::XMMATRIX projection = this->GetProjection();
@@ -71,9 +78,9 @@ void DX12Lib::SceneCamera::Render(CommandContext& context)
 	DirectX::XMStoreFloat4x4(&m_constantBufferCamera.invProjection, DirectX::XMMatrixTranspose(invProjection));
 	DirectX::XMStoreFloat4x4(&m_constantBufferCamera.viewProjection, DirectX::XMMatrixTranspose(viewProjection));
 	DirectX::XMStoreFloat4x4(&m_constantBufferCamera.invViewProjection, DirectX::XMMatrixTranspose(invViewProjection));
-	DirectX::XMFLOAT3 eyePosition = this->Node->GetPosition();
-	float nearPlane = this->m_nearZ;
-	float farPlane = this->m_farZ;
+	m_constantBufferCamera.eyePosition = this->Node->GetPosition();
+	m_constantBufferCamera.farPlane = this->m_farZ;
+	m_constantBufferCamera.nearPlane = this->m_nearZ;
 
 	auto cbCamera = Renderer::s_graphicsMemory->AllocateConstant(m_constantBufferCamera);
 
@@ -81,9 +88,4 @@ void DX12Lib::SceneCamera::Render(CommandContext& context)
 		(UINT)Renderer::RootSignatureSlot::CameraCBV,
 		cbCamera.GpuAddress()
 	);
-}
-
-void DX12Lib::SceneCamera::OnResize(CommandContext& context)
-{
-	Camera::SetLens(0.25f * DirectX::XM_PI, (1920.f / 1080.f), 1.0f, 1000.0f);
 }

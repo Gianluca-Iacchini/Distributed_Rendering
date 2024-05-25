@@ -30,19 +30,19 @@ cbuffer Camera : register(b2)
     float cFarPlane : packoffset(c25);
 }
 
-
-Texture2D gEmissiveTex : register(t0);
-Texture2D gNormalMap : register(t1);
-Texture2D gDiffuseTex : register(t2);
+Texture2D gShadowMap : register(t0);
+Texture2D gEmissiveTex : register(t1);
+Texture2D gNormalMap : register(t2);
+Texture2D gDiffuseTex : register(t3);
 #ifndef PBR
-Texture2D gSpecularTex : register(t3); 
-Texture2D gAmbientTex : register(t4); 
-Texture2D gShininessTex : register(t5);
-Texture2D gOpacity : register(t6);
-Texture2D gBumpMap : register(t7);
+Texture2D gSpecularTex : register(t4); 
+Texture2D gAmbientTex : register(t5); 
+Texture2D gShininessTex : register(t6);
+Texture2D gOpacity : register(t7);
+Texture2D gBumpMap : register(t8);
 #else
-Texture2D gMetallicRoughness : register(t3);
-Texture2D gOcclusion : register(t4);
+Texture2D gMetallicRoughness : register(t4);
+Texture2D gOcclusion : register(t5);
 #endif
 
 
@@ -50,6 +50,7 @@ StructuredBuffer<Light> gLights : register(t0, space1);
 StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
 
 SamplerState gSampler : register(s0);
+SamplerComparisonState gShadowSampler : register(s1);
 
 struct VertexIn
 {
@@ -61,7 +62,45 @@ struct VertexIn
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
-    float3 PosW : POSITION;
+    float4 ShadowPosH : POSITION0;
+    float3 PosW : POSITION1;
     float3 NormalW : NORMAL;
     float2 Tex : TEXCOORD;
 };
+
+float CalcShadowFactor(float4 shadowPosH)
+{
+    // Complete projection by doing division by w.
+    shadowPosH.xyz /= shadowPosH.w;
+
+    // Depth in NDC space.
+    float depth = shadowPosH.z;
+
+    uint width, height, numMips;
+    gShadowMap.GetDimensions(0, width, height, numMips);
+
+    // Texel size.
+    float dx = 1.0f / (float) width;
+    float dy = 1.0f / (float) height;
+
+    float percentLit = 0.0f;
+    
+    // Use different offsets for different quality levels
+    float2 offsets[16] =
+    {
+        float2(-1.5f * dx, -1.5f * dy), float2(0.5f * dx, -1.5f * dy), float2(-0.5f * dx, -0.5f * dy), float2(1.5f * dx, -0.5f * dy),
+        float2(-1.5f * dx, 0.5f * dy), float2(0.5f * dx, 0.5f * dy), float2(-0.5f * dx, 1.5f * dy), float2(1.5f * dx, 1.5f * dy),
+        float2(-2.5f * dx, -2.5f * dy), float2(1.5f * dx, -2.5f * dy), float2(-1.5f * dx, -1.5f * dy), float2(2.5f * dx, -1.5f * dy),
+        float2(-2.5f * dx, 1.5f * dy), float2(1.5f * dx, 1.5f * dy), float2(-1.5f * dx, 2.5f * dy), float2(2.5f * dx, 2.5f * dy)
+    };
+
+
+    [unroll]
+    for (int i = 0; i < 16; ++i)
+    {
+        percentLit += gShadowMap.SampleCmpLevelZero(gShadowSampler,
+            shadowPosH.xy + offsets[i], depth).r;
+    }
+
+    return percentLit / 16.0f;
+}

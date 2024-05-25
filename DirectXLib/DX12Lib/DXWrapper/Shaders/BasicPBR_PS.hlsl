@@ -12,7 +12,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
         discard;
     }
 #endif
-    
+   
     
     PBRMaterial material = GetPBRMaterial(gMaterials[oMaterialIndex]);
     
@@ -45,9 +45,16 @@ float4 PS(VertexOut pIn) : SV_TARGET
     surfData.c_diff = lerp(diffuse.rgb, float3(0, 0, 0), metallic) * occlusion;
     surfData.c_spec = lerp(kDielectricSpecular, diffuse.rgb, metallic) * occlusion;
     
-    float3 lRes = emissive.rgb;
-    lRes += PBRDirectionalLight(gLights[0], surfData, roughness);
+    float3 lRes = emissive.rgb;    
+    Light light = gLights[0];
+    
+    //float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, pIn.ShadowPosH.xy, pIn.ShadowPosH.z).r;
+    float shadow = CalcShadowFactor(pIn.ShadowPosH);
+    light.color *= shadow;
+    lRes += PBRDirectionalLight(light, surfData, roughness);
     lRes += surfData.c_diff * 0.13f;
+
     
     return float4(lRes, diffuse.a);
+   // return float4(shadow, 0, 0, 1);
 }

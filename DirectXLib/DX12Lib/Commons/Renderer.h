@@ -11,12 +11,14 @@ namespace DX12Lib
 {
 	class CommandContext;
 	class ModelRenderer;
+	class LightComponent;
 	class PipelineState;
 	class Shader;
 	class Swapchain;
 	class DepthBuffer;
 	class DX12Window;
 	class ColorBuffer;
+	class SceneCamera;
 }
 
 
@@ -32,8 +34,13 @@ namespace Graphics
 			CameraCBV = 2,
 			LightSRV = 3,
 			MaterialSRV = 4,
-			TextureSRV = 5
+			CommonTextureSRV = 5,
+			MaterialTextureSRV = 6,
+			Count
 		};
+
+		extern D3D12_VIEWPORT s_screenViewport;
+		extern D3D12_RECT s_scissorRect;
 
 		extern std::unique_ptr<DX12Lib::Swapchain> s_swapchain;
 		extern std::unique_ptr<DX12Lib::DepthBuffer> s_depthStencilBuffer;
@@ -46,6 +53,8 @@ namespace Graphics
 
 		void Initialize();
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
+		void AddLightToQueue(DX12Lib::LightComponent* light);
+		void AddMainCamera(DX12Lib::SceneCamera* camera);
 		void SetUpRenderFrame(DX12Lib::CommandContext* context);
 		void RenderLayers(DX12Lib::CommandContext* context);
 		void Shutdown();
@@ -53,6 +62,8 @@ namespace Graphics
 		void WaitForSwapchainBuffers();
 		DX12Lib::ColorBuffer& GetCurrentBackBuffer();
 		void Present(UINT64 fenceVal);
+
+
 	};
 }
 

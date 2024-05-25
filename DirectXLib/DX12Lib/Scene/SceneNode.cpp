@@ -38,7 +38,8 @@ void DX12Lib::SceneNode::Update(CommandContext& context)
 	for (auto& node : m_children) 
 		node->Update(context);
 
-
+	// Reset the dirt flag for the frame
+	this->Transform.m_dirtForFrame = 0;
 }
 
 void DX12Lib::SceneNode::Render(CommandContext& context)

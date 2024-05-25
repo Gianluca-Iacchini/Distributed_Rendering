@@ -6,6 +6,7 @@
 #include "DX12Lib/Models/ModelRenderer.h"
 #include "SceneCamera.h"
 #include "LightComponent.h"
+#include "DX12Lib/Commons/ShadowMap.h"
 
 using namespace DX12Lib;
 using namespace Assimp;
@@ -60,7 +61,7 @@ bool DX12Lib::Scene::AddFromFile(const std::wstring& filename)
 	auto modelRenderer = modelNode->AddComponent<ModelRenderer>();
 	modelRenderer->Model = model;
 
-	Traverse(modelRenderer, scene->mRootNode, modelNode);
+	TraverseModel(modelRenderer, scene->mRootNode, modelNode);
 
 	Utils::SetWorkingDirectory(Utils::StartingWorkingDirectoryPath);
 
@@ -89,11 +90,12 @@ void DX12Lib::Scene::Init(CommandContext& context)
 	cameraChild->SetPosition(0, 3, 0);
 
 	auto lightNode = m_rootNode->AddChild();
+	lightNode->SetPosition(0, 100, 0);
 	auto light = lightNode->AddComponent<LightComponent>();
-	light->SetLightColor({ 0.6f, 0.6f, 0.6f });
+	light->SetCastsShadows(true);
+	light->SetLightColor({ 0.9f, 0.9f, 0.9f });
+	lightNode->Rotate(lightNode->GetRight(), 1.2f);
 
-	lightNode->Rotate(lightNode->GetRight(), 0.5f);
-	
 
 	m_rootNode->Init(context);
 }
@@ -120,7 +122,7 @@ void DX12Lib::Scene::Draw(ID3D12GraphicsCommandList* cmdList)
 	
 }
 
-void DX12Lib::Scene::Traverse(ModelRenderer* modelRenderer, aiNode* node, SceneNode* parentNode)
+void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, SceneNode* parentNode)
 {
 	assert(modelRenderer != nullptr);
 	assert(node != nullptr);
@@ -167,7 +169,7 @@ void DX12Lib::Scene::Traverse(ModelRenderer* modelRenderer, aiNode* node, SceneN
 
 	for (UINT i = 0; i < node->mNumChildren; i++)
 	{
-		Traverse(modelRenderer, node->mChildren[i], firstChildren);
+		TraverseModel(modelRenderer, node->mChildren[i], firstChildren);
 	}
 
 }

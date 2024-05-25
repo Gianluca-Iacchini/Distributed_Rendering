@@ -7,12 +7,12 @@ using namespace Graphics;
 using namespace Microsoft::WRL;
 using namespace DX12Lib;
 
-void DepthBuffer::Create(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr)
+void DepthBuffer::Create(uint32_t width, uint32_t height, DXGI_FORMAT format)
 {
-	Create(width, height, 1, format, vidMemPtr);
+	Create(width, height, 1, format);
 }
 
-void DepthBuffer::Create(uint32_t width, uint32_t height, uint32_t numSamples, DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr)
+void DepthBuffer::Create(uint32_t width, uint32_t height, uint32_t numSamples, DXGI_FORMAT format)
 {
 	D3D12_RESOURCE_DESC depthBufferDesc = DescribeTex2D(width, height, 1, 1, format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	depthBufferDesc.SampleDesc.Count = numSamples;
@@ -23,10 +23,10 @@ void DepthBuffer::Create(uint32_t width, uint32_t height, uint32_t numSamples, D
 	optimizedClearValue.DepthStencil.Stencil = m_clearStencil;
 
 	CreateTextureResource(*s_device, depthBufferDesc, optimizedClearValue);
-	CreateDerviedViews(s_device->Get(), format);
+	CreateDerivedViews(s_device->Get(), format);
 }
 
-void DepthBuffer::CreateDerviedViews(ID3D12Device* device, DXGI_FORMAT format)
+void DepthBuffer::CreateDerivedViews(ID3D12Device* device, DXGI_FORMAT format)
 {
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 

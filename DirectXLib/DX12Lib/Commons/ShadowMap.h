@@ -1,7 +1,8 @@
 #pragma once
 #include "DX12Lib/DXWrapper/DepthBuffer.h"
 #include "DX12Lib/Commons/Camera.h"
-#include "DX12Lib/Scene/Component.h"
+#include "DX12Lib/Scene/SceneNode.h"
+#include "DX12Lib/Commons/CommonConstants.h"
 
 namespace DX12Lib
 {
@@ -13,6 +14,7 @@ namespace DX12Lib
 	class ShadowBuffer : public DepthBuffer
 	{
 	public:
+		void Create(uint32_t width, uint32_t height);
 		void RenderShadowStart(CommandContext* context);
 		void RenderShadowEnd(CommandContext* context);
 	private:
@@ -20,15 +22,21 @@ namespace DX12Lib
 		D3D12_RECT m_bufferScissorRect;
 	};
 
-	class ShadowCamera : private Camera, public Component
+	class ShadowCamera : private Camera
 	{
-		void UpdateViewMatrix(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 shadowCenter, DirectX::XMFLOAT3 shadowBounds,
-							  UINT bufferWidth, UINT bufferHeight, UINT bufferPrecision);
-
-		void Update(CommandContext& context) override;
-
+	public:
+		ShadowCamera() : Camera() {}
+		void SetCenter(const DirectX::XMFLOAT3& center) { m_shadowCenter = center; }
+		void SetBounds(const DirectX::XMFLOAT3& bounds) { m_shadowBounds = bounds; }
+		void UpdateShadowMatrix(SceneNode& node);
+		DirectX::GraphicsResource GetShadowCB();
+		DirectX::XMFLOAT4X4 GetShadowTransform() const { return m_shadowTransform; }
 	private:
-		DirectX::XMFLOAT3 m_lastCameraPos = { 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT3 m_shadowCenter = { 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT3 m_shadowBounds = { 250.f, 250.f, 250.f };
+		DirectX::XMFLOAT4X4 m_shadowTransform = MathHelper::Identity4x4();
+		ConstantBufferCamera m_shadowCB;
+		
 	};
 }
 

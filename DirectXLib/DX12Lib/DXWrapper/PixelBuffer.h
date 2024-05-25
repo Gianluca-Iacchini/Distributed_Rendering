@@ -15,6 +15,7 @@ namespace DX12Lib {
 		UINT GetWidth() const { return m_width; }
 		UINT GetHeight() const { return m_height; }
 		UINT GetArraySize() const { return m_arraySize; }
+		const DXGI_FORMAT& GetFormat() const { return m_format; }
 
 	protected:
 		D3D12_RESOURCE_DESC DescribeTex2D(UINT width, UINT height, UINT arraySize, UINT numMips, DXGI_FORMAT format, UINT flags);

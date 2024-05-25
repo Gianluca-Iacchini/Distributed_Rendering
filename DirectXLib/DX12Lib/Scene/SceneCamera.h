@@ -14,7 +14,7 @@ namespace DX12Lib
 		void Render(CommandContext& context) override;
 		void OnResize(CommandContext& context) override;
 
-
+		void UseCamera(CommandContext& context);
 
 	private:
 		DirectX::XMFLOAT3 m_lastPosition = { 0.0f, 0.0f, 0.0f };

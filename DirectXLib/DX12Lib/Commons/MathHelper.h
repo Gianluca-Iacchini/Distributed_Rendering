@@ -29,6 +29,31 @@ public:
 		return x < low ? low : (x > high ? high : x);
 	}
 
+	template <typename T>
+	static T Lerp(const T& a, const T& b, const float& t)
+	{
+		return a * (1.0f - t) + b * t;
+	}
+
+	template <typename T>
+	static T MinMaxScale(const T& min, const T& max, const T& value)
+	{
+		return (value - min) / (max - min);
+	}
+
+	template <typename T>
+	static float SmoothStep(const T& min, const T& max, const T& t)
+	{
+		T x = Clamp((t - min) / (max - min), 0.0f, 1.0f);
+		return x * x * (3 - 2 * x);
+	}
+
+	template <typename T>
+	static float Abs(const T& x)
+	{
+		return x >= 0 ? x : -x;
+	}
+
 	static float RandF()
 	{
 		return (float)(rand()) / (float)RAND_MAX;
@@ -44,6 +69,8 @@ public:
 		return a + rand() % ((b - a) + 1);
 	}
 
+
+
 	static DirectX::XMVECTOR SphericalToCartesian(float radius, float theta, float phi)
 	{
 		return DirectX::XMVectorSet(
@@ -55,5 +82,12 @@ public:
 	}
 
 	static const float Infinity;
+
+	static std::wstring MatrixToWstring(const DirectX::XMMATRIX& matrix);
+
+
+	static std::wstring Matrix4x4ToWstring(const DirectX::XMFLOAT4X4& matrix);
+	
+
 };
 

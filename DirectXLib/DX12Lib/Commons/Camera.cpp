@@ -74,6 +74,33 @@ void Camera::SetLens(float fovY, float aspect, float zn, float zf)
 	XMStoreFloat4x4(&m_proj, P);
 }
 
+void DX12Lib::Camera::SetOrthogonalBounds(DirectX::XMFLOAT3 center, DirectX::XMFLOAT3 halfExtents)
+{
+	float l = center.x - halfExtents.x;
+	float r = center.x + halfExtents.x;
+	float b = center.y - halfExtents.y;
+	float t = center.y + halfExtents.y;
+	float n = center.z - halfExtents.z;
+	float f = center.z + halfExtents.z;
+
+	m_nearZ = n;
+	m_farZ = f;
+
+	XMMATRIX P = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+	XMStoreFloat4x4(&m_proj, P);
+}
+
+void DX12Lib::Camera::SetOrthogonalBounds(float width, float height, float nearZ, float farZ)
+{
+	m_nearZ = nearZ;
+	m_farZ = farZ;
+
+	XMMATRIX P = XMMatrixOrthographicLH(width, height, nearZ, farZ);
+
+	XMStoreFloat4x4(&m_proj, P);
+}
+
 
 XMMATRIX Camera::GetView() const
 {

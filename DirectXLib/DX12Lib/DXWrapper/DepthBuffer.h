@@ -18,10 +18,9 @@ namespace DX12Lib {
 			m_stencilSrvHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 		}
 
-		void Create(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+		void Create(uint32_t width, uint32_t height, DXGI_FORMAT format);
 
-		void Create(uint32_t width, uint32_t height, uint32_t numSamples, DXGI_FORMAT format,
-			D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+		void Create(uint32_t width, uint32_t height, uint32_t numSamples, DXGI_FORMAT format);
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV() const { return m_dsvHandle[0]; }
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV_Depth() const { return m_dsvHandle[1]; }
@@ -35,7 +34,7 @@ namespace DX12Lib {
 
 	protected:
 
-		void CreateDerviedViews(ID3D12Device* device, DXGI_FORMAT format);
+		void CreateDerivedViews(ID3D12Device* device, DXGI_FORMAT format);
 
 		float m_clearDepth = 0.0f;
 		uint8_t m_clearStencil = 0;

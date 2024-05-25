@@ -8,6 +8,7 @@ struct Light
     float fallOffEnd;
     float3 position;
     float spotPower;
+    float4x4 shadowMatrix;
 };
 
 struct GenericMaterial
@@ -97,7 +98,7 @@ struct SurfaceData
 };
 
 static const float PI = 3.14159265;
-static const float3 kDielectricSpecular = float3(0.04, 0.04, 0.04);
+static const float kDielectricSpecular = 0.04f;
 static const float EPSILON = 1e-6f;
 
 /* https://github.com/microsoft/DirectXTK12/blob/main/Src/Shaders/Utilities.fxh */
@@ -130,16 +131,6 @@ float3 ComputeTwoChannelNormal(float2 normal)
 }
 
 
-//float3 SchlickFresnel3(float refractiveIndex, float3 normal, float3 lightVec)
-//{
-//    float3 R0 = (refractiveIndex-1) / (refractiveIndex + 1);
-//    R0 = R0 * R0;
-    
-//    float f0 = 1.0f - saturate(dot(normal, lightVec));
-    
-
-//    return R0 + (1.0f - R0) * pow(f0, 5.0f);
-//}
 
 float Spec(float3 lightVec, SurfaceData surfData, float shininess)
 {
@@ -149,20 +140,6 @@ float Spec(float3 lightVec, SurfaceData surfData, float shininess)
     return pow(RdotV, shininess);
 }
 
-//float3 Specular(float3 lightVec, SurfaceData surfData, float shininess, float IoR)
-//{    
-//    // Light vector is the opposite of the light direction
-//    float3 halfVec = normalize(lightVec + surfData.N);
-    
-//    float roughness = (shininess + 8.0f) * pow(max(dot(halfVec, surfData.N), 0.0f), shininess) / 8.0f;
-//    float3 fresnelFactor = SchlickFresnel3(IoR, surfData.N, lightVec);
-    
-//    float3 spec = fresnelFactor * roughness;
-    
-//    spec = spec / (spec + 1.0f);
-    
-//    return spec;
-//}
 
 float3 ComputeDirectionalLight(Light light, SurfaceData surfData, float shininess, float IoR)
 {
@@ -193,7 +170,7 @@ float3 FresnelShlick(float3 F0, float3 F90, float cosine)
 
 float3 Diffuse_Burley(SurfaceData surfData, float roughness, float LdotH, float NdotL)
 {
-    float fd90 = 0.5 + 2.0 * roughness * LdotH * LdotH;
+    float fd90 = 0.5f + 2.0f * roughness * LdotH * LdotH;
     
     return FresnelShlick(1, fd90, NdotL).x * FresnelShlick(1, fd90, surfData.NdotV).x;
 }
@@ -244,5 +221,5 @@ float3 PBRDirectionalLight(Light Light, SurfaceData surfData, float roughness)
     float3 diffuse = Diffuse_Burley(surfData, roughness, LdotH, NdotL);
     float3 specular = Specular_BRDF(surfData, LdotH, NdotH, alpha);
     
-   return NdotL * Light.color * ((surfData.c_diff * diffuse) + specular);
+    return NdotL * Light.color * ((surfData.c_diff * diffuse) + specular);
 }

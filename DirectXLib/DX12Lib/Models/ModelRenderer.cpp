@@ -87,7 +87,39 @@ void DX12Lib::ModelRenderer::Render(CommandContext& context)
 	}
 }
 
-void DX12Lib::ModelRenderer::Draw(CommandContext* context, std::wstring psoName)
+void DX12Lib::ModelRenderer::DrawMeshes(CommandContext* context, std::vector<MeshRenderer*> meshRenderers)
+{
+	assert(context != nullptr && "Context is null");
+
+	Model->UseBuffers(context);
+	for (auto& mesh : meshRenderers)
+	{
+		mesh->DrawMesh(context);
+	}
+}
+
+void DX12Lib::ModelRenderer::DrawAllBatch(CommandContext* context, std::wstring psoName)
+{
+	if (Model == nullptr)
+		return;
+
+	auto batch = m_psoMeshRendererBatch.find(psoName);
+
+	if (batch == m_psoMeshRendererBatch.end())
+		return;
+
+	DrawMeshes(context, batch->second);
+}
+
+void DX12Lib::ModelRenderer::DrawAll(CommandContext* context)
+{
+	for (auto& batch : m_psoMeshRendererBatch)
+	{
+		DrawAllBatch(context, batch.first);
+	}
+}
+
+void DX12Lib::ModelRenderer::DrawBatchOpaque(CommandContext* context, std::wstring psoName)
 {
 	assert(context != nullptr && "Context is null");
 
@@ -99,10 +131,47 @@ void DX12Lib::ModelRenderer::Draw(CommandContext* context, std::wstring psoName)
 	if (batch == m_psoMeshRendererBatch.end())
 		return;
 
-	this->Model->UseBuffers(context);
+	std::vector<MeshRenderer*> opaqueMeshes;
 
 	for (auto& mesh : batch->second)
 	{
-		mesh->DrawMesh(context);
+		if (!mesh->GetMaterial()->IsTransparent())
+			opaqueMeshes.push_back(mesh);
 	}
+
+	DrawMeshes(context, opaqueMeshes);
+}
+
+void DX12Lib::ModelRenderer::DrawBatchTransparent(CommandContext* context, std::wstring psoName)
+{
+	assert(context != nullptr && "Context is null");
+
+	if (Model == nullptr)
+		return;
+
+	auto batch = m_psoMeshRendererBatch.find(psoName);
+
+	if (batch == m_psoMeshRendererBatch.end())
+		return;
+
+	std::vector<MeshRenderer*> transparentMeshes;
+
+	for (auto& mesh : batch->second)
+	{
+		if (mesh->GetMaterial()->IsTransparent())
+			transparentMeshes.push_back(mesh);
+	}
+
+	DrawMeshes(context, transparentMeshes);
+}
+
+
+void DX12Lib::ModelRenderer::DrawOpaque(CommandContext* context)
+{
+	DrawMeshes(context, m_opaqueMeshes);
+}
+
+void DX12Lib::ModelRenderer::DrawTransparent(CommandContext* context)
+{
+	DrawMeshes(context, m_transparentMeshes);
 }
