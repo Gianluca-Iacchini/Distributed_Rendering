@@ -93,7 +93,7 @@ void DX12Lib::Scene::Init(CommandContext& context)
 	lightNode->SetPosition(0, 100, 0);
 	auto light = lightNode->AddComponent<LightComponent>();
 	light->SetCastsShadows(true);
-	light->SetLightColor({ 0.9f, 0.9f, 0.9f });
+	light->SetLightColor({ 0.6f, 0.6f, 0.6f });
 	lightNode->Rotate(lightNode->GetRight(), 1.2f);
 
 

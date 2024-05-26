@@ -13,6 +13,8 @@
 #include "ResourceUploadBatch.h"
 #include "DX12Lib/Scene/Scene.h"
 #include "DX12Lib/DXWrapper/Swapchain.h"
+#include "DX12Lib/Encoder/NVEncoder.h"
+
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -42,6 +44,8 @@ class AppTest : public D3DApp
 
 	std::shared_ptr<RootSignature> m_rootSignature;
 	std::shared_ptr<PipelineState> m_pipelineState;
+
+	DX12Lib::NVEncoder m_encoder;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -77,6 +81,8 @@ public:
 		context->Finish(true);
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
+
+		m_encoder.Initialize();
 
 		return true;
 	}

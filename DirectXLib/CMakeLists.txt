@@ -5,6 +5,10 @@ file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h" "${CMAKE_CURREN
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_FILES})
 
+SET(NVCODEC_HEADER "../extern/NvidiaCodec/Include/cuviddec.h" "../extern/NvidiaCodec/Include/nvcuvid.h" "../extern/NvidiaCodec/Include/nvEncodeAPI.h")
+
+source_group("NVCodec" FILES ${NVCODEC_HEADER})
+
 set(VERTEX_SHADERS DX12Lib/DXWrapper/Shaders/Basic_VS.hlsl DX12Lib/DXWrapper/Shaders/Depth_VS.hlsl)
 
 set(PIXEL_SHADERS 
@@ -40,20 +44,23 @@ set_source_files_properties( ${PIXEL_SHADERS}
 	VS_SHADER_ENTRYPOINT PS
 )
 
-add_library(DirectXLib STATIC ${SOURCE_FILES} ${SHADERS})
+add_library(DirectXLib STATIC ${SOURCE_FILES} ${NVCODEC_HEADER} ${SHADERS})
 target_precompile_headers(DirectXLib PRIVATE "DX12Lib/pch.h")
 
 set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
 
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../extern/NVidiaCodec/Include")
 target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx)
 target_link_libraries(DirectXLib 
     PUBLIC assimp
     PUBLIC DirectXTex
     PUBLIC DirectXTK12
     PUBLIC spdlog
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvcuvid.lib"
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvencodeapi.lib"
     PUBLIC d3d12.lib
     PUBLIC dxgi.lib
     PUBLIC dxguid.lib)

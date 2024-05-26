@@ -39,7 +39,6 @@ set_target_properties (DirectXTex texassemble texconv texdiag ddsview
 
 
 add_subdirectory(extern/spdlog)
-
 add_subdirectory(extern/DirectXTK12)
 add_subdirectory(DirectXLib)
 add_subdirectory(LocalIllumination)

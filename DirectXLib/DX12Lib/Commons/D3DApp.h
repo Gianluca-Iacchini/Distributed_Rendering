@@ -83,7 +83,6 @@ namespace DX12Lib {
 
 		std::unique_ptr<DX12Window> m_dx12Window;
 
-		//std::unique_ptr<Fence> m_appFence;
 		UINT64 mCurrentFence = 0;
 
 		std::wstring mMainWndCaption = L"D3D12 Application";
@@ -91,6 +90,5 @@ namespace DX12Lib {
 
 		int mClientWidth = 1920;
 		int mClientHeight = 1080;
-
 	};
 }
