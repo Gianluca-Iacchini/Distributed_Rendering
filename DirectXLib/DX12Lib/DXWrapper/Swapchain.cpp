@@ -10,7 +10,7 @@ using namespace DX12Lib;
 
 
 Swapchain::Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat) : 
-	m_window(window), m_backBufferFormat(backBufferFormat)
+	m_window(window)
 {
 	m_swapchain.Reset();
 
@@ -63,7 +63,7 @@ void Swapchain::Resize(UINT width, UINT height)
 	}
 
 	ThrowIfFailed(m_swapchain->ResizeBuffers(BufferCount, width, height, 
-		m_backBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING));
+		Graphics::m_backBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING));
 
 	for (int i = 0; i < BufferCount; i++)
 	{

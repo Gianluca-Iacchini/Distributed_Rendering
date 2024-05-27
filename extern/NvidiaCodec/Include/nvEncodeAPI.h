@@ -2604,7 +2604,7 @@ typedef struct _NV_ENC_MAP_INPUT_RESOURCE
 {
     uint32_t                   version;                   /**< [in]:  Struct version. Must be set to ::NV_ENC_MAP_INPUT_RESOURCE_VER. */
     uint32_t                   subResourceIndex;          /**< [in]:  Deprecated. Do not use. */
-    void*                      inputResource;             /**< [in]:  Deprecated. Do not use. */
+    void*                      inpRes;             /**< [in]:  Deprecated. Do not use. */
     NV_ENC_REGISTERED_PTR      registeredResource;        /**< [in]:  The Registered resource handle obtained by calling NvEncRegisterInputResource. */
     NV_ENC_INPUT_PTR           mappedResource;            /**< [out]: Mapped pointer corresponding to the registeredResource. This pointer must be used in NV_ENC_PIC_PARAMS::inputBuffer parameter in ::NvEncEncodePicture() API. */
     NV_ENC_BUFFER_FORMAT       mappedBufferFmt;           /**< [out]: Buffer format of the outputResource. This buffer format must be used in NV_ENC_PIC_PARAMS::bufferFmt if client using the above mapped resource pointer. */

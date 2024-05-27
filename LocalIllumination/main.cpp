@@ -72,17 +72,19 @@ public:
 #endif
 		m_scene = std::make_unique<Scene>(this->m_Time);
 
-		bool loaded = m_scene->AddFromFile(sourcePath.c_str());
+		//bool loaded = m_scene->AddFromFile(sourcePath.c_str());
 
-		assert(loaded && "Model not loaded");
+		//assert(loaded && "Model not loaded");
 
 		m_scene->Init(*context);
+
+		m_encoder.Initialize(this->mClientWidth, this->mClientHeight);
 
 		context->Finish(true);
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
-		m_encoder.Initialize();
+
 
 		return true;
 	}
@@ -139,10 +141,28 @@ public:
 		m_scene->Render(*context);
 
 		Renderer::RenderLayers(context);
+		
+		auto& backBuffer = Renderer::GetCurrentBackBuffer();
+		NvEncInputFrame inputFrame = m_encoder.GetNextInputFrame();
+
+		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
+
+		context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, backBuffer.Get());
+
+		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
+
+		std::vector<std::vector<std::uint8_t>> packet;
+		m_encoder.EncodeFrame(*context, backBuffer, packet);
+
+		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
 
 		auto fenceVal = context->Finish(true);
 
 		Renderer::Present(fenceVal);
+
+
 	}
 
 	virtual void OnResize() override

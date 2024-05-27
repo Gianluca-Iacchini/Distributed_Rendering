@@ -28,6 +28,7 @@ namespace DX12Lib {
 		void Reset();
 
 		void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
+		void TransitionResource(ID3D12Resource* res, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
 		void BindDescriptorHeaps(DescriptorHeap heap);
 		void ClearColor(ColorBuffer& target, D3D12_RECT* rect);
 		void ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect);

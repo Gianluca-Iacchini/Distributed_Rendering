@@ -4,7 +4,8 @@
 #include "DX12Lib/DXWrapper/Adapter.h"
 #include "dxgidebug.h"
 
-
+#define STREAMING 1
+#define DRED 1
 
 using namespace Microsoft::WRL;
 using namespace DX12Lib;
@@ -20,7 +21,11 @@ namespace Graphics
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV
 	};
 
+#ifdef STREAMING
+	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+#else
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+#endif
 	DXGI_FORMAT m_depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	std::shared_ptr<Device> Graphics::s_device = nullptr;

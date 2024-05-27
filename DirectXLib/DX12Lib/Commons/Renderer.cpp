@@ -131,7 +131,7 @@ namespace Graphics::Renderer
 
 		context->SetViewportAndScissor(s_screenViewport, s_scissorRect);
 
-		auto currentBackBuffer = Renderer::GetCurrentBackBuffer();
+		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
 
 		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
@@ -176,8 +176,6 @@ namespace Graphics::Renderer
 			}
 		}
 
-		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
-
 		m_renderers.clear();
 		m_lights.clear();
 		m_mainCamera = nullptr;
@@ -217,6 +215,9 @@ namespace Graphics::Renderer
 	void Present(UINT64 fenceVal)
 	{
 		backBufferFences[s_swapchain->CurrentBufferIndex] = fenceVal;
+
+		auto& curBackBuf = GetCurrentBackBuffer();
+
 
 		HRESULT hr = s_swapchain->GetComPointer()->Present(0, 0);
 

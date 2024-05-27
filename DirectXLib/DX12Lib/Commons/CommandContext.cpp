@@ -68,6 +68,25 @@ void CommandContext::TransitionResource(Resource& res, D3D12_RESOURCE_STATES new
 	}
 }
 
+void DX12Lib::CommandContext::TransitionResource(ID3D12Resource* res, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES newState, bool transitionNow)
+{
+	if (beforeState != newState)
+	{
+		assert(m_numBarriersToFlush < MAX_RESOURCE_BARRIERS && "Exceeded maximum number of resource barriers");
+		D3D12_RESOURCE_BARRIER& barrier = m_resourceBarrier[m_numBarriersToFlush++];
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = res;
+		barrier.Transition.StateBefore = beforeState;
+		barrier.Transition.StateAfter = newState;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	}
+
+	if (transitionNow || m_numBarriersToFlush == MAX_RESOURCE_BARRIERS)
+	{
+		FlushResourceBarriers();
+	}
+}
+
 void CommandContext::FlushResourceBarriers()
 {
 	if (m_numBarriersToFlush > 0)

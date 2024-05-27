@@ -4,22 +4,103 @@
 
 namespace DX12Lib {
 
+    struct NvEncInputFrame
+    {
+        void* inputPtr = nullptr;
+        UINT pitch = 0;
+    };
+
     class NVEncoder
     {
+        using ENCODED_PACKET = std::vector<std::vector<std::uint8_t>>;
+
     public:
         NVEncoder() = default;
-        ~NVEncoder() = default;
+        ~NVEncoder();
 
-        void Initialize();
-        void EncodeFrame(ID3D12Resource* pResource, ID3D12Resource* pOutputResource);
+        void Initialize(UINT width, UINT height);
+        void EncodeFrame(CommandContext& context, Resource& resource, ENCODED_PACKET& vPacket);
+        void EndEncode(ENCODED_PACKET& packet);
+        NvEncInputFrame& GetNextInputFrame();
+    private:
+        bool SupportsAsyncMode(GUID codecGUID);
+        /// <summary>
+        /// Allocate buffers to hold the input frames
+        /// </summary>
+        /// <param name="nInputBuffers"></param>
+        void AllocateInputBuffers(UINT nInputBuffers);
+        void AllocateOutputBuffers(UINT nOutputBuffers);
+        void RegisterInputResources(UINT width, UINT height);
+        void RegisterOutputResources(UINT bfrSize);
+        void WaitForFence(ID3D12Fence* fence, UINT64 fenceValue);
+        NV_ENC_REGISTERED_PTR RegisterResource(void* buffer, 
+            int width, int height, 
+            NV_ENC_BUFFER_FORMAT bufFormat, 
+            NV_ENC_BUFFER_USAGE bufUsage,
+            NV_ENC_FENCE_POINT_D3D12* inputFencePoint = nullptr);
+
+        void MapResource(UINT buffIndex);
+
+        NVENCSTATUS Encode(NV_ENC_INPUT_RESOURCE_D3D12* inputResource, NV_ENC_OUTPUT_RESOURCE_D3D12* outputResource);
+
+
+        void FlushEncoder();
+        void ReleaseInputBuffers();
+        void ReleaseOutputBuffers();
+        void UnregisterInputResources();
+        void UnregisterOutputResources();
+
+        void* GetCompletionEvent(UINT index) { return (m_completionEvents.size() == m_nEncodeBuffer) ? m_completionEvents[index] : nullptr; }
+
 
     private:
         void* m_hEncoder = nullptr;
+        NV_ENC_INITIALIZE_PARAMS m_initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
+        NV_ENC_CONFIG m_encodeConfig = { NV_ENC_CONFIG_VER };
+        GUID m_hevcCodecGUID = NV_ENC_CODEC_HEVC_GUID;
+        GUID m_presetGUID = NV_ENC_PRESET_P3_GUID;
+        UINT m_width = 0;
+        UINT m_height = 0;
+
+        UINT m_nEncodeBuffer = 0;
+        UINT m_iToSend = 0;
+
+        std::vector<void*> m_completionEvents;
+
+        std::vector<NV_ENC_INPUT_PTR> m_mappedInputBuffers;
+        std::vector<NV_ENC_OUTPUT_PTR> m_mappedOutputBuffers;
+
+
+
+        std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_inputBuffers;
+        std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_outputBuffers;
+
+        std::vector<std::unique_ptr<NV_ENC_INPUT_RESOURCE_D3D12>> m_inputResources;
+        std::vector<std::unique_ptr<NV_ENC_OUTPUT_RESOURCE_D3D12>> m_outputResources;
+
+        std::vector<NV_ENC_REGISTERED_PTR> m_registeredResources;
+        std::vector<NV_ENC_REGISTERED_PTR> m_registeredResourcesOutputBuffers;
+
+
+        Microsoft::WRL::ComPtr<ID3D12Fence> m_inputFence;
+        Microsoft::WRL::ComPtr<ID3D12Fence> m_outputFence;
+
+        std::vector<NvEncInputFrame> m_inputFrames;
+
+        UINT64 m_inputFenceValue = 0;
+        UINT64 m_outputFenceValue = 0;
+        HANDLE m_fenceEvent = nullptr;
+
+        const DXGI_FORMAT m_bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
     public:
         static NV_ENCODE_API_FUNCTION_LIST m_nvEncodeAPI;
+
+
+
     };
 
+    
 
     // From Nvidia Video Codec Samples
 

@@ -14,7 +14,7 @@ namespace DX12Lib {
 	class Swapchain
 	{
 	public:
-		Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+		Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat);
 		~Swapchain();
 
 		void Initialize(CommandQueue& commandQueue);
@@ -34,8 +34,6 @@ namespace DX12Lib {
 
 		bool m_isMsaaEnabled = false;
 		unsigned int m_msaaQuality = 0;
-
-		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 		DX12Window& m_window;
 		Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapchain;
