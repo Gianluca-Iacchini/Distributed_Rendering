@@ -32,8 +32,6 @@ void CommandContext::Initialize()
 	s_commandQueueManager->CreateCommandList(m_type, &m_commandList, &m_currentAllocator);
 }
 
-#include <iostream>
-
 void CommandContext::TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow)
 {
 	D3D12_RESOURCE_STATES oldState = res.m_currentState;

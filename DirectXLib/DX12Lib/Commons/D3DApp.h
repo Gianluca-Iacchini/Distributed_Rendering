@@ -43,9 +43,10 @@ namespace DX12Lib {
 		virtual bool Initialize();
 
 	protected:
-		virtual void OnResize();
+
 		virtual void Update(const GameTime& gt) = 0;
 		virtual void Draw(const GameTime& gt) = 0;
+		virtual void OnResize(CommandContext& commandContext);
 
 		// Handling mouse input
 		virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
@@ -57,12 +58,10 @@ namespace DX12Lib {
 		bool InitConsole();
 		bool InitDirect3D();
 		void FlushCommandQueue();
-
-		//ColorBuffer& CurrentBackBuffer() const;
-		//D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
-		//D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
-
 		void CalculateFrameStats(GameTime& gt);
+
+	private:
+		void ResizeCallback();
 
 	protected:
 

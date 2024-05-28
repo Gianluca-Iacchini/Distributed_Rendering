@@ -73,7 +73,7 @@ void NVEncoder::Initialize(UINT width, UINT height)
 	m_initializeParams.encodeHeight = height;
 	m_initializeParams.darWidth = width;
 	m_initializeParams.darHeight = height;
-	m_initializeParams.frameRateNum = 60;
+	m_initializeParams.frameRateNum = maxFrames;
 	m_initializeParams.frameRateDen = 1;
 	m_initializeParams.enablePTD = 1;
 	m_initializeParams.reportSliceOffsets = 0;

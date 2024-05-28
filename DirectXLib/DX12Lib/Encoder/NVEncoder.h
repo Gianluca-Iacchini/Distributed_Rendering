@@ -94,6 +94,9 @@ namespace DX12Lib {
         const DXGI_FORMAT m_bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
     public:
+        UINT maxFrames = 60;
+
+    private:
         static NV_ENCODE_API_FUNCTION_LIST m_nvEncodeAPI;
 
 

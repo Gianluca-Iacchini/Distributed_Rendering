@@ -12,7 +12,7 @@ namespace DX12Lib {
 	class CommandAllocator
 	{
 	public:
-		CommandAllocator(Device& device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
+		CommandAllocator(Device& device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT, std::wstring allocDebugName = L"");
 		~CommandAllocator();
 		void Reset() { ThrowIfFailed(m_commandAllocator->Reset()); }
 

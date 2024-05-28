@@ -4,7 +4,6 @@
 #include "DX12Lib/DXWrapper/Adapter.h"
 #include "dxgidebug.h"
 
-#define STREAMING 1
 #define DRED 1
 
 using namespace Microsoft::WRL;

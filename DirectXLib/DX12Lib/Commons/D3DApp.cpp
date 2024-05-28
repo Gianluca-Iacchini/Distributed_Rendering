@@ -61,7 +61,7 @@ void D3DApp::Set4xMsaaState(bool value)
 
 		// Recreate the swapchain and buffers with new multisample settings.
 		Renderer::InitializeSwapchain(m_dx12Window.get());
-		OnResize();
+		ResizeCallback();
 	}
 }
 
@@ -116,23 +116,20 @@ bool D3DApp::Initialize()
 	if (!InitDirect3D())
 		return false;
 
+
+
 	// Do the initial resize code.
-	OnResize();
+	ResizeCallback();
 
 	s_commandQueueManager->GetGraphicsQueue().Flush();
 
 	return true;
 }
 
-void D3DApp::OnResize()
+void DX12Lib::D3DApp::OnResize(CommandContext& commandContext)
 {
-
 	// Flush before changing any resources.
 	FlushCommandQueue();
-
-
-
-	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	Renderer::s_swapchain->Resize(mClientWidth, mClientHeight);
 
@@ -142,7 +139,7 @@ void D3DApp::OnResize()
 	Renderer::s_depthStencilBuffer->GetComPtr().Reset();
 	Renderer::s_depthStencilBuffer->Create(mClientWidth, mClientHeight, m_depthStencilFormat);
 
-	context->TransitionResource(*Renderer::s_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+	commandContext.TransitionResource(*Renderer::s_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 
 	Renderer::s_screenViewport.TopLeftX = 0;
 	Renderer::s_screenViewport.TopLeftY = 0;
@@ -152,7 +149,14 @@ void D3DApp::OnResize()
 	Renderer::s_screenViewport.MaxDepth = 1.0f;
 
 	Renderer::s_scissorRect = { 0, 0, mClientWidth, mClientHeight };
-	
+}
+
+void D3DApp::ResizeCallback()
+{
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	OnResize(*context);
+
 	context->Finish(true);
 }
 

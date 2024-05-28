@@ -8,7 +8,7 @@
 #include "DX12Lib/Models/MaterialManager.h"
 #include "Renderer.h"
 
-
+#define STREAMING 1
 
 namespace DX12Lib {
 	class Device;

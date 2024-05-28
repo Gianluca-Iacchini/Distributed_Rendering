@@ -5,9 +5,13 @@ using namespace DX12Lib;
 
 using namespace Microsoft::WRL;
 
-CommandAllocator::CommandAllocator(Device& device, D3D12_COMMAND_LIST_TYPE type)
+CommandAllocator::CommandAllocator(Device& device, D3D12_COMMAND_LIST_TYPE type, std::wstring debugName)
 {
 	ThrowIfFailed(device.GetComPtr()->CreateCommandAllocator(type, IID_PPV_ARGS(&m_commandAllocator)));
+
+#ifdef _DEBUG || DEBUG
+	m_commandAllocator->SetName(debugName.c_str());
+#endif
 }
 
 CommandAllocator::~CommandAllocator()
@@ -34,6 +38,8 @@ CommandAllocatorPool::~CommandAllocatorPool()
 
 CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceValue)
 {
+	static UINT m_allocatorCount = 0;
+
 	std::lock_guard<std::mutex> lock(m_cmdAllocatorMutex);
 
 	// If allocator is in the pool then we check if it is ready to be reused, reset it and return it
@@ -49,12 +55,16 @@ CommandAllocator* CommandAllocatorPool::RequestAllocator(UINT64 completedFenceVa
 			allocator->Reset();
 			m_availableCommandAllocators.pop();
 
+			std::wstring reusedName = L"ReusedAllocator" + std::to_wstring(m_allocatorCount);
+			allocator->Get()->SetName(reusedName.c_str());
+			m_allocatorCount++;
+
 			return allocator;
 		}
 	}
 
 	// Otherwise we create a new allocator and return it
-	CommandAllocator* cmdAllocator = new CommandAllocator(*(Graphics::s_device), m_type);
+	CommandAllocator* cmdAllocator = new CommandAllocator(*(Graphics::s_device), m_type, L"NewAllocator" + std::to_wstring(m_commandAllocatorPool.size()));
 	m_commandAllocatorPool.push_back(cmdAllocator);
 
 	return cmdAllocator;

@@ -72,13 +72,13 @@ public:
 #endif
 		m_scene = std::make_unique<Scene>(this->m_Time);
 
-		//bool loaded = m_scene->AddFromFile(sourcePath.c_str());
+		bool loaded = m_scene->AddFromFile(sourcePath.c_str());
 
-		//assert(loaded && "Model not loaded");
+		assert(loaded && "Model not loaded");
 
 		m_scene->Init(*context);
 
-		m_encoder.Initialize(this->mClientWidth, this->mClientHeight);
+		//m_encoder.Initialize(this->mClientWidth, this->mClientHeight);
 
 		context->Finish(true);
 
@@ -96,14 +96,6 @@ public:
 		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
 		m_costantBufferCommons.totalTime = gt.TotalTime();
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
-
-		//ConstantBufferLight dirLight;
-		//XMVECTOR lightDir = MathHelper::SphericalToCartesian(3.0, m_theta, m_phi); //XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
-		//
-		//XMStoreFloat3(&dirLight.Direction, lightDir);
-		//dirLight.Color = XMFLOAT3(0.6, 0.6, 0.6);
-
-		//m_costantBufferCommons.light = dirLight;
 	}
 
 	virtual void Update(const GameTime& gt) override
@@ -143,19 +135,30 @@ public:
 		Renderer::RenderLayers(context);
 		
 		auto& backBuffer = Renderer::GetCurrentBackBuffer();
-		NvEncInputFrame inputFrame = m_encoder.GetNextInputFrame();
 
-		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
-		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
+#ifdef aaa
+		static UINT timePassed = 0;
 
-		context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, backBuffer.Get());
+		if (timePassed > (1.f / m_encoder.maxFrames))
+		{
+			NvEncInputFrame inputFrame = m_encoder.GetNextInputFrame();
 
-		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
+			context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+			context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
 
-		std::vector<std::vector<std::uint8_t>> packet;
-		m_encoder.EncodeFrame(*context, backBuffer, packet);
+			context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, backBuffer.Get());
 
+			context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+			context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
+			std::vector<std::vector<std::uint8_t>> packet;
+			m_encoder.EncodeFrame(*context, backBuffer, packet);
+			timePassed = 0;
+		}
+		else
+		{
+			timePassed += m_Time.DeltaTime();
+		}
+#endif
 		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
 
 		auto fenceVal = context->Finish(true);
@@ -165,16 +168,12 @@ public:
 
 	}
 
-	virtual void OnResize() override
+	virtual void OnResize(CommandContext& context) override
 	{
-		D3DApp::OnResize();
-		
-		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		D3DApp::OnResize(context);
 
 		if (m_scene != nullptr)
-			m_scene->OnResize(*context);
-
-		context->Finish(true);
+			m_scene->OnResize(context);
 	}
 };
 
