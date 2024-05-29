@@ -37,6 +37,10 @@ IF %VS_VERSION% == 17 (
     GOTO :Exit
 )
 
+ECHO Updating Git Submodules...
+
+git submodule init
+git submodule update
 
 ECHO CMake Generator: %CMAKE_GENERATOR%
 ECHO CMake Binary Directory: %CMAKE_BINARY_DIR%
