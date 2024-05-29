@@ -95,12 +95,9 @@ int D3DApp::Run()
 		Update(m_Time);
 		Draw(m_Time);
 
-		float endFrame = m_Time.TotalTime();
-
-		float elapsedTime = endFrame - startFrame;
-
-		float sleepTime = (1.f / 200.f) - elapsedTime;
 	}
+
+	OnClose();
 
 	return static_cast<int>(msg.wParam);
 }

@@ -3,6 +3,7 @@
 #include "DX12Window.h"
 #include "Mouse.h"
 #include "Keyboard.h"
+#include "D3DApp.h"
 
 using namespace DX12Lib;
 

@@ -11,6 +11,8 @@ namespace DX12Lib {
 	public:
 
 		PixelBuffer() : m_width(0), m_height(0), m_arraySize(1), m_format(DXGI_FORMAT_UNKNOWN) {}
+		PixelBuffer(UINT width, UINT height, UINT arraySize = 1, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN) 
+			: m_width(width), m_height(height), m_arraySize(arraySize), m_format(format) {}
 
 		UINT GetWidth() const { return m_width; }
 		UINT GetHeight() const { return m_height; }

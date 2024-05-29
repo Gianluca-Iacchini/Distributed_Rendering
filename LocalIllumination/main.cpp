@@ -14,6 +14,7 @@
 #include "DX12Lib/Scene/Scene.h"
 #include "DX12Lib/DXWrapper/Swapchain.h"
 #include "DX12Lib/Encoder/NVEncoder.h"
+#include <fstream>
 
 
 using namespace DirectX;
@@ -46,6 +47,12 @@ class AppTest : public D3DApp
 	std::shared_ptr<PipelineState> m_pipelineState;
 
 	DX12Lib::NVEncoder m_encoder;
+	UINT frameCount = 0;
+	float timeSinceRenderStart = 0;
+
+	std::ofstream fpOut;
+
+	std::vector<std::vector<std::uint8_t>> totPackets;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -78,7 +85,9 @@ public:
 
 		m_scene->Init(*context);
 
-		//m_encoder.Initialize(this->mClientWidth, this->mClientHeight);
+		m_encoder.Initialize(this->mClientWidth, this->mClientHeight);
+		m_encoder.StartEncodeLoop();
+
 
 		context->Finish(true);
 
@@ -120,6 +129,7 @@ public:
 
 	virtual void Draw(const GameTime& gt) override
 	{
+
 		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		auto commonRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
@@ -136,28 +146,25 @@ public:
 		
 		auto& backBuffer = Renderer::GetCurrentBackBuffer();
 
-#ifdef aaa
-		static UINT timePassed = 0;
+#ifdef STREAMING
+		static float accumulatedTime = 0;
+		static float lastUpdateTime = 0;
+		static UINT encodedFPS = 0;
 
-		if (timePassed > (1.f / m_encoder.maxFrames))
+		
+		// Accumulator is used to ensure proper frame rate for the encoder
+
+		float totTime = m_Time.TotalTime();
+		float encodeDeltaTime = totTime - lastUpdateTime;
+		lastUpdateTime = totTime;
+		accumulatedTime += encodeDeltaTime;
+
+		if (accumulatedTime >= (1.f / m_encoder.maxFrames))
 		{
-			NvEncInputFrame inputFrame = m_encoder.GetNextInputFrame();
-
-			context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
-			context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
-
-			context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, backBuffer.Get());
-
-			context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-			context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
-			std::vector<std::vector<std::uint8_t>> packet;
-			m_encoder.EncodeFrame(*context, backBuffer, packet);
-			timePassed = 0;
+			accumulatedTime -= (1.f / (m_encoder.maxFrames));
+			m_encoder.SendResourceForEncode(*context, backBuffer);
 		}
-		else
-		{
-			timePassed += m_Time.DeltaTime();
-		}
+
 #endif
 		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
 
@@ -165,7 +172,7 @@ public:
 
 		Renderer::Present(fenceVal);
 
-
+		timeSinceRenderStart += m_Time.DeltaTime();
 	}
 
 	virtual void OnResize(CommandContext& context) override
@@ -174,6 +181,33 @@ public:
 
 		if (m_scene != nullptr)
 			m_scene->OnResize(context);
+	}
+
+	virtual void OnClose() override
+	{
+		m_encoder.StopEncodeLoop();
+
+		auto& totPackets = m_encoder.GetEncodedPackets();
+
+		fpOut = std::ofstream("output.h265", std::ios::out | std::ios::binary);
+		if (!fpOut)
+		{
+			DXLIB_ERROR("Error opening file");
+		}
+
+		for (auto& p : totPackets)
+		{
+			fpOut.write(reinterpret_cast<char*>(p.data()), p.size());
+		}
+
+		frameCount += totPackets.size();
+
+		std::wstring message = L"Time passed " + std::to_wstring(timeSinceRenderStart) + L"s\n";
+		message += L"Expected encoded frames " + std::to_wstring((UINT)(m_encoder.maxFrames * timeSinceRenderStart)) + L"\n";
+		message += L"Encoded " + std::to_wstring(frameCount) + L" frames\n";
+
+
+		OutputDebugStringW(message.c_str());
 	}
 };
 

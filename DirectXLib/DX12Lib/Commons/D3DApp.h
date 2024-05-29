@@ -42,11 +42,14 @@ namespace DX12Lib {
 
 		virtual bool Initialize();
 
+		virtual void OnResize(CommandContext& commandContext);
+
+
 	protected:
 
 		virtual void Update(const GameTime& gt) = 0;
 		virtual void Draw(const GameTime& gt) = 0;
-		virtual void OnResize(CommandContext& commandContext);
+		virtual void OnClose() = 0;
 
 		// Handling mouse input
 		virtual void OnMouseDown(WPARAM btnState, int x, int y) {}

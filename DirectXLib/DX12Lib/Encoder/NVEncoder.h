@@ -19,9 +19,15 @@ namespace DX12Lib {
         ~NVEncoder();
 
         void Initialize(UINT width, UINT height);
-        void EncodeFrame(CommandContext& context, Resource& resource, ENCODED_PACKET& vPacket);
-        void EndEncode(ENCODED_PACKET& packet);
+        void EncodeFrame();
+        void EndEncode();
         NvEncInputFrame& GetNextInputFrame();
+        void SendResourceForEncode(CommandContext& context, Resource& resource);
+        ENCODED_PACKET& GetEncodedPackets() { return m_encodedPackets; }
+
+        void StartEncodeLoop();
+        void StopEncodeLoop();
+
     private:
         bool SupportsAsyncMode(GUID codecGUID);
         /// <summary>
@@ -50,8 +56,16 @@ namespace DX12Lib {
         void UnregisterInputResources();
         void UnregisterOutputResources();
 
-        void* GetCompletionEvent(UINT index) { return (m_completionEvents.size() == m_nEncodeBuffer) ? m_completionEvents[index] : nullptr; }
+        void* GetCompletionEvent(UINT index) { return (m_completionEvents.size() == m_nEncodedBuffer) ? m_completionEvents[index] : nullptr; }
 
+        void GetEncodedPacket(ENCODED_PACKET& packet, bool outputDelay);
+
+        void SendEOS();
+        void WaitForCompletionEvent(UINT event);
+
+        ENCODED_PACKET m_encodedPackets;
+
+        void EncodeThreadLoop();
 
     private:
         void* m_hEncoder = nullptr;
@@ -62,15 +76,22 @@ namespace DX12Lib {
         UINT m_width = 0;
         UINT m_height = 0;
 
-        UINT m_nEncodeBuffer = 0;
+        std::thread encodeThread;
+        bool m_stopEncoding = true;
+
+
+        UINT m_nEncodedBuffer = 0;
         UINT m_iToSend = 0;
+        int m_iGot = 0;
 
         std::vector<void*> m_completionEvents;
 
         std::vector<NV_ENC_INPUT_PTR> m_mappedInputBuffers;
         std::vector<NV_ENC_OUTPUT_PTR> m_mappedOutputBuffers;
 
-
+        std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_availableResourceBuffer;
+        std::queue<Microsoft::WRL::ComPtr<ID3D12Resource>> m_inputCopyQueue;
+        std::queue<Microsoft::WRL::ComPtr<ID3D12Resource>> m_bufferCopyQueue;
 
         std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_inputBuffers;
         std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_outputBuffers;
@@ -92,6 +113,8 @@ namespace DX12Lib {
         HANDLE m_fenceEvent = nullptr;
 
         const DXGI_FORMAT m_bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+
+        std::mutex m_encoderMutex;
 
     public:
         UINT maxFrames = 60;

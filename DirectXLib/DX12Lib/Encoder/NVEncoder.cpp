@@ -97,8 +97,8 @@ void NVEncoder::Initialize(UINT width, UINT height)
 
 	NVENC_API_CALL(m_nvEncodeAPI.nvEncInitializeEncoder(m_hEncoder, &m_initializeParams));
 
-	m_nEncodeBuffer = m_encodeConfig.frameIntervalP + m_encodeConfig.rcParams.lookaheadDepth + 3;
-	m_completionEvents.resize(m_nEncodeBuffer, nullptr);
+	m_nEncodedBuffer = m_encodeConfig.frameIntervalP + m_encodeConfig.rcParams.lookaheadDepth + 3;
+	m_completionEvents.resize(m_nEncodedBuffer, nullptr);
 
 	for (UINT i = 0; i < m_completionEvents.size(); i++)
 	{
@@ -112,27 +112,41 @@ void NVEncoder::Initialize(UINT width, UINT height)
 
 	m_fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-	AllocateInputBuffers(m_nEncodeBuffer);
-	AllocateOutputBuffers(m_nEncodeBuffer);
+	AllocateInputBuffers(m_nEncodedBuffer);
+	AllocateOutputBuffers(m_nEncodedBuffer);
 
-	m_mappedInputBuffers.resize(m_nEncodeBuffer, nullptr);
-	m_mappedOutputBuffers.resize(m_nEncodeBuffer, nullptr);
+	m_mappedInputBuffers.resize(m_nEncodedBuffer, nullptr);
+	m_mappedOutputBuffers.resize(m_nEncodedBuffer, nullptr);
 }
 
-void DX12Lib::NVEncoder::EncodeFrame(CommandContext& context, Resource& resource, ENCODED_PACKET& vPacket)
+void DX12Lib::NVEncoder::EncodeFrame()
 {
-	int buffIndex = m_iToSend % m_nEncodeBuffer;
+	CommandContext* context = Graphics::s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	/*
-	==============================================
-	TODO: Change this to make render system copy the backbuffer into the input buffer
-		  I'm pretty sure that letting the encoder do the copy will cause issues with the backbuffer
-		  resource state.
-	==============================================
-	*/
+	int buffIndex = m_iToSend % m_nEncodedBuffer;
+	{
+		std::lock_guard<std::mutex> lock(m_encoderMutex);
 
+		auto& inputFrame = m_inputFrames[buffIndex];
+		auto bufferedRes = m_inputCopyQueue.front();
+		m_inputCopyQueue.pop();
+
+		context->TransitionResource(bufferedRes.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
+
+
+		context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, bufferedRes.Get());
+
+		context->TransitionResource(bufferedRes.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
+		
+		m_bufferCopyQueue.push(bufferedRes);
+
+
+	}
 	this->MapResource(buffIndex);
-
+	context->Finish(true);
+	
 	InterlockedIncrement(&m_outputFenceValue);
 
 	m_outputResources[buffIndex]->pOutputBuffer = m_mappedOutputBuffers[buffIndex];
@@ -143,26 +157,32 @@ void DX12Lib::NVEncoder::EncodeFrame(CommandContext& context, Resource& resource
 	m_inputResources[buffIndex]->inputFencePoint.waitValue = m_inputFenceValue;
 	m_inputResources[buffIndex]->inputFencePoint.bWait = true;
 
+
+
 	NVENCSTATUS nvStatus = Encode(m_inputResources[buffIndex].get(), m_outputResources[buffIndex].get());
 
 	if (nvStatus == NV_ENC_SUCCESS || nvStatus == NV_ENC_ERR_NEED_MORE_INPUT)
 	{
 		m_iToSend++;
+		ENCODED_PACKET packet;
+		GetEncodedPacket(packet, true);
+		m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
 	}
 	else
 	{
 		NVENC_THROW_ERROR("Encode failed", nvStatus);
 	}
-
-
 }
 
-void DX12Lib::NVEncoder::EndEncode(ENCODED_PACKET& packet)
+void DX12Lib::NVEncoder::EndEncode()
 {
-	packet.clear();
 	if (m_hEncoder == nullptr) return;
 
-	DXLIB_CORE_WARN("TODO: FINISH THIS");
+	SendEOS();
+
+	ENCODED_PACKET packet;
+	GetEncodedPacket(packet, false);
+	m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
 }
 
 bool DX12Lib::NVEncoder::SupportsAsyncMode(GUID codecGUID)
@@ -187,10 +207,7 @@ void DX12Lib::NVEncoder::AllocateInputBuffers(UINT nInputBuffers)
 	UINT maxWidth = m_initializeParams.maxEncodeWidth;
 	UINT maxHeight = m_initializeParams.maxEncodeHeight;
 
-	D3D12_HEAP_PROPERTIES heapProps{};
-	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -206,6 +223,7 @@ void DX12Lib::NVEncoder::AllocateInputBuffers(UINT nInputBuffers)
 	resourceDesc.Format = m_bufferFormat;
 
 	m_inputBuffers.resize(nInputBuffers);
+	m_availableResourceBuffer.resize(nInputBuffers);
 
 	for (UINT i = 0; i < nInputBuffers; i++)
 	{
@@ -217,8 +235,20 @@ void DX12Lib::NVEncoder::AllocateInputBuffers(UINT nInputBuffers)
 			nullptr,
 			IID_PPV_ARGS(m_inputBuffers[i].GetAddressOf())
 		));
-		std::wstring name = L"Input Buffer " + std::to_wstring(i);
+		std::wstring name = L"InputBuffer_" + std::to_wstring(i);
 		m_inputBuffers[i]->SetName(name.c_str());
+
+		ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&resourceDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(m_availableResourceBuffer[i].GetAddressOf())
+		));
+		name = L"BufferResource_" + std::to_wstring(i);
+		m_availableResourceBuffer[i]->SetName(name.c_str());
+		m_bufferCopyQueue.push(m_availableResourceBuffer[i]);
 	}
 
 	// We create the buffers using Directx12 and then we register them with the encoder
@@ -244,12 +274,7 @@ void DX12Lib::NVEncoder::AllocateOutputBuffers(UINT nOutputbuffers)
 	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 
 	UINT bufferSize = m_initializeParams.encodeWidth * m_initializeParams.encodeHeight * 4;
-
-	DXLIB_CORE_INFO("Output Buffer Size before alignment: {0}", bufferSize);
-
 	bufferSize = Utils::AlignAtBytes(bufferSize, 4);
-
-	DXLIB_CORE_INFO("Output Buffer Size after alignment: {0}", bufferSize);
 
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -400,7 +425,7 @@ NVENCSTATUS DX12Lib::NVEncoder::Encode(NV_ENC_INPUT_RESOURCE_D3D12* inputResourc
 	picParams.inputHeight = m_initializeParams.encodeHeight;
 	picParams.frameIdx = m_iToSend;
 	picParams.outputBitstream = outputResource;
-	picParams.completionEvent = GetCompletionEvent(m_iToSend % m_nEncodeBuffer);
+	picParams.completionEvent = GetCompletionEvent(m_iToSend % m_nEncodedBuffer);
 
 	NVENCSTATUS status = m_nvEncodeAPI.nvEncEncodePicture(m_hEncoder, &picParams);
 
@@ -411,8 +436,7 @@ void DX12Lib::NVEncoder::FlushEncoder()
 {
 	if (m_hEncoder == nullptr) return;
 
-	ENCODED_PACKET vPacket;
-	EndEncode(vPacket);
+	//EndEncode();
 }
 
 void DX12Lib::NVEncoder::ReleaseInputBuffers()
@@ -472,9 +496,121 @@ void DX12Lib::NVEncoder::UnregisterOutputResources()
 	m_registeredResourcesOutputBuffers.clear();
 }
 
+void DX12Lib::NVEncoder::GetEncodedPacket(ENCODED_PACKET& packet, bool outputDelay)
+{
+	UINT i = 0;
+	int iEnd = outputDelay ? m_iToSend - (m_nEncodedBuffer - 1) : m_iToSend;
+
+	for (; m_iGot < iEnd; m_iGot++)
+	{
+		WaitForCompletionEvent(m_iGot % m_nEncodedBuffer);
+		NV_ENC_LOCK_BITSTREAM lockBitstreamData = { NV_ENC_LOCK_BITSTREAM_VER };
+		lockBitstreamData.outputBitstream = m_outputResources[m_iGot % m_nEncodedBuffer].get();
+		lockBitstreamData.doNotWait = false;
+		NVENC_API_CALL(m_nvEncodeAPI.nvEncLockBitstream(m_hEncoder, &lockBitstreamData));
+
+		uint8_t* pData = (uint8_t*)lockBitstreamData.bitstreamBufferPtr;
+		if (packet.size() < i + 1)
+		{
+			packet.push_back(std::vector<std::uint8_t>());
+		}
+		packet[i].clear();
+		packet[i].insert(packet[i].end(), &pData[0], &pData[lockBitstreamData.bitstreamSizeInBytes]);
+		i++;
+
+		NVENC_API_CALL(m_nvEncodeAPI.nvEncUnlockBitstream(m_hEncoder, lockBitstreamData.outputBitstream));
+
+		if (m_mappedInputBuffers[m_iGot % m_nEncodedBuffer] != nullptr)
+		{
+			NVENC_API_CALL(m_nvEncodeAPI.nvEncUnmapInputResource(m_hEncoder, m_mappedInputBuffers[m_iGot % m_nEncodedBuffer]));
+			m_mappedInputBuffers[m_iGot % m_nEncodedBuffer] = nullptr;
+		}
+
+		if (m_mappedOutputBuffers[m_iGot % m_nEncodedBuffer] != nullptr)
+		{
+			NVENC_API_CALL(m_nvEncodeAPI.nvEncUnmapInputResource(m_hEncoder, m_mappedOutputBuffers[m_iGot % m_nEncodedBuffer]));
+			m_mappedOutputBuffers[m_iGot % m_nEncodedBuffer] = nullptr;
+		}
+	}
+}
+
+void DX12Lib::NVEncoder::SendEOS()
+{
+	NV_ENC_PIC_PARAMS picParams = { NV_ENC_PIC_PARAMS_VER };
+	picParams.encodePicFlags = NV_ENC_PIC_FLAG_EOS;
+	picParams.completionEvent = GetCompletionEvent(m_iToSend % m_nEncodedBuffer);
+	NVENC_API_CALL(m_nvEncodeAPI.nvEncEncodePicture(m_hEncoder, &picParams));
+}
+
+void DX12Lib::NVEncoder::WaitForCompletionEvent(UINT event)
+{
+	WaitForSingleObject(m_completionEvents[event], INFINITE);
+}
+
+void DX12Lib::NVEncoder::EncodeThreadLoop()
+{
+	while (!m_stopEncoding)
+	{
+		if (!m_inputCopyQueue.empty())
+		{
+			EncodeFrame();
+		}
+
+	}
+
+	EndEncode();
+}
+
+void DX12Lib::NVEncoder::SendResourceForEncode(CommandContext& context, Resource& resource)
+{
+	assert(m_hEncoder != nullptr);
+
+	if (m_stopEncoding)
+		return;
+
+	if (m_bufferCopyQueue.empty())
+		return;
+
+	{
+		std::lock_guard<std::mutex> lock(m_encoderMutex);
+
+
+
+		auto buffCopy = m_bufferCopyQueue.front();
+		m_bufferCopyQueue.pop();
+
+		context.TransitionResource(resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		context.TransitionResource(buffCopy.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
+
+
+		context.m_commandList->Get()->CopyResource(buffCopy.Get(), resource.Get());
+
+		context.TransitionResource(resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		context.TransitionResource(buffCopy.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
+
+		m_inputCopyQueue.push(buffCopy);
+	}
+	context.Flush(true);
+
+
+
+}
+
+void DX12Lib::NVEncoder::StartEncodeLoop()
+{
+	m_stopEncoding = false;
+	encodeThread = std::thread(&NVEncoder::EncodeThreadLoop, this);
+}
+
+void DX12Lib::NVEncoder::StopEncodeLoop()
+{
+	m_stopEncoding = true;
+	encodeThread.join();
+}
+
 NvEncInputFrame& DX12Lib::NVEncoder::GetNextInputFrame()
 {
-	int i = m_iToSend % m_nEncodeBuffer;
+	int i = m_iToSend % m_nEncodedBuffer;
 	return m_inputFrames[i];
 }
 
