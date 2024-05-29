@@ -22,7 +22,7 @@ void DepthBuffer::Create(uint32_t width, uint32_t height, uint32_t numSamples, D
 	optimizedClearValue.DepthStencil.Depth = m_clearDepth;
 	optimizedClearValue.DepthStencil.Stencil = m_clearStencil;
 
-	CreateTextureResource(*s_device, depthBufferDesc, optimizedClearValue);
+	CreateTextureResource(depthBufferDesc, &optimizedClearValue);
 	CreateDerivedViews(s_device->Get(), format);
 }
 

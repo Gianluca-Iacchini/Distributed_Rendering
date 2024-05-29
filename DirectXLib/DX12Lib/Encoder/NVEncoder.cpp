@@ -21,8 +21,6 @@ DX12Lib::NVEncoder::~NVEncoder()
 
 void NVEncoder::Initialize(UINT width, UINT height)
 {
-	DXLIB_CORE_WARN("TODO: Unregister InputResources");
-
 	if (m_nvEncodeAPI.version == 0)
 	{
 		uint32_t version = 0;
@@ -64,8 +62,7 @@ void NVEncoder::Initialize(UINT width, UINT height)
 	m_initializeParams.encodeConfig = &m_encodeConfig;
 	m_initializeParams.encodeConfig->version = NV_ENC_CONFIG_VER;
 
-	DXLIB_CORE_WARN("TODO: Check best settings for multi-pass");
-	m_initializeParams.encodeConfig->rcParams.multiPass = NV_ENC_MULTI_PASS_DISABLED;
+	m_initializeParams.encodeConfig->rcParams.multiPass = NV_ENC_TWO_PASS_FULL_RESOLUTION;
 	
 	m_initializeParams.encodeGUID = m_hevcCodecGUID;
 	m_initializeParams.presetGUID = m_presetGUID;
@@ -131,13 +128,15 @@ void DX12Lib::NVEncoder::EncodeFrame()
 		auto bufferedRes = m_inputCopyQueue.front();
 		m_inputCopyQueue.pop();
 
-		context->TransitionResource(bufferedRes.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		assert(bufferedRes != nullptr);
+
+		context->TransitionResource(*bufferedRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
 
 
-		context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, bufferedRes.Get());
+		context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, bufferedRes->Get());
 
-		context->TransitionResource(bufferedRes.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+		context->TransitionResource(*bufferedRes, D3D12_RESOURCE_STATE_COMMON);
 		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
 		
 		m_bufferCopyQueue.push(bufferedRes);
@@ -202,8 +201,6 @@ void DX12Lib::NVEncoder::AllocateInputBuffers(UINT nInputBuffers)
 {
 	assert(m_hEncoder != nullptr);
 
-	DXLIB_CORE_WARN("TODO: Change with CD3DX12_HEAP_PROPERTIES if it works.");
-
 	UINT maxWidth = m_initializeParams.maxEncodeWidth;
 	UINT maxHeight = m_initializeParams.maxEncodeHeight;
 
@@ -227,28 +224,16 @@ void DX12Lib::NVEncoder::AllocateInputBuffers(UINT nInputBuffers)
 
 	for (UINT i = 0; i < nInputBuffers; i++)
 	{
-		ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateCommittedResource(
-			&heapProps,
-			D3D12_HEAP_FLAG_NONE,
-			&resourceDesc,
-			D3D12_RESOURCE_STATE_COMMON,
-			nullptr,
-			IID_PPV_ARGS(m_inputBuffers[i].GetAddressOf())
-		));
-		std::wstring name = L"InputBuffer_" + std::to_wstring(i);
-		m_inputBuffers[i]->SetName(name.c_str());
+		// We pass resource desc instead of width and height because PixelBuffer changes format type to Typeless
+		// while i think that NVIDIA Codec wants the format to stay UNORM
+		m_inputBuffers[i] = std::make_unique<PixelBuffer>();
+		m_inputBuffers[i]->CreateTextureResource(resourceDesc, nullptr);
 
-		ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateCommittedResource(
-			&heapProps,
-			D3D12_HEAP_FLAG_NONE,
-			&resourceDesc,
-			D3D12_RESOURCE_STATE_COMMON,
-			nullptr,
-			IID_PPV_ARGS(m_availableResourceBuffer[i].GetAddressOf())
-		));
-		name = L"BufferResource_" + std::to_wstring(i);
-		m_availableResourceBuffer[i]->SetName(name.c_str());
-		m_bufferCopyQueue.push(m_availableResourceBuffer[i]);
+		std::unique_ptr<PixelBuffer> avBuff = std::make_unique<PixelBuffer>();
+		avBuff->CreateTextureResource(maxWidth, maxHeight, 1, 1, m_bufferFormat);
+		m_bufferCopyQueue.push(avBuff.get());
+
+		m_availableResourceBuffer[i] = std::move(avBuff);
 	}
 
 	// We create the buffers using Directx12 and then we register them with the encoder
@@ -268,10 +253,7 @@ void DX12Lib::NVEncoder::AllocateOutputBuffers(UINT nOutputbuffers)
 {
 	assert(m_hEncoder != nullptr);
 
-	D3D12_HEAP_PROPERTIES heapProps{};
-	heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_READBACK);
 
 	UINT bufferSize = m_initializeParams.encodeWidth * m_initializeParams.encodeHeight * 4;
 	bufferSize = Utils::AlignAtBytes(bufferSize, 4);
@@ -292,14 +274,8 @@ void DX12Lib::NVEncoder::AllocateOutputBuffers(UINT nOutputbuffers)
 
 	for (UINT i = 0; i < nOutputbuffers; i++)
 	{
-		ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateCommittedResource(
-			&heapProps,
-			D3D12_HEAP_FLAG_NONE,
-			&resourceDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(m_outputBuffers[i].GetAddressOf())
-		));
+		m_outputBuffers[i] = std::make_unique<PixelBuffer>();
+		m_outputBuffers[i]->CreateTextureResource(resourceDesc, nullptr, &heapProps);
 	}
 
 	RegisterOutputResources(bufferSize);
@@ -330,7 +306,7 @@ void DX12Lib::NVEncoder::RegisterInputResources(UINT width, UINT height)
 		regResInputFence.bSignal = true;
 
 		NV_ENC_REGISTERED_PTR registeredPtr = RegisterResource(
-			m_inputBuffers[i].Get(),
+			m_inputBuffers[i]->Get(),
 			width,
 			height,
 			NV_ENC_BUFFER_FORMAT_ARGB,
@@ -338,14 +314,14 @@ void DX12Lib::NVEncoder::RegisterInputResources(UINT width, UINT height)
 			&regResInputFence
 		);
 
-		ID3D12Resource* pRes = m_inputBuffers[i].Get();
+		ID3D12Resource* pRes = m_inputBuffers[i]->Get();
 		D3D12_RESOURCE_DESC desc = pRes->GetDesc();
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT inputUploadFootprint[2];
 
 		Graphics::s_device->Get()->GetCopyableFootprints(&desc, 0, 1, 0, inputUploadFootprint, nullptr, nullptr, nullptr);
 
 		NvEncInputFrame inputFrame = {};
-		inputFrame.inputPtr = m_inputBuffers[i].Get();
+		inputFrame.inputPtr = m_inputBuffers[i]->Get();
 		inputFrame.pitch = inputUploadFootprint[0].Footprint.RowPitch;
 		
 		m_registeredResources.push_back(registeredPtr);
@@ -360,7 +336,7 @@ void DX12Lib::NVEncoder::RegisterOutputResources(UINT bfrSize)
 	for (UINT i = 0; i < m_outputBuffers.size(); i++)
 	{
 		NV_ENC_REGISTERED_PTR registeredPtr = RegisterResource(
-			m_outputBuffers[i].Get(),
+			m_outputBuffers[i]->Get(),
 			bfrSize,
 			1,
 			NV_ENC_BUFFER_FORMAT_U8,
@@ -579,20 +555,20 @@ void DX12Lib::NVEncoder::SendResourceForEncode(CommandContext& context, Resource
 		auto buffCopy = m_bufferCopyQueue.front();
 		m_bufferCopyQueue.pop();
 
-		context.TransitionResource(resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		context.TransitionResource(buffCopy.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
-
-
-		context.m_commandList->Get()->CopyResource(buffCopy.Get(), resource.Get());
+		assert(buffCopy != nullptr);
 
 		context.TransitionResource(resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		context.TransitionResource(buffCopy.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
+		context.TransitionResource(*buffCopy, D3D12_RESOURCE_STATE_COPY_DEST, true);
+
+
+		context.m_commandList->Get()->CopyResource(buffCopy->Get(), resource.Get());
+
+		context.TransitionResource(resource, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		context.TransitionResource(*buffCopy, D3D12_RESOURCE_STATE_COMMON, true);
 
 		m_inputCopyQueue.push(buffCopy);
+		context.Flush();
 	}
-	context.Flush(true);
-
-
 
 }
 

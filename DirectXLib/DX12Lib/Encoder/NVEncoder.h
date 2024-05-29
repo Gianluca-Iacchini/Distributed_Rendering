@@ -89,12 +89,12 @@ namespace DX12Lib {
         std::vector<NV_ENC_INPUT_PTR> m_mappedInputBuffers;
         std::vector<NV_ENC_OUTPUT_PTR> m_mappedOutputBuffers;
 
-        std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_availableResourceBuffer;
-        std::queue<Microsoft::WRL::ComPtr<ID3D12Resource>> m_inputCopyQueue;
-        std::queue<Microsoft::WRL::ComPtr<ID3D12Resource>> m_bufferCopyQueue;
+        std::vector<std::unique_ptr<PixelBuffer>> m_availableResourceBuffer;
+        std::queue<PixelBuffer*> m_inputCopyQueue;
+        std::queue<PixelBuffer*> m_bufferCopyQueue;
 
-        std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_inputBuffers;
-        std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_outputBuffers;
+        std::vector<std::unique_ptr<PixelBuffer>> m_inputBuffers;
+        std::vector<std::unique_ptr<PixelBuffer>> m_outputBuffers;
 
         std::vector<std::unique_ptr<NV_ENC_INPUT_RESOURCE_D3D12>> m_inputResources;
         std::vector<std::unique_ptr<NV_ENC_OUTPUT_RESOURCE_D3D12>> m_outputResources;

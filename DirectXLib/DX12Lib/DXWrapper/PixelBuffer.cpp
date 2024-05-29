@@ -42,16 +42,30 @@ void PixelBuffer::AssociateWithResource(Microsoft::WRL::ComPtr<ID3D12Resource> r
     m_format = desc.Format;
 }
 
-void PixelBuffer::CreateTextureResource(Device& device, const D3D12_RESOURCE_DESC& resourceDesc, D3D12_CLEAR_VALUE clearValue)
+
+void DX12Lib::PixelBuffer::CreateTextureResource(UINT width, UINT height, UINT arraySize, UINT numMips, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags)
+{
+    D3D12_RESOURCE_DESC texDesc = DescribeTex2D(width, height, arraySize, numMips, format, flags);
+
+    CreateTextureResource(texDesc, nullptr, nullptr);
+}
+
+void PixelBuffer::CreateTextureResource(const D3D12_RESOURCE_DESC& resourceDesc, D3D12_CLEAR_VALUE* clearValue, D3D12_HEAP_PROPERTIES* heapProps)
 {
     OnDestroy();
 
-    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
-    ThrowIfFailed(device->CreateCommittedResource(&heapProps, 
+    CD3DX12_HEAP_PROPERTIES defHeapProps(D3D12_HEAP_TYPE_DEFAULT);
+
+    if (heapProps != nullptr)
+    {
+        defHeapProps = CD3DX12_HEAP_PROPERTIES(*heapProps);
+    }
+
+    ThrowIfFailed(Graphics::s_device->Get()->CreateCommittedResource(&defHeapProps,
         D3D12_HEAP_FLAG_NONE, 
         &resourceDesc, 
         D3D12_RESOURCE_STATE_COMMON, 
-        &clearValue, 
+        clearValue, 
         IID_PPV_ARGS(m_resource.GetAddressOf())));
 
     m_currentState = D3D12_RESOURCE_STATE_COMMON;
