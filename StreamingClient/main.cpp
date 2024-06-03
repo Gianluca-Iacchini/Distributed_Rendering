@@ -1,16 +1,16 @@
 #include <iostream>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "StreamRenderer.h"
+
 #include "Helpers.h"
 #include "cuda.h"
 #include "cuda_runtime.h"
+#include "FFmpegDemuxer.h"
+#include "NVDecoder.h"
+#include "ColorSpace.h"
 
 
-void processInput(GLFWwindow* window)
-{
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
-}
+
+
 
 int main()
 {
@@ -27,60 +27,112 @@ int main()
 		return -1;
 	}
 
-	int i = 0;
+	cudaDeviceProp bestDeviceProp;
+	int bestDeviceIndex = 0;
 
-	//for (int i = 0; i < deviceCount; ++i) {
-	//	cudaDeviceProp deviceProp;
-	//	cudaGetDeviceProperties(&deviceProp, i);
-	//	if (deviceProp.major > )
-	//}
+	cudaGetDeviceProperties(&bestDeviceProp, 0);
+
+	for (int i = 1; i < deviceCount; i++)
+	{
+		cudaDeviceProp currentDeviceProp;
+		cudaGetDeviceProperties(&currentDeviceProp, i);
+
+		if (currentDeviceProp.multiProcessorCount > bestDeviceProp.multiProcessorCount)
+		{
+			bestDeviceProp = currentDeviceProp;
+			bestDeviceIndex = i;
+		}
+	}
+
 	CUcontext cuContext = NULL;
 	CUdevice cuDevice = 0;
-	CUDA_SAFE_CALL(cuDeviceGet(&cuDevice, 0));
+	CUDA_SAFE_CALL(cuDeviceGet(&cuDevice, bestDeviceIndex));
 	char szDeviceName[80];
 	CUDA_SAFE_CALL(cuDeviceGetName(szDeviceName, sizeof(szDeviceName), cuDevice));
-	SC_LOG_INFO("GPU in use: {0}\n", szDeviceName);
+	SC_LOG_INFO("GPU in use: {0}", szDeviceName);
 	CUDA_SAFE_CALL(cuCtxCreate(&cuContext, CU_CTX_SCHED_BLOCKING_SYNC, cuDevice));
 
-	if (!glfwInit())
-	{
-		SC_LOG_ERROR("Failed to initialize GLFW");
-		return -1;
-	}
-
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	GLFWwindow* window = glfwCreateWindow(1920, 1080, "OpenGL", NULL, NULL);
-	if (window == NULL)
-	{
-		SC_LOG_ERROR("Failed to create GLFW window");
-		glfwTerminate();
-		return -1;
-	}
-
-	glfwMakeContextCurrent(window);
 	
 
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		SC_LOG_ERROR("Failed to initialize GLAD");
-		return -1;
-	}
+		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/LocalIllumination/output.h265");
+		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()));
 
-	SC_LOG_INFO("OpenGL Version: {0}", (char*)glGetString(GL_VERSION));
+		int width = (demuxer.GetWidth() + 1) & ~1;
+		int height = demuxer.GetHeight();
+		int nPitch = width * 4;
 
-	while (!glfwWindowShouldClose(window))
-	{
-		processInput(window);
+		CUdeviceptr devPtr;
+		int nVideoBytes = 0, nFrameReturned = 0, iMatrix = 0;
+		uint8_t* pVideo = NULL;
+		uint8_t* pFrame;
 
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		SC::StreamRenderer sr(width, height);
+		sr.Init(cuContext);
 
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
+		int nFrame = 0;
+
+		do
+		{
+			demuxer.Demux(&pVideo, &nVideoBytes);
+			nFrameReturned = dec.Decode(pVideo, nVideoBytes);
+
+			if (nFrameReturned && !nFrame)
+			{
+				SC_LOG_INFO("Number of Frames: {0}", dec.GetVideoInfo());
+			}
+
+			for (int i = 0; i < nFrameReturned; i++)
+			{
+				pFrame = dec.GetFrame();
+
+				sr.GetDeviceFrameBuffer(&devPtr, &nPitch);
+				iMatrix = dec.GetVideoFormat().video_signal_description.matrix_coefficients;
+
+
+
+				if (dec.GetBitDepth() == 8)
+				{
+					if (dec.GetOutputFormat() == cudaVideoSurfaceFormat_YUV444)
+					{
+						YUV444ToColor32<BGRA32>(pFrame, dec.GetWidth(), (uint8_t*)devPtr, nPitch, dec.GetWidth(), dec.GetHeight(), iMatrix);
+					}
+					else
+					{
+						Nv12ToColor32<BGRA32>(pFrame, dec.GetWidth(), (uint8_t*)devPtr, nPitch, dec.GetWidth(), dec.GetHeight(), iMatrix);
+					}
+				}
+				else
+				{
+					if (dec.GetOutputFormat() == cudaVideoSurfaceFormat_YUV444)
+					{
+						YUV444P16ToColor32<BGRA32>(pFrame, 2 * dec.GetWidth(), (uint8_t*)devPtr, nPitch, dec.GetWidth(), dec.GetHeight(), iMatrix);
+					}
+					else
+					{
+						P016ToColor32<BGRA32>(pFrame, 2 * dec.GetWidth(), (uint8_t*)devPtr, nPitch, dec.GetWidth(), dec.GetHeight(), iMatrix);
+					}
+				}
+
+				sr.Update();
+				sr.Render();
+				
+			}
+
+
+
+			nFrame += nFrameReturned;
+
+		} while (nVideoBytes > 0);
+
+
+
+		while (!sr.ShouldCloseWindow())
+		{
+			sr.Update();
+			sr.Render();
+		}
+	} 
 
 	CUDA_SAFE_CALL(cuCtxDestroy(cuContext));
 

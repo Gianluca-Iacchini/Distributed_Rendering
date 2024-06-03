@@ -22,5 +22,6 @@ void CUDA_SAFE_CALL(CUresult result)
 		const char* error;
 		cuGetErrorString(result, &error);
 		SC_LOG_ERROR("CUDA Error: {0}", error);
+		__debugbreak();
 	}
 }
