@@ -21,9 +21,11 @@ SC::StreamRenderer::~StreamRenderer()
 
 	glDeleteBuffers(1, &m_pbo);
 
-	CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(m_cudaResource));
-	CUDA_SAFE_CALL(cuMemFree(m_devPtrFrame));
-
+	if (m_cudaResource)
+		CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(m_cudaResource));
+	
+	if (m_devPtrFrame)
+		CUDA_SAFE_CALL(cuMemFree(m_devPtrFrame));
 
 	glfwTerminate();
 }
@@ -72,8 +74,11 @@ bool SC::StreamRenderer::Init(CUcontext cudaContext)
 	fragmentPath += "/Shaders/BasicFragment.fs";
 	m_defaultShader = std::make_unique<Shader>(vertexPath.c_str(), fragmentPath.c_str());
 
+	doneDisplaying = true;
+
 	return true;
 }
+
 
 void SC::StreamRenderer::Update()
 {
@@ -82,11 +87,45 @@ void SC::StreamRenderer::Update()
 
 void SC::StreamRenderer::Render()
 {
+
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	
+	glDisable(GL_DEPTH_TEST);
 
+	CopyFrameToTexture();
+
+	m_defaultShader->Use();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, m_texture);
+	m_defaultShader->SetInt("streamTexture", 0);
+	glBindVertexArray(m_VAO);
+
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+
+	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+
+	glfwSwapBuffers(m_window);
+	glfwPollEvents();
+}
+
+void SC::StreamRenderer::Destroy()
+{
+}
+
+void SC::StreamRenderer::GetDeviceFrameBuffer(CUdeviceptr* framePtr, int* pnPitch)
+{
+	if (!m_devPtrFrame)
+		return;
+
+	*framePtr = (CUdeviceptr)m_devPtrFrame;
+	*pnPitch = m_width * 4;
+}
+
+void SC::StreamRenderer::CopyFrameToTexture()
+{
 	CUDA_SAFE_CALL(cudaGraphicsMapResources(1, &m_cudaResource, 0));
 	CUdeviceptr backBufferDevPtr;
 	size_t nSize = 0;
@@ -123,39 +162,21 @@ void SC::StreamRenderer::Render()
 	}
 
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-	glDisable(GL_DEPTH_TEST);
 
-	
-
-	m_defaultShader->Use();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, m_texture);
-	m_defaultShader->SetInt("streamTexture", 0);
-	glBindVertexArray(m_VAO);
-
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-	glBindVertexArray(0);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
-
-	glfwSwapBuffers(m_window);
-	glfwPollEvents();
 }
 
-void SC::StreamRenderer::GetDeviceFrameBuffer(CUdeviceptr* framePtr, int* pnPitch)
+void SC::StreamRenderer::DoneCopying()
 {
-	if (!m_devPtrFrame)
-		return;
 
-	*framePtr = (CUdeviceptr)m_devPtrFrame;
-	*pnPitch = m_width * 4;
 }
 
 void SC::StreamRenderer::ProcessInput()
 {
 	if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	{
 		glfwSetWindowShouldClose(m_window, true);
+	}
+
 }
 
 void SC::StreamRenderer::BuildBuffers()

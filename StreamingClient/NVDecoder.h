@@ -42,6 +42,7 @@ namespace SC {
 			bool forceZeroLatency = false);
 		
 		~NVDecoder();
+		void EndDecode();
 
 		CUcontext GetContext() const { return m_cuContext; }
 		int GetWidth()

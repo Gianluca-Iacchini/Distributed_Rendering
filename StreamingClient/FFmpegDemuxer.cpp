@@ -106,6 +106,7 @@ SC::FFmpegDemuxer::FFmpegDemuxer(AVFormatContext* fmtc, int64_t timeScale) : m_f
 		|| !strcmp(fmtc->iformat->long_name, "FLV (Flash Video)")
 		|| !strcmp(fmtc->iformat->long_name, "Matroska / WebM")
 		|| !strcmp(fmtc->iformat->long_name, "raw HEVC video")
+		|| !strcmp(fmtc->iformat->name, "mpegts")
 		);
 
 

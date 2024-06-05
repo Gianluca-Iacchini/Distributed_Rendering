@@ -18,7 +18,6 @@ namespace SC
 		void SetInt(const std::string& name, int value) const { glUniform1i(glGetUniformLocation(m_ID, name.c_str()), value); }
 		void SetFloat(const std::string& name, float value) const { glUniform1f(glGetUniformLocation(m_ID, name.c_str()), value); }
 
-
 	private:
 		void CheckCompileErrors(unsigned int shader, std::string type);
 
@@ -33,11 +32,16 @@ namespace SC
 		~StreamRenderer();
 
 		bool Init(CUcontext cudaContext);
-		void Update();
-		void Render();
+
 
 		bool ShouldCloseWindow() const { return glfwWindowShouldClose(m_window); }
 		void GetDeviceFrameBuffer(CUdeviceptr* framePtr, int* pnPitch);
+		void CopyFrameToTexture();
+		void DoneCopying();
+		GLFWwindow* GetWindow() const { return m_window; }
+		void Update();
+		void Render();
+		void Destroy();
 
 	private:
 		void ProcessInput();
@@ -64,5 +68,10 @@ namespace SC
 		unsigned int m_texture = 0;
 
 		std::unique_ptr<Shader> m_defaultShader = nullptr;
+
+		std::mutex m_textureMutex;
+
+		bool doneCopying = false;
+		bool doneDisplaying = false;
 	};
 }

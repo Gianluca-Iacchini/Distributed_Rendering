@@ -49,6 +49,11 @@ SC::NVDecoder::NVDecoder(CUcontext cuContext, bool useDeviceFrame,
 
 SC::NVDecoder::~NVDecoder()
 {
+	EndDecode();
+}
+
+void SC::NVDecoder::EndDecode()
+{
 	START_TIMER;
 
 	if (m_currSeiMessage)
@@ -66,8 +71,8 @@ SC::NVDecoder::~NVDecoder()
 	if (m_parser)
 		cuvidDestroyVideoParser(m_parser);
 
-	
-	cuCtxPushCurrent(m_cuContext);
+	if (m_cuContext)
+		cuCtxPushCurrent(m_cuContext);
 
 	if (m_decoder)
 		cuvidDestroyDecoder(m_decoder);
@@ -86,10 +91,12 @@ SC::NVDecoder::~NVDecoder()
 		}
 	}
 
-	cuCtxPopCurrent(NULL);
+	if (m_cuContext)
+		cuCtxPopCurrent(NULL);
 
 
-	cuvidCtxLockDestroy(m_ctxLock);
+	if (m_ctxLock)
+		cuvidCtxLockDestroy(m_ctxLock);
 
 	STOP_TIMER("NVDecoder Destructor");
 }
