@@ -3,6 +3,14 @@
 #include <fstream>
 #include <sstream>
 
+#define CHECK_OPENGL_ERROR \
+{ \
+	GLenum err = glGetError(); \
+	if (err != GL_NO_ERROR) { \
+		SC_LOG_ERROR("OpenGL error: {0}", err); \
+		__debugbreak(); \
+	} \
+}
 
 void CUDA_SAFE_CALL(cudaError_t error)
 {
@@ -13,24 +21,30 @@ void CUDA_SAFE_CALL(cudaError_t error)
 	}
 }
 
+
 SC::StreamRenderer::~StreamRenderer()
 {
 	glDeleteBuffers(1, &m_VBO);
 	glDeleteBuffers(1, &m_EBO);
 	glDeleteVertexArrays(1, &m_VAO);
 
-	glDeleteBuffers(1, &m_pbo);
+	for (auto& data : m_frameData)
+	{
+		
+		if (data->devPtr)
+			CUDA_SAFE_CALL(cuMemFree(data->devPtr));
 
-	if (m_cudaResource)
-		CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(m_cudaResource));
-	
-	if (m_devPtrFrame)
-		CUDA_SAFE_CALL(cuMemFree(m_devPtrFrame));
+		if (data->PBO)
+			glDeleteBuffers(1, &data->PBO);
+
+		if (data->cudaResource)
+			CUDA_SAFE_CALL(cudaGraphicsUnregisterResource(data->cudaResource));
+	}
 
 	glfwTerminate();
 }
 
-bool SC::StreamRenderer::Init(CUcontext cudaContext)
+bool SC::StreamRenderer::Init(unsigned int maxFrames)
 {
 	if (!glfwInit())
 	{
@@ -66,7 +80,7 @@ bool SC::StreamRenderer::Init(CUcontext cudaContext)
 
 	BuildBuffers();
 	BuildTextures();
-	SetupCUDAInterop(cudaContext);
+	SetupCUDAInterop(maxFrames);
 
 	std::string vertexPath = SOURCE_DIR;
 	std::string fragmentPath = SOURCE_DIR;
@@ -76,7 +90,35 @@ bool SC::StreamRenderer::Init(CUcontext cudaContext)
 
 	doneDisplaying = true;
 
+	CHECK_OPENGL_ERROR;
+
 	return true;
+}
+
+SC::FrameData* SC::StreamRenderer::GetReadFrame()
+{
+	FrameData* data = nullptr;
+	m_frameQueues.PopOutput(data);
+
+	return data;
+}
+
+SC::FrameData* SC::StreamRenderer::GetWriteFrame()
+{
+	FrameData* data = nullptr;
+	m_frameQueues.PopInput(data);
+
+	return data;
+}
+
+void SC::StreamRenderer::PushReadFrame(FrameData* frameData)
+{
+	m_frameQueues.PushOutput(frameData);
+}
+
+void SC::StreamRenderer::PushWriteFrame(FrameData* frameData)
+{
+	m_frameQueues.PushInput(frameData);
 }
 
 
@@ -91,9 +133,9 @@ void SC::StreamRenderer::Render()
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glDisable(GL_DEPTH_TEST);
-
 	CopyFrameToTexture();
+
+	glDisable(GL_DEPTH_TEST);
 
 	m_defaultShader->Use();
 	glActiveTexture(GL_TEXTURE0);
@@ -111,30 +153,58 @@ void SC::StreamRenderer::Render()
 	glfwPollEvents();
 }
 
+void SC::StreamRenderer::FreeQueues()
+{
+	m_frameQueues.SetDone();
+}
+
 void SC::StreamRenderer::Destroy()
 {
 }
 
-void SC::StreamRenderer::GetDeviceFrameBuffer(CUdeviceptr* framePtr, int* pnPitch)
+SC::FrameData* SC::StreamRenderer::GetDeviceFrameBuffer(int* pnPitch)
 {
-	if (!m_devPtrFrame)
-		return;
+	
+	FrameData* frameData = GetWriteFrame();
 
-	*framePtr = (CUdeviceptr)m_devPtrFrame;
+	
+	if (!frameData || frameData->devPtr == 0)
+	{
+		PushWriteFrame(frameData);
+		return nullptr;
+	}
+
 	*pnPitch = m_width * 4;
+	
+	return frameData;
 }
 
 void SC::StreamRenderer::CopyFrameToTexture()
 {
-	CUDA_SAFE_CALL(cudaGraphicsMapResources(1, &m_cudaResource, 0));
+
+	if (glfwGetCurrentContext() != m_window) {
+		SC_LOG_WARN("Current context is not the window context before setting.");
+		glfwMakeContextCurrent(m_window);
+		if (glfwGetCurrentContext() != m_window) {
+			CHECK_OPENGL_ERROR;
+		}
+	}
+
+	
+	FrameData* data = GetReadFrame();
+
+	if (!data)
+		return;
+
+	CUDA_SAFE_CALL(cudaGraphicsMapResources(1, &data->cudaResource, 0));
 	CUdeviceptr backBufferDevPtr;
 	size_t nSize = 0;
-	CUDA_SAFE_CALL(cudaGraphicsResourceGetMappedPointer((void**)&backBufferDevPtr, &nSize, m_cudaResource));
+	CUDA_SAFE_CALL(cudaGraphicsResourceGetMappedPointer((void**)&backBufferDevPtr, &nSize, data->cudaResource));
 
 	CUDA_MEMCPY2D m = { 0 };
 	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
 
-	m.srcDevice = m_devPtrFrame;
+	m.srcDevice = data->devPtr;
 	m.srcPitch = m_width * 4;
 	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
 	m.dstDevice = backBufferDevPtr;
@@ -143,9 +213,9 @@ void SC::StreamRenderer::CopyFrameToTexture()
 	m.Height = m_height;
 	CUDA_SAFE_CALL(cuMemcpy2DAsync(&m, 0));
 
-	CUDA_SAFE_CALL(cudaGraphicsUnmapResources(1, &m_cudaResource, 0));
+	CUDA_SAFE_CALL(cudaGraphicsUnmapResources(1, &data->cudaResource, 0));
 
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, m_pbo);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, data->PBO);
 	glBindTexture(GL_TEXTURE_RECTANGLE, m_texture);
 
 	// Check for OpenGL errors
@@ -163,6 +233,9 @@ void SC::StreamRenderer::CopyFrameToTexture()
 
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
+
+	cudaDeviceSynchronize();
+	PushWriteFrame(data);
 }
 
 void SC::StreamRenderer::DoneCopying()
@@ -212,11 +285,6 @@ void SC::StreamRenderer::BuildBuffers()
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-
-	glGenBuffers(1, &m_pbo);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, m_pbo);
-	glBufferData(GL_PIXEL_UNPACK_BUFFER, m_width * m_height * 4, NULL, GL_STREAM_DRAW);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
 void SC::StreamRenderer::BuildTextures()
@@ -235,13 +303,30 @@ void SC::StreamRenderer::BuildTextures()
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 }
 
-void SC::StreamRenderer::SetupCUDAInterop(CUcontext cudaContext)
+void SC::StreamRenderer::SetupCUDAInterop(unsigned int maxFrames)
 {
-	CUDA_SAFE_CALL(cuCtxSetCurrent(cudaContext));
-	CUDA_SAFE_CALL(cuMemAlloc(&m_devPtrFrame, m_width * m_height * 4));
-	CUDA_SAFE_CALL(cuMemsetD8(m_devPtrFrame, 0, m_width * m_height * 4));
+	CUDA_SAFE_CALL(cuCtxSetCurrent(m_cuContext));
 
-	CUDA_SAFE_CALL(cudaGraphicsGLRegisterBuffer(&m_cudaResource, m_pbo, cudaGraphicsRegisterFlagsWriteDiscard));
+
+	for (unsigned int i = 0; i < maxFrames; i++)
+	{
+		FrameData data;
+		glGenBuffers(1, &data.PBO);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, data.PBO);
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, m_width * m_height * 4, NULL, GL_STREAM_DRAW);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+		CUDA_SAFE_CALL(cuMemAlloc(&data.devPtr, m_width * m_height * 4));
+		CUDA_SAFE_CALL(cuMemsetD8(data.devPtr, 0, m_width * m_height * 4));
+
+		CUDA_SAFE_CALL(cudaGraphicsGLRegisterBuffer(&data.cudaResource, data.PBO, cudaGraphicsRegisterFlagsWriteDiscard));
+
+		m_frameData.push_back(std::make_unique<FrameData>(data));
+		
+		m_frameQueues.PushInput(m_frameData.back().get());
+	}
+
+
 }
 
 SC::Shader::Shader(const char* vertexPath, const char* fragmentPath)

@@ -5,11 +5,82 @@
 #include "nvrtc.h"
 #include <memory>
 #include "ColorSpace.h"
+#include <queue>
+
+// Log Macros
+
+#define SC_LOG_ERROR(...) SC::Logger::GetLogger()->error(__VA_ARGS__)
+#define SC_LOG_FATAL(...) SC::Logger:GetLogger()->critical(__VA_ARGS__)
+#define SC_LOG_WARN(...) SC::Logger::GetLogger()->warn(__VA_ARGS__)
+#define SC_LOG_INFO(...) SC::Logger::GetLogger()->info(__VA_ARGS__)
+#define SC_LOG_TRACE(...) SC::Logger::GetLogger()->trace(__VA_ARGS__)
+
+extern void CUDA_SAFE_CALL(CUresult result);
 
 namespace SC
 {
-	class Helpers
-	{
+	template<typename T>
+	class DoubleQueue {
+	public:
+		DoubleQueue() {}
+
+		void PushInput(T element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_inputQueue.push(element);
+			m_cv.notify_one();
+		}
+
+		void PushOutput(T element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_outputQueue.push(element);
+			m_cv.notify_one();
+		}
+
+		void PopInput(T& element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_cv.wait(lock, [this] { return !m_inputQueue.empty() || m_done; });
+			
+			if (m_done)
+				return;
+			
+			element = m_inputQueue.front();
+			m_inputQueue.pop();
+		}
+
+		void PopOutput(T& element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_cv.wait(lock, [this] { return !m_outputQueue.empty() || m_done; });
+
+			if (m_done)
+				return;
+
+			element = m_outputQueue.front();
+			m_outputQueue.pop();
+		}
+
+		void SetDone() {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_done = true;
+			m_cv.notify_all();
+		}
+
+		unsigned int GetInputSize() {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			return m_inputQueue.size();
+		}
+
+		unsigned int GetOutputSize() {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			return m_outputQueue.size();
+		}
+
+	private:
+		int m_maxElements = 0;
+		std::queue<T> m_inputQueue;
+		std::queue<T> m_outputQueue;
+		std::mutex m_mutex;
+		std::condition_variable m_cv;
+		bool m_done = false;
 	};
 
 	class Logger
@@ -84,15 +155,7 @@ void ScaleYUV420(unsigned char* dpDstY, unsigned char* dpDstU, unsigned char* dp
 void ComputeCRC(uint8_t* pBuffer, uint32_t* crcValue, CUstream_st* outputCUStream);
 #endif
 
-// Log Macros
 
-#define SC_LOG_ERROR(...) SC::Logger::GetLogger()->error(__VA_ARGS__)
-#define SC_LOG_FATAL(...) SC::Logger:GetLogger()->critical(__VA_ARGS__)
-#define SC_LOG_WARN(...) SC::Logger::GetLogger()->warn(__VA_ARGS__)
-#define SC_LOG_INFO(...) SC::Logger::GetLogger()->info(__VA_ARGS__)
-#define SC_LOG_TRACE(...) SC::Logger::GetLogger()->trace(__VA_ARGS__)
-		 
-extern void CUDA_SAFE_CALL(CUresult result);
 		
 
 

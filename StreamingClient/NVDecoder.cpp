@@ -134,6 +134,7 @@ uint8_t* SC::NVDecoder::GetFrame(int64_t* timestamp)
 			*timestamp = m_videoFrameTimestamps[m_nDecodedFrameReturned];
 		}
 
+
 		return m_videoFrames[m_nDecodedFrameReturned++];
 	}
 
@@ -222,6 +223,32 @@ int SC::NVDecoder::setReconfigParams(const Rect* cropRect, const Dim* resizeDim)
 const char* SC::NVDecoder::GetCodecString(cudaVideoCodec eCodec)
 {
 	return GetVideoCodecString(eCodec);
+}
+
+void SC::NVDecoder::ConvertFrame(uint8_t* pFrame, CUdeviceptr devPtr, int pitch)
+{
+	if (m_bitDepthMinus8 == 0)
+	{
+		if (this->m_outputFormat == cudaVideoSurfaceFormat_YUV444)
+		{
+			YUV444ToColor32<BGRA32>(pFrame, this->m_width, (uint8_t*)devPtr, pitch, m_maxWidth, m_maxHeight, m_videoFormat.video_signal_description.matrix_coefficients);
+		}
+		else
+		{
+			Nv12ToColor32<BGRA32>(pFrame, m_maxWidth, (uint8_t*)devPtr, pitch, m_maxWidth, m_maxHeight, m_videoFormat.video_signal_description.matrix_coefficients);
+		}
+	}
+	else
+	{
+		if (this->m_outputFormat == cudaVideoSurfaceFormat_YUV444)
+		{
+			YUV444P16ToColor32<BGRA32>(pFrame, 2 * m_maxWidth, (uint8_t*)devPtr, pitch, m_maxWidth, m_maxHeight, m_videoFormat.video_signal_description.matrix_coefficients);
+		}
+		else
+		{
+			P016ToColor32<BGRA32>(pFrame, 2 * m_maxWidth, (uint8_t*)devPtr, pitch, m_maxWidth, m_maxHeight, m_videoFormat.video_signal_description.matrix_coefficients);
+		}
+	}
 }
 
 int SC::NVDecoder::HandleVideoSequence(CUVIDEOFORMAT* pFormat)

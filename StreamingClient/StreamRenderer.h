@@ -25,53 +25,70 @@ namespace SC
 		unsigned int m_ID;
 	};
 
+	struct FrameData
+	{
+		GLuint PBO;
+		CUdeviceptr devPtr;
+		cudaGraphicsResource_t cudaResource = NULL;
+	};
+
 	class StreamRenderer
 	{
 	public:
-		StreamRenderer(int width, int height) : m_width(width), m_height(height) {}
+		StreamRenderer(CUcontext cuContext, int width, int height) : m_cuContext(cuContext), m_width(width), m_height(height) {}
 		~StreamRenderer();
 
-		bool Init(CUcontext cudaContext);
+		bool Init(unsigned int maxFrames);
 
+		FrameData* GetReadFrame();
+		FrameData* GetWriteFrame();
+		void PushReadFrame(FrameData* frameData);
+		void PushWriteFrame(FrameData* frameData);
 
 		bool ShouldCloseWindow() const { return glfwWindowShouldClose(m_window); }
-		void GetDeviceFrameBuffer(CUdeviceptr* framePtr, int* pnPitch);
+		bool IsReadQueueEmpty()  { return m_frameQueues.GetOutputSize() <= 0; }
+
+		FrameData* GetDeviceFrameBuffer(int* pnPitch);
 		void CopyFrameToTexture();
 		void DoneCopying();
 		GLFWwindow* GetWindow() const { return m_window; }
 		void Update();
 		void Render();
+		void FreeQueues();
 		void Destroy();
+
+		bool isDone = false;
+		float msfps = 1000.0f / 30.0f;
 
 	private:
 		void ProcessInput();
 		void BuildBuffers();
 		void BuildTextures();
-		void SetupCUDAInterop(CUcontext cudaContext);
+		void SetupCUDAInterop(unsigned int maxFrames);
 
 	private:
 		GLFWwindow* m_window = nullptr;
 		int m_width = 1920;
 		int m_height = 1080;
 
-		CUdeviceptr m_devPtrFrame = 0;
-
 		GLuint m_VBO = 0;
 		GLuint m_VAO = 0;
 		GLuint m_EBO = 0;
-
-		// Pixel Buffer Object for CUDA-OpenGL interop
-		GLuint m_pbo = 0;
-
-		cudaGraphicsResource_t m_cudaResource = NULL;
 
 		unsigned int m_texture = 0;
 
 		std::unique_ptr<Shader> m_defaultShader = nullptr;
 
-		std::mutex m_textureMutex;
 
 		bool doneCopying = false;
 		bool doneDisplaying = false;
+
+
+		std::vector<std::unique_ptr<FrameData>> m_frameData;
+		DoubleQueue<FrameData*> m_frameQueues;
+
+		CUcontext m_cuContext;
+
+
 	};
 }

@@ -82,6 +82,8 @@ namespace SC {
 		const char* GetCodecString(cudaVideoCodec eCodec);
 		std::string GetVideoInfo() { return m_videoInfo.str(); }
 
+		void ConvertFrame(uint8_t* pFrame, CUdeviceptr devPtr, int pitch);
+
 	public:
 		static int CUDAAPI HandleVideoSequenceProc(void* pUserData, CUVIDEOFORMAT* pFormat) { return ((NVDecoder*)pUserData)->HandleVideoSequence(pFormat); };
 		static int CUDAAPI HandlePictureDisplayProc(void* pUserData, CUVIDPARSERDISPINFO* pPicParams) { return ((NVDecoder*)pUserData)->HandlePictureDisplay(pPicParams); };
