@@ -28,6 +28,10 @@ namespace DX12Lib {
         void StartEncodeLoop();
         void StopEncodeLoop();
 
+        std::vector<uint8_t> ConsumePacket();
+
+        bool IsEncoding() { return !m_stopEncoding; }
+
     private:
         bool SupportsAsyncMode(GUID codecGUID);
         /// <summary>
@@ -71,8 +75,9 @@ namespace DX12Lib {
         void* m_hEncoder = nullptr;
         NV_ENC_INITIALIZE_PARAMS m_initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
         NV_ENC_CONFIG m_encodeConfig = { NV_ENC_CONFIG_VER };
-        GUID m_hevcCodecGUID = NV_ENC_CODEC_HEVC_GUID;
-        GUID m_presetGUID = NV_ENC_PRESET_P3_GUID;
+        //GUID m_codeGUID = NV_ENC_CODEC_H264_GUID;
+        GUID m_codeGUID = NV_ENC_CODEC_HEVC_GUID;
+        GUID m_presetGUID = NV_ENC_PRESET_P1_GUID;
         UINT m_width = 0;
         UINT m_height = 0;
 
@@ -115,9 +120,10 @@ namespace DX12Lib {
         const DXGI_FORMAT m_bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
         std::mutex m_encoderMutex;
+        std::mutex m_networkMutex;
 
     public:
-        UINT maxFrames = 60;
+        UINT maxFrames = 30;
 
     private:
         static NV_ENCODE_API_FUNCTION_LIST m_nvEncodeAPI;

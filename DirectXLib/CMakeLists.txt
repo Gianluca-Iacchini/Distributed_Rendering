@@ -52,15 +52,21 @@ set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../extern/NVidiaCodec/Include")
+target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../extern/NVidiaCodec/Include" "../extern/FFmpeg/include")
 target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx)
 target_link_libraries(DirectXLib 
     PUBLIC assimp
     PUBLIC DirectXTex
     PUBLIC DirectXTK12
     PUBLIC spdlog
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avcodec.lib"
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avformat.lib"
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avutil.lib"
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/swresample.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvcuvid.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvencodeapi.lib"
     PUBLIC d3d12.lib
     PUBLIC dxgi.lib
     PUBLIC dxguid.lib)
+
+file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/*.dll")

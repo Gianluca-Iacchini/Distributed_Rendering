@@ -45,7 +45,7 @@ void NVEncoder::Initialize(UINT width, UINT height)
 	NVENC_API_CALL(m_nvEncodeAPI.nvEncOpenEncodeSessionEx(&encodeSessionExParams, &m_hEncoder));
 
 	UINT presetCount = 0;
-	NVENC_API_CALL(m_nvEncodeAPI.nvEncGetEncodePresetCount(m_hEncoder, m_hevcCodecGUID, &presetCount));
+	NVENC_API_CALL(m_nvEncodeAPI.nvEncGetEncodePresetCount(m_hEncoder, m_codeGUID, &presetCount));
 
 	if (presetCount == 0)
 	{
@@ -62,9 +62,9 @@ void NVEncoder::Initialize(UINT width, UINT height)
 	m_initializeParams.encodeConfig = &m_encodeConfig;
 	m_initializeParams.encodeConfig->version = NV_ENC_CONFIG_VER;
 
-	m_initializeParams.encodeConfig->rcParams.multiPass = NV_ENC_TWO_PASS_FULL_RESOLUTION;
+	m_initializeParams.encodeConfig->rcParams.multiPass = NV_ENC_MULTI_PASS_DISABLED;
 	
-	m_initializeParams.encodeGUID = m_hevcCodecGUID;
+	m_initializeParams.encodeGUID = m_codeGUID;
 	m_initializeParams.presetGUID = m_presetGUID;
 	m_initializeParams.encodeWidth = width;
 	m_initializeParams.encodeHeight = height;
@@ -81,16 +81,34 @@ void NVEncoder::Initialize(UINT width, UINT height)
 	m_initializeParams.enableOutputInVidmem = false;
 	m_initializeParams.tuningInfo = NV_ENC_TUNING_INFO_ULTRA_LOW_LATENCY;
 
-	m_initializeParams.enableEncodeAsync = SupportsAsyncMode(m_hevcCodecGUID);
+	m_initializeParams.enableEncodeAsync = SupportsAsyncMode(m_codeGUID);
 
-	m_initializeParams.encodeConfig->rcParams.rateControlMode = NV_ENC_PARAMS_RC_VBR;
+
 	m_initializeParams.bufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
 
 
 	NV_ENC_PRESET_CONFIG presetConfig = { NV_ENC_PRESET_CONFIG_VER, 0, { NV_ENC_CONFIG_VER }};
-	NVENC_API_CALL(m_nvEncodeAPI.nvEncGetEncodePresetConfigEx(m_hEncoder, m_hevcCodecGUID, m_presetGUID, NV_ENC_TUNING_INFO_ULTRA_LOW_LATENCY, &presetConfig));
+	NVENC_API_CALL(m_nvEncodeAPI.nvEncGetEncodePresetConfigEx(m_hEncoder, m_codeGUID, m_presetGUID, NV_ENC_TUNING_INFO_ULTRA_LOW_LATENCY, &presetConfig));
 
 	memcpy(m_initializeParams.encodeConfig, &presetConfig.presetCfg, sizeof(NV_ENC_CONFIG));
+
+	if (m_initializeParams.encodeGUID == NV_ENC_CODEC_H264_GUID)
+	{
+		m_initializeParams.encodeConfig->encodeCodecConfig.h264Config.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+	}
+	else if (m_initializeParams.encodeGUID == NV_ENC_CODEC_HEVC_GUID)
+	{
+		m_initializeParams.encodeConfig->encodeCodecConfig.hevcConfig.inputBitDepth = m_initializeParams.encodeConfig->encodeCodecConfig.hevcConfig.outputBitDepth =
+			NV_ENC_BIT_DEPTH_8;
+		m_initializeParams.encodeConfig->encodeCodecConfig.hevcConfig.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+	}
+
+	m_initializeParams.encodeConfig->frameIntervalP = 1;
+	m_initializeParams.encodeConfig->rcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR;
+	m_initializeParams.encodeConfig->rcParams.averageBitRate = (static_cast<unsigned int>(5.0f * m_initializeParams.encodeWidth * m_initializeParams.encodeHeight) / (1920 * 1080)) * 1000000;
+	m_initializeParams.encodeConfig->rcParams.vbvBufferSize = (m_initializeParams.encodeConfig->rcParams.averageBitRate * m_initializeParams.frameRateDen / m_initializeParams.frameRateNum) * 5;
+	m_initializeParams.encodeConfig->rcParams.maxBitRate = m_initializeParams.encodeConfig->rcParams.averageBitRate;
+	m_initializeParams.encodeConfig->rcParams.vbvInitialDelay = m_initializeParams.encodeConfig->rcParams.vbvBufferSize;
 
 	NVENC_API_CALL(m_nvEncodeAPI.nvEncInitializeEncoder(m_hEncoder, &m_initializeParams));
 
@@ -101,7 +119,6 @@ void NVEncoder::Initialize(UINT width, UINT height)
 	{
 		m_completionEvents[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
 	}
-
 
 
 	ThrowIfFailed(Graphics::s_device->GetComPtr()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_inputFence.GetAddressOf())));
@@ -165,7 +182,11 @@ void DX12Lib::NVEncoder::EncodeFrame()
 		m_iToSend++;
 		ENCODED_PACKET packet;
 		GetEncodedPacket(packet, true);
-		m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
+		{
+			std::lock_guard<std::mutex> lock(m_networkMutex);
+			m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
+		}
+
 	}
 	else
 	{
@@ -181,7 +202,10 @@ void DX12Lib::NVEncoder::EndEncode()
 
 	ENCODED_PACKET packet;
 	GetEncodedPacket(packet, false);
-	m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
+	{
+		std::lock_guard<std::mutex> lock(m_networkMutex);
+		m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
+	}
 }
 
 bool DX12Lib::NVEncoder::SupportsAsyncMode(GUID codecGUID)
@@ -582,6 +606,19 @@ void DX12Lib::NVEncoder::StopEncodeLoop()
 {
 	m_stopEncoding = true;
 	encodeThread.join();
+}
+
+std::vector<uint8_t> DX12Lib::NVEncoder::ConsumePacket()
+{
+	std::lock_guard<std::mutex> lock(m_networkMutex);
+
+	if (m_encodedPackets.empty())
+		return std::vector<uint8_t>();
+
+	auto front = m_encodedPackets.front();
+	m_encodedPackets.erase(m_encodedPackets.begin());
+
+	return front;
 }
 
 NvEncInputFrame& DX12Lib::NVEncoder::GetNextInputFrame()

@@ -100,6 +100,8 @@ SC::FFmpegDemuxer::FFmpegDemuxer(AVFormatContext* fmtc, int64_t timeScale) : m_f
 		!strcmp(fmtc->iformat->long_name, "QuickTime / MOV")
 		|| !strcmp(fmtc->iformat->long_name, "FLV (Flash Video)")
 		|| !strcmp(fmtc->iformat->long_name, "Matroska / WebM")
+		|| !strcmp(fmtc->iformat->long_name, "Apple HTTP Live Streaming")
+		|| !strcmp(fmtc->iformat->name, "mpegts")
 		);
 	m_isHEVC = m_videoCodecID == AV_CODEC_ID_HEVC && (
 		!strcmp(fmtc->iformat->long_name, "QuickTime / MOV")
@@ -193,8 +195,33 @@ AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(DataProvider* pDataProvi
 		FFMPEG_ERROR("avio_alloc_context failed");
 	}
 
+	AVDictionary* opts = NULL;
+	// Set low_delay flag
+	av_dict_set(&opts, "flags", "low_delay", 0);
+
+	// Optionally set buffer size reduction
+	av_dict_set(&opts, "fflags", "nobuffer", 0);
+
+	// Optionally set frame dropping
+	av_dict_set(&opts, "flags2", "fast", 0);
+
+	// Set frame drop option
+	av_dict_set(&opts, "frame_drop", "1", 0);
+
+	// Enable low latency
+	av_dict_set(&opts, "low_latency", "1", 0);
+
+	// Set real-time flag
+	av_dict_set(&opts, "realtime", "1", 0);
+
+	// Set buffer size
+	av_dict_set(&opts, "buffer_size", "1024000", 0);
+
+	// Set maximum delay
+	av_dict_set(&opts, "max_delay", "500000", 0);
+
 	ctx->pb = m_avInOutCtx;
-	FFMPEG_CHECK(avformat_open_input(&ctx, NULL, NULL, NULL));
+	FFMPEG_CHECK(avformat_open_input(&ctx, NULL, NULL, &opts));
 	return ctx;
 }
 
@@ -202,8 +229,10 @@ AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(const char* filename)
 {
 	avformat_network_init();
 
+
 	AVFormatContext* ctx = NULL;
 	FFMPEG_CHECK(avformat_open_input(&ctx, filename, NULL, NULL));
+
 	return ctx;
 }
 
@@ -216,6 +245,10 @@ bool SC::FFmpegDemuxer::Demux(std::uint8_t** data, int* nVideoBytes, int64_t* pt
 
 	*nVideoBytes = 0;
 
+	static unsigned int i = 0;
+
+
+
 	if (m_packet->data)
 		av_packet_unref(m_packet);
 
@@ -224,6 +257,7 @@ bool SC::FFmpegDemuxer::Demux(std::uint8_t** data, int* nVideoBytes, int64_t* pt
 	while ((e = av_read_frame(m_formatCtx, m_packet)) >= 0 && m_packet->stream_index != m_iVideoStream)
 	{
 		av_packet_unref(m_packet);
+
 	}
 
 	if (e < 0)
@@ -251,3 +285,4 @@ bool SC::FFmpegDemuxer::Demux(std::uint8_t** data, int* nVideoBytes, int64_t* pt
 
 	return true;
 }
+

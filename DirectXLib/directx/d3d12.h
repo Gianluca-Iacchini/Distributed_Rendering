@@ -1445,7 +1445,7 @@ enum D3D12_CULL_MODE
 
 typedef struct D3D12_SO_DECLARATION_ENTRY
     {
-    UINT Stream;
+    UINT StreamLoop;
     LPCSTR SemanticName;
     UINT SemanticIndex;
     BYTE StartComponent;

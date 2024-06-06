@@ -68,7 +68,7 @@ typedef struct _D3D12_SIGNATURE_PARAMETER_DESC
                                                 // never written (if this is an output signature) or
                                                 // always read (if this is an input signature).
                                                 // (combination of D3D_MASK_* values)
-    UINT                        Stream;         // Stream index
+    UINT                        StreamLoop;         // Stream index
     D3D_MIN_PRECISION           MinPrecision;   // Minimum desired interpolation precision
 } D3D12_SIGNATURE_PARAMETER_DESC;
 

@@ -4,6 +4,8 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
 #include <libavcodec/avcodec.h>
+#include <libavutil/avutil.h>
+#include <libavutil/opt.h>
 }
 
 #include "cuviddec.h"
@@ -52,8 +54,6 @@ namespace SC {
 		int GetBitDepth() const { return m_bitDepth; }
 		int GetFrameSize() const { return m_width * (m_height * m_chromaHeight) * m_bitsPerPixel; }
 
-
-
 	public:
 		static int ReadPacket(void* opaque, uint8_t* buf, int buf_size)
 		{
@@ -99,6 +99,8 @@ namespace SC {
 
 		uint8_t* m_dataWidthHeader = NULL;
 		unsigned int m_frameCount = 0;
+
+		bool m_discardEarlyFrames = true;
 	};
 }
 

@@ -15,6 +15,7 @@
 #include "DX12Lib/DXWrapper/Swapchain.h"
 #include "DX12Lib/Encoder/NVEncoder.h"
 #include <fstream>
+#include "DX12Lib/Encoder/FFmpegStreamer.h"
 
 
 using namespace DirectX;
@@ -53,6 +54,8 @@ class AppTest : public D3DApp
 	std::ofstream fpOut;
 
 	std::vector<std::vector<std::uint8_t>> totPackets;
+
+	FFmpegStreamer ffmpegStreamer;
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -93,7 +96,8 @@ public:
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
-
+		ffmpegStreamer.OpenStream();
+		ffmpegStreamer.StartStreaming(m_encoder);
 
 		return true;
 	}
@@ -206,6 +210,8 @@ public:
 		message += L"Expected encoded frames " + std::to_wstring((UINT)(m_encoder.maxFrames * timeSinceRenderStart)) + L"\n";
 		message += L"Encoded " + std::to_wstring(frameCount) + L" frames\n";
 
+
+		ffmpegStreamer.CloseStream();
 
 		OutputDebugStringW(message.c_str());
 	}
