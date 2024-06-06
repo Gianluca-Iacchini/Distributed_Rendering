@@ -119,10 +119,10 @@ int main()
 
 
 	{
-		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("udp://localhost:1234");
+		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("udp://localhost:1234");
+		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://test-videos.co.uk/vids/bigbuckbunny/mp4/h265/1080/Big_Buck_Bunny_1080_10s_1MB.mp4");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/LocalIllumination/output.h265");
-		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
+		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/LocalIllumination/output.h265");
 		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()));
 
 
@@ -136,7 +136,7 @@ int main()
 		g_isDecodeDone = false;
 
 		SC::StreamRenderer sr(cuContext, width, height);
-		sr.Init(12);
+		sr.Init(1);
 
 
 		std::thread decodeThread(DecodeFrame, &dec, &demuxer, &sr);
@@ -155,7 +155,7 @@ int main()
 
 			float currentTime = glfwGetTime();
 
-			if (currentTime - lastTime > sr.msfps / 1000.0f)
+			if (currentTime - lastTime > sr.msfps / (1000.0f))
 			{
 				sr.Render();
 				

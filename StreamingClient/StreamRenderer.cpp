@@ -234,7 +234,7 @@ void SC::StreamRenderer::CopyFrameToTexture()
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 
-	cudaDeviceSynchronize();
+	cudaStreamSynchronize(0);
 	PushWriteFrame(data);
 }
 
