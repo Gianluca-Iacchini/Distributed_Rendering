@@ -229,9 +229,33 @@ AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(const char* filename)
 {
 	avformat_network_init();
 
+	AVDictionary* opts = NULL;
+	// Set low_delay flag
+	FFMPEG_CHECK(av_dict_set(&opts, "flags", "low_delay", 0));
+
+	// Optionally set buffer size reduction
+	//av_dict_set(&opts, "fflags", "nobuffer", 0);
+
+	//// Optionally set frame dropping
+	FFMPEG_CHECK(av_dict_set(&opts, "flags2", "veryfast", 0));
+
+	// Set frame drop option
+	FFMPEG_CHECK(av_dict_set(&opts, "frame_drop", "1", 0));
+
+	// Enable low latency
+	FFMPEG_CHECK(av_dict_set(&opts, "low_latency", "1", 0));
+
+	// Set real-time flag
+	FFMPEG_CHECK(av_dict_set(&opts, "realtime", "1", 0));
+
+	// Set buffer size
+	av_dict_set(&opts, "buffer_size", "1024000", 0);
+
+	// Set maximum delay
+	av_dict_set(&opts, "max_delay", "500000", 0);
 
 	AVFormatContext* ctx = NULL;
-	FFMPEG_CHECK(avformat_open_input(&ctx, filename, NULL, NULL));
+	FFMPEG_CHECK(avformat_open_input(&ctx, filename, NULL, &opts));
 
 	return ctx;
 }
@@ -257,7 +281,7 @@ bool SC::FFmpegDemuxer::Demux(std::uint8_t** data, int* nVideoBytes, int64_t* pt
 	while ((e = av_read_frame(m_formatCtx, m_packet)) >= 0 && m_packet->stream_index != m_iVideoStream)
 	{
 		av_packet_unref(m_packet);
-
+		SC_LOG_INFO("Discarding packet");
 	}
 
 	if (e < 0)

@@ -123,7 +123,7 @@ namespace DX12Lib {
         std::mutex m_networkMutex;
 
     public:
-        UINT maxFrames = 30;
+        UINT maxFrames = 60;
 
     private:
         static NV_ENCODE_API_FUNCTION_LIST m_nvEncodeAPI;

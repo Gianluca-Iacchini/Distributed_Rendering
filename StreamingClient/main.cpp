@@ -45,10 +45,6 @@ void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamR
 	{
 
 		demuxer->Demux(&pVideo, &nVideoBytes);
-
-		
-		SC_LOG_INFO("True");
-
 		nFrameReturned = decoder->Decode(pVideo, nVideoBytes);
 
 
@@ -68,8 +64,11 @@ void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamR
 				return;
 			}
 
+
 			decoder->ConvertFrame(pFrame, data->devPtr, nPitch);
 			renderer->PushReadFrame(data);
+
+			
 		}
 
 
@@ -129,7 +128,7 @@ int main()
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://test-videos.co.uk/vids/bigbuckbunny/mp4/h265/1080/Big_Buck_Bunny_1080_10s_1MB.mp4");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/LocalIllumination/output.h265");
-		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()), true, false, NULL, NULL, false, 0, 0, 1000, true);
+		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()), true, false, NULL, NULL, false, 0, 0, 1000, false);
 
 
 
@@ -142,7 +141,7 @@ int main()
 		g_isDecodeDone = false;
 
 		SC::StreamRenderer sr(cuContext, width, height);
-		sr.Init(600);
+		sr.Init(30);
 
 
 		std::thread decodeThread(DecodeFrame, &dec, &demuxer, &sr);
@@ -155,19 +154,31 @@ int main()
 
 		unsigned int i = 0;
 
+		float accumulatedTime = 0;
+		float lastTime = 0;
+
 		while (!shouldClose)
 		{
 			sr.isDone = shouldClose = sr.ShouldCloseWindow() || (g_isDecodeDone && sr.IsReadQueueEmpty());
 
 			sr.Update();
 
-			float currentTime = glfwGetTime();
-
-			if (i < 600 || (currentTime - lastTime > sr.msfps / (1000.0f)))
+			if (i < 600)
 			{
 				sr.Render();
+				continue;
+			}
+
+			float totalTime = glfwGetTime();
+			float deltaTime = totalTime - lastTime;
+			lastTime = totalTime;
+			accumulatedTime += deltaTime;
+
+			if ((accumulatedTime >= sr.msfps / (1000.0f)))
+			{
+				accumulatedTime -= sr.msfps / (1000.0f);
+				sr.Render();
 				
-				lastTime = currentTime;
 			}
 
 			i++;
