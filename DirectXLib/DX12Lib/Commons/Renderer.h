@@ -51,6 +51,9 @@ namespace Graphics
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::PipelineState>> s_PSOs;
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::Shader>> s_shaders;
 
+		extern int s_clientWidth;
+		extern int s_clientHeight;
+
 		void Initialize();
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
 		void AddLightToQueue(DX12Lib::LightComponent* light);
@@ -61,6 +64,7 @@ namespace Graphics
 		void InitializeSwapchain(DX12Lib::DX12Window* window);
 		void WaitForSwapchainBuffers();
 		DX12Lib::ColorBuffer& GetCurrentBackBuffer();
+		void ResizeSwapchain(DX12Lib::CommandContext* context);
 		void Present(UINT64 fenceVal);
 
 

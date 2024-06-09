@@ -30,6 +30,7 @@ add_executable(StreamingClient ${SRC_FILES} ${SHADERS} ${CUDA_FILES})
 target_link_libraries(StreamingClient
 	PRIVATE glfw
 	PRIVATE spdlog
+	PRIVATE ws2_32.lib
 	PRIVATE CUDA::cudart
 	PRIVATE CUDA::cuda_driver
 

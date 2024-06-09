@@ -24,11 +24,14 @@ namespace DX12Lib {
 
 
 	// Core log Macros
-#define DXLIB_CORE_FATAL(...) DX12Lib::Logger:GetCoreLogger()->critical(__VA_ARGS__)
 #define DXLIB_CORE_ERROR(...) DX12Lib::Logger::GetCoreLogger()->error(__VA_ARGS__)
 #define DXLIB_CORE_WARN(...) DX12Lib::Logger::GetCoreLogger()->warn(__VA_ARGS__)
 #define DXLIB_CORE_INFO(...) DX12Lib::Logger::GetCoreLogger()->info(__VA_ARGS__)
 #define DXLIB_CORE_TRACE(...) DX12Lib::Logger::GetCoreLogger()->trace(__VA_ARGS__)
+
+#define DXLIB_CORE_FATAL(...) \
+DXLIB_CORE_ERROR(__VA_ARGS__); \
+__debugbreak();
 
 // Client log Macros
 #define DXLIB_FATAL(...) DX12Lib::Logger::GetClientLogger()->critical(__VA_ARGS__)

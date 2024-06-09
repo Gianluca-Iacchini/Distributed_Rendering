@@ -21,6 +21,20 @@ void CUDA_SAFE_CALL(cudaError_t error)
 	}
 }
 
+void SC::StreamRenderer::KeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+	{
+		glfwSetWindowShouldClose(window, true);
+	}
+}
+
+
+
+void SC::StreamRenderer::MouseCallback(GLFWwindow* window, double xpos, double ypos)
+{
+
+}
 
 SC::StreamRenderer::~StreamRenderer()
 {
@@ -44,7 +58,7 @@ SC::StreamRenderer::~StreamRenderer()
 	glfwTerminate();
 }
 
-bool SC::StreamRenderer::Init(unsigned int maxFrames)
+bool SC::StreamRenderer::InitializeGL()
 {
 	if (!glfwInit())
 	{
@@ -55,7 +69,7 @@ bool SC::StreamRenderer::Init(unsigned int maxFrames)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	
+
 	m_window = glfwCreateWindow(m_width, m_height, "OpenGL", NULL, NULL);
 	if (m_window == NULL)
 	{
@@ -77,6 +91,13 @@ bool SC::StreamRenderer::Init(unsigned int maxFrames)
 
 	glViewport(0, 0, m_width, m_height);
 
+	return true;
+}
+
+void SC::StreamRenderer::InitializeResources(int width, int height, unsigned int maxFrames)
+{
+	m_width = width;
+	m_height = height;
 
 	BuildBuffers();
 	BuildTextures();
@@ -88,11 +109,9 @@ bool SC::StreamRenderer::Init(unsigned int maxFrames)
 	fragmentPath += "/Shaders/BasicFragment.fs";
 	m_defaultShader = std::make_unique<Shader>(vertexPath.c_str(), fragmentPath.c_str());
 
-	doneDisplaying = true;
-
 	CHECK_OPENGL_ERROR;
 
-	return true;
+	glfwSetKeyCallback(m_window, KeyboardCallback);
 }
 
 SC::FrameData* SC::StreamRenderer::GetReadFrame()
@@ -124,7 +143,39 @@ void SC::StreamRenderer::PushWriteFrame(FrameData* frameData)
 
 void SC::StreamRenderer::Update()
 {
-	ProcessInput();
+
+
+	double mouseX, mouseY;
+	glfwGetCursorPos(m_window, &mouseX, &mouseY);
+
+	double absX = abs(mouseX - m_lastMouseX);
+	double absY = abs(mouseY - m_lastMouseY);
+
+
+
+	// Check if the mouse has moved beyond a small threshold (EPSILON)
+	if (mouseX != m_lastMouseX || mouseY != m_lastMouseY)
+	{
+		// Notify about mouse movement
+		m_mouseCallback(m_window, mouseX, mouseY);
+
+		// Reset the stopped flag because the mouse is moving
+		firstTimeStopped = true;
+	}
+	else if (firstTimeStopped)
+	{
+		// Notify the first time the mouse stops
+		m_mouseCallback(m_window, m_lastMouseX, m_lastMouseY);
+
+		// Set the flag to false to ensure this message only logs once until the mouse moves again
+		firstTimeStopped = false;
+	}
+
+	// Update the last mouse positions
+	m_lastMouseX = mouseX;
+	m_lastMouseY = mouseY;
+
+	glfwPollEvents();
 }
 
 void SC::StreamRenderer::Render()
@@ -150,7 +201,6 @@ void SC::StreamRenderer::Render()
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
 	glfwSwapBuffers(m_window);
-	glfwPollEvents();
 }
 
 void SC::StreamRenderer::FreeQueues()
@@ -175,7 +225,7 @@ SC::FrameData* SC::StreamRenderer::GetDeviceFrameBuffer(int* pnPitch)
 	}
 
 	*pnPitch = m_width * 4;
-	
+
 	return frameData;
 }
 
@@ -238,19 +288,6 @@ void SC::StreamRenderer::CopyFrameToTexture()
 	PushWriteFrame(data);
 }
 
-void SC::StreamRenderer::DoneCopying()
-{
-
-}
-
-void SC::StreamRenderer::ProcessInput()
-{
-	if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-	{
-		glfwSetWindowShouldClose(m_window, true);
-	}
-
-}
 
 void SC::StreamRenderer::BuildBuffers()
 {

@@ -8,13 +8,41 @@ using namespace DirectX;
 
 void DX12Lib::SceneCamera::Init(CommandContext& context)
 {
-	Camera::SetLens(0.25f * DirectX::XM_PI, (1920.f / 1080.f), 1.0f, 1000.0f);
+	Camera::SetLens(0.25f * DirectX::XM_PI, ((float)Renderer::s_clientWidth / Renderer::s_clientHeight), 1.0f, 1000.0f);
 }
 
 void DX12Lib::SceneCamera::Update(CommandContext& context)
 {
+	auto input = this->Node->Scene.GetNetworkData();
+
+	std::string inputData = std::string(input.data(), input.size());
+
+	float mouseX = 0.0f, mouseY = 0.0f;
+
+	ParseInputString(inputData, &mouseX, &mouseY, &m_cameraForward, &m_cameraStrafe, &m_cameraLift);
+
 	auto& transform = this->Node->Transform;
 	float deltaTime = this->Node->Scene.Time().DeltaTime();
+
+
+
+	auto kbState = s_kbTracker->GetLastState();
+
+	if (s_kbTracker->IsKeyPressed(Keyboard::Escape))
+		PostQuitMessage(0);
+
+
+#ifdef STREAMING
+	float deltaX = mouseX * Renderer::s_clientWidth * deltaTime;
+	float deltaY = mouseY * Renderer::s_clientHeight * deltaTime;
+
+	this->Node->Translate(Node->GetForward(), m_cameraForward * deltaTime);
+	this->Node->Translate(Node->GetRight(), m_cameraStrafe * deltaTime);
+	this->Node->Translate({ 0.0f, 1.0f, 0.0f }, m_cameraLift * deltaTime);
+
+	this->Node->Rotate({ 0.0f, 1.0f, 0.0f }, deltaX);
+	this->Node->Rotate(Node->GetRight(), deltaY);
+#else
 
 	auto state = s_mouse->GetState();
 	if (state.positionMode == Mouse::MODE_RELATIVE)
@@ -24,15 +52,6 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 		this->Node->Rotate({ 0.0f, 1.0f, 0.0f }, state.x * deltaTime);
 
 	}
-
-	auto kbState = s_kbTracker->GetLastState();
-
-	if (s_kbTracker->IsKeyPressed(Keyboard::Escape))
-		PostQuitMessage(0);
-
-	auto pos = Node->GetPosition();
-
-
 
 	if (kbState.W)
 		this->Node->Translate(Node->GetForward(), deltaTime);
@@ -46,8 +65,7 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 		this->Node->Translate({0.0f, 1.0f, 0.0f }, deltaTime);
 	if (kbState.Q)
 		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime);
-
-	pos = Node->GetPosition();
+#endif
 
 	if (Node->IsTransformDirty())
 		Camera::UpdateViewMatrix(transform.GetWorldPosition(), transform.GetUp(), transform.GetForward(), transform.GetRight());
@@ -60,7 +78,7 @@ void DX12Lib::SceneCamera::Render(CommandContext& context)
 
 void DX12Lib::SceneCamera::OnResize(CommandContext& context)
 {
-	Camera::SetLens(0.25f * DirectX::XM_PI, (1920.f / 1080.f), 1.0f, 1000.0f);
+	Camera::SetLens(0.25f * DirectX::XM_PI, ((float)Renderer::s_clientWidth / Renderer::s_clientHeight), 1.0f, 1000.0f);
 }
 
 void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
@@ -88,4 +106,36 @@ void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
 		(UINT)Renderer::RootSignatureSlot::CameraCBV,
 		cbCamera.GpuAddress()
 	);
+}
+
+void DX12Lib::SceneCamera::ParseInputString(std::string& input, float* mouseX, float* mouseY, int* cameraForward, int* cameraStrafe, int* cameraLift)
+{
+	size_t pos = 0, end = 0;
+	while ((end = input.find('\n', pos)) != std::string::npos) {
+		std::string_view line = std::string_view(input).substr(pos, end - pos);
+		pos = end + 1;
+
+		if (line.substr(0, 2) == "M ") {
+			size_t xPos = line.find("x:");
+			if (xPos != std::string::npos) {
+				size_t xEnd = line.find(' ', xPos);
+				*mouseX = std::stof(std::string(line.substr(xPos + 2, xEnd - xPos - 2)));
+			}
+			size_t yPos = line.find("y:");
+			if (yPos != std::string::npos) {
+				size_t yEnd = line.find(' ', yPos);
+				*mouseY = std::stof(std::string(line.substr(yPos + 2, yEnd - yPos - 2)));
+			}
+		}
+		else if (line.substr(0, 3) == "CF ") {
+			*cameraForward = std::stoi(std::string(line.substr(3)));
+		}
+		else if (line.substr(0, 3) == "CS ") {
+			*cameraStrafe = std::stoi(std::string(line.substr(3)));
+		}
+		else if (line.substr(0, 3) == "CL ") {
+			*cameraLift = std::stoi(std::string(line.substr(3)));
+		}
+	}
+	
 }

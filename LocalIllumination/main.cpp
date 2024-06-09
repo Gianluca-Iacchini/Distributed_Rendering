@@ -13,8 +13,7 @@
 #include "ResourceUploadBatch.h"
 #include "DX12Lib/Scene/Scene.h"
 #include "DX12Lib/DXWrapper/Swapchain.h"
-#include "DX12Lib/Encoder/NVEncoder.h"
-#include <fstream>
+
 #include "DX12Lib/Encoder/FFmpegStreamer.h"
 
 
@@ -47,11 +46,9 @@ class AppTest : public D3DApp
 	std::shared_ptr<RootSignature> m_rootSignature;
 	std::shared_ptr<PipelineState> m_pipelineState;
 
-	DX12Lib::NVEncoder m_encoder;
 	UINT frameCount = 0;
 	float timeSinceRenderStart = 0;
 
-	std::ofstream fpOut;
 
 	std::vector<std::vector<std::uint8_t>> totPackets;
 
@@ -88,16 +85,15 @@ public:
 
 		m_scene->Init(*context);
 
-		m_encoder.Initialize(this->mClientWidth, this->mClientHeight);
-		m_encoder.StartEncodeLoop();
-
 
 		context->Finish(true);
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
-		ffmpegStreamer.OpenStream();
-		ffmpegStreamer.StartStreaming(m_encoder);
+#if STREAMING
+		ffmpegStreamer.OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight);
+		ffmpegStreamer.StartStreaming();
+#endif
 
 		return true;
 	}
@@ -105,8 +101,8 @@ public:
 	void UpdateCommonConstants(const GameTime& gt)
 	{
 
-		m_costantBufferCommons.renderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
-		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
+		m_costantBufferCommons.renderTargetSize = XMFLOAT2((float)Renderer::s_clientWidth, (float)Renderer::s_clientHeight);
+		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / Renderer::s_clientWidth, 1.0f / Renderer::s_clientHeight);
 		m_costantBufferCommons.totalTime = gt.TotalTime();
 		m_costantBufferCommons.deltaTime = gt.DeltaTime();
 	}
@@ -126,6 +122,9 @@ public:
 		s_kbTracker->Update(kbState);
 
 		UpdateCommonConstants(gt);
+
+		auto data = ffmpegStreamer.ConsumeData();
+		m_scene->SetNetworkData(std::get<char*>(data), std::get<size_t>(data));
 		m_scene->Update(*context);
 
 		context->Finish(true);
@@ -163,10 +162,12 @@ public:
 		lastUpdateTime = totTime;
 		accumulatedTime += encodeDeltaTime;
 
-		if (accumulatedTime >= (1.f / m_encoder.maxFrames))
+		float encoderFramerate = 1.f / ffmpegStreamer.GetEncoder().maxFrames;
+
+		if (accumulatedTime >= (encoderFramerate))
 		{
-			accumulatedTime -= (1.f / (m_encoder.maxFrames));
-			m_encoder.SendResourceForEncode(*context, backBuffer);
+			accumulatedTime -= encoderFramerate;
+			ffmpegStreamer.Encode(*context, backBuffer);
 		}
 
 #endif
@@ -189,31 +190,9 @@ public:
 
 	virtual void OnClose() override
 	{
-		m_encoder.StopEncodeLoop();
-
-		auto& totPackets = m_encoder.GetEncodedPackets();
-
-		fpOut = std::ofstream("output.h265", std::ios::out | std::ios::binary);
-		if (!fpOut)
-		{
-			DXLIB_ERROR("Error opening file");
-		}
-
-		for (auto& p : totPackets)
-		{
-			fpOut.write(reinterpret_cast<char*>(p.data()), p.size());
-		}
-
-		frameCount += totPackets.size();
-
-		std::wstring message = L"Time passed " + std::to_wstring(timeSinceRenderStart) + L"s\n";
-		message += L"Expected encoded frames " + std::to_wstring((UINT)(m_encoder.maxFrames * timeSinceRenderStart)) + L"\n";
-		message += L"Encoded " + std::to_wstring(frameCount) + L" frames\n";
-
-
+#if STREAMING
 		ffmpegStreamer.CloseStream();
-
-		OutputDebugStringW(message.c_str());
+#endif
 	}
 };
 

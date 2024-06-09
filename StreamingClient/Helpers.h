@@ -6,6 +6,7 @@
 #include <memory>
 #include "ColorSpace.h"
 #include <queue>
+#include <cmath>
 
 // Log Macros
 
@@ -83,13 +84,45 @@ namespace SC
 		bool m_done = false;
 	};
 
+	class Helpers
+	{
+	public:
+		template <typename T>
+		static std::string TruncateToString(T value, int n)
+		{
+			T factor = std::pow(10, n);
+
+			// Truncate the value
+			T truncatedValue = std::floor(value * factor) / factor;
+
+			// Create a buffer for the formatted string
+			char buffer[50];
+
+			// Use snprintf to format the truncated value into the buffer
+			snprintf(buffer, sizeof(buffer), "%.10f", truncatedValue);
+
+			// Convert to std::string and remove any trailing zeros
+			std::string result(buffer);
+
+			// Remove trailing zeros
+			result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+
+			// If the last character is a dot, remove it
+			if (result.back() == '.') {
+				result.pop_back();
+			}
+
+			return result;
+		}
+	};
+
 	class Logger
 	{
 	public:
 		Logger() {}
 		~Logger() {}
 
-		static void Init();
+		static void InitializeResources();
 		inline static std::shared_ptr<spdlog::logger>& GetLogger() { return s_logger; }
 
 	private:

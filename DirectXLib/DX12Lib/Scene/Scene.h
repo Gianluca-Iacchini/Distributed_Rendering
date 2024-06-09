@@ -28,6 +28,9 @@ namespace DX12Lib
 
 		inline const GameTime& Time() const { return m_time; }
 
+		void SetNetworkData(const char* data, size_t size);
+		const std::vector<char>& GetNetworkData() const { return m_inputData; }
+
 	private:
 		NodePtr m_rootNode;
 		GameTime& m_time;
@@ -35,6 +38,8 @@ namespace DX12Lib
 		UINT m_numNodes = 0;
 
 		SceneCamera* m_camera = nullptr;
+
+		std::vector<char> m_inputData;
 	};
 }
 

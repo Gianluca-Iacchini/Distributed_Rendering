@@ -45,7 +45,7 @@ HWND D3DApp::MainWnd() const
 
 float D3DApp::AspectRatio() const
 {
-	return static_cast<float>(mClientWidth) / mClientHeight;
+	return static_cast<float>(Renderer::s_clientWidth) / Renderer::s_clientHeight;
 }
 
 bool D3DApp::Get4xMsaaSate() const
@@ -128,24 +128,7 @@ void DX12Lib::D3DApp::OnResize(CommandContext& commandContext)
 	// Flush before changing any resources.
 	FlushCommandQueue();
 
-	Renderer::s_swapchain->Resize(mClientWidth, mClientHeight);
-
-	Renderer::s_swapchain->CurrentBufferIndex = 0;
-
-
-	Renderer::s_depthStencilBuffer->GetComPtr().Reset();
-	Renderer::s_depthStencilBuffer->Create(mClientWidth, mClientHeight, m_depthStencilFormat);
-
-	commandContext.TransitionResource(*Renderer::s_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-
-	Renderer::s_screenViewport.TopLeftX = 0;
-	Renderer::s_screenViewport.TopLeftY = 0;
-	Renderer::s_screenViewport.Width = static_cast<float>(mClientWidth);
-	Renderer::s_screenViewport.Height = static_cast<float>(mClientHeight);
-	Renderer::s_screenViewport.MinDepth = 0.0f;
-	Renderer::s_screenViewport.MaxDepth = 1.0f;
-
-	Renderer::s_scissorRect = { 0, 0, mClientWidth, mClientHeight };
+	Renderer::ResizeSwapchain(&commandContext);
 }
 
 void D3DApp::ResizeCallback()
@@ -161,7 +144,7 @@ void D3DApp::ResizeCallback()
 
 bool D3DApp::InitMainWindow()
 {
-	m_dx12Window = std::make_unique<DX12Window>(m_hAppInst, mClientWidth, mClientHeight, mMainWndCaption);
+	m_dx12Window = std::make_unique<DX12Window>(m_hAppInst, Renderer::s_clientWidth, Renderer::s_clientHeight, mMainWndCaption);
 
 	if (!m_dx12Window->Create())
 		return false;

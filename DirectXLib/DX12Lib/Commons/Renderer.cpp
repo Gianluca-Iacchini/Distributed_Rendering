@@ -32,6 +32,9 @@ namespace Graphics::Renderer
 	std::unordered_map<std::wstring, std::shared_ptr<PipelineState>> s_PSOs;
 	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
+	int s_clientWidth = 1920;
+	int s_clientHeight = 1080;
+
 	std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer = nullptr;
 
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
@@ -210,6 +213,28 @@ namespace Graphics::Renderer
 	DX12Lib::ColorBuffer& GetCurrentBackBuffer()
 	{
 		return s_swapchain->GetCurrentBackBuffer();
+	}
+
+	void ResizeSwapchain(CommandContext* context)
+	{
+		s_swapchain->Resize(s_clientWidth, s_clientHeight);
+
+		s_swapchain->CurrentBufferIndex = 0;
+
+
+		Renderer::s_depthStencilBuffer->GetComPtr().Reset();
+		Renderer::s_depthStencilBuffer->Create(s_clientWidth, s_clientHeight, m_depthStencilFormat);
+
+		context->TransitionResource(*Renderer::s_depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+
+		Renderer::s_screenViewport.TopLeftX = 0;
+		Renderer::s_screenViewport.TopLeftY = 0;
+		Renderer::s_screenViewport.Width = static_cast<float>(s_clientWidth);
+		Renderer::s_screenViewport.Height = static_cast<float>(s_clientHeight);
+		Renderer::s_screenViewport.MinDepth = 0.0f;
+		Renderer::s_screenViewport.MaxDepth = 1.0f;
+
+		Renderer::s_scissorRect = { 0, 0, s_clientWidth, s_clientHeight};
 	}
 
 	void Present(UINT64 fenceVal)

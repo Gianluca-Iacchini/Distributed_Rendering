@@ -17,7 +17,19 @@ namespace DX12Lib
 		void UseCamera(CommandContext& context);
 
 	private:
+		void ParseInputString(std::string& input, float* mouseX, float* mouseY, int* cameraForward, int* cameraStrafe, int* cameraLift);
+
+	private:
 		DirectX::XMFLOAT3 m_lastPosition = { 0.0f, 0.0f, 0.0f };
 		ConstantBufferCamera m_constantBufferCamera;
+
+		int m_cameraForward = 0;
+		int m_cameraStrafe = 0;
+		int m_cameraLift = 0;
+
+		float m_oldMouseX = 0.0f;
+		float m_oldMouseY = 0.0f;
+
+		UINT m_inputCounter = 0;
 	};
 }

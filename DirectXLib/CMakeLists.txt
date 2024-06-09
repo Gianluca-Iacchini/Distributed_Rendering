@@ -59,6 +59,7 @@ target_link_libraries(DirectXLib
     PUBLIC DirectXTex
     PUBLIC DirectXTK12
     PUBLIC spdlog
+    PUBLIC ws2_32.lib
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avcodec.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avformat.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avutil.lib"

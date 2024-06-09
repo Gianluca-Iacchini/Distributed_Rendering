@@ -89,8 +89,5 @@ namespace DX12Lib {
 
 		std::wstring mMainWndCaption = L"D3D12 Application";
 		D3D_DRIVER_TYPE mD3DDriverType = D3D_DRIVER_TYPE_HARDWARE;
-
-		int mClientWidth = 1920;
-		int mClientHeight = 1080;
 	};
 }

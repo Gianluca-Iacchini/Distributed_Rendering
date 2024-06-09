@@ -281,7 +281,6 @@ bool SC::FFmpegDemuxer::Demux(std::uint8_t** data, int* nVideoBytes, int64_t* pt
 	while ((e = av_read_frame(m_formatCtx, m_packet)) >= 0 && m_packet->stream_index != m_iVideoStream)
 	{
 		av_packet_unref(m_packet);
-		SC_LOG_INFO("Discarding packet");
 	}
 
 	if (e < 0)

@@ -173,3 +173,8 @@ void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, S
 	}
 
 }
+
+void DX12Lib::Scene::SetNetworkData(const char* data, size_t size)
+{
+	m_inputData = std::vector<char>(data, data + size);
+}

@@ -5,7 +5,7 @@ using namespace SC;
 std::shared_ptr<spdlog::logger> Logger::s_logger;
 
 
-void Logger::Init()
+void Logger::InitializeResources()
 {
 	spdlog::set_pattern("%^[%T] [%n]: %v%$");
 

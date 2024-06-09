@@ -7,13 +7,176 @@
 #include "FFmpegDemuxer.h"
 #include "NVDecoder.h"
 #include "ColorSpace.h"
-
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 float lastTime = 0.0f;
 float currentTime = 0.0f;
 float accumulatedTime = 0.0f;
 
 bool g_isDecodeDone = false;
+
+
+double lastX = 0.0;
+double lastY = 0.0;
+std::string lastMouseXTruncated = "0";
+std::string lastMouseYTruncated = "0";
+bool firstMouse = true;
+
+
+SOCKET g_sockfd;
+struct sockaddr_in g_servAddr;
+
+int cameraForwardValue = 0;
+int cameraStrafeValue = 0;
+int cameraLiftValue = 0;
+
+void InitializeWinsock()
+{
+	WSADATA wsaData;
+
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+		SC_LOG_ERROR("WSAStartup failed.");
+		return;
+		return;
+	}
+
+	g_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (g_sockfd == INVALID_SOCKET) {
+		SC_LOG_ERROR("Socket creation failed.");
+		WSACleanup();
+		return;
+	}
+
+	memset(&g_servAddr, 0, sizeof(g_servAddr));
+
+	g_servAddr.sin_family = AF_INET;
+	g_servAddr.sin_port = htons(12345);
+	inet_pton(AF_INET, "127.0.0.1", &g_servAddr.sin_addr);
+
+	SC_LOG_INFO("Winsock initialized");
+}
+
+void SendInput(std::string input)
+{
+	std::string message = input;
+	if (sendto(g_sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&g_servAddr, sizeof(g_servAddr)) == SOCKET_ERROR)
+	{
+		int error = WSAGetLastError();
+		SC_LOG_ERROR("Failed to send message {0}", error);
+		return;
+	}
+}
+
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	std::string keyInput = "";
+
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+	{
+		glfwSetWindowShouldClose(window, true);
+	}
+
+	if (action == GLFW_PRESS)
+	{
+		switch (key)
+		{
+		case GLFW_KEY_W:
+			keyInput += "CF 1\n";
+			break;
+		case GLFW_KEY_S:
+			keyInput += "CF -1\n";
+			break;
+		case GLFW_KEY_A:
+			keyInput += "CS -1\n";
+			break;
+		case GLFW_KEY_D:
+			keyInput += "CS 1\n";
+			break;
+		case GLFW_KEY_E:
+			keyInput += "CL 1\n";
+			break;
+		case GLFW_KEY_Q:
+			keyInput += "CL -1\n";
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (action == GLFW_RELEASE)
+	{
+		if (key == GLFW_KEY_W || key == GLFW_KEY_S)
+		{
+			keyInput += "CF 0\n";
+		}
+		if (key == GLFW_KEY_A || key == GLFW_KEY_D)
+		{
+			keyInput += "CS 0\n";
+		}
+		if (key == GLFW_KEY_E || key == GLFW_KEY_Q)
+		{
+			keyInput += "CL 0\n";
+		}
+	}
+
+	if (keyInput.empty())
+	{
+		return;
+	}
+
+
+	SendInput(keyInput);
+}
+
+void MouseCallback(GLFWwindow* window, double xpos, double ypos)
+{
+	// If this is the first time the callback is called, initialize the last position
+	if (firstMouse)
+	{
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
+
+	// Calculate the delta positions
+	double deltaX = xpos - lastX;
+	double deltaY = ypos - lastY;
+
+	// Update the last positions
+	lastX = xpos;
+	lastY = ypos;
+
+	int wWidth = 1, wHeight = 1;
+	glfwGetWindowSize(window, &wWidth, &wHeight);
+
+	double normalizedDeltaX = deltaX / wWidth;
+	double normalizedDeltaY = deltaY / wHeight;
+
+	std::string input = "M ";
+
+	std::string truncatedX = SC::Helpers::TruncateToString(normalizedDeltaX, 5);
+	std::string truncatedY = SC::Helpers::TruncateToString(normalizedDeltaY, 5);
+
+	if (truncatedX == lastMouseXTruncated && truncatedY == lastMouseYTruncated)
+		return;
+
+	if (truncatedX != lastMouseXTruncated)
+	{
+		input += "x:" + truncatedX + " ";
+		lastMouseXTruncated = truncatedX;
+	}
+
+	if (truncatedY != lastMouseYTruncated)
+	{
+		input += "y:" + truncatedY;
+		lastMouseYTruncated = truncatedY;
+	}
+
+	input += "\n";
+
+	SendInput(input);
+}
 
 void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamRenderer* renderer)
 {
@@ -83,7 +246,7 @@ void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamR
 
 int main()
 {
-	SC::Logger::Init();
+	SC::Logger::InitializeResources();
 
 	CUDA_SAFE_CALL(cuInit(0));
 	int deviceCount = 0;
@@ -123,14 +286,21 @@ int main()
 
 
 	{
+		SC::StreamRenderer sr(cuContext);
+
+		if (!sr.InitializeGL())
+		{
+			SC_LOG_ERROR("Failed to initialize OpenGL");
+			return -1;
+		}
+
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://cdn.radiantmediatechs.com/rmp/media/samples-for-rmp-site/04052024-lac-de-bimont/hls/playlist.m3u8");
 		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("udp://localhost:1234?overrun_nonfatal=1&fifo_size=50000000");
-		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://test-videos.co.uk/vids/bigbuckbunny/mp4/h265/1080/Big_Buck_Bunny_1080_10s_1MB.mp4");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("C:/Users/iacco/Desktop/DistributedRendering/build_vs2022/LocalIllumination/output.h265");
 		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()), true, false, NULL, NULL, false, 0, 0, 1000, false);
 
 
+		InitializeWinsock();
 
 		int width = (demuxer.GetWidth() + 1) & ~1;
 		int height = demuxer.GetHeight();
@@ -140,8 +310,11 @@ int main()
 
 		g_isDecodeDone = false;
 
-		SC::StreamRenderer sr(cuContext, width, height);
-		sr.Init(30);
+
+
+		sr.InitializeResources(width, height);
+		sr.SetKeyCallback(KeyCallback);
+		sr.SetMouseCallback(MouseCallback);
 
 
 		std::thread decodeThread(DecodeFrame, &dec, &demuxer, &sr);
@@ -154,34 +327,39 @@ int main()
 
 		unsigned int i = 0;
 
-		float accumulatedTime = 0;
-		float lastTime = 0;
+		double accumulatedTime = 0;
+
+		double renderStartTime = glfwGetTime();
+		double lastTime = renderStartTime;
+
 
 		while (!shouldClose)
 		{
 			sr.isDone = shouldClose = sr.ShouldCloseWindow() || (g_isDecodeDone && sr.IsReadQueueEmpty());
 
-			sr.Update();
+			double totalTime = glfwGetTime();
+			double deltaTime = totalTime - lastTime;
+			lastTime = totalTime;
 
-			if (i < 600)
+			if (renderStartTime > 0.0f )
 			{
+				sr.Update();
 				sr.Render();
+				renderStartTime -= deltaTime;
 				continue;
 			}
 
-			float totalTime = glfwGetTime();
-			float deltaTime = totalTime - lastTime;
-			lastTime = totalTime;
+
+
 			accumulatedTime += deltaTime;
 
 			if ((accumulatedTime >= sr.msfps / (1000.0f)))
 			{
 				accumulatedTime -= sr.msfps / (1000.0f);
+				sr.Update();
 				sr.Render();
-				
 			}
 
-			i++;
 		}
 
 		sr.FreeQueues();
