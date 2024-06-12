@@ -4,6 +4,8 @@ namespace DX12Lib {
 
 	class GameTime
 	{
+		friend class D3DApp;
+
 	public:
 		GameTime();
 		~GameTime();
@@ -18,7 +20,15 @@ namespace DX12Lib {
 
 		float GetInstantTime() const;
 
+		static inline float GetTotalTime() { return s_Instance->TotalTime(); }
+		static inline float GetDeltaTime() { return s_Instance->DeltaTime(); }
+
 	private:
+		static void CreateInstance();
+
+	private:
+		static std::unique_ptr<GameTime> s_Instance;
+
 		double m_SecondsPerCount;
 		double m_DeltaTime;
 

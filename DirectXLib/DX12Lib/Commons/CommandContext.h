@@ -3,8 +3,9 @@
 #define MAX_RESOURCE_BARRIERS 16
 
 #include <d3d12.h>
-#include <vector>
+#include <mutex>
 #include <queue>
+#include <vector>
 
 namespace DX12Lib {
 

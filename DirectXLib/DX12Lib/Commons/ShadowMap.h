@@ -15,8 +15,8 @@ namespace DX12Lib
 	{
 	public:
 		void Create(uint32_t width, uint32_t height);
-		void RenderShadowStart(CommandContext* context);
-		void RenderShadowEnd(CommandContext* context);
+		void RenderShadowStart(CommandContext& context);
+		void RenderShadowEnd(CommandContext& context);
 	private:
 		D3D12_VIEWPORT m_bufferViewport;
 		D3D12_RECT m_bufferScissorRect;

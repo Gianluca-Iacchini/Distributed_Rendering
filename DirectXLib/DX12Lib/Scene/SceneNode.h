@@ -23,7 +23,7 @@ namespace DX12Lib
 		void Init(CommandContext&);
 		void Update(CommandContext& context);
 		void Render(CommandContext& context);
-		void OnResize(CommandContext&);
+		void OnResize(CommandContext&, int newWidth, int newHeight);
 
 		void AddChild(SceneNode* node);
 		SceneNode* AddChild();

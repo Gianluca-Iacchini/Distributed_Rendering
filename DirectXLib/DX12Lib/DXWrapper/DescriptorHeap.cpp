@@ -105,3 +105,31 @@ bool DescriptorHeap::ValidateHandle(const DescriptorHandle& handle) const
 
 	return true;
 }
+
+DX12Lib::DescriptorHandle::DescriptorHandle()
+{
+	m_cpuHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+	m_gpuHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+}
+
+void DX12Lib::DescriptorHandle::operator+=(INT offsetScaledByDescriptorSize)
+{
+	if (m_cpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+	{
+		m_cpuHandle.ptr += offsetScaledByDescriptorSize;
+	}
+	if (m_gpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+	{
+		m_gpuHandle.ptr += offsetScaledByDescriptorSize;
+	}
+}
+
+bool DX12Lib::DescriptorHandle::IsNull() const
+{
+	{ return m_cpuHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
+}
+
+bool DX12Lib::DescriptorHandle::IsShaderVisible() const
+{
+	return m_gpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+}

@@ -4,6 +4,8 @@
 
 using namespace DX12Lib;
 
+std::unique_ptr<GameTime> GameTime::s_Instance = nullptr;
+
 GameTime::GameTime() : m_SecondsPerCount(0.0), m_DeltaTime(-1.0), m_BaseTime(0), m_PausedTime(0), m_StopTime(0), m_PrevTime(0), m_CurrTime(0), m_Stopped(false)
 {
 	__int64 countsPerSec;
@@ -98,3 +100,12 @@ float GameTime::GetInstantTime() const
 
 	return static_cast<float>((currTime - m_BaseTime) * m_SecondsPerCount);
 }
+
+void DX12Lib::GameTime::CreateInstance()
+{
+	if (s_Instance == nullptr)
+	{
+		s_Instance = std::make_unique<GameTime>();
+	}
+}
+

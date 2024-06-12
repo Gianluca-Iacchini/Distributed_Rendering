@@ -7,6 +7,8 @@ cbuffer Commons : register(b0)
 
     float cTotalTime : packoffset(c1);
     float cDeltaTime : packoffset(c1.y);
+    int cNumLights : packoffset(c1.z);
+    bool cUseShadows : packoffset(c1.w);
 };
 
 cbuffer Object : register(b1)

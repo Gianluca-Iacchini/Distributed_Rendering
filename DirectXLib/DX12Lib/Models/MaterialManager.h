@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Material.h"
+#include "assimp/material.h"
 
 namespace DX12Lib
 {

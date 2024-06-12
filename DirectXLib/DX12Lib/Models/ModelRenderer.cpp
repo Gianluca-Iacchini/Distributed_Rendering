@@ -57,16 +57,15 @@ void DX12Lib::MeshRenderer::Render(CommandContext& context)
 
 }
 
-void DX12Lib::MeshRenderer::DrawMesh(CommandContext* context)
+void DX12Lib::MeshRenderer::DrawMesh(CommandContext& context)
 {
-	assert(context != nullptr && "Context is null");
 
 	if (m_mesh == nullptr || m_meshMaterial == nullptr)
 		return;
 
-	context->m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, GetObjectCB().GpuAddress());
-	m_meshMaterial->UseMaterial(context->m_commandList->Get());
-	m_mesh->Draw(context->m_commandList->Get());
+	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, GetObjectCB().GpuAddress());
+	m_meshMaterial->UseMaterial(context.m_commandList->Get());
+	m_mesh->Draw(context.m_commandList->Get());
 }
 
 DirectX::GraphicsResource DX12Lib::MeshRenderer::GetObjectCB()
@@ -87,10 +86,8 @@ void DX12Lib::ModelRenderer::Render(CommandContext& context)
 	}
 }
 
-void DX12Lib::ModelRenderer::DrawMeshes(CommandContext* context, std::vector<MeshRenderer*> meshRenderers)
+void DX12Lib::ModelRenderer::DrawMeshes(CommandContext& context, std::vector<MeshRenderer*> meshRenderers)
 {
-	assert(context != nullptr && "Context is null");
-
 	Model->UseBuffers(context);
 	for (auto& mesh : meshRenderers)
 	{
@@ -98,7 +95,7 @@ void DX12Lib::ModelRenderer::DrawMeshes(CommandContext* context, std::vector<Mes
 	}
 }
 
-void DX12Lib::ModelRenderer::DrawAllBatch(CommandContext* context, std::wstring psoName)
+void DX12Lib::ModelRenderer::DrawAllBatch(CommandContext& context, std::wstring psoName)
 {
 	if (Model == nullptr)
 		return;
@@ -111,7 +108,7 @@ void DX12Lib::ModelRenderer::DrawAllBatch(CommandContext* context, std::wstring 
 	DrawMeshes(context, batch->second);
 }
 
-void DX12Lib::ModelRenderer::DrawAll(CommandContext* context)
+void DX12Lib::ModelRenderer::DrawAll(CommandContext& context)
 {
 	for (auto& batch : m_psoMeshRendererBatch)
 	{
@@ -119,9 +116,8 @@ void DX12Lib::ModelRenderer::DrawAll(CommandContext* context)
 	}
 }
 
-void DX12Lib::ModelRenderer::DrawBatchOpaque(CommandContext* context, std::wstring psoName)
+void DX12Lib::ModelRenderer::DrawBatchOpaque(CommandContext& context, std::wstring psoName)
 {
-	assert(context != nullptr && "Context is null");
 
 	if (Model == nullptr)
 		return;
@@ -142,10 +138,8 @@ void DX12Lib::ModelRenderer::DrawBatchOpaque(CommandContext* context, std::wstri
 	DrawMeshes(context, opaqueMeshes);
 }
 
-void DX12Lib::ModelRenderer::DrawBatchTransparent(CommandContext* context, std::wstring psoName)
+void DX12Lib::ModelRenderer::DrawBatchTransparent(CommandContext& context, std::wstring psoName)
 {
-	assert(context != nullptr && "Context is null");
-
 	if (Model == nullptr)
 		return;
 
@@ -166,12 +160,12 @@ void DX12Lib::ModelRenderer::DrawBatchTransparent(CommandContext* context, std::
 }
 
 
-void DX12Lib::ModelRenderer::DrawOpaque(CommandContext* context)
+void DX12Lib::ModelRenderer::DrawOpaque(CommandContext& context)
 {
 	DrawMeshes(context, m_opaqueMeshes);
 }
 
-void DX12Lib::ModelRenderer::DrawTransparent(CommandContext* context)
+void DX12Lib::ModelRenderer::DrawTransparent(CommandContext& context)
 {
 	DrawMeshes(context, m_transparentMeshes);
 }

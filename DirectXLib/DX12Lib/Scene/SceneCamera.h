@@ -12,7 +12,7 @@ namespace DX12Lib
 		void Init(CommandContext& context) override;
 		void Update(CommandContext& context) override;
 		void Render(CommandContext& context) override;
-		void OnResize(CommandContext& context) override;
+		void OnResize(CommandContext& context, int newWidth, int newHeight) override;
 
 		void UseCamera(CommandContext& context);
 

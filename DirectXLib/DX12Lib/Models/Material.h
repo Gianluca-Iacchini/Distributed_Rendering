@@ -1,8 +1,6 @@
 #pragma once
 
 #include "DX12Lib/DXWrapper/Texture.h"
-#include "assimp/material.h"
-#include "GraphicsMemory.h"
 #include <DirectXMath.h>
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "DX12Lib/Commons/CommonConstants.h"

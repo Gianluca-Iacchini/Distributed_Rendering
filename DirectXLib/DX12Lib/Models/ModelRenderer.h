@@ -4,6 +4,7 @@
 #include "Model.h"
 #include "Mesh.h"
 #include "DX12Lib/Commons/Helpers.h"
+#include "DX12Lib/Commons/Renderer.h"
 
 namespace DX12Lib
 {
@@ -31,7 +32,7 @@ namespace DX12Lib
 
 		virtual void Render(CommandContext& context) override;
 
-		void DrawMesh(CommandContext* context);
+		void DrawMesh(CommandContext& context);
 
 		void SetMesh(std::shared_ptr<Mesh> mesh)
 		{
@@ -114,15 +115,15 @@ namespace DX12Lib
 		virtual void Render(CommandContext& context) override;
 
 		
-		void DrawAll(CommandContext* context);
-		void DrawOpaque(CommandContext* context);
-		void DrawTransparent(CommandContext* context);
-		void DrawAllBatch(CommandContext* context, std::wstring psoName);
-		void DrawBatchOpaque(CommandContext* context, std::wstring psoName);
-		void DrawBatchTransparent(CommandContext* context, std::wstring psoName);
+		void DrawAll(CommandContext& context);
+		void DrawOpaque(CommandContext& context);
+		void DrawTransparent(CommandContext& context);
+		void DrawAllBatch(CommandContext& context, std::wstring psoName);
+		void DrawBatchOpaque(CommandContext& context, std::wstring psoName);
+		void DrawBatchTransparent(CommandContext& context, std::wstring psoName);
 
 	private:
-		void DrawMeshes(CommandContext* context, std::vector<MeshRenderer*> meshRenderers);
+		void DrawMeshes(CommandContext& context, std::vector<MeshRenderer*> meshRenderers);
 
 	};
 

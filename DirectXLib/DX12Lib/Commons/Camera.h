@@ -1,6 +1,7 @@
 #pragma once
 
 #include <DirectXMath.h>
+#include "MathHelper.h"
 
 namespace DX12Lib {
 

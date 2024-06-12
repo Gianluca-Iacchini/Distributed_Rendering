@@ -128,20 +128,17 @@ void Model::Draw(CommandList* commandList)
     Draw(commandList->Get());
 }
 
-void Model::Draw(CommandContext* context)
+void Model::Draw(CommandContext& context)
 {
-    assert(context != nullptr && "CommandList is null");
-	Draw(context->m_commandList);
+	Draw(context.m_commandList);
 }
 
-void DX12Lib::Model::UseBuffers(CommandContext* context)
+void DX12Lib::Model::UseBuffers(CommandContext& context)
 {
-    assert(context != nullptr && "CommandList is null");
-
-    context->m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    context->m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
-
-    context->m_commandList->Get()->SetGraphicsRootShaderResourceView((UINT)RootSignatureSlot::MaterialSRV, m_materialBufferResource->GetGPUVirtualAddress());
+    context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+    context.m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
+           
+    context.m_commandList->Get()->SetGraphicsRootShaderResourceView((UINT)RootSignatureSlot::MaterialSRV, m_materialBufferResource->GetGPUVirtualAddress());
 }
 
 void Model::BuildVertexBuffer(UINT stride, UINT numVertices)

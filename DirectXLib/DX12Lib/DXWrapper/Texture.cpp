@@ -7,6 +7,17 @@ using namespace DX12Lib;
 using namespace Microsoft::WRL;
 using namespace Graphics;
 
+Texture::Texture() : m_width(0), m_height(0), m_depth(0), m_isLoaded(false)
+{
+    m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+}
+
+void DX12Lib::Texture::OnDestroy()
+{
+    Resource::OnDestroy();
+    m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+}
+
 void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT format, const void* initData)
 {
     OnDestroy();

@@ -25,7 +25,8 @@ namespace DX12Lib {
 
 		float totalTime = 0.0f;
 		float deltaTime = 0.0f;
-		//float _pad0 = 0.0f;
+		int numLights = 0;
+		bool renderShadows = true;
 		//float _pad1 = 0.0f;
 
 		//ConstantBufferLight light;

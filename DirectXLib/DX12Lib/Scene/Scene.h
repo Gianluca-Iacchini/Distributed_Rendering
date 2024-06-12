@@ -3,41 +3,45 @@
 #include "DX12Lib/Models/Model.h"
 #include "DX12Lib/Commons/GameTime.h"
 
+
 namespace DX12Lib
 {
 	class ModelRenderer;
 	class SceneCamera;
+	class D3DApp;
 
 	class Scene
 	{
 		friend class SceneNode;
 	public:
-		Scene(GameTime& time);
+		Scene();
 		~Scene();
 
 		bool AddFromFile(const std::wstring& filename);
 		bool AddFromFile(const wchar_t* filename);
 		bool AddFromFile(const char* filename);
-		void Init(CommandContext& context);
-		void Update(CommandContext& context);
-		void Render(CommandContext& context);
-		void OnResize(CommandContext& context);
-		void Draw(ID3D12GraphicsCommandList* cmdList);
+		virtual void Init(CommandContext& context);
+		virtual void Update(CommandContext& context);
+		virtual void Render(CommandContext& context);
+		virtual void OnResize(CommandContext& context, int newWidth, int newHeight);
 
-		void TraverseModel(ModelRenderer* model, aiNode* node, SceneNode* parent);
-
-		inline const GameTime& Time() const { return m_time; }
+		SceneNode* AddNode();
 
 		void SetNetworkData(const char* data, size_t size);
 		const std::vector<char>& GetNetworkData() const { return m_inputData; }
 
 	private:
+		void TraverseModel(ModelRenderer* model, aiNode* node, SceneNode* parent);
+
+	protected:
+		SceneCamera* m_camera = nullptr;
+
+	private:
 		NodePtr m_rootNode;
-		GameTime& m_time;
 
 		UINT m_numNodes = 0;
 
-		SceneCamera* m_camera = nullptr;
+
 
 		std::vector<char> m_inputData;
 	};

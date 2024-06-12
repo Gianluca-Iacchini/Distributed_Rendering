@@ -48,13 +48,31 @@ float4 PS(VertexOut pIn) : SV_TARGET
     float3 lRes = emissive.rgb;    
     Light light = gLights[0];
     
-    //float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, pIn.ShadowPosH.xy, pIn.ShadowPosH.z).r;
-    float shadow = CalcShadowFactor(pIn.ShadowPosH);
-    light.color *= shadow;
-    lRes += PBRDirectionalLight(light, surfData, roughness);
+    if (cNumLights > 0)
+    {
+
+        
+        float shadow = 1.0f;
+        
+        if (cUseShadows)
+        {
+            shadow = CalcShadowFactor(pIn.ShadowPosH);
+            //float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, pIn.ShadowPosH.xy, pIn.ShadowPosH.z).r;
+            light.color *= shadow;
+        }
+
+        lRes += PBRDirectionalLight(light, surfData, roughness);
+    }
+
+    for (int i = 1; i < cNumLights; i++)
+    {
+        light = gLights[i];
+        lRes += PBRDirectionalLight(light, surfData, roughness);
+    }
+    
+
     lRes += surfData.c_diff * 0.13f;
 
     
     return float4(lRes, diffuse.a);
-   // return float4(shadow, 0, 0, 1);
 }

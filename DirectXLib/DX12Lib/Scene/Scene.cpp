@@ -7,15 +7,20 @@
 #include "SceneCamera.h"
 #include "LightComponent.h"
 #include "DX12Lib/Commons/ShadowMap.h"
+#include "DX12Lib/Commons/D3DApp.h"
 
 using namespace DX12Lib;
 using namespace Assimp;
 using namespace Graphics;
 
-Scene::Scene(GameTime& gTime) : m_time(gTime)
+Scene::Scene()
 {
 	m_rootNode = std::make_unique<SceneNode>(*this);
 	m_rootNode->Name = L"RootNode";
+
+	auto cameraNode = this->AddNode();
+	m_camera = cameraNode->AddComponent<SceneCamera>();
+
 }
 
 Scene::~Scene()
@@ -84,19 +89,6 @@ bool DX12Lib::Scene::AddFromFile(const char* filename)
 
 void DX12Lib::Scene::Init(CommandContext& context)
 {
-	auto cameraChild = m_rootNode->AddChild();
-	m_camera = cameraChild->AddComponent<SceneCamera>();
-
-	cameraChild->SetPosition(0, 3, 0);
-
-	auto lightNode = m_rootNode->AddChild();
-	lightNode->SetPosition(0, 100, 0);
-	auto light = lightNode->AddComponent<LightComponent>();
-	light->SetCastsShadows(true);
-	light->SetLightColor({ 0.6f, 0.6f, 0.6f });
-	lightNode->Rotate(lightNode->GetRight(), 1.2f);
-
-
 	m_rootNode->Init(context);
 }
 
@@ -112,15 +104,16 @@ void Scene::Render(CommandContext& context)
 	m_rootNode->Render(context);
 }
 
-void DX12Lib::Scene::OnResize(CommandContext& context)
+void DX12Lib::Scene::OnResize(CommandContext& context, int newWidth, int newHeight)
 {
-	m_rootNode->OnResize(context);
+	m_rootNode->OnResize(context, newWidth, newHeight);
 }
 
-void DX12Lib::Scene::Draw(ID3D12GraphicsCommandList* cmdList)
+SceneNode* DX12Lib::Scene::AddNode()
 {
-	
+	return m_rootNode->AddChild();
 }
+
 
 void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, SceneNode* parentNode)
 {

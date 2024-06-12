@@ -34,11 +34,7 @@ namespace DX12Lib {
 	class DescriptorHandle
 	{
 	public:
-		DescriptorHandle()
-		{
-			m_cpuHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-			m_gpuHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-		}
+		DescriptorHandle();
 
 		DescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle)
 			: m_cpuHandle(cpuHandle)
@@ -50,17 +46,7 @@ namespace DX12Lib {
 		operator D3D12_CPU_DESCRIPTOR_HANDLE() const { return m_cpuHandle; }
 		operator D3D12_GPU_DESCRIPTOR_HANDLE() const { return m_gpuHandle; }
 
-		void operator += (INT offsetScaledByDescriptorSize)
-		{
-			if (m_cpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
-			{
-				m_cpuHandle.ptr += offsetScaledByDescriptorSize;
-			}
-			if (m_gpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
-			{
-				m_gpuHandle.ptr += offsetScaledByDescriptorSize;
-			}
-		}
+		void operator += (INT offsetScaledByDescriptorSize);
 
 		DescriptorHandle operator+ (INT offsetScaledByDescriptorSize) const
 		{
@@ -71,8 +57,8 @@ namespace DX12Lib {
 
 		size_t GetCPUPtr() const { return m_cpuHandle.ptr; }
 		size_t GetGPUPtr() const { return m_gpuHandle.ptr; }
-		bool IsNull() const { return m_cpuHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
-		bool IsShaderVisible() const { return m_gpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
+		bool IsNull() const;
+		bool IsShaderVisible() const;
 
 	private:
 

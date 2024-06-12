@@ -10,6 +10,13 @@ namespace DX12Lib
 
 	class LightComponent : public Component
 	{
+	public:
+		enum LightType
+		{
+			Directional,
+			Point,
+			Spot
+		};
 
 	public:
 		LightComponent();
@@ -17,6 +24,9 @@ namespace DX12Lib
 
 		void Update(CommandContext& context) override;
 		void Render(CommandContext& context) override;
+
+		void SetLightType(LightType type) { m_lightType = type; }
+		LightType GetLightType() const { return m_lightType; }
 
 		void SetLightColor(DirectX::XMFLOAT3 color) { m_lightCB.Color = color; }
 		void SetLightFalloff(float falloffStart, float falloffEnd) { m_lightCB.FalloffStart = falloffStart;  m_lightCB.FalloffEnd = falloffEnd; }
@@ -32,18 +42,16 @@ namespace DX12Lib
 	private:
 		static void RemoveLight(int index);
 
-	public:
-
-
 	private:
 		UINT m_lightIndex;
+		LightType m_lightType = LightType::Directional;
 		ConstantBufferLight m_lightCB;
 		std::unique_ptr<ShadowCamera> m_shadowCamera;
 		bool m_doesCastShadows = false;
 	private:
 		static std::vector<LightComponent*> m_activeLights;
 		static DirectX::GraphicsResource m_lightBufferSRV;
-
+		static ConstantBufferLight* s_lightBufferData;
 	};
 }
 

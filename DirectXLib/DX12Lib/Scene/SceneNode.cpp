@@ -57,15 +57,15 @@ void DX12Lib::SceneNode::Render(CommandContext& context)
 	
 }
 
-void DX12Lib::SceneNode::OnResize(CommandContext& context)
+void DX12Lib::SceneNode::OnResize(CommandContext& context, int newWidth, int newHeight)
 {
 	for (std::unique_ptr<Component>& component : m_components)
 	{
-		component->OnResize(context);
+		component->OnResize(context, newWidth, newHeight);
 	}
 
 	for (auto& node : m_children)
-		node->OnResize(context);
+		node->OnResize(context, newWidth, newHeight);
 }
 
 void DX12Lib::SceneNode::AddChild(SceneNode* node)

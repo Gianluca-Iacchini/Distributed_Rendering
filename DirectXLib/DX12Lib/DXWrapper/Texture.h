@@ -1,6 +1,7 @@
 #pragma once
 #include "DX12Lib/DXWrapper/Resource.h"
 #include <unordered_map>
+#include <mutex>
 
 namespace DX12Lib {
 
@@ -10,22 +11,14 @@ namespace DX12Lib {
 
 	public:
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return m_hCpuDescriptorHandle; }
-		Texture()
-			: m_width(0), m_height(0), m_depth(0), m_isLoaded(false)
-		{
-			m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-		}
+		Texture();
 	private:
 
 		Texture(D3D12_CPU_DESCRIPTOR_HANDLE hCpuDescriptorHandle)
 			: m_hCpuDescriptorHandle(hCpuDescriptorHandle), m_width(0), m_height(0), m_depth(0), m_isLoaded(false)
 		{}
 
-		virtual void OnDestroy() override
-		{
-			Resource::OnDestroy();
-			m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-		}
+		virtual void OnDestroy() override;
 
 		void Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT format, const void* initData);
 		void Create3D(size_t rowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT format, const void* initData);

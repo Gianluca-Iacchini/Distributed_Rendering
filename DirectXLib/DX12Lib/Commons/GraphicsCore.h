@@ -8,7 +8,15 @@
 #include "DX12Lib/Models/MaterialManager.h"
 #include "Renderer.h"
 
-#define STREAMING 1
+// From Microsoft mini engine
+#define D3D12_GPU_VIRTUAL_ADDRESS_NULL    ((D3D12_GPU_VIRTUAL_ADDRESS)0)
+#define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
+#define CONSTANT_BUFFER_SIZE 256
+
+
+#define STREAMING 0
+
+
 
 namespace DX12Lib {
 	class Device;

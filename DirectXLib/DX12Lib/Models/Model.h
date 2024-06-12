@@ -31,9 +31,9 @@ namespace DX12Lib {
 
 		void Draw(ID3D12GraphicsCommandList* commandList);
 		void Draw(CommandList* commandList);
-		void Draw(CommandContext* context);
+		void Draw(CommandContext& context);
 
-		void UseBuffers(CommandContext* context);
+		void UseBuffers(CommandContext& context);
 
 	private:
 		void BuildVertexBuffer(UINT stride, UINT numVertices);

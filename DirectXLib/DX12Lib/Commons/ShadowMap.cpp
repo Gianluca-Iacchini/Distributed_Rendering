@@ -20,21 +20,18 @@ void DX12Lib::ShadowBuffer::Create(uint32_t width, uint32_t height)
 	m_bufferScissorRect = { 1, 1, static_cast<LONG>(width) - 2, static_cast<LONG>(height) - 2 };
 }
 
-void DX12Lib::ShadowBuffer::RenderShadowStart(CommandContext* context)
+void DX12Lib::ShadowBuffer::RenderShadowStart(CommandContext& context)
 {
-	assert(context != nullptr);
 
-	context->TransitionResource(*this, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-	context->ClearDepth(*this);
-	context->SetDepthStencilTarget(GetDSV());
-	context->SetViewportAndScissor(m_bufferViewport, m_bufferScissorRect);
+	context.TransitionResource(*this, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+	context.ClearDepth(*this);
+	context.SetDepthStencilTarget(GetDSV());
+	context.SetViewportAndScissor(m_bufferViewport, m_bufferScissorRect);
 }
 
-void DX12Lib::ShadowBuffer::RenderShadowEnd(CommandContext* context)
+void DX12Lib::ShadowBuffer::RenderShadowEnd(CommandContext& context)
 {
-	assert(context != nullptr);
-
-	context->TransitionResource(*this, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+	context.TransitionResource(*this, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 }
 
 

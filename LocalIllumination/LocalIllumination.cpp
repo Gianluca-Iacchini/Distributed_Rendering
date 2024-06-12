@@ -27,32 +27,17 @@ using namespace DX12Lib;
 
 class AppTest : public D3DApp
 {
-	UINT64 frameFences[3] = { 0, 0, 0 };
 
 
-	CostantBufferCommons m_costantBufferCommons;
-	ConstantBufferObject m_costantBufferObject;
 
-	std::unique_ptr<DirectX::GeometricPrimitive> m_shape;
-
-	std::unique_ptr<Scene> m_scene;
-
-	float cameraSpeed = 100.0f;
-
-	float m_theta = 1.25f * XM_PI;
-	float m_phi = XM_PIDIV4;
-	XMFLOAT2 m_modifier = XMFLOAT2(0.45f, 0.45f);
-
-	std::shared_ptr<RootSignature> m_rootSignature;
-	std::shared_ptr<PipelineState> m_pipelineState;
-
-	UINT frameCount = 0;
 	float timeSinceRenderStart = 0;
 
 
-	std::vector<std::vector<std::uint8_t>> totPackets;
 
+
+#if STREAMING
 	FFmpegStreamer ffmpegStreamer;
+#endif
 
 public:
 	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
@@ -77,13 +62,13 @@ public:
 #else
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 #endif
-		m_scene = std::make_unique<Scene>(this->m_Time);
+		this->m_Scene = std::make_unique<Scene>();
 
-		bool loaded = m_scene->AddFromFile(sourcePath.c_str());
+		bool loaded = this->m_Scene->AddFromFile(sourcePath.c_str());
 
 		assert(loaded && "Model not loaded");
 
-		m_scene->Init(*context);
+		this->m_Scene->Init(*context);
 
 
 		context->Finish(true);
@@ -98,58 +83,36 @@ public:
 		return true;
 	}
 
-	void UpdateCommonConstants(const GameTime& gt)
+
+	virtual void Update(CommandContext& context) override
 	{
+		D3DApp::Update(context);
 
-		m_costantBufferCommons.renderTargetSize = XMFLOAT2((float)Renderer::s_clientWidth, (float)Renderer::s_clientHeight);
-		m_costantBufferCommons.invRenderTargetSize = XMFLOAT2(1.0f / Renderer::s_clientWidth, 1.0f / Renderer::s_clientHeight);
-		m_costantBufferCommons.totalTime = gt.TotalTime();
-		m_costantBufferCommons.deltaTime = gt.DeltaTime();
-	}
-
-	virtual void Update(const GameTime& gt) override
-	{
-		Renderer::WaitForSwapchainBuffers();
-
-		// Update sun orientation
-		m_theta +=  m_modifier.x * gt.DeltaTime();
-		m_phi += m_modifier.y * gt.DeltaTime();
-
-
-		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-		auto kbState = s_keyboard->GetState();
-		s_kbTracker->Update(kbState);
-
-		UpdateCommonConstants(gt);
-
+#if STREAMING
 		auto data = ffmpegStreamer.ConsumeData();
 		m_scene->SetNetworkData(std::get<char*>(data), std::get<size_t>(data));
-		m_scene->Update(*context);
+#endif
 
-		context->Finish(true);
+
 	}
 
-	virtual void Draw(const GameTime& gt) override
+	virtual void Draw(CommandContext& context) override
 	{
 
-		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		auto commonRes = Renderer::s_graphicsMemory->AllocateConstant(m_costantBufferCommons);
 
 		Renderer::SetUpRenderFrame(context);
-		
-		context->m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
-			(UINT)Renderer::RootSignatureSlot::CommonCBV, commonRes.GpuAddress()
-		);
 
-		m_scene->Render(*context);
+
+		this->m_Scene->Render(context);
+
+
 
 		Renderer::RenderLayers(context);
 		
-		auto& backBuffer = Renderer::GetCurrentBackBuffer();
 
-#ifdef STREAMING
+
+#if STREAMING
 		static float accumulatedTime = 0;
 		static float lastUpdateTime = 0;
 		static UINT encodedFPS = 0;
@@ -157,38 +120,26 @@ public:
 		
 		// Accumulator is used to ensure proper frame rate for the encoder
 
-		float totTime = m_Time.TotalTime();
+		float totTime = GameTime::GetTotalTime();
 		float encodeDeltaTime = totTime - lastUpdateTime;
 		lastUpdateTime = totTime;
 		accumulatedTime += encodeDeltaTime;
 
 		float encoderFramerate = 1.f / ffmpegStreamer.GetEncoder().maxFrames;
 
+		auto& backBuffer = Renderer::GetCurrentBackBuffer();
+
 		if (accumulatedTime >= (encoderFramerate))
 		{
 			accumulatedTime -= encoderFramerate;
-			ffmpegStreamer.Encode(*context, backBuffer);
+			ffmpegStreamer.Encode(context, backBuffer);
 		}
 
+		timeSinceRenderStart += GameTime::GetTotalTime();
 #endif
-		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
-
-		auto fenceVal = context->Finish(true);
-
-		Renderer::Present(fenceVal);
-
-		timeSinceRenderStart += m_Time.DeltaTime();
 	}
 
-	virtual void OnResize(CommandContext& context) override
-	{
-		D3DApp::OnResize(context);
-
-		if (m_scene != nullptr)
-			m_scene->OnResize(context);
-	}
-
-	virtual void OnClose() override
+	virtual void OnClose(CommandContext& context) override
 	{
 #if STREAMING
 		ffmpegStreamer.CloseStream();

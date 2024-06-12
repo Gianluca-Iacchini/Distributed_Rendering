@@ -21,8 +21,10 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 
 	ParseInputString(inputData, &mouseX, &mouseY, &m_cameraForward, &m_cameraStrafe, &m_cameraLift);
 
+
+
 	auto& transform = this->Node->Transform;
-	float deltaTime = this->Node->Scene.Time().DeltaTime();
+	float deltaTime = GameTime::GetDeltaTime();
 
 
 
@@ -32,7 +34,7 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 		PostQuitMessage(0);
 
 
-#ifdef STREAMING
+#if STREAMING
 	float deltaX = mouseX * Renderer::s_clientWidth * deltaTime;
 	float deltaY = mouseY * Renderer::s_clientHeight * deltaTime;
 
@@ -76,9 +78,9 @@ void DX12Lib::SceneCamera::Render(CommandContext& context)
 	Renderer::AddMainCamera(this);
 }
 
-void DX12Lib::SceneCamera::OnResize(CommandContext& context)
+void DX12Lib::SceneCamera::OnResize(CommandContext& context, int newWidth, int newHeight)
 {
-	Camera::SetLens(0.25f * DirectX::XM_PI, ((float)Renderer::s_clientWidth / Renderer::s_clientHeight), 1.0f, 1000.0f);
+	Camera::SetLens(0.25f * DirectX::XM_PI, ((float)newWidth / newHeight), 1.0f, 1000.0f);
 }
 
 void DX12Lib::SceneCamera::UseCamera(CommandContext& context)

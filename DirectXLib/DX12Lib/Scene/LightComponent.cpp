@@ -7,9 +7,17 @@ using namespace Graphics;
 
 std::vector<LightComponent*> LightComponent::m_activeLights;
 DirectX::GraphicsResource LightComponent::m_lightBufferSRV;
+ConstantBufferLight* LightComponent::s_lightBufferData = nullptr;
 
 void DX12Lib::LightComponent::SetCastsShadows(bool value)
 {
+	// Only directional lights can cast shadows for now
+	if (m_lightType != LightType::Directional)
+	{
+		m_doesCastShadows = false;
+		return;
+	}
+
 	if (value)
 	{
 		if (m_shadowCamera == nullptr)
@@ -17,6 +25,11 @@ void DX12Lib::LightComponent::SetCastsShadows(bool value)
 			m_shadowCamera = std::make_unique<ShadowCamera>();
 			m_shadowCamera->UpdateShadowMatrix(*this->Node);
 		}
+
+		// Move the light to the front of the active lights vector
+		std::iter_swap(m_activeLights.begin(), m_activeLights.begin() + m_lightIndex);
+		m_activeLights[m_lightIndex]->m_lightIndex = m_lightIndex;
+		m_lightIndex = 0;
 	}
 
 	m_doesCastShadows = value;
@@ -35,7 +48,18 @@ void DX12Lib::LightComponent::UpdateLights(CommandContext& context)
 		[](const LightComponent* ptr) { return ptr == nullptr; });
 	m_activeLights.erase(newEnd, m_activeLights.end());
 
-	m_lightBufferSRV = Renderer::s_graphicsMemory->Allocate(sizeof(ConstantBufferLight) * m_activeLights.size());
+	if (m_activeLights.size() > 0)
+	{
+		m_lightBufferSRV = Renderer::s_graphicsMemory->Allocate(sizeof(ConstantBufferLight) * m_activeLights.size());
+	}
+	else
+	{
+		// If there are no lights create a dummy light with no intensity
+		m_lightBufferSRV = Renderer::s_graphicsMemory->Allocate(sizeof(ConstantBufferLight));
+		memset(m_lightBufferSRV.Memory(), 0, sizeof(m_lightCB));
+	}
+
+	s_lightBufferData = reinterpret_cast<ConstantBufferLight*>(m_lightBufferSRV.Memory());
 }
 
 void DX12Lib::LightComponent::RenderLights(CommandContext& context)
@@ -82,7 +106,7 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	auto state = Graphics::s_kbTracker->GetLastState();
 
 	auto rotation = DirectX::XMConvertToDegrees(this->Node->GetRotationEulerAngles().x);
-	float time = this->Node->Scene.Time().TotalTime();
+	float time = GameTime::GetTotalTime();
 
 	float maxRot = 140.0f;
 	float minRot = 35.0f;
@@ -105,9 +129,9 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	
 
 	float rotVelocity = modifier * rotSpeed;
-	this->Node->Rotate(this->Node->GetRight(), rotVelocity * this->Node->Scene.Time().DeltaTime());
-
-	memcpy(m_lightBufferSRV.Memory(), &m_lightCB, sizeof(m_lightCB));
+	this->Node->Rotate(this->Node->GetRight(), rotVelocity * GameTime::GetDeltaTime());
+	 
+	memcpy(s_lightBufferData + m_lightIndex, &m_lightCB, sizeof(m_lightCB));
 
 	if (this->m_doesCastShadows)
 	{

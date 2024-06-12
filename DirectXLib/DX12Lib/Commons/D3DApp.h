@@ -17,6 +17,7 @@ namespace DX12Lib {
 	class CommandQueue;
 	class CommandList;
 	class Swapchain;
+	class Scene;
 
 	using Microsoft::WRL::ComPtr;
 	class D3DApp
@@ -28,7 +29,6 @@ namespace DX12Lib {
 		virtual ~D3DApp();
 
 	public:
-
 		static D3DApp* GetApp();
 
 		HINSTANCE AppInst() const;
@@ -42,14 +42,14 @@ namespace DX12Lib {
 
 		virtual bool Initialize();
 
-		virtual void OnResize(CommandContext& commandContext);
+		virtual void OnResize(CommandContext& commandContext, int newWidth, int newHeigth);
 
 
 	protected:
 
-		virtual void Update(const GameTime& gt) = 0;
-		virtual void Draw(const GameTime& gt) = 0;
-		virtual void OnClose() = 0;
+		virtual void Update(CommandContext& commandContext);
+		virtual void Draw(CommandContext& commandContext);
+		virtual void OnClose(CommandContext& commandContext);
 
 		// Handling mouse input
 		virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
@@ -61,10 +61,10 @@ namespace DX12Lib {
 		bool InitConsole();
 		bool InitDirect3D();
 		void FlushCommandQueue();
-		void CalculateFrameStats(GameTime& gt);
+		void CalculateFrameStats();
 
 	private:
-		void ResizeCallback();
+		void ResizeCallback(int newWidth, int newHeight);
 
 	protected:
 
@@ -80,8 +80,7 @@ namespace DX12Lib {
 		bool m_4xMsaaState = false;
 		UINT m_4xMsaaQuality = 0;
 
-		GameTime m_Time;
-
+		std::unique_ptr<Scene> m_Scene;
 
 		std::unique_ptr<DX12Window> m_dx12Window;
 

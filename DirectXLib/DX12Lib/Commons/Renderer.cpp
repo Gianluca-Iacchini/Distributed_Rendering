@@ -20,7 +20,7 @@ namespace Graphics::Renderer
 	D3D12_RECT s_scissorRect;
 
 	std::vector<DX12Lib::ModelRenderer*> m_renderers;
-	std::vector<DX12Lib::LightComponent*> m_lights;
+	std::vector<DX12Lib::LightComponent*> m_shadowLights;
 	SceneCamera* m_mainCamera = nullptr;
 
 	std::unique_ptr<Swapchain> s_swapchain = nullptr;
@@ -40,6 +40,7 @@ namespace Graphics::Renderer
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
 
 	DescriptorHandle m_shadowMapSRVHandle;
+	CostantBufferCommons m_costantBufferCommons;
 
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
@@ -72,7 +73,7 @@ namespace Graphics::Renderer
 
 	void AddLightToQueue(DX12Lib::LightComponent* light)
 	{
-		m_lights.push_back(light);
+		m_shadowLights.push_back(light);
 	}
 
 	void AddMainCamera(DX12Lib::SceneCamera* camera)
@@ -82,29 +83,29 @@ namespace Graphics::Renderer
 		m_mainCamera = camera;
 	}
 
-	void SetUpRenderFrame(DX12Lib::CommandContext* context)
+	void SetUpRenderFrame(DX12Lib::CommandContext& context)
 	{
 		ID3D12DescriptorHeap* heaps[] = { Renderer::s_textureHeap->Get() };
-		context->m_commandList->Get()->SetDescriptorHeaps(1, heaps);
+		context.m_commandList->Get()->SetDescriptorHeaps(1, heaps);
 
-		context->m_commandList->SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE]);
-		context->m_commandList->Get()->SetGraphicsRootSignature(s_PSOs[PSO_PHONG_OPAQUE]->GetRootSignature()->Get());
+		context.m_commandList->SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE]);
+		context.m_commandList->Get()->SetGraphicsRootSignature(s_PSOs[PSO_PHONG_OPAQUE]->GetRootSignature()->Get());
 	}
 
-	void RenderLayers(CommandContext* context)
+	void RenderLayers(CommandContext& context)
 	{ 
 		// Shadow pass opaque objects
 		s_shadowBuffer->RenderShadowStart(context);
 
 		auto shadowPso = s_PSOs[PSO_SHADOW_OPAQUE];
-		for (auto& light : m_lights)
+		for (auto& light : m_shadowLights)
 		{
-			context->m_commandList->SetPipelineState(shadowPso);
-			context->m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
+			context.m_commandList->SetPipelineState(shadowPso);
+			context.m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
 
 			auto shadowCamera = light->GetShadowCamera();
 			
-			context->m_commandList->Get()->SetGraphicsRootConstantBufferView(
+			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
 
 			for (ModelRenderer* mRenderer : m_renderers)
@@ -116,13 +117,13 @@ namespace Graphics::Renderer
 		shadowPso = s_PSOs[PSO_SHADOW_ALPHA_TEST];
 
 		// Shadow pass transparent objects
-		for (auto& light : m_lights)
+		for (auto& light : m_shadowLights)
 		{
-			context->m_commandList->SetPipelineState(shadowPso);
-			context->m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
+			context.m_commandList->SetPipelineState(shadowPso);
+			context.m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
 
 			auto shadowCamera = light->GetShadowCamera();
-			context->m_commandList->Get()->SetGraphicsRootConstantBufferView(
+			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
 
 			for (ModelRenderer* mRenderer : m_renderers)
@@ -132,19 +133,30 @@ namespace Graphics::Renderer
 		}
 		s_shadowBuffer->RenderShadowEnd(context);
 
-		context->SetViewportAndScissor(s_screenViewport, s_scissorRect);
+		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
 
 		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
 
-		context->TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		context.TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-		context->ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
-		context->ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
+		context.ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
+		context.ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
 
-		context->SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
+		context.SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
 
-		context->m_commandList->Get()->SetGraphicsRootDescriptorTable(
-			(UINT)RootSignatureSlot::CommonTextureSRV, m_shadowMapSRVHandle);
+		if (m_shadowLights.size() > 0)
+		{
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				(UINT)RootSignatureSlot::CommonTextureSRV, m_shadowMapSRVHandle);
+		}
+
+		m_costantBufferCommons.totalTime = GameTime::GetTotalTime();
+		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
+		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
+		m_costantBufferCommons.renderShadows = m_shadowLights.size() > 0;
+
+		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
+			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
 
 		static bool useMain = true;
 
@@ -153,13 +165,13 @@ namespace Graphics::Renderer
 			useMain = !useMain;
 
 		if (useMain)
-			m_mainCamera->UseCamera(*context);
+			m_mainCamera->UseCamera(context);
 
 		// Main pass opaque
 		for (auto& pso : s_PSOs)
 		{
-			context->m_commandList->SetPipelineState(pso.second);
-			context->m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
+			context.m_commandList->SetPipelineState(pso.second);
+			context.m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -170,8 +182,8 @@ namespace Graphics::Renderer
 		// Main pass transparent
 		for (auto& pso : s_PSOs)
 		{
-			context->m_commandList->SetPipelineState(pso.second);
-			context->m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
+			context.m_commandList->SetPipelineState(pso.second);
+			context.m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -180,7 +192,7 @@ namespace Graphics::Renderer
 		}
 
 		m_renderers.clear();
-		m_lights.clear();
+		m_shadowLights.clear();
 		m_mainCamera = nullptr;
 	}
 
@@ -215,8 +227,11 @@ namespace Graphics::Renderer
 		return s_swapchain->GetCurrentBackBuffer();
 	}
 
-	void ResizeSwapchain(CommandContext* context)
+	void ResizeSwapchain(CommandContext* context, int newWidth, int newHeight)
 	{
+		s_clientWidth = newWidth;
+		s_clientHeight = newHeight;
+
 		s_swapchain->Resize(s_clientWidth, s_clientHeight);
 
 		s_swapchain->CurrentBufferIndex = 0;
@@ -235,6 +250,9 @@ namespace Graphics::Renderer
 		Renderer::s_screenViewport.MaxDepth = 1.0f;
 
 		Renderer::s_scissorRect = { 0, 0, s_clientWidth, s_clientHeight};
+
+		m_costantBufferCommons.renderTargetSize = DirectX::XMFLOAT2((float)s_clientWidth, (float)s_clientHeight);
+		m_costantBufferCommons.invRenderTargetSize = DirectX::XMFLOAT2(1.0f / s_clientWidth, 1.0f / s_clientHeight);
 	}
 
 	void Present(UINT64 fenceVal)

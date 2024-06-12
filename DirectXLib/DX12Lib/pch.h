@@ -31,6 +31,7 @@
 #include "Commons/Logger.h"
 #include "Commons/MathHelper.h"
 #include "Commons/Helpers.h"
+#include "Commons/GameTime.h"
 #include "Commons/CommandContext.h"
 #include "Commons/GraphicsCore.h"
 #include "DXWrapper/CommandQueue.h"

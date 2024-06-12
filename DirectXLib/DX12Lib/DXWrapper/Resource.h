@@ -10,28 +10,14 @@ namespace DX12Lib {
 		friend class CommandContext;
 
 	public:
-		Resource() :
-			m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN),
-			m_currentState(D3D12_RESOURCE_STATE_COMMON),
-			m_nextState((D3D12_RESOURCE_STATES)-1)
-		{}
-		Resource(ID3D12Resource* resource, D3D12_RESOURCE_STATES currentState) :
-			m_gpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN),
-			m_resource(resource),
-			m_currentState(currentState),
-			m_nextState((D3D12_RESOURCE_STATES)-1)
-		{}
+		Resource();
+		Resource(ID3D12Resource* resource, D3D12_RESOURCE_STATES currentState);
 
 		~Resource() { OnDestroy(); }
 
 		D3D12_RESOURCE_DESC GetDesc() const { return m_resource->GetDesc(); }
 
-		virtual void OnDestroy()
-		{
-			m_resource = nullptr;
-			m_gpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
-			m_versionID += 1;
-		}
+		virtual void OnDestroy();
 
 	protected:
 

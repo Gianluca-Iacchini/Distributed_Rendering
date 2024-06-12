@@ -5,6 +5,7 @@
 #include <iostream>
 #include "DX12Lib/Commons/DX12Window.h"
 #include "DX12Lib/DXWrapper/Swapchain.h"
+#include "DX12Lib/Scene/Scene.h"
 
 
 using namespace Microsoft::WRL;
@@ -24,6 +25,7 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 	// Only one D3DApp can be constructed.
 	assert(m_App == nullptr);
 	m_App = this;
+	m_Scene = std::unique_ptr<Scene>();
 }
 
 D3DApp::~D3DApp()
@@ -61,7 +63,7 @@ void D3DApp::Set4xMsaaState(bool value)
 
 		// Recreate the swapchain and buffers with new multisample settings.
 		Renderer::InitializeSwapchain(m_dx12Window.get());
-		ResizeCallback();
+		ResizeCallback(Renderer::s_clientWidth, Renderer::s_clientHeight);
 	}
 }
 
@@ -70,7 +72,7 @@ int D3DApp::Run()
 {
 	MSG msg = { 0 };
 
-	m_Time.Reset();
+	GameTime::s_Instance->Reset();
 
 	bool isDone = false;
 
@@ -87,17 +89,27 @@ int D3DApp::Run()
 		}
 		// Otherwise, do animation/game stuff.
 
-		float startFrame = m_Time.TotalTime();
+		float startFrame = GameTime::GetTotalTime();
 
-		m_Time.Tick();
+		GameTime::s_Instance->Tick();
 
-		CalculateFrameStats(m_Time);
-		Update(m_Time);
-		Draw(m_Time);
+		CalculateFrameStats();
+		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		Update(*context);
+		context->Finish();
 
+		context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		Draw(*context);
+		
+		// Present the frame.
+		auto& backBuffer = Renderer::GetCurrentBackBuffer();
+		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
+		Renderer::Present(context->Finish());
 	}
 
-	OnClose();
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	OnClose(*context);
+	context->Finish(true);
 
 	return static_cast<int>(msg.wParam);
 }
@@ -113,29 +125,57 @@ bool D3DApp::Initialize()
 	if (!InitDirect3D())
 		return false;
 
-
+	GameTime::CreateInstance();
 
 	// Do the initial resize code.
-	ResizeCallback();
+	ResizeCallback(Renderer::s_clientWidth, Renderer::s_clientHeight);
 
 	s_commandQueueManager->GetGraphicsQueue().Flush();
 
 	return true;
 }
 
-void DX12Lib::D3DApp::OnResize(CommandContext& commandContext)
+void DX12Lib::D3DApp::OnResize(CommandContext& commandContext, int newWidth, int newHeight)
 {
 	// Flush before changing any resources.
 	FlushCommandQueue();
 
-	Renderer::ResizeSwapchain(&commandContext);
+	Renderer::ResizeSwapchain(&commandContext, newWidth, newHeight);
+
+	if (m_Scene)
+		m_Scene->OnResize(commandContext, newWidth, newHeight);
 }
 
-void D3DApp::ResizeCallback()
+void DX12Lib::D3DApp::Update(CommandContext& commandContext)
+{
+	Renderer::WaitForSwapchainBuffers();
+
+	auto kbState = s_keyboard->GetState();
+	s_kbTracker->Update(kbState);
+
+	m_Scene->Update(commandContext);
+}
+
+void DX12Lib::D3DApp::Draw(CommandContext& commandContext)
+{
+	Renderer::SetUpRenderFrame(commandContext);
+
+	m_Scene->Render(commandContext);
+
+	Renderer::RenderLayers(commandContext);
+
+}
+
+
+void DX12Lib::D3DApp::OnClose(CommandContext& context)
+{
+}
+
+void D3DApp::ResizeCallback(int newWidth, int newHeight)
 {
 	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	OnResize(*context);
+	OnResize(*context, newWidth, newHeight);
 
 	context->Finish(true);
 }
@@ -211,14 +251,14 @@ void D3DApp::FlushCommandQueue()
 	s_commandQueueManager->GetGraphicsQueue().Flush();
 }
 
-void D3DApp::CalculateFrameStats(GameTime& gt)
+void D3DApp::CalculateFrameStats()
 {
 	static int frameCount = 0;
 	static double lastTime = 0.0f;
 
 	frameCount++;
 
-	float frameTime = gt.TotalTime();
+	float frameTime = GameTime::GetTotalTime();
 
 	if (frameTime - lastTime >= 1.0)
 	{

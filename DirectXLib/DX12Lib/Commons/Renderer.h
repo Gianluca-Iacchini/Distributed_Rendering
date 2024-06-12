@@ -58,13 +58,13 @@ namespace Graphics
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
-		void SetUpRenderFrame(DX12Lib::CommandContext* context);
-		void RenderLayers(DX12Lib::CommandContext* context);
+		void SetUpRenderFrame(DX12Lib::CommandContext& context);
+		void RenderLayers(DX12Lib::CommandContext& context);
 		void Shutdown();
 		void InitializeSwapchain(DX12Lib::DX12Window* window);
 		void WaitForSwapchainBuffers();
 		DX12Lib::ColorBuffer& GetCurrentBackBuffer();
-		void ResizeSwapchain(DX12Lib::CommandContext* context);
+		void ResizeSwapchain(DX12Lib::CommandContext* context, int newWidth, int newHeight);
 		void Present(UINT64 fenceVal);
 
 
