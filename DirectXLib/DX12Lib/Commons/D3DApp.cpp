@@ -19,13 +19,20 @@ D3DApp* D3DApp::GetApp()
 	return m_App;
 }
 
-D3DApp::D3DApp(HINSTANCE hInstance)
+D3DApp::D3DApp(HINSTANCE hInstance, Scene* scene)
 	: m_hAppInst(hInstance)
 {
 	// Only one D3DApp can be constructed.
 	assert(m_App == nullptr);
 	m_App = this;
-	m_Scene = std::unique_ptr<Scene>();
+
+	if (scene == nullptr)
+		m_Scene = std::make_unique<Scene>();
+	else
+	{
+		m_Scene = std::unique_ptr<Scene>(scene);
+	}
+
 }
 
 D3DApp::~D3DApp()
@@ -144,6 +151,11 @@ void DX12Lib::D3DApp::OnResize(CommandContext& commandContext, int newWidth, int
 
 	if (m_Scene)
 		m_Scene->OnResize(commandContext, newWidth, newHeight);
+}
+
+void DX12Lib::D3DApp::SetScene(Scene* scene)
+{
+	m_Scene = std::unique_ptr<Scene>(scene);
 }
 
 void DX12Lib::D3DApp::Update(CommandContext& commandContext)

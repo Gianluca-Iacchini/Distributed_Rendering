@@ -1,18 +1,7 @@
 #include <DX12Lib/pch.h>
 
 #include "DX12Lib/Commons/D3DApp.h"
-#include "Keyboard.h"
-
-#include "Dx12Lib/DXWrapper/PipelineState.h"
-#include "FrameResource.h"
-#include "DX12Lib/DXWrapper/Swapchain.h"
-#include "GraphicsMemory.h"
-#include "GeometricPrimitive.h"
-#include "DX12Lib/Commons/Camera.h"
-#include "Mouse.h"
-#include "ResourceUploadBatch.h"
-#include "DX12Lib/Scene/Scene.h"
-#include "DX12Lib/DXWrapper/Swapchain.h"
+#include "LIScene.h"
 
 #include "DX12Lib/Encoder/FFmpegStreamer.h"
 
@@ -27,12 +16,7 @@ using namespace DX12Lib;
 
 class AppTest : public D3DApp
 {
-
-
-
 	float timeSinceRenderStart = 0;
-
-
 
 
 #if STREAMING
@@ -40,7 +24,7 @@ class AppTest : public D3DApp
 #endif
 
 public:
-	AppTest(HINSTANCE hInstance) : D3DApp(hInstance) {};
+	AppTest(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
 	AppTest(const AppTest& rhs) = delete;
 	AppTest& operator=(const AppTest& rhs) = delete;
 	~AppTest() { 
@@ -62,7 +46,6 @@ public:
 #else
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
 #endif
-		this->m_Scene = std::make_unique<Scene>();
 
 		bool loaded = this->m_Scene->AddFromFile(sourcePath.c_str());
 
@@ -90,7 +73,7 @@ public:
 
 #if STREAMING
 		auto data = ffmpegStreamer.ConsumeData();
-		m_scene->SetNetworkData(std::get<char*>(data), std::get<size_t>(data));
+		this->m_Scene->SetNetworkData(std::get<char*>(data), std::get<size_t>(data));
 #endif
 
 
@@ -155,7 +138,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 #endif
 	try
 	{
-		AppTest app(hInstance);
+		AppTest app(hInstance, new LI::LIScene());
 		if (!app.Initialize())
 			return 0;
 

@@ -23,7 +23,7 @@ namespace DX12Lib {
 	class D3DApp
 	{
 	protected:
-		D3DApp(HINSTANCE hInstance);
+		D3DApp(HINSTANCE hInstance, Scene* scene);
 		D3DApp(const D3DApp& rhs) = delete;
 		D3DApp& operator=(const D3DApp& rhs) = delete;
 		virtual ~D3DApp();
@@ -44,6 +44,7 @@ namespace DX12Lib {
 
 		virtual void OnResize(CommandContext& commandContext, int newWidth, int newHeigth);
 
+		void SetScene(Scene* scene);
 
 	protected:
 

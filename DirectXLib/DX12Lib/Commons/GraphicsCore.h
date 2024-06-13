@@ -14,7 +14,7 @@
 #define CONSTANT_BUFFER_SIZE 256
 
 
-#define STREAMING 0
+#define STREAMING 1
 
 
 

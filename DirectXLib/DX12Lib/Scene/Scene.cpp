@@ -20,7 +20,6 @@ Scene::Scene()
 
 	auto cameraNode = this->AddNode();
 	m_camera = cameraNode->AddComponent<SceneCamera>();
-
 }
 
 Scene::~Scene()
