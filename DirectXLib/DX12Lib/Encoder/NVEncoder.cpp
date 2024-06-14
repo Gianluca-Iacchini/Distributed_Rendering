@@ -19,7 +19,7 @@ DX12Lib::NVEncoder::~NVEncoder()
 	}
 }
 
-void NVEncoder::Initialize(UINT width, UINT height)
+void NVEncoder::InitializeApp(UINT width, UINT height)
 {
 	if (m_nvEncodeAPI.version == 0)
 	{

@@ -10,7 +10,7 @@ Device::Device()
 {
 }
 
-bool Device::Initialize(Adapter* adapter)
+bool Device::InitializeApp(Adapter* adapter)
 {
 	IDXGIAdapter* dxgiAdapter = nullptr;
 

@@ -14,9 +14,6 @@
 #define CONSTANT_BUFFER_SIZE 256
 
 
-#define STREAMING 1
-
-
 
 namespace DX12Lib {
 	class Device;
@@ -46,7 +43,7 @@ namespace Graphics
 	extern DXGI_FORMAT m_backBufferFormat;
 	extern DXGI_FORMAT m_depthStencilFormat;
 
-	bool Initialize();
+	bool InitializeApp();
 	void Shutdown();
 	void DeviceRemovedHandler();
 

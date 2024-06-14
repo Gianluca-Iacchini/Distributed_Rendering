@@ -45,7 +45,7 @@ namespace Graphics::Renderer
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
 
-	void Initialize()
+	void InitializeApp()
 	{
 		s_depthStencilBuffer = std::make_unique<DepthBuffer>();
 
@@ -210,7 +210,7 @@ namespace Graphics::Renderer
 	void InitializeSwapchain(DX12Lib::DX12Window* window)
 	{
 		s_swapchain = std::make_unique<Swapchain>(*window, m_backBufferFormat);
-		s_swapchain->Initialize(s_commandQueueManager->GetGraphicsQueue());
+		s_swapchain->InitializeApp(s_commandQueueManager->GetGraphicsQueue());
 	}
 
 	void WaitForSwapchainBuffers()

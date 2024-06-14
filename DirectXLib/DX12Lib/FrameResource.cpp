@@ -9,7 +9,7 @@ FrameResource::FrameResource()
 
 }
 
-void FrameResource::Initialize(Device& device, D3D12_COMMAND_LIST_TYPE cmdListType)
+void FrameResource::InitializeApp(Device& device, D3D12_COMMAND_LIST_TYPE cmdListType)
 {
 	m_frameCommandAllocator = std::make_unique<CommandAllocator>(device, cmdListType);
 }
@@ -24,7 +24,7 @@ FrameResourceManager::FrameResourceManager(Device& device, UINT nFrameResources)
 	for (UINT i = 0; i < nFrameResources; i++)
 	{
 		m_frameResources.push_back(std::make_unique<FrameResource>());
-		m_frameResources[i]->Initialize(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+		m_frameResources[i]->InitializeApp(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 	}
 }
 

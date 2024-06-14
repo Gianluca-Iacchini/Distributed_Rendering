@@ -13,7 +13,7 @@ namespace DX12Lib {
 	{
 	public:
 		FrameResource();
-		void Initialize(Device& device, D3D12_COMMAND_LIST_TYPE commandListType = D3D12_COMMAND_LIST_TYPE_DIRECT);
+		void InitializeApp(Device& device, D3D12_COMMAND_LIST_TYPE commandListType = D3D12_COMMAND_LIST_TYPE_DIRECT);
 		void EndFrame(CommandQueue& cmdQueue);
 		CommandAllocator* GetCommandAllocator() { return m_frameCommandAllocator.get(); }
 		~FrameResource() {};

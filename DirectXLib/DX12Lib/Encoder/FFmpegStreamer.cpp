@@ -68,7 +68,7 @@ void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string ur
 
 	FFMPEG_CHECK_ERROR(avformat_write_header(m_fmtCtx, &options));
 
-	m_encoder.Initialize(width, height);
+	m_encoder.InitializeApp(width, height);
 
 	m_isStreamOpen = true;
 }

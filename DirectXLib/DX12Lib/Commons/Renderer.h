@@ -54,7 +54,7 @@ namespace Graphics
 		extern int s_clientWidth;
 		extern int s_clientHeight;
 
-		void Initialize();
+		void InitializeApp();
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);

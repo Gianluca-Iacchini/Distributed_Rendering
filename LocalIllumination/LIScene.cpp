@@ -18,3 +18,18 @@ void LI::LIScene::Init(DX12Lib::CommandContext& context)
 	lightNode->Rotate(lightNode->GetRight(), 1.2f);
 
 }
+
+void LI::LIScene::Update(DX12Lib::CommandContext& context)
+{
+	Scene::Update(context);
+}
+
+void LI::LIScene::Render(DX12Lib::CommandContext& context)
+{
+	Scene::Render(context);
+}
+
+void LI::LIScene::OnResize(DX12Lib::CommandContext& context, int width, int height)
+{
+	Scene::OnResize(context, width, height);
+}

@@ -32,7 +32,7 @@ Swapchain::~Swapchain()
 {
 }
 
-void Swapchain::Initialize(CommandQueue& commandQueue)
+void Swapchain::InitializeApp(CommandQueue& commandQueue)
 {
 	m_swapchain.Reset();
 

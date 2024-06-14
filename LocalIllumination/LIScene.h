@@ -10,9 +10,9 @@ namespace LI
 		~LIScene() = default;
 
 		virtual void Init(DX12Lib::CommandContext& context) override;
-		//virtual void Update(DX12Lib::CommandContext& context) override;
-		//virtual void Render(DX12Lib::CommandContext& context) override;
-		//virtual void OnResize(DX12Lib::CommandContext& context, int width, int height) override;
+		virtual void Update(DX12Lib::CommandContext& context) override;
+		virtual void Render(DX12Lib::CommandContext& context) override;
+		virtual void OnResize(DX12Lib::CommandContext& context, int width, int height) override;
 
 		//void TraverseModel(DX12Lib::ModelRenderer* model, aiNode* node, DX12Lib::SceneNode* parent);
 	};

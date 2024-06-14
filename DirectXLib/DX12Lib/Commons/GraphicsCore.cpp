@@ -86,7 +86,7 @@ namespace Graphics
 		}
 	}
 
-	bool Initialize()
+	bool InitializeApp()
 	{
 		UINT dxgiFactoryFlags = 0;
 
@@ -110,11 +110,11 @@ namespace Graphics
 
 		s_device = std::make_shared<Device>();
 
-		if (!s_device->Initialize(nullptr))
+		if (!s_device->InitializeApp(nullptr))
 		{
 			Adapter warpAdapter = Adapter(factory, true);
 
-			if (!s_device->Initialize(&warpAdapter))
+			if (!s_device->InitializeApp(&warpAdapter))
 			{
 				MessageBox(0, L"Direct3D initialization failed.", 0, 0);
 				return false;
@@ -137,7 +137,7 @@ namespace Graphics
 			s_keyboard = std::make_unique<DirectX::Keyboard>();
 			s_kbTracker = std::make_unique<DirectX::Keyboard::KeyboardStateTracker>();
 
-			Renderer::Initialize();
+			Renderer::InitializeApp();
 
 		return true;
 	}

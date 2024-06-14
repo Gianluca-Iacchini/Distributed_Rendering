@@ -17,7 +17,7 @@ namespace DX12Lib {
 		Swapchain(DX12Window& window, DXGI_FORMAT backBufferFormat);
 		~Swapchain();
 
-		void Initialize(CommandQueue& commandQueue);
+		void InitializeApp(CommandQueue& commandQueue);
 
 		void Resize(UINT width, UINT height);
 

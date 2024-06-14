@@ -25,7 +25,7 @@ namespace DX12Lib {
 		CommandContext(D3D12_COMMAND_LIST_TYPE type);
 		~CommandContext();
 
-		void Initialize();
+		void InitializeApp();
 		void Reset();
 
 		void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);

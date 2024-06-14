@@ -1,3 +1,5 @@
+#define STREAMING 0
+
 #include <DX12Lib/pch.h>
 
 #include "DX12Lib/Commons/D3DApp.h"
@@ -14,7 +16,7 @@ using namespace DX12Lib;
 #define USE_PBR 1
 
 
-class AppTest : public D3DApp
+class LocalIlluminationApp : public D3DApp
 {
 	float timeSinceRenderStart = 0;
 
@@ -24,22 +26,16 @@ class AppTest : public D3DApp
 #endif
 
 public:
-	AppTest(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
-	AppTest(const AppTest& rhs) = delete;
-	AppTest& operator=(const AppTest& rhs) = delete;
-	~AppTest() { 
+	LocalIlluminationApp(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
+	LocalIlluminationApp(const LocalIlluminationApp& rhs) = delete;
+	LocalIlluminationApp& operator=(const LocalIlluminationApp& rhs) = delete;
+	~LocalIlluminationApp() { 
 
 		FlushCommandQueue();
 	};
 
-	virtual bool Initialize() override
+	virtual void Initialize(CommandContext& context) override
 	{
-		if (!D3DApp::Initialize())
-			return false;
-
-		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-
 
 #if USE_PBR
 		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\PBR\\sponza2.gltf");
@@ -51,10 +47,8 @@ public:
 
 		assert(loaded && "Model not loaded");
 
-		this->m_Scene->Init(*context);
+		this->m_Scene->Init(context);
 
-
-		context->Finish(true);
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
@@ -62,8 +56,6 @@ public:
 		ffmpegStreamer.OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight);
 		ffmpegStreamer.StartStreaming();
 #endif
-
-		return true;
 	}
 
 
@@ -138,8 +130,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 #endif
 	try
 	{
-		AppTest app(hInstance, new LI::LIScene());
-		if (!app.Initialize())
+		LocalIlluminationApp app(hInstance, new LI::LIScene());
+		if (!app.InitializeApp())
 			return 0;
 
 		return app.Run();

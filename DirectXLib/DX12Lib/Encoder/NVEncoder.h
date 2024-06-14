@@ -18,7 +18,7 @@ namespace DX12Lib {
         NVEncoder() = default;
         ~NVEncoder();
 
-        void Initialize(UINT width, UINT height);
+        void InitializeApp(UINT width, UINT height);
         void EncodeFrame();
         void EndEncode();
         NvEncInputFrame& GetNextInputFrame();

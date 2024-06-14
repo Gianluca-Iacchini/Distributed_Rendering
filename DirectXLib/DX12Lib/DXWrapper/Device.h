@@ -16,7 +16,7 @@ namespace DX12Lib {
 		Device();
 		~Device();
 
-		bool Initialize(Adapter* adapter = nullptr);
+		bool InitializeApp(Adapter* adapter = nullptr);
 
 		UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const { return m_device->GetDescriptorHandleIncrementSize(type); };
 

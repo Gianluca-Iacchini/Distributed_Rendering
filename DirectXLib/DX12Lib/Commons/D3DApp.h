@@ -40,7 +40,7 @@ namespace DX12Lib {
 
 		int Run();
 
-		virtual bool Initialize();
+		bool InitializeApp();
 
 		virtual void OnResize(CommandContext& commandContext, int newWidth, int newHeigth);
 
@@ -48,6 +48,7 @@ namespace DX12Lib {
 
 	protected:
 
+		virtual void Initialize(CommandContext& commandContext);
 		virtual void Update(CommandContext& commandContext);
 		virtual void Draw(CommandContext& commandContext);
 		virtual void OnClose(CommandContext& commandContext);

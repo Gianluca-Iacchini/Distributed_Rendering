@@ -27,7 +27,7 @@ CommandContext::~CommandContext()
 	}
 }
 
-void CommandContext::Initialize()
+void CommandContext::InitializeApp()
 {
 	s_commandQueueManager->CreateCommandList(m_type, &m_commandList, &m_currentAllocator);
 }
@@ -215,7 +215,7 @@ CommandContext* CommandContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE t
 	{
 		context = new CommandContext(type);
 		m_contextPool[type].emplace_back(context);
-		context->Initialize();
+		context->InitializeApp();
 		return context;
 	}
 

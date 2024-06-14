@@ -121,7 +121,7 @@ int D3DApp::Run()
 	return static_cast<int>(msg.wParam);
 }
 
-bool D3DApp::Initialize()
+bool D3DApp::InitializeApp()
 {
 	if (!InitConsole())
 		return false;
@@ -138,6 +138,10 @@ bool D3DApp::Initialize()
 	ResizeCallback(Renderer::s_clientWidth, Renderer::s_clientHeight);
 
 	s_commandQueueManager->GetGraphicsQueue().Flush();
+
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	this->Initialize(*context);
+	context->Finish(true);
 
 	return true;
 }
@@ -156,6 +160,11 @@ void DX12Lib::D3DApp::OnResize(CommandContext& commandContext, int newWidth, int
 void DX12Lib::D3DApp::SetScene(Scene* scene)
 {
 	m_Scene = std::unique_ptr<Scene>(scene);
+}
+
+void DX12Lib::D3DApp::Initialize(CommandContext& commandContext)
+{
+	m_Scene->Init(commandContext);
 }
 
 void DX12Lib::D3DApp::Update(CommandContext& commandContext)
@@ -241,7 +250,7 @@ bool D3DApp::InitConsole()
 
 bool D3DApp::InitDirect3D()
 {
-	if (!Graphics::Initialize())
+	if (!Graphics::InitializeApp())
 		return false;
 
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
