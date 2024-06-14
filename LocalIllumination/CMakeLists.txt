@@ -26,8 +26,15 @@ set_source_files_properties( ${PIXEL_SHADERS}
 	VS_SHADER_ENTRYPOINT PS
 )
 
+set(SOURCE_FILES
+	LocalIllumination.cpp 
+	LIScene.h
+	LIScene.cpp
+	CameraController.h
+	CameraController.cpp
+)
 
-add_executable(LocalIllumination WIN32 LocalIllumination.cpp LIScene.h LIScene.cpp ${SHADERS})
+add_executable(LocalIllumination WIN32 ${SOURCE_FILES} ${SHADERS})
 
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 

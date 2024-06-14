@@ -88,6 +88,7 @@ namespace Graphics::Renderer
 		ID3D12DescriptorHeap* heaps[] = { Renderer::s_textureHeap->Get() };
 		context.m_commandList->Get()->SetDescriptorHeaps(1, heaps);
 
+		// Using Phong as default PSO and root signature just in case
 		context.m_commandList->SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE]);
 		context.m_commandList->Get()->SetGraphicsRootSignature(s_PSOs[PSO_PHONG_OPAQUE]->GetRootSignature()->Get());
 	}

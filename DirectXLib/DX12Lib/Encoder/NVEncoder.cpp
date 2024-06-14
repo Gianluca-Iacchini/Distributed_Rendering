@@ -592,7 +592,9 @@ void DX12Lib::NVEncoder::SendResourceForEncode(CommandContext& context, Resource
 		context.TransitionResource(*buffCopy, D3D12_RESOURCE_STATE_COMMON, true);
 
 		m_inputCopyQueue.push(buffCopy);
-		context.Flush(true);
+
+		// Calling this instead of context.Flush() because we want to keep the descriptor heaps
+		Graphics::s_commandQueueManager->GetGraphicsQueue().Flush();
 	}
 
 }

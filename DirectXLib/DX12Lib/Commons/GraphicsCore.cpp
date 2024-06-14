@@ -6,6 +6,7 @@
 
 #define DRED 1
 
+
 using namespace Microsoft::WRL;
 using namespace DX12Lib;
 
@@ -20,7 +21,7 @@ namespace Graphics
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV
 	};
 
-#ifdef STREAMING
+#if STREAMING
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 #else
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;

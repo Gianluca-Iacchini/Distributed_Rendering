@@ -67,6 +67,7 @@ void LI::LIScene::Render(DX12Lib::CommandContext& context)
 	{
 		m_accumulatedTime -= encoderFramerate;
 		m_ffmpegStreamer->Encode(context, backBuffer);
+		int a = 0;
 	}
 
 }
