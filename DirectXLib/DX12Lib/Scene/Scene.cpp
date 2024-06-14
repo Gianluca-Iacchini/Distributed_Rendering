@@ -108,6 +108,11 @@ void DX12Lib::Scene::OnResize(CommandContext& context, int newWidth, int newHeig
 	m_rootNode->OnResize(context, newWidth, newHeight);
 }
 
+void DX12Lib::Scene::OnClose(CommandContext& context)
+{
+	m_rootNode->OnClose(context);
+}
+
 SceneNode* DX12Lib::Scene::AddNode()
 {
 	return m_rootNode->AddChild();

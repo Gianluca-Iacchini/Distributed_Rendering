@@ -24,6 +24,7 @@ namespace DX12Lib
 		void Update(CommandContext& context);
 		void Render(CommandContext& context);
 		void OnResize(CommandContext&, int newWidth, int newHeight);
+		void OnClose(CommandContext& context);
 
 		void AddChild(SceneNode* node);
 		SceneNode* AddChild();

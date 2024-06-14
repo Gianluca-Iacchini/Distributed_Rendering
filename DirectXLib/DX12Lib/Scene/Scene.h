@@ -15,7 +15,7 @@ namespace DX12Lib
 		friend class SceneNode;
 	public:
 		Scene();
-		~Scene();
+		virtual ~Scene();
 
 		bool AddFromFile(const std::wstring& filename);
 		bool AddFromFile(const wchar_t* filename);
@@ -24,6 +24,7 @@ namespace DX12Lib
 		virtual void Update(CommandContext& context);
 		virtual void Render(CommandContext& context);
 		virtual void OnResize(CommandContext& context, int newWidth, int newHeight);
+		virtual void OnClose(CommandContext& context);
 
 		SceneNode* AddNode();
 

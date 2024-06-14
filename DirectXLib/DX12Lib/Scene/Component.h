@@ -16,6 +16,7 @@ namespace DX12Lib
 		virtual void Update(CommandContext& context) {}
 		virtual void Render(CommandContext& context) {}
 		virtual void OnResize(CommandContext& context, int newWidth, int newHeight) {}
+		virtual void OnClose(CommandContext& context) {}
 
 	public:
 		SceneNode* Node = nullptr;

@@ -581,13 +581,14 @@ void DX12Lib::NVEncoder::SendResourceForEncode(CommandContext& context, Resource
 
 		assert(buffCopy != nullptr);
 
+		D3D12_RESOURCE_STATES currentState = resource.GetCurrentState();
+
 		context.TransitionResource(resource, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		context.TransitionResource(*buffCopy, D3D12_RESOURCE_STATE_COPY_DEST, true);
 
-
 		context.m_commandList->Get()->CopyResource(buffCopy->Get(), resource.Get());
 
-		context.TransitionResource(resource, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		context.TransitionResource(resource, currentState);
 		context.TransitionResource(*buffCopy, D3D12_RESOURCE_STATE_COMMON, true);
 
 		m_inputCopyQueue.push(buffCopy);

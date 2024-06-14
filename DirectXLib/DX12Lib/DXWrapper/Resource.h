@@ -19,6 +19,8 @@ namespace DX12Lib {
 
 		virtual void OnDestroy();
 
+		D3D12_RESOURCE_STATES GetCurrentState() const { return m_currentState; }
+
 	protected:
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_resource;

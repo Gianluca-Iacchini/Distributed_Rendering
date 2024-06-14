@@ -190,6 +190,7 @@ void DX12Lib::D3DApp::Draw(CommandContext& commandContext)
 
 void DX12Lib::D3DApp::OnClose(CommandContext& context)
 {
+	m_Scene->OnClose(context);
 }
 
 void D3DApp::ResizeCallback(int newWidth, int newHeight)

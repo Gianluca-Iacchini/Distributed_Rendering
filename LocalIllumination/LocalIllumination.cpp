@@ -1,11 +1,9 @@
-#define STREAMING 0
+#define STREAMING 1
 
 #include <DX12Lib/pch.h>
 
 #include "DX12Lib/Commons/D3DApp.h"
 #include "LIScene.h"
-
-#include "DX12Lib/Encoder/FFmpegStreamer.h"
 
 
 using namespace DirectX;
@@ -18,12 +16,6 @@ using namespace DX12Lib;
 
 class LocalIlluminationApp : public D3DApp
 {
-	float timeSinceRenderStart = 0;
-
-
-#if STREAMING
-	FFmpegStreamer ffmpegStreamer;
-#endif
 
 public:
 	LocalIlluminationApp(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
@@ -51,23 +43,12 @@ public:
 
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
-
-#if STREAMING
-		ffmpegStreamer.OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight);
-		ffmpegStreamer.StartStreaming();
-#endif
 	}
 
 
 	virtual void Update(CommandContext& context) override
 	{
 		D3DApp::Update(context);
-
-#if STREAMING
-		auto data = ffmpegStreamer.ConsumeData();
-		this->m_Scene->SetNetworkData(std::get<char*>(data), std::get<size_t>(data));
-#endif
-
 
 	}
 
@@ -85,40 +66,11 @@ public:
 
 		Renderer::RenderLayers(context);
 		
-
-
-#if STREAMING
-		static float accumulatedTime = 0;
-		static float lastUpdateTime = 0;
-		static UINT encodedFPS = 0;
-
-		
-		// Accumulator is used to ensure proper frame rate for the encoder
-
-		float totTime = GameTime::GetTotalTime();
-		float encodeDeltaTime = totTime - lastUpdateTime;
-		lastUpdateTime = totTime;
-		accumulatedTime += encodeDeltaTime;
-
-		float encoderFramerate = 1.f / ffmpegStreamer.GetEncoder().maxFrames;
-
-		auto& backBuffer = Renderer::GetCurrentBackBuffer();
-
-		if (accumulatedTime >= (encoderFramerate))
-		{
-			accumulatedTime -= encoderFramerate;
-			ffmpegStreamer.Encode(context, backBuffer);
-		}
-
-		timeSinceRenderStart += GameTime::GetTotalTime();
-#endif
 	}
 
 	virtual void OnClose(CommandContext& context) override
 	{
-#if STREAMING
-		ffmpegStreamer.CloseStream();
-#endif
+		D3DApp::OnClose(context);
 	}
 };
 
@@ -130,7 +82,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 #endif
 	try
 	{
-		LocalIlluminationApp app(hInstance, new LI::LIScene());
+		LocalIlluminationApp app(hInstance, new LI::LIScene(STREAMING));
 		if (!app.InitializeApp())
 			return 0;
 

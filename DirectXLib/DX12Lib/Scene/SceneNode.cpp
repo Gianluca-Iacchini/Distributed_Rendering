@@ -68,6 +68,17 @@ void DX12Lib::SceneNode::OnResize(CommandContext& context, int newWidth, int new
 		node->OnResize(context, newWidth, newHeight);
 }
 
+void DX12Lib::SceneNode::OnClose(CommandContext& context)
+{
+	for (std::unique_ptr<Component>& component : m_components)
+	{
+		component->OnClose(context);
+	}
+
+	for (auto& node : m_children)
+		node->OnClose(context);
+}
+
 void DX12Lib::SceneNode::AddChild(SceneNode* node)
 {
 	assert(node != nullptr);
