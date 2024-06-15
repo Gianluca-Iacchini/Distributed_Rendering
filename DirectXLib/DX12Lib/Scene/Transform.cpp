@@ -252,7 +252,7 @@ void DX12Lib::Transform::SetWorldScale(DirectX::FXMVECTOR wscale)
     XMVECTOR parentScale = m_parent != nullptr ? m_parent->GetWorldScale() : DirectX::XMVectorSet(1.f, 1.f, 1.f, 0.f);
 
     // Assert that no component of the scale is zero
-    assert(XMComparisonAnyTrue(XMVector3EqualR(wscale, XMVectorZero())));
+    assert(!XMComparisonAnyTrue(XMVector3EqualR(wscale, XMVectorZero())));
     
     // WScale = ParentScale * ChildScale
     // NewChildScale = WScale / ParentScale

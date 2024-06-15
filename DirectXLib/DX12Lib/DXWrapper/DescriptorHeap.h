@@ -89,6 +89,8 @@ namespace DX12Lib {
 
 		uint32_t GetDescriptorSize() const { return m_descriptorSize; }
 
+		D3D12_DESCRIPTOR_HEAP_TYPE GetType() const { return m_desc.Type; }
+
 	private:
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_heap;
 		D3D12_DESCRIPTOR_HEAP_DESC m_desc = {};

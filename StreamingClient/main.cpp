@@ -59,6 +59,7 @@ void InitializeWinsock()
 
 void SendInput(std::string input)
 {
+
 	std::string message = input;
 	if (sendto(g_sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&g_servAddr, sizeof(g_servAddr)) == SOCKET_ERROR)
 	{

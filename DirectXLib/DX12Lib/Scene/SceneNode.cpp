@@ -39,6 +39,7 @@ void DX12Lib::SceneNode::Update(CommandContext& context)
 		node->Update(context);
 
 	// Reset the dirt flag for the frame
+	m_wasLastFrameDirty = (this->Transform.m_dirtForFrame > 0);
 	this->Transform.m_dirtForFrame = 0;
 }
 
@@ -143,6 +144,18 @@ SceneNode* DX12Lib::SceneNode::GetChild(SceneNode* node)
 	}
 
 	return nullptr;
+}
+
+std::vector<Component*> DX12Lib::SceneNode::GetComponents()
+{
+	std::vector<Component*> pComponents(m_components.size());
+
+	for (UINT i = 0; i < m_components.size(); i ++)
+	{
+		pComponents[i] = m_components[i].get();
+	}
+
+	return pComponents;
 }
 
 void DX12Lib::SceneNode::PropagateDirtyTransform(UINT dirtyFlag)

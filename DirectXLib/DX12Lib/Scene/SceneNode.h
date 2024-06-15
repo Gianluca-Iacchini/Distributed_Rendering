@@ -14,7 +14,7 @@ namespace DX12Lib
 	class SceneNode
 	{
 	public:
-		SceneNode(const DX12Lib::Scene& scene) : m_dirtyFlags(0), Scene(scene)
+		SceneNode(DX12Lib::Scene& scene) : m_dirtyFlags(0), Scene(scene)
 		{
 			ThrowIfFailed(CoCreateGuid(&m_guid));
 		}
@@ -26,10 +26,29 @@ namespace DX12Lib
 		void OnResize(CommandContext&, int newWidth, int newHeight);
 		void OnClose(CommandContext& context);
 
+		Scene& GetScene() { return Scene; }
 		void AddChild(SceneNode* node);
 		SceneNode* AddChild();
 		void RemoveChild(SceneNode* node);
 		SceneNode* GetChild(SceneNode* node);
+		std::vector<Component*> GetComponents();
+		
+		template<typename T>
+		T* GetComponent()
+		{
+			static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
+
+			for (auto& component : m_components)
+			{
+				T* castedComponent = static_cast<T*>(component.get());
+				if (castedComponent != nullptr)
+				{
+					return castedComponent;
+				}
+			}
+
+			return nullptr;
+		}
 
 		template<typename T, typename... Args>
 		inline T* AddComponent(Args&&... args)
@@ -95,13 +114,14 @@ namespace DX12Lib
 
 		bool IsTransformDirty() const 
 		{ 
-			return this->Transform.m_dirtForFrame != 0; 
+			return (this->Transform.m_dirtForFrame > 0) || m_wasLastFrameDirty; 
 		}
 
 	public:
 		std::wstring Name = L"";
 		Transform Transform;
-		const Scene& Scene;
+		Scene& Scene;
+	
 	public:
 		bool operator==(const SceneNode& other) const { return m_guid == other.m_guid; }
 
@@ -133,7 +153,7 @@ namespace DX12Lib
 	private:
 		GUID m_guid = GUID_NULL;
 
-		
+		bool m_wasLastFrameDirty = false;
 	};
 
 

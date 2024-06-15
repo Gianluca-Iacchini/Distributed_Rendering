@@ -16,6 +16,7 @@ namespace DX12Lib {
 	class DepthBuffer;
 	class ColorBuffer;
 	class Color;
+	class PipelineState;
 
 	class CommandContext
 	{
@@ -28,9 +29,9 @@ namespace DX12Lib {
 		void InitializeApp();
 		void Reset();
 
+		void SetPipelineState(PipelineState* pipelineState);
 		void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
 		void TransitionResource(ID3D12Resource* res, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
-		void BindDescriptorHeaps(DescriptorHeap heap);
 		void ClearColor(ColorBuffer& target, D3D12_RECT* rect);
 		void ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect);
 		void ClearDepth(DepthBuffer& depthBuffer);
@@ -40,7 +41,9 @@ namespace DX12Lib {
 		void SetViewportAndScissor(D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect);
 		static void CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 		static void InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[]);
-
+		void SetDescriptorHeap(DescriptorHeap* heap);
+		void SetDescriptorHeaps(std::vector<DescriptorHeap*> heaps);
+		void BindDescriptorHeaps();
 
 		void FlushResourceBarriers();
 		UINT64 Flush(bool waitForCompletion = false);
@@ -49,6 +52,10 @@ namespace DX12Lib {
 	public:
 		CommandAllocator* m_currentAllocator = nullptr;
 		CommandList* m_commandList = nullptr;
+
+	private:
+		PipelineState* m_currentPipelineState = nullptr;
+		DescriptorHeap* m_currentDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	private:
 		CommandContext(const CommandContext&) = delete;

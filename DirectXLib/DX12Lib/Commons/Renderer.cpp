@@ -85,12 +85,10 @@ namespace Graphics::Renderer
 
 	void SetUpRenderFrame(DX12Lib::CommandContext& context)
 	{
-		ID3D12DescriptorHeap* heaps[] = { Renderer::s_textureHeap->Get() };
-		context.m_commandList->Get()->SetDescriptorHeaps(1, heaps);
+		context.SetDescriptorHeap(s_textureHeap.get());
 
 		// Using Phong as default PSO and root signature just in case
-		context.m_commandList->SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE]);
-		context.m_commandList->Get()->SetGraphicsRootSignature(s_PSOs[PSO_PHONG_OPAQUE]->GetRootSignature()->Get());
+		context.SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE].get());
 	}
 
 	void RenderLayers(CommandContext& context)
@@ -101,8 +99,7 @@ namespace Graphics::Renderer
 		auto shadowPso = s_PSOs[PSO_SHADOW_OPAQUE];
 		for (auto& light : m_shadowLights)
 		{
-			context.m_commandList->SetPipelineState(shadowPso);
-			context.m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
+			context.SetPipelineState(shadowPso.get());
 
 			auto shadowCamera = light->GetShadowCamera();
 			
@@ -120,8 +117,7 @@ namespace Graphics::Renderer
 		// Shadow pass transparent objects
 		for (auto& light : m_shadowLights)
 		{
-			context.m_commandList->SetPipelineState(shadowPso);
-			context.m_commandList->Get()->SetGraphicsRootSignature(shadowPso->GetRootSignature()->Get());
+			context.SetPipelineState(shadowPso.get());
 
 			auto shadowCamera = light->GetShadowCamera();
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
@@ -171,8 +167,7 @@ namespace Graphics::Renderer
 		// Main pass opaque
 		for (auto& pso : s_PSOs)
 		{
-			context.m_commandList->SetPipelineState(pso.second);
-			context.m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
+			context.SetPipelineState(pso.second.get());
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -183,8 +178,7 @@ namespace Graphics::Renderer
 		// Main pass transparent
 		for (auto& pso : s_PSOs)
 		{
-			context.m_commandList->SetPipelineState(pso.second);
-			context.m_commandList->Get()->SetGraphicsRootSignature(pso.second->GetRootSignature()->Get());
+			context.SetPipelineState(pso.second.get());
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{

@@ -2,7 +2,8 @@
 #include "DX12Lib/Encoder/FFmpegStreamer.h"
 #include "LIScene.h"
 #include "DX12Lib/Scene/LightComponent.h"
-
+#include "DX12Lib/Scene/SceneCamera.h"
+#include "CameraController.h"
 
 using namespace LI;
 using namespace DX12Lib;
@@ -24,6 +25,8 @@ void LI::LIScene::Init(DX12Lib::CommandContext& context)
 	light->SetCastsShadows(true);
 	light->SetLightColor({ 0.6f, 0.6f, 0.6f });
 	lightNode->Rotate(lightNode->GetRight(), 1.2f);
+
+	m_camera->Node->AddComponent<LI::CameraController>(m_isStreaming);
 
 	if (m_isStreaming)
 	{
@@ -49,27 +52,6 @@ void LI::LIScene::Render(DX12Lib::CommandContext& context)
 
 	Scene::Render(context);
 
-	if (!m_isStreaming)
-		return;
-
-	// Accumulator is used to ensure proper frame rate for the encoder
-
-	float totTime = GameTime::GetTotalTime();
-	float encodeDeltaTime = totTime - m_lastUpdateTime;
-	m_lastUpdateTime = totTime;
-	m_accumulatedTime += encodeDeltaTime;
-
-	float encoderFramerate = 1.f / m_ffmpegStreamer->GetEncoder().maxFrames;
-
-	auto& backBuffer = Renderer::GetCurrentBackBuffer();
-
-	if (m_accumulatedTime >= (encoderFramerate))
-	{
-		m_accumulatedTime -= encoderFramerate;
-		m_ffmpegStreamer->Encode(context, backBuffer);
-		int a = 0;
-	}
-
 }
 
 void LI::LIScene::OnResize(DX12Lib::CommandContext& context, int width, int height)
@@ -83,4 +65,32 @@ void LI::LIScene::OnClose(DX12Lib::CommandContext& context)
 
 	if (m_isStreaming)
 		m_ffmpegStreamer->CloseStream();
+}
+
+void LI::LIScene::StreamScene(CommandContext& context)
+{
+	if (m_isStreaming)
+	{
+		// Accumulator is used to ensure proper frame rate for the encoder
+
+		float totTime = GameTime::GetTotalTime();
+		float encodeDeltaTime = totTime - m_lastUpdateTime;
+		m_lastUpdateTime = totTime;
+		m_accumulatedTime += encodeDeltaTime;
+
+		float encoderFramerate = 1.f / m_ffmpegStreamer->GetEncoder().maxFrames;
+
+		auto& backBuffer = Renderer::GetCurrentBackBuffer();
+
+		if (m_accumulatedTime >= (encoderFramerate))
+		{
+			m_accumulatedTime -= encoderFramerate;
+			m_ffmpegStreamer->Encode(context, backBuffer);
+		}
+	}
+}
+
+void LIScene::SetNetworkData(const char* data, size_t size)
+{
+	m_inputData = std::vector<char>(data, data + size);
 }

@@ -1,9 +1,10 @@
-#define STREAMING 1
+#define STREAMING 0
 
 #include <DX12Lib/pch.h>
 
 #include "DX12Lib/Commons/D3DApp.h"
 #include "LIScene.h"
+#include "DX12Lib/Models/ModelRenderer.h"
 
 
 using namespace DirectX;
@@ -11,11 +12,11 @@ using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 
-#define USE_PBR 1
-
 
 class LocalIlluminationApp : public D3DApp
 {
+private:
+	bool m_usePBRMaterials = true;
 
 public:
 	LocalIlluminationApp(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
@@ -29,20 +30,30 @@ public:
 	virtual void Initialize(CommandContext& context) override
 	{
 
-#if USE_PBR
-		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\PBR\\sponza2.gltf");
-#else
-		std::string sourcePath = std::string(SOURCE_DIR) + std::string("\\Models\\sponza_nobanner.obj");
-#endif
+		std::string sourcePath = std::string(SOURCE_DIR);
+
+		if (m_usePBRMaterials)
+			sourcePath += std::string("\\Models\\PBR\\sponza2.gltf");
+		else
+			sourcePath += std::string("\\Models\\sponza_nobanner.obj");
+
 
 		bool loaded = this->m_Scene->AddFromFile(sourcePath.c_str());
 
 		assert(loaded && "Model not loaded");
 
-		this->m_Scene->Init(context);
 
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
+
+		if (!m_usePBRMaterials)
+		{
+			auto rootNode = m_Scene->GetRootNode();
+
+			rootNode->SetScale(0.01f, 0.01f, 0.01f);
+		}
+
+		this->m_Scene->Init(context);
 	}
 
 
@@ -66,6 +77,10 @@ public:
 
 		Renderer::RenderLayers(context);
 		
+		LI::LIScene* scene = dynamic_cast<LI::LIScene*>(this->m_Scene.get());
+		
+		if (scene != nullptr)
+			scene->StreamScene(context);
 	}
 
 	virtual void OnClose(CommandContext& context) override

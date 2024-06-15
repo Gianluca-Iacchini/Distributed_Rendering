@@ -12,8 +12,12 @@ using namespace DX12Lib;
 CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
 	: m_type(type), m_resourceBarrier{}
 {
+
+	ZeroMemory(m_currentDescriptorHeaps, sizeof(m_currentDescriptorHeaps));
 	m_currentAllocator = nullptr;
 	m_commandList = nullptr;
+	m_currentPipelineState = nullptr;
+	m_numBarriersToFlush = 0;
 }
 
 CommandContext::~CommandContext()
@@ -30,6 +34,16 @@ CommandContext::~CommandContext()
 void CommandContext::InitializeApp()
 {
 	s_commandQueueManager->CreateCommandList(m_type, &m_commandList, &m_currentAllocator);
+}
+
+void DX12Lib::CommandContext::SetPipelineState(PipelineState* pipelineState)
+{
+	if (m_currentPipelineState != pipelineState)
+	{
+		m_currentPipelineState = pipelineState;
+		m_commandList->Get()->SetPipelineState(m_currentPipelineState->Get());
+		m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+	}
 }
 
 void CommandContext::TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow)
@@ -94,12 +108,6 @@ void CommandContext::FlushResourceBarriers()
 	}
 }
 
-void CommandContext::BindDescriptorHeaps(DescriptorHeap heap)
-{
-	ID3D12DescriptorHeap* heaps[] = { heap.Get() };
-	m_commandList->GetComPtr()->SetDescriptorHeaps(1, heaps);
-}
-
 void DX12Lib::CommandContext::ClearColor(ColorBuffer& target, D3D12_RECT* rect)
 {
 	FlushResourceBarriers();
@@ -162,11 +170,58 @@ void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D
 	context->Finish(true);
 }
 
+void DX12Lib::CommandContext::SetDescriptorHeap(DescriptorHeap* heap)
+{
+
+	if (heap != nullptr && m_currentDescriptorHeaps[heap->GetType()] != heap)
+	{
+		m_currentDescriptorHeaps[heap->GetType()] = heap;
+		BindDescriptorHeaps();
+	}
+}
+
+void DX12Lib::CommandContext::SetDescriptorHeaps(std::vector<DescriptorHeap*> heaps)
+{
+	bool heapsChanged = false;
+
+	for (auto* heap : heaps)
+	{
+		if (heap != nullptr && m_currentDescriptorHeaps[heap->GetType()] != heap)
+		{
+			m_currentDescriptorHeaps[heap->GetType()] = heap;
+			heapsChanged = true;
+		}
+	}
+
+	if (heapsChanged)
+	{
+		BindDescriptorHeaps();
+	}
+}
+
+void DX12Lib::CommandContext::BindDescriptorHeaps()
+{
+	UINT NonNullHeaps = 0;
+	DescriptorHeap* HeapsToBind[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+	for (UINT i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+	{
+		DescriptorHeap* HeapIter = m_currentDescriptorHeaps[i];
+		if (HeapIter != nullptr)
+			HeapsToBind[NonNullHeaps++] = HeapIter;
+	}
+
+	if (NonNullHeaps > 0)
+		m_commandList->SetDescriptorHeaps(HeapsToBind, NonNullHeaps);
+}
+
 void CommandContext::Reset()
 {
 	m_currentAllocator = s_commandQueueManager->GetQueue(m_type).RequestAllocator();
 	m_commandList->Reset(*m_currentAllocator);
 	m_numBarriersToFlush = 0;
+	m_currentPipelineState = nullptr;
+
+	BindDescriptorHeaps();
 }
 
 UINT64 CommandContext::Flush(bool waitForCompletion)
@@ -182,6 +237,16 @@ UINT64 CommandContext::Flush(bool waitForCompletion)
 
 	m_commandList->Reset(*m_currentAllocator);
 
+
+
+	if (m_currentPipelineState != nullptr)
+	{
+		m_commandList->Get()->SetPipelineState(m_currentPipelineState->Get());
+		m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+	}
+
+	BindDescriptorHeaps();
+	
 	return fenceValue;
 }
 

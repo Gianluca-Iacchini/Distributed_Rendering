@@ -8,17 +8,21 @@ namespace DX12Lib {
 	class Device;
 	class CommandAllocator;
 	class PipelineState;
+	class DescriptorHeap;
 
 	class CommandList
 	{
 	public:
 		CommandList(Device& device, CommandAllocator& commandAllocator, D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE_DIRECT, std::shared_ptr<PipelineState> pipelineState = nullptr);
 
+		void SetDescriptorHeaps(std::vector<DescriptorHeap*> heaps);
+		void SetDescriptorHeaps(DescriptorHeap** heaps, int size);
+		void SetDescriptorHeap(DescriptorHeap* heap);
+
 		void SetPipelineState(std::shared_ptr<PipelineState> pipelineState);
 
 		void Reset(CommandAllocator& cmdAllocator);
-
-		void TransitionResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState);
+		
 		void Close();
 
 		~CommandList();

@@ -28,8 +28,7 @@ namespace DX12Lib
 
 		SceneNode* AddNode();
 
-		void SetNetworkData(const char* data, size_t size);
-		const std::vector<char>& GetNetworkData() const { return m_inputData; }
+		SceneNode* GetRootNode() const { return m_rootNode.get(); }
 
 	private:
 		void TraverseModel(ModelRenderer* model, aiNode* node, SceneNode* parent);
@@ -41,10 +40,6 @@ namespace DX12Lib
 		NodePtr m_rootNode;
 
 		UINT m_numNodes = 0;
-
-
-
-		std::vector<char> m_inputData;
 	};
 }
 
