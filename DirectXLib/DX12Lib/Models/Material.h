@@ -15,6 +15,10 @@ namespace DX12Lib {
 #define PHONG_TEXTURE_OFFSET NUM_COMMON_TEXTURES
 #define PBR_TEXTURE_OFFSET NUM_PHONG_TEXTURES
 
+#define IS_COMMON(tex) ((UINT)tex < NUM_COMMON_TEXTURES)
+#define IS_PHONG(tex) ((UINT)tex < NUM_PHONG_TEXTURES)
+#define IS_PBR(tex) (IS_COMMON(tex) || ((UINT)tex >= PBR_TEXTURE_OFFSET))
+
 	enum class MaterialTextureType
 	{
 		EMISSIVE = 0,
@@ -60,6 +64,9 @@ namespace DX12Lib {
 		std::wstring& GetName() { return m_name; }
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) {}
+		void SetTexture(UINT index, SharedTexture texture);
+		Texture* GetTexture(MaterialTextureType type);
+		virtual Texture* GetTexture(UINT index);
 
 		virtual MaterialShadingModel ShadingModel() { return MaterialShadingModel::UNKNOWN; }
 
@@ -70,6 +77,8 @@ namespace DX12Lib {
 		virtual void SetTransparent(bool isTransparent);
 
 		bool IsTransparent() { return m_isTransparent; }
+
+		virtual UINT GetTextureCount() { return 0; }
 
 	public:
 		DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -95,12 +104,15 @@ namespace DX12Lib {
 
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
+		virtual Texture* GetTexture(UINT index) override;
 
 		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PHONG; }
 
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 
 		virtual void SetTransparent(bool isTransparent) override;
+		virtual UINT GetTextureCount() override { return NUM_PHONG_TEXTURES; }
+
 	public:
 		DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT4 AmbientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -119,12 +131,16 @@ namespace DX12Lib {
 		PBRMaterial();
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
+		Texture* GetTexture(UINT index) override;
 
 		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PBR; }
 
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 
 		virtual void SetTransparent(bool isTransparent) override;
+
+		virtual UINT GetTextureCount() override { return NUM_PBR_TEXTURES; }
+
 	public:
 		float Metallic = 0.2f;
 		float Roughness = 0.4f;

@@ -27,7 +27,15 @@ set_source_files_properties( ${PIXEL_SHADERS}
 )
 
 
-add_executable(ClusteredVoxelGI WIN32 main.cpp FrameResource.h FrameResource.cpp ${SHADERS})
+set(SOURCE_FILES
+	ClusteredVoxelGI.cpp
+	VoxelScene.h
+	VoxelScene.cpp
+	CameraController.h
+	CameraController.cpp
+)
+
+add_executable(ClusteredVoxelGI WIN32 ${SOURCE_FILES} ${SHADERS})
 
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -36,5 +44,3 @@ target_link_libraries(ClusteredVoxelGI PRIVATE d3d12.lib)
 target_link_libraries(ClusteredVoxelGI PRIVATE dxgi.lib)
 target_link_libraries(ClusteredVoxelGI PRIVATE D3DCompiler.lib)
 target_link_libraries(ClusteredVoxelGI PRIVATE DirectXTK12)
-
-target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

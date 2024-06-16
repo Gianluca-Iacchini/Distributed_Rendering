@@ -32,6 +32,7 @@ namespace DX12Lib
 
 	private:
 		void TraverseModel(ModelRenderer* model, aiNode* node, SceneNode* parent);
+		virtual void OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer);
 
 	protected:
 		SceneCamera* m_camera = nullptr;

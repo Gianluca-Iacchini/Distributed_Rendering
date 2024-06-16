@@ -17,7 +17,7 @@ namespace DX12Lib
 		void AddTexture(MaterialTextureType textureType, SharedTexture texture = nullptr);
 		SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
 		SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial);
-		SharedMaterial Build(std::wstring& materialName);
+		SharedMaterial Build(std::wstring materialName);
 
 		void SetDiffuseColor(DirectX::XMFLOAT4 diffuseColor) { m_material->DiffuseColor = diffuseColor; }
 		void SetSpecularColor(DirectX::XMFLOAT4 specularColor);
@@ -59,13 +59,17 @@ namespace DX12Lib
 		MaterialManager() = default;
 		MaterialBuilder CreateMaterialBuilder() { return MaterialBuilder(this); }
 
-		SharedMaterial GetMaterial(std::wstring& materialName);
+		SharedMaterial GetMaterial(std::wstring materialName);
 		void AddMaterial(SharedMaterial material);
 		void RemoveMaterial(SharedMaterial material);
+		void LoadDefaultMaterials(TextureManager& textureManager);
+		
+		const std::wstring PHONG_DEFAULT = L"PhongDefault";
+		const std::wstring PBR_DEFAULT = L"PBRDefault";
 
 	private:
-		void LoadDefaultMaterials(TextureManager& textureManager);
 
+		
 		std::mutex m_materialCacheMutex;
 		std::unordered_map<std::wstring, SharedMaterial> m_materialCache;
 	};

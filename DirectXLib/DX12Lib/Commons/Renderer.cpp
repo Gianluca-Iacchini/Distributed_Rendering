@@ -64,6 +64,7 @@ namespace Graphics::Renderer
 
 		CreateDefaultShaders();
 		CreateDefaultPSOs();
+		s_materialManager->LoadDefaultMaterials(*s_textureManager);
 	}
 
 	void AddRendererToQueue(ModelRenderer* renderer)

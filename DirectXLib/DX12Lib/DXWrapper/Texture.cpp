@@ -122,6 +122,7 @@ TextureManager::TextureManager()
         0x00000000, // Black Transparent
         0xFFFFFFFF, // White Opaque
         0x00FFFFFF, // White Transparent
+        0XFF0080FF, // Red Opaque
         0x80808080  // Normal Map
     };
 

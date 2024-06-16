@@ -60,11 +60,14 @@ void DX12Lib::MeshRenderer::Render(CommandContext& context)
 void DX12Lib::MeshRenderer::DrawMesh(CommandContext& context)
 {
 
-	if (m_mesh == nullptr || m_meshMaterial == nullptr)
+	if (m_mesh == nullptr)
 		return;
 
+	if (m_meshMaterial != nullptr)
+		m_meshMaterial->UseMaterial(context.m_commandList->Get());
+
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, GetObjectCB().GpuAddress());
-	m_meshMaterial->UseMaterial(context.m_commandList->Get());
+
 	m_mesh->Draw(context.m_commandList->Get());
 }
 

@@ -31,18 +31,20 @@ SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType text
 	{
 	case MaterialTextureType::DIFFUSE:
 	case MaterialTextureType::BASECOLOR:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
 	case MaterialTextureType::AMBIENT:
 	case MaterialTextureType::SHININESS:
-	case MaterialTextureType::METALROUGHNESS:
 	case MaterialTextureType::OPACITY:
 		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
 	case MaterialTextureType::SPECULAR:
 	case MaterialTextureType::EMISSIVE:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
+	case MaterialTextureType::OCCLUSION:
 		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
 	case MaterialTextureType::NORMAL_MAP:
 	case MaterialTextureType::BUMP_MAP:
 		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
+	case MaterialTextureType::METALROUGHNESS:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::RED_OPAQUE];
 	default:
 		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
 	}
@@ -77,18 +79,24 @@ SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMateri
 	return Build(materialName);
 }
 
-SharedMaterial MaterialBuilder::Build(std::wstring& materialName)
+SharedMaterial MaterialBuilder::Build(std::wstring materialName)
 {
 	m_material->m_name = materialName;
 
-	UINT numTextures = m_isPBR ? NUM_PBR_TEXTURES : NUM_PHONG_TEXTURES;
+	UINT numTextures = m_material->GetTextureCount();
 
 	for (UINT i = 0; i < numTextures; ++i)
 	{
 		if (m_material->m_textures[i] == nullptr)
 		{
 			MaterialTextureType textureType = (MaterialTextureType)i;
-			m_material->SetTexture(textureType, GetDefaultTextureForType(textureType));
+
+			if (m_isPBR && !IS_PBR(textureType))
+			{
+				textureType = (MaterialTextureType)(i + PBR_TEXTURE_OFFSET - NUM_COMMON_TEXTURES);
+			}
+
+			m_material->SetTexture(i, GetDefaultTextureForType(textureType));
 		}
 
 
@@ -375,7 +383,20 @@ void MaterialManager::RemoveMaterial(SharedMaterial material)
 	m_materialCache.erase(material->m_name);
 }
 
-SharedMaterial MaterialManager::GetMaterial(std::wstring& materialName)
+void DX12Lib::MaterialManager::LoadDefaultMaterials(TextureManager& textureManager)
+{
+	MaterialBuilder phongBuilder(this);
+	phongBuilder.m_material = std::make_shared<PhongMaterial>();
+	phongBuilder.m_isPBR = false;
+	phongBuilder.Build(PHONG_DEFAULT);
+
+	MaterialBuilder pbrBuilder(this);
+	pbrBuilder.m_material = std::make_shared<PBRMaterial>();
+	pbrBuilder.m_isPBR = true;
+	pbrBuilder.Build(PBR_DEFAULT);
+}
+
+SharedMaterial MaterialManager::GetMaterial(std::wstring materialName)
 {
 	std::lock_guard<std::mutex> lock(m_materialCacheMutex);
 

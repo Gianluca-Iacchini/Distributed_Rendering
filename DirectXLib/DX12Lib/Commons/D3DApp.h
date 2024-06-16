@@ -22,14 +22,12 @@ namespace DX12Lib {
 	using Microsoft::WRL::ComPtr;
 	class D3DApp
 	{
-	protected:
+	public:
+		static D3DApp* GetApp();
 		D3DApp(HINSTANCE hInstance, Scene* scene);
 		D3DApp(const D3DApp& rhs) = delete;
 		D3DApp& operator=(const D3DApp& rhs) = delete;
 		virtual ~D3DApp();
-
-	public:
-		static D3DApp* GetApp();
 
 		HINSTANCE AppInst() const;
 		HWND MainWnd() const;

@@ -78,7 +78,7 @@ namespace DX12Lib
 		void Update();
 
 		void SetDirty(DirtyFlags flag);
-		void SetDirty(UINT32 flags = 5);
+		void SetDirty(uint8_t flags = 5);
 
 	private:
 		DirectX::XMFLOAT3 QuaternionToEuler(DirectX::XMFLOAT4 quaternion) const;
@@ -102,8 +102,8 @@ namespace DX12Lib
 		DirectX::XMFLOAT3 m_up = { 0.0f, 1.0f, 0.0f };
 		DirectX::XMFLOAT3 m_forward = { 0.0f, 0.0f, 1.0f };
 
-		UINT32 m_dirtyFlags = 0;
-		UINT32 m_dirtForFrame = 0;
+		uint8_t m_dirtyFlags = 0;
+		uint8_t m_dirtForFrame = 0;
 
 
 	};

@@ -75,4 +75,5 @@ float4 PS(VertexOut pIn) : SV_TARGET
 
     
     return float4(lRes, diffuse.a);
+
 }

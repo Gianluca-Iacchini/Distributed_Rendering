@@ -148,11 +148,10 @@ void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, S
 
 		int meshIndex = node->mMeshes[i];
 		auto mesh = model->GetMeshAt(meshIndex);
-		SharedMaterial meshMat = model->GetMaterialAt(mesh->m_materialIndex);
-		
 		auto meshRenderer = child->AddComponent<MeshRenderer>(modelRenderer);
 		meshRenderer->SetMesh(mesh);
-		meshRenderer->SetMaterial(meshMat);
+
+		OnModelChildAdded(*child, *meshRenderer, *modelRenderer);
 		
 		// If there is at least one mesh in the node, set the firstChildren to the first mesh
 		if (firstChildren == nullptr)
@@ -168,6 +167,15 @@ void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, S
 	{
 		TraverseModel(modelRenderer, node->mChildren[i], firstChildren);
 	}
+
+}
+
+void DX12Lib::Scene::OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer)
+{
+	SharedMaterial meshMat = modelRenderer.Model->GetMaterialAt(meshRenderer.GetMesh()->m_materialIndex);
+	meshRenderer.SetMaterial(meshMat);
+	//SharedMaterial defMat = Graphics::Renderer::s_materialManager->GetMaterial(Graphics::Renderer::s_materialManager->PBR_DEFAULT);
+	//meshRenderer.SetMaterial(defMat);
 
 }
 

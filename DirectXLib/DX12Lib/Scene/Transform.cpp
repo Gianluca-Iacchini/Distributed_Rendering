@@ -10,7 +10,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldPosition()
 
     XMVECTOR worldPos = XMLoadFloat3(&m_worldPos);
 
-    if (m_dirtyFlags & (UINT)DirtyFlags::Position)
+    if (m_dirtyFlags & (uint8_t)DirtyFlags::Position)
     {
         XMVECTOR relativePos = XMLoadFloat3(&m_relativePos);
         XMVECTOR parentPos = m_parent != nullptr ? m_parent->GetWorldPosition() : DirectX::XMVectorZero();
@@ -18,7 +18,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldPosition()
 
         XMStoreFloat3(&m_worldPos, worldPos);
 
-        m_dirtyFlags &= ~(UINT)DirtyFlags::Position;
+        m_dirtyFlags &= ~(uint8_t)DirtyFlags::Position;
     }
 
     return worldPos;
@@ -29,7 +29,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldRotation()
 
     XMVECTOR worldRot = XMLoadFloat4(&m_worldRot);
 
-    if (m_dirtyFlags & (UINT)DirtyFlags::Rotation)
+    if (m_dirtyFlags & (uint8_t)DirtyFlags::Rotation)
     {
         XMVECTOR parentQuaternion = m_parent != nullptr ? m_parent->GetWorldRotation() : XMQuaternionIdentity();
         XMVECTOR relativeQuat = XMLoadFloat4(&m_relativeRot);
@@ -38,7 +38,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldRotation()
 
         XMStoreFloat4(&m_worldRot, worldRot);
 
-        m_dirtyFlags &= ~(UINT)DirtyFlags::Rotation;
+        m_dirtyFlags &= ~(uint8_t)DirtyFlags::Rotation;
     }
 
     return worldRot;
@@ -49,7 +49,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldScale()
 
     XMVECTOR worldScale = XMLoadFloat3(&m_worldScale);
 
-    if (m_dirtyFlags & (UINT)DirtyFlags::Scale)
+    if (m_dirtyFlags & (uint8_t)DirtyFlags::Scale)
     {
         XMVECTOR parentScale = m_parent != nullptr ? m_parent->GetWorldScale() : DirectX::XMVectorSet(1.f, 1.f, 1.f, 0.f);
         XMVECTOR relativeScale = XMLoadFloat3(&m_relativeScale);
@@ -57,7 +57,7 @@ DirectX::XMVECTOR DX12Lib::Transform::GetWorldScale()
 
         XMStoreFloat3(&m_worldScale, worldScale);
 
-        m_dirtyFlags &= ~(UINT)DirtyFlags::Scale;
+        m_dirtyFlags &= ~(uint8_t)DirtyFlags::Scale;
     }
 
     return worldScale;
@@ -345,11 +345,11 @@ DirectX::XMFLOAT3 DX12Lib::Transform::QuaternionToEuler(DirectX::XMFLOAT4 quater
 
 void DX12Lib::Transform::SetDirty(DirtyFlags flag)
 {
-    m_dirtyFlags |= (UINT)flag;
-    m_dirtForFrame |= (UINT)flag;
+    m_dirtyFlags |= (uint8_t)flag;
+    m_dirtForFrame |= (uint8_t)flag;
 }
 
-void DX12Lib::Transform::SetDirty(UINT32 flags)
+void DX12Lib::Transform::SetDirty(uint8_t flags)
 {
     m_dirtyFlags |= flags;
 	m_dirtForFrame |= flags;

@@ -4,9 +4,7 @@
 using namespace Graphics;
 using namespace DX12Lib;
 
-#define IS_COMMON(tex) ((UINT)tex < NUM_COMMON_TEXTURES)
-#define IS_PHONG(tex) ((UINT)tex < NUM_PHONG_TEXTURES)
-#define IS_PBR(tex) (IS_COMMON(tex) || ((UINT)tex >= PBR_TEXTURE_OFFSET))
+
 
 Material::Material()
 {
@@ -19,6 +17,28 @@ void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 	// We only need to set the first texture since they are all contiguous in the heap.
 	// The root signature knows how many are to be used.
 	cmdList->SetGraphicsRootDescriptorTable((UINT)Renderer::RootSignatureSlot::MaterialTextureSRV, m_firstTextureHandle);
+}
+
+void DX12Lib::Material::SetTexture(UINT index, SharedTexture texture)
+{
+	if (m_textures != nullptr && index < GetTextureCount())
+		m_textures[index] = texture;
+}
+
+Texture* DX12Lib::Material::GetTexture(MaterialTextureType type)
+{
+	return GetTexture((UINT)type);
+}
+
+Texture* DX12Lib::Material::GetTexture(UINT index)
+{
+	if (m_textures == nullptr)
+		return nullptr;
+
+	if (index < (UINT)NUM_COMMON_TEXTURES)
+		return m_textures[index].get();
+
+	return nullptr;
 }
 
 void DX12Lib::Material::SetTransparent(bool isTransparent)
@@ -50,6 +70,17 @@ void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 			m_textures[(UINT)type] = texture;
 		}
 	}
+}
+
+Texture* DX12Lib::PhongMaterial::GetTexture(UINT index)
+{
+	if (m_textures == nullptr)
+		return nullptr;
+
+	if (index < (UINT)NUM_PHONG_TEXTURES)
+		return m_textures[index].get();
+
+	return nullptr;
 }
 
 ConstantBufferMaterial DX12Lib::PhongMaterial::BuildMaterialConstantBuffer()
@@ -84,7 +115,10 @@ void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 	if (m_textures != nullptr)
 	{
 		if (IS_COMMON(type))
+		{
 			m_textures[(UINT)type] = texture;
+		}
+
 
 		else if (IS_PBR(type))
 		{
@@ -93,6 +127,19 @@ void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 		}
 	}
 }
+
+Texture* DX12Lib::PBRMaterial::GetTexture(UINT index)
+{
+	if (m_textures == nullptr)
+		return nullptr;
+
+	if (index < (UINT)NUM_PBR_TEXTURES)
+		return m_textures[index].get();
+	
+	return nullptr;
+}
+
+
 
 ConstantBufferMaterial DX12Lib::PBRMaterial::BuildMaterialConstantBuffer()
 {
@@ -120,5 +167,7 @@ void DX12Lib::PBRMaterial::SetTransparent(bool isTransparent)
 		m_defaultPSO = PSO_PBR_OPAQUE;
 	}
 }
+
+
 
 

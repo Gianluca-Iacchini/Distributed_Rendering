@@ -52,6 +52,11 @@ namespace DX12Lib
 			return m_meshMaterial.get();
 		}
 
+		const Mesh* GetMesh() const
+		{
+			return m_mesh.get();
+		}
+
 	private:
 		DirectX::GraphicsResource GetObjectCB();
 
@@ -91,7 +96,10 @@ namespace DX12Lib
 
 			m_psoMeshRendererBatch[meshRenderer->MaterialPSO].push_back(meshRenderer);
 			
-			bool isTransparent = meshRenderer->GetMaterial()->IsTransparent();
+			bool isTransparent = false;
+			
+			if (meshRenderer->GetMaterial() != nullptr)
+				isTransparent = meshRenderer->GetMaterial()->IsTransparent();
 
 			if (isTransparent)
 				m_transparentMeshes.push_back(meshRenderer);
