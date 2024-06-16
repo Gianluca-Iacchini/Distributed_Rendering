@@ -30,9 +30,12 @@ namespace DX12Lib
 
 		SceneNode* GetRootNode() const { return m_rootNode.get(); }
 
+	protected:
+		virtual void OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer);
+
 	private:
 		void TraverseModel(ModelRenderer* model, aiNode* node, SceneNode* parent);
-		virtual void OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer);
+
 
 	protected:
 		SceneCamera* m_camera = nullptr;

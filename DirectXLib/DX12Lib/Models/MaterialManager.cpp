@@ -19,35 +19,10 @@ void MaterialBuilder::AddTexture(MaterialTextureType textureType, SharedTexture 
 	SharedTexture matTexture = texture;
 	if (texture == nullptr)
 	{
-		matTexture = GetDefaultTextureForType(textureType);
+		matTexture = m_material->GetDefaultTextureForType(textureType);
 	}
 
 	m_material->SetTexture(textureType, matTexture);
-}
-
-SharedTexture MaterialBuilder::GetDefaultTextureForType(MaterialTextureType textureType)
-{
-	switch (textureType)
-	{
-	case MaterialTextureType::DIFFUSE:
-	case MaterialTextureType::BASECOLOR:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
-	case MaterialTextureType::AMBIENT:
-	case MaterialTextureType::SHININESS:
-	case MaterialTextureType::OPACITY:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
-	case MaterialTextureType::SPECULAR:
-	case MaterialTextureType::EMISSIVE:
-	case MaterialTextureType::OCCLUSION:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
-	case MaterialTextureType::NORMAL_MAP:
-	case MaterialTextureType::BUMP_MAP:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
-	case MaterialTextureType::METALROUGHNESS:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::RED_OPAQUE];
-	default:
-		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
-	}
 }
 
 SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMaterial)
@@ -82,23 +57,12 @@ SharedMaterial MaterialBuilder::BuildFromAssimpMaterial(aiMaterial* assimpMateri
 SharedMaterial MaterialBuilder::Build(std::wstring materialName)
 {
 	m_material->m_name = materialName;
+	m_material->LoadDefaultTextures();
 
 	UINT numTextures = m_material->GetTextureCount();
 
 	for (UINT i = 0; i < numTextures; ++i)
 	{
-		if (m_material->m_textures[i] == nullptr)
-		{
-			MaterialTextureType textureType = (MaterialTextureType)i;
-
-			if (m_isPBR && !IS_PBR(textureType))
-			{
-				textureType = (MaterialTextureType)(i + PBR_TEXTURE_OFFSET - NUM_COMMON_TEXTURES);
-			}
-
-			m_material->SetTexture(i, GetDefaultTextureForType(textureType));
-		}
-
 
 		DescriptorHandle handle = Renderer::s_textureHeap->Alloc(1);
 		s_device->GetComPtr()->CopyDescriptorsSimple(1, handle, m_material->m_textures[i]->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

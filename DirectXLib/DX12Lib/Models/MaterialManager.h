@@ -15,7 +15,7 @@ namespace DX12Lib
 
 		void AddTexture(aiTextureType assimpTextureType, aiString& texturePath);
 		void AddTexture(MaterialTextureType textureType, SharedTexture texture = nullptr);
-		SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
+
 		SharedMaterial BuildFromAssimpMaterial(aiMaterial* assimpMaterial);
 		SharedMaterial Build(std::wstring materialName);
 

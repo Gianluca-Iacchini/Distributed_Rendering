@@ -55,6 +55,31 @@ void DX12Lib::Material::SetTransparent(bool isTransparent)
 	}
 }
 
+SharedTexture DX12Lib::Material::GetDefaultTextureForType(MaterialTextureType textureType)
+{
+	switch (textureType)
+	{
+	case MaterialTextureType::DIFFUSE:
+	case MaterialTextureType::BASECOLOR:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
+	case MaterialTextureType::AMBIENT:
+	case MaterialTextureType::SHININESS:
+	case MaterialTextureType::OPACITY:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::WHITE_OPAQUE];
+	case MaterialTextureType::SPECULAR:
+	case MaterialTextureType::EMISSIVE:
+	case MaterialTextureType::OCCLUSION:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::BLACK_OPAQUE];
+	case MaterialTextureType::NORMAL_MAP:
+	case MaterialTextureType::BUMP_MAP:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::NORMAL_MAP];
+	case MaterialTextureType::METALROUGHNESS:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::RED_OPAQUE];
+	default:
+		return Renderer::s_textureManager->DefaultTextures[(UINT)TextureManager::DefaultTextures::MAGENTA];
+	}
+}
+
 PhongMaterial::PhongMaterial()
 {
 	m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
@@ -102,6 +127,17 @@ ConstantBufferMaterial DX12Lib::PhongMaterial::BuildMaterialConstantBuffer()
 void DX12Lib::PhongMaterial::SetTransparent(bool isTransparent)
 {
 	Material::SetTransparent(isTransparent);
+}
+
+void DX12Lib::PhongMaterial::LoadDefaultTextures()
+{
+	if (m_textures == nullptr) return;
+
+	for (UINT i = 0; i < NUM_PHONG_TEXTURES; i++)
+	{
+		if (m_textures[i] == nullptr)
+			m_textures[i] = GetDefaultTextureForType((MaterialTextureType)i);
+	}
 }
 
 PBRMaterial::PBRMaterial()
@@ -165,6 +201,24 @@ void DX12Lib::PBRMaterial::SetTransparent(bool isTransparent)
 	else
 	{
 		m_defaultPSO = PSO_PBR_OPAQUE;
+	}
+}
+
+void DX12Lib::PBRMaterial::LoadDefaultTextures()
+{
+	if (m_textures == nullptr) return;
+
+	for (UINT i = 0; i < NUM_PBR_TEXTURES; i++)
+	{
+		if (m_textures[i] != nullptr)
+			continue;
+
+		MaterialTextureType textureType = (MaterialTextureType)i;
+
+		if (i >= NUM_COMMON_TEXTURES)
+			textureType = (MaterialTextureType)(i + PBR_TEXTURE_OFFSET - NUM_COMMON_TEXTURES);
+
+		m_textures[i] = GetDefaultTextureForType(textureType);
 	}
 }
 

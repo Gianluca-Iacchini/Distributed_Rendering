@@ -174,9 +174,6 @@ void DX12Lib::Scene::OnModelChildAdded(SceneNode& node, MeshRenderer& meshRender
 {
 	SharedMaterial meshMat = modelRenderer.Model->GetMaterialAt(meshRenderer.GetMesh()->m_materialIndex);
 	meshRenderer.SetMaterial(meshMat);
-	//SharedMaterial defMat = Graphics::Renderer::s_materialManager->GetMaterial(Graphics::Renderer::s_materialManager->PBR_DEFAULT);
-	//meshRenderer.SetMaterial(defMat);
-
 }
 
 

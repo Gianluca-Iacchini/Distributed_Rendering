@@ -15,5 +15,7 @@ namespace CVGI
 		virtual void OnResize(DX12Lib::CommandContext& context, int newWidth, int newHeight) override;
 		virtual void OnClose(DX12Lib::CommandContext& context) override;
 
+	protected:
+		virtual void OnModelChildAdded(DX12Lib::SceneNode& modelNode, DX12Lib::MeshRenderer& meshRenderer, DX12Lib::ModelRenderer& modelRenderer) override;
 	};
 }

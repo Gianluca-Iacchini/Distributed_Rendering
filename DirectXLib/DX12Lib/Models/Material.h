@@ -80,6 +80,11 @@ namespace DX12Lib {
 
 		virtual UINT GetTextureCount() { return 0; }
 
+		virtual void LoadDefaultTextures() {}
+
+	protected:
+		SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
+
 	public:
 		DirectX::XMFLOAT4 DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		DirectX::XMFLOAT4 EmissiveColor = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -112,6 +117,7 @@ namespace DX12Lib {
 
 		virtual void SetTransparent(bool isTransparent) override;
 		virtual UINT GetTextureCount() override { return NUM_PHONG_TEXTURES; }
+		virtual void LoadDefaultTextures() override;
 
 	public:
 		DirectX::XMFLOAT4 SpecularColor = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -140,6 +146,8 @@ namespace DX12Lib {
 		virtual void SetTransparent(bool isTransparent) override;
 
 		virtual UINT GetTextureCount() override { return NUM_PBR_TEXTURES; }
+
+		virtual void LoadDefaultTextures() override;
 
 	public:
 		float Metallic = 0.2f;

@@ -2,6 +2,7 @@
 #include "DX12Lib/Scene/LightComponent.h"
 #include "CameraController.h"
 #include "DX12Lib/Scene/SceneCamera.h"
+#include "DX12Lib/Models/Material.h"
 
 using namespace CVGI;
 
@@ -44,4 +45,11 @@ void VoxelScene::OnResize(DX12Lib::CommandContext& context, int newWidth, int ne
 void VoxelScene::OnClose(DX12Lib::CommandContext& context)
 {
 	Scene::OnClose(context);
+}
+
+void CVGI::VoxelScene::OnModelChildAdded(DX12Lib::SceneNode& modelNode, DX12Lib::MeshRenderer& meshRenderer, DX12Lib::ModelRenderer& modelRenderer)
+{
+	Scene::OnModelChildAdded(modelNode, meshRenderer, modelRenderer);
+	//std::shared_ptr<DX12Lib::Material> defMat = Graphics::Renderer::s_materialManager->GetMaterial(Graphics::Renderer::s_materialManager->PBR_DEFAULT);
+	//meshRenderer.SetMaterial(defMat);
 }
