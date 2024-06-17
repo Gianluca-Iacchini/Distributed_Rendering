@@ -24,7 +24,10 @@ namespace DX12Lib {
 
 		void CreateFromSwapChain(Microsoft::WRL::ComPtr<ID3D12Resource> baseResource);
 
-		void Create(uint32_t width, uint32_t height, uint32_t numMips,
+		void Create2D(uint32_t width, uint32_t height, uint32_t numMips,
+			DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+
+		void Create3D(uint32_t width, uint32_t height, uint32_t depth, uint32_t numMips,
 			DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS vidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
 
 		void CreateArray(uint32_t width, uint32_t height, uint32_t arrayCount,
@@ -50,6 +53,8 @@ namespace DX12Lib {
 
 	protected:
 
+		void CreateDerivedViews(D3D12_SRV_DIMENSION texDimension, DXGI_FORMAT format, uint32_t arraySize, uint32_t numMips = 1);
+
 		D3D12_RESOURCE_FLAGS CombineResourceFlags() const
 		{
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
@@ -69,7 +74,7 @@ namespace DX12Lib {
 			return highBit + 1;
 		}
 
-		void CreateDerivedViews(ID3D12Device* device, DXGI_FORMAT format, uint32_t arraySize, uint32_t numMips = 1);
+	protected:
 
 		Color m_clearColor;
 		D3D12_CPU_DESCRIPTOR_HANDLE m_SRVHandle;

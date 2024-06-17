@@ -21,6 +21,7 @@ namespace DX12Lib {
 	protected:
 
 		D3D12_RESOURCE_DESC DescribeTex2D(UINT width, UINT height, UINT arraySize, UINT numMips, DXGI_FORMAT format, UINT flags);
+		D3D12_RESOURCE_DESC DescribeTex3D(UINT width, UINT height, UINT depth, UINT numMips, DXGI_FORMAT format, UINT flags);
 
 		void AssociateWithResource(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES currentState);
 

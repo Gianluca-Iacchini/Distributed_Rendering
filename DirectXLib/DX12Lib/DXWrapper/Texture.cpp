@@ -68,6 +68,56 @@ void Texture::Create2D(size_t rowPitchBytes, size_t Width, size_t Height, DXGI_F
     m_isLoaded = true;
 }
 
+void DX12Lib::Texture::Create3D(size_t rowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT format, const void* initData)
+{
+	OnDestroy();
+
+	m_currentState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+	m_width = (UINT)Width;
+	m_height = (UINT)Height;
+	m_depth = (UINT)Depth;
+
+	D3D12_RESOURCE_DESC texDesc = {};
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+	texDesc.Width = Width;
+	texDesc.Height = (UINT)Height;
+	texDesc.DepthOrArraySize = (UINT)Depth;
+	texDesc.MipLevels = 1;
+	texDesc.Format = format;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	ThrowIfFailed(s_device->GetComPtr()->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		m_currentState,
+		nullptr,
+		IID_PPV_ARGS(m_resource.GetAddressOf())));
+
+	D3D12_SUBRESOURCE_DATA texResourceData;
+	texResourceData.pData = initData;
+	texResourceData.RowPitch = rowPitchBytes;
+	texResourceData.SlicePitch = rowPitchBytes * Height;
+
+	CommandContext::InitializeTexture(*this, 1, &texResourceData);
+
+	if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+	{
+		m_hCpuDescriptorHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	// Not passing a srv desc here, so the view will be created with the default values
+	s_device->GetComPtr()->CreateShaderResourceView(m_resource.Get(), nullptr, m_hCpuDescriptorHandle);
+
+	m_isLoaded = true;
+}
+
 void Texture::CreateFromFile(const std::wstring& filename, bool sRGB)
 {
     DirectX::TexMetadata texMetaData;

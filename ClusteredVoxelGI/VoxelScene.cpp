@@ -1,8 +1,9 @@
+#include "DX12Lib/pch.h"
 #include "VoxelScene.h"
 #include "DX12Lib/Scene/LightComponent.h"
 #include "CameraController.h"
 #include "DX12Lib/Scene/SceneCamera.h"
-#include "DX12Lib/Models/Material.h"
+
 
 using namespace CVGI;
 
@@ -23,6 +24,10 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	bool loaded = this->AddFromFile(sourcePath.c_str());
 
 	assert(loaded && "Model not loaded");
+
+	DX12Lib::ColorBuffer colorBuffer;
+
+	colorBuffer.Create3D(256, 256, 256, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
 	Scene::Init(context);
 }
