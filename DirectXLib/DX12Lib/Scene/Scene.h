@@ -7,8 +7,8 @@
 namespace DX12Lib
 {
 	class ModelRenderer;
-	class SceneCamera;
 	class D3DApp;
+	class SceneCamera;
 
 	class Scene
 	{
@@ -20,6 +20,7 @@ namespace DX12Lib
 		bool AddFromFile(const std::wstring& filename);
 		bool AddFromFile(const wchar_t* filename);
 		bool AddFromFile(const char* filename);
+		virtual void OnAppStart(CommandContext& context) {}
 		virtual void Init(CommandContext& context);
 		virtual void Update(CommandContext& context);
 		virtual void Render(CommandContext& context);

@@ -86,23 +86,27 @@ float CalcShadowFactor(float4 shadowPosH)
     float dy = 1.0f / (float) height;
 
     float percentLit = 0.0f;
-    
+
     // Use different offsets for different quality levels
-    float2 offsets[16] =
+    float2 offsets[9] =
     {
-        float2(-1.5f * dx, -1.5f * dy), float2(0.5f * dx, -1.5f * dy), float2(-0.5f * dx, -0.5f * dy), float2(1.5f * dx, -0.5f * dy),
-        float2(-1.5f * dx, 0.5f * dy), float2(0.5f * dx, 0.5f * dy), float2(-0.5f * dx, 1.5f * dy), float2(1.5f * dx, 1.5f * dy),
-        float2(-2.5f * dx, -2.5f * dy), float2(1.5f * dx, -2.5f * dy), float2(-1.5f * dx, -1.5f * dy), float2(2.5f * dx, -1.5f * dy),
-        float2(-2.5f * dx, 1.5f * dy), float2(1.5f * dx, 1.5f * dy), float2(-1.5f * dx, 2.5f * dy), float2(2.5f * dx, 2.5f * dy)
+        float2(-1.0f * dx, -1.0f * dy), float2(0.0f * dx, -1.0f * dy), float2(1.0f * dx, -1.0f * dy),
+        float2(-1.0f * dx, 0.0f * dy), float2(0.0f * dx, 0.0f * dy), float2(1.0f * dx, 0.0f * dy),
+        float2(-1.0f * dx, 1.0f * dy), float2(0.0f * dx, 1.0f * dy), float2(1.0f * dx, 1.0f * dy)
     };
 
-
     [unroll]
-    for (int i = 0; i < 16; ++i)
+    for (int i = 0; i < 9; ++i)
     {
+        float2 shadowPosOffset = shadowPosH.xy + offsets[i];
+
+        // Hack to remove shadowmap edge artifacts
+        if (shadowPosOffset.x <= 0.01f || shadowPosOffset.x >= 0.99f || shadowPosOffset.y <= 0.01f || shadowPosOffset.y >= 0.99f)
+            return 0;
+
         percentLit += gShadowMap.SampleCmpLevelZero(gShadowSampler,
-            shadowPosH.xy + offsets[i], depth).r;
+        shadowPosOffset, depth).r;
     }
 
-    return percentLit / 16.0f;
+    return percentLit / 9.0f;
 }

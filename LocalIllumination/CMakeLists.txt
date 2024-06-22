@@ -36,6 +36,8 @@ set(SOURCE_FILES
 
 add_executable(LocalIllumination WIN32 ${SOURCE_FILES} ${SHADERS})
 
+set_property(TARGET LocalIllumination PROPERTY CXX_STANDARD 20)
+
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(LocalIllumination PRIVATE DirectXLib)

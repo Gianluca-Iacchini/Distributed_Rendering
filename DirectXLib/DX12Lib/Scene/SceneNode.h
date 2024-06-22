@@ -64,6 +64,8 @@ namespace DX12Lib
 			return returnPtr;
 		}
 
+		void RemoveComponent(Component* component);
+
 		void SetPosition(const DirectX::XMFLOAT3& position);
 		void SetPosition(float x, float y, float z);
 		void SetRotationQuaternion(const DirectX::XMFLOAT4& rotationQuat);

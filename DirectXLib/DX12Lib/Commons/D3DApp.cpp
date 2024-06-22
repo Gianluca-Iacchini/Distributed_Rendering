@@ -164,6 +164,8 @@ void DX12Lib::D3DApp::SetScene(Scene* scene)
 
 void DX12Lib::D3DApp::Initialize(CommandContext& commandContext)
 {
+	m_Scene->OnAppStart(commandContext);
+	commandContext.Flush(true);
 	m_Scene->Init(commandContext);
 }
 

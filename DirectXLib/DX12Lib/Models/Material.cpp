@@ -16,7 +16,8 @@ void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
 {
 	// We only need to set the first texture since they are all contiguous in the heap.
 	// The root signature knows how many are to be used.
-	cmdList->SetGraphicsRootDescriptorTable((UINT)Renderer::RootSignatureSlot::MaterialTextureSRV, m_firstTextureHandle);
+	if (GetTextureCount() > 0)
+		cmdList->SetGraphicsRootDescriptorTable((UINT)Renderer::RootSignatureSlot::MaterialTextureSRV, m_firstTextureHandle);
 }
 
 void DX12Lib::Material::SetTexture(UINT index, SharedTexture texture)

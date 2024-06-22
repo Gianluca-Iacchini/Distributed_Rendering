@@ -1,3 +1,5 @@
+#pragma once
+
 #include "DX12Lib/Commons/Camera.h"
 #include "DX12Lib/Scene/Component.h"
 #include "DX12Lib/Commons/CommonConstants.h"
@@ -8,16 +10,23 @@ namespace DX12Lib
 	{
 	public:
 		SceneCamera() : Camera(), Component() {};
+		virtual ~SceneCamera() = default;
 
-		void Init(CommandContext& context) override;
-		void Update(CommandContext& context) override;
-		void Render(CommandContext& context) override;
-		void OnResize(CommandContext& context, int newWidth, int newHeight) override;
+		virtual void Init(CommandContext& context) override;
+		virtual void Update(CommandContext& context) override;
+		virtual void Render(CommandContext& context) override;
+		virtual void OnResize(CommandContext& context, int newWidth, int newHeight) override;
 
-		void UseCamera(CommandContext& context);
+		virtual void UseCamera(CommandContext& context);
 
-	private:
-		void ParseInputString(std::string& input, float* mouseX, float* mouseY, int* cameraForward, int* cameraStrafe, int* cameraLift);
+		virtual void SetOrthogonal(DirectX::XMFLOAT4 bounds);
+		virtual void SetPerspective(float fov, float aspectRatio, float nearZ, float farZ);
+		virtual bool IsOrtohgraphic() { return m_isOrthographic; }
+		virtual bool IsPerspective() { return !m_isOrthographic; }
+
+	public:
+		bool IsEnabled = true;
+
 
 	private:
 		DirectX::XMFLOAT3 m_lastPosition = { 0.0f, 0.0f, 0.0f };
@@ -31,5 +40,9 @@ namespace DX12Lib
 		float m_oldMouseY = 0.0f;
 
 		UINT m_inputCounter = 0;
+
+		bool m_isOrthographic = false;
+
+		DirectX::XMFLOAT4 m_orthogonalBounds = { 1000.0f, 1000.0f, 0.1f, 1000.0f };
 	};
 }

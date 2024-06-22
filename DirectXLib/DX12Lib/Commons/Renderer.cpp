@@ -131,6 +131,7 @@ namespace Graphics::Renderer
 		}
 		s_shadowBuffer->RenderShadowEnd(context);
 
+
 		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
 
 		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
@@ -156,13 +157,7 @@ namespace Graphics::Renderer
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
 
-		static bool useMain = true;
-
-
-		if (s_kbTracker->IsKeyPressed(DirectX::Keyboard::Space))
-			useMain = !useMain;
-
-		if (useMain)
+		if (m_mainCamera != nullptr)
 			m_mainCamera->UseCamera(context);
 
 		// Main pass opaque
@@ -175,7 +170,7 @@ namespace Graphics::Renderer
 				mRenderer->DrawBatchOpaque(context, pso.first);
 			}
 		}
-		
+
 		// Main pass transparent
 		for (auto& pso : s_PSOs)
 		{
@@ -322,7 +317,7 @@ namespace Graphics::Renderer
 		ShadowSamplerDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
 		ShadowSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		ShadowSamplerDesc.MipLODBias = 0.0f;
-		ShadowSamplerDesc.MaxAnisotropy = 16;
+		ShadowSamplerDesc.MaxAnisotropy = 1;
 		ShadowSamplerDesc.SetBorderColor(Color::Black());
 		
 		

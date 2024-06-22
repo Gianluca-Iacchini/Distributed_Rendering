@@ -181,6 +181,19 @@ void SceneNode::SetParent(SceneNode* parent)
 }
 
 
+void DX12Lib::SceneNode::RemoveComponent(Component* component)
+{
+	auto iter = std::find_if(m_components.begin(), m_components.end(),
+		[component](const std::unique_ptr<Component>& comp) {
+			return comp.get() == component;
+		});
+
+	if (iter != m_components.end())
+	{
+		m_components.erase(iter);
+	}
+}
+
 void DX12Lib::SceneNode::SetPosition(const DirectX::XMFLOAT3& position)
 {
 	Transform.SetWorldPosition(position);

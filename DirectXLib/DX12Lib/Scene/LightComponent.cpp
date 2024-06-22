@@ -108,8 +108,8 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	auto rotation = DirectX::XMConvertToDegrees(this->Node->GetRotationEulerAngles().x);
 	float time = GameTime::GetTotalTime();
 
-	float maxRot = 140.0f;
-	float minRot = 35.0f;
+	float maxRot = 115.0f;
+	float minRot = 65.0f;
 	
 	static float modifier = 1.f;
 

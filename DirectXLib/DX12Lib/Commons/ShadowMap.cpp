@@ -46,7 +46,8 @@ void DX12Lib::ShadowCamera::UpdateShadowMatrix(SceneNode& sceneNode)
 
 	DirectX::XMMATRIX view = this->GetView();
 
-	Camera::SetOrthogonalBounds(m_shadowCenter, m_shadowBounds);
+	//Camera::SetOrthogonalBounds(m_shadowCenter, m_shadowBounds);
+	Camera::SetOrthogonalBounds(80, 80, 1, 200);
 
 
 	DirectX::XMMATRIX projection = GetProjection();

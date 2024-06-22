@@ -38,14 +38,6 @@ namespace DX12Lib {
 	class MaterialManager;
 	class MaterialBuilder;
 
-	enum class MaterialShadingModel
-	{
-		PHONG,
-		PBR,
-		UNLIT,
-		UNKNOWN
-	};
-
 	class Material
 	{
 		friend class MaterialManager;
@@ -62,13 +54,12 @@ namespace DX12Lib {
 
 		void UseMaterial(ID3D12GraphicsCommandList* cmdList);
 		std::wstring& GetName() { return m_name; }
+		void SetName(const std::wstring& name) { m_name = name; }
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) {}
 		void SetTexture(UINT index, SharedTexture texture);
 		Texture* GetTexture(MaterialTextureType type);
 		virtual Texture* GetTexture(UINT index);
-
-		virtual MaterialShadingModel ShadingModel() { return MaterialShadingModel::UNKNOWN; }
 
 		std::wstring GetDefaultPSO() { return m_defaultPSO; }
 
@@ -111,8 +102,6 @@ namespace DX12Lib {
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
 		virtual Texture* GetTexture(UINT index) override;
 
-		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PHONG; }
-
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 
 		virtual void SetTransparent(bool isTransparent) override;
@@ -138,8 +127,6 @@ namespace DX12Lib {
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
 		Texture* GetTexture(UINT index) override;
-
-		virtual MaterialShadingModel ShadingModel() override { return MaterialShadingModel::PBR; }
 
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 

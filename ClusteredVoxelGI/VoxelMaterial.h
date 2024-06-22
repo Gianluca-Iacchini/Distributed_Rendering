@@ -6,7 +6,14 @@ namespace CVGI
 {
 	class VoxelMaterial : public DX12Lib::Material
 	{
+	public:
+		VoxelMaterial() { m_defaultPSO = std::wstring(L"PSO_VOXEL"); }
+		virtual ~VoxelMaterial() = default;
 
+		virtual DX12Lib::ConstantBufferMaterial BuildMaterialConstantBuffer() override;
+		virtual void SetTransparent(bool isTransparent) override { m_isTransparent = false; }
+		virtual void LoadDefaultTextures() override {}
+		virtual UINT GetTextureCount() override { return 0; }
 	};
 }
 

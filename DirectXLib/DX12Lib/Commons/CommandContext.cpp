@@ -235,8 +235,8 @@ UINT64 CommandContext::Flush(bool waitForCompletion)
 	if (waitForCompletion)
 		queue.WaitForFence(fenceValue);
 
+	
 	m_commandList->Reset(*m_currentAllocator);
-
 
 
 	if (m_currentPipelineState != nullptr)

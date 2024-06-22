@@ -46,6 +46,25 @@ namespace DX12Lib {
 		Shader& operator=(const Shader&) = delete;
 	};
 
+
+	class IncludeHandler : public ID3DInclude {
+	public:
+		std::vector<std::wstring> m_includeDirs;
+
+		IncludeHandler(const std::vector<std::wstring>& includeDirs) : m_includeDirs(includeDirs) {}
+
+		HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) override;
+
+		HRESULT __stdcall Close(LPCVOID pData) override {
+			if (pData != nullptr)
+				delete[] reinterpret_cast<const char*>(pData);
+			
+			return S_OK;
+		}
+
+	public:
+		static std::wstring GetShaderDirectory();
+	};
 }
 
 

@@ -1,12 +1,13 @@
-set(VERTEX_SHADERS )
-set(PIXEL_SHADERS )
-set(INCLUDE_SHADERS )
+set(VERTEX_SHADERS Shaders/Voxel_VS.hlsl)
+set(GEOMETRY_SHADERS Shaders/Voxel_GS.hlsl)
+set(PIXEL_SHADERS Shaders/Voxel_PS.hlsl)
+set(INCLUDE_SHADERS Shaders/VoxelUtils.hlsli)
 
-set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
+set(SHADERS ${VERTEX_SHADERS} ${GEOMETRY_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
 
 source_group("Shaders" FILES ${SHADERS})
 
-set_source_files_properties( ${VERTEX_SHADERS} ${PIXEL_SHADERS}
+set_source_files_properties( ${VERTEX_SHADERS} ${GEOMETRY_SHADERS} ${PIXEL_SHADERS}
     PROPERTIES
         VS_SHADER_OBJECT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Data/Shaders/%(Filename).cso"
         VS_SHADER_MODEL 5.1
@@ -20,6 +21,12 @@ set_source_files_properties( ${VERTEX_SHADERS}
 	VS_SHADER_ENTRYPOINT VS
 )
 
+set_source_files_properties( ${GEOMETRY_SHADERS}
+    PROPERTIES 
+        VS_SHADER_TYPE Geometry
+	VS_SHADER_ENTRYPOINT GS
+)
+
 set_source_files_properties( ${PIXEL_SHADERS}
     PROPERTIES 
         VS_SHADER_TYPE Pixel
@@ -31,8 +38,12 @@ set(SOURCE_FILES
 	ClusteredVoxelGI.cpp
 	VoxelScene.h
 	VoxelScene.cpp
+	VoxelMaterial.h
+	VoxelMaterial.cpp
 	CameraController.h
 	CameraController.cpp
+	VoxelCamera.h
+	VoxelCamera.cpp
 )
 
 add_executable(ClusteredVoxelGI WIN32 ${SOURCE_FILES} ${SHADERS})

@@ -8,7 +8,18 @@ using namespace DirectX;
 
 void DX12Lib::SceneCamera::Init(CommandContext& context)
 {
-	Camera::SetLens(0.25f * DirectX::XM_PI, ((float)Renderer::s_clientWidth / Renderer::s_clientHeight), 1.0f, 1000.0f);
+
+
+	if (m_isOrthographic)
+	{
+		Camera::SetOrthogonalBounds(m_orthogonalBounds.x, m_orthogonalBounds.y, m_orthogonalBounds.z, m_orthogonalBounds.w);
+	}
+	else
+	{
+		Camera::SetLens(0.25f * DirectX::XM_PI, ((float)Renderer::s_clientWidth / Renderer::s_clientHeight), 1.0f, 1000.0f);
+	}
+
+
 }
 
 void DX12Lib::SceneCamera::Update(CommandContext& context)
@@ -29,11 +40,20 @@ void DX12Lib::SceneCamera::Render(CommandContext& context)
 
 void DX12Lib::SceneCamera::OnResize(CommandContext& context, int newWidth, int newHeight)
 {
-	Camera::SetLens(0.25f * DirectX::XM_PI, ((float)newWidth / newHeight), 1.0f, 1000.0f);
+	if (m_isOrthographic)
+	{
+		Camera::SetOrthogonalBounds(m_orthogonalBounds.x, m_orthogonalBounds.y, m_orthogonalBounds.z, m_orthogonalBounds.w);
+	}
+	else
+	{
+		Camera::SetLens(0.25f * DirectX::XM_PI, ((float)newWidth / newHeight), 1.0f, 1000.0f);
+	}
 }
 
 void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
 {
+	if (!IsEnabled) return;
+
 	DirectX::XMMATRIX view = this->GetView();
 	DirectX::XMMATRIX projection = this->GetProjection();
 	DirectX::XMMATRIX viewProjection = view * projection;
@@ -58,3 +78,28 @@ void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
 		cbCamera.GpuAddress()
 	);
 }
+
+void DX12Lib::SceneCamera::SetOrthogonal(DirectX::XMFLOAT4 bounds)
+{
+	m_isOrthographic = true;
+
+	m_orthogonalBounds = bounds;
+
+	if (m_isOrthographic)
+	{
+		Camera::SetOrthogonalBounds(m_orthogonalBounds.x, m_orthogonalBounds.y, m_orthogonalBounds.z, m_orthogonalBounds.w);
+	}
+	else
+	{
+		Camera::SetLens(0.25f * DirectX::XM_PI, ((float)Renderer::s_clientWidth / Renderer::s_clientHeight), 1.0f, 1000.0f);
+	}
+}
+
+void DX12Lib::SceneCamera::SetPerspective(float fov, float aspectRatio, float nearZ, float farZ)
+{
+	m_isOrthographic = false;
+
+	Camera::SetLens(fov, aspectRatio, nearZ, farZ);
+}
+
+
