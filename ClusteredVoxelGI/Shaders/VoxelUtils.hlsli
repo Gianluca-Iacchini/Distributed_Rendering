@@ -23,6 +23,7 @@ struct VertexOut
     float4 PosH : SV_POSITION;
     float4 ShadowPosH : POSITION0;
     float3 PosW : POSITION1;
+    uint ProjAxis : AXIS;
     float3 NormalW : NORMAL;
     float2 Tex : TEXCOORD;
 };
@@ -53,15 +54,17 @@ cbuffer VoxelData : register(b2)
     
     // Size of the 3D texture
     float3 vVoxelGridDimension : packoffset(c16);
+    float vNearPlane : packoffset(c16.w);
     // Size of a voxel cell
     float3 vVoxelSize : packoffset(c17);
+    float vFarPlane : packoffset(c17.w);
 };
 
 
 
 SamplerState gSampler : register(s0);
 
-
+RWTexture3D<float4> gVoxelGrid : register(u0);
 Texture2D gShadowMap : register(t0);
 
 Texture2D gEmissiveTex : register(t1);

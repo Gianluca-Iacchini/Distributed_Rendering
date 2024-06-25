@@ -36,6 +36,7 @@ namespace Graphics
 			MaterialSRV = 4,
 			CommonTextureSRV = 5,
 			MaterialTextureSRV = 6,
+			VoxelTextureUAV = 7,
 			Count
 		};
 
@@ -59,6 +60,8 @@ namespace Graphics
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
 		void SetUpRenderFrame(DX12Lib::CommandContext& context);
+		void ShadowPass(DX12Lib::CommandContext& context);
+		void MainRenderPass(DX12Lib::CommandContext& context);
 		void RenderLayers(DX12Lib::CommandContext& context);
 		void Shutdown();
 		void InitializeSwapchain(DX12Lib::DX12Window* window);
@@ -66,7 +69,7 @@ namespace Graphics
 		DX12Lib::ColorBuffer& GetCurrentBackBuffer();
 		void ResizeSwapchain(DX12Lib::CommandContext* context, int newWidth, int newHeight);
 		void Present(UINT64 fenceVal);
-
+		void SetScissorAndViewportSize(int width, int height);
 
 	};
 }

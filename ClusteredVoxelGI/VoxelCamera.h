@@ -16,8 +16,10 @@ namespace CVGI
 		DirectX::XMFLOAT4X4 zAxisViewProjection = MathHelper::Identity4x4();
 
 		DirectX::XMFLOAT3 voxelTextureDimensions = DirectX::XMFLOAT3(128.0f, 128.0f, 128.0f);
+		float zNear = 0.0f;
 
 		DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
+		float zFar = 0.0f;
 	};
 
 	class VoxelCamera : public DX12Lib::SceneCamera

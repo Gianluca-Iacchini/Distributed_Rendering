@@ -8,9 +8,10 @@ VertexOut VS( VertexIn vIn )
     
     vOut.PosW = posW.xyz;
     vOut.NormalW = mul(vIn.NormalL, (float3x3) oWorld);
-    vOut.PosH = mul(posW, mul(vXaxisView, vOrthoProj));
+    vOut.PosH = posW;
     vOut.ShadowPosH = vOut.PosH;
     vOut.Tex = vIn.Tex;
+    vOut.ProjAxis = 0;
     
     return vOut;
 }

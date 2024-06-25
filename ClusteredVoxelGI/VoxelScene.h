@@ -11,8 +11,9 @@ namespace CVGI
 		VoxelDataCBV,
 		LightSRV,
 		MaterialSRV,
-		VoxelTextureSRV,
+		CommonTextureSRV,
 		MaterialTextureSRV,
+		VoxelTextureUAV,
 		Count
 	};
 

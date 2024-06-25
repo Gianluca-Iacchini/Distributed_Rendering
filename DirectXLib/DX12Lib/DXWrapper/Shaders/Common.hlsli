@@ -33,6 +33,8 @@ cbuffer Camera : register(b2)
 }
 
 Texture2D gShadowMap : register(t0);
+RWTexture3D<float4> gVoxelGrid : register(u0);
+
 Texture2D gEmissiveTex : register(t1);
 Texture2D gNormalMap : register(t2);
 Texture2D gDiffuseTex : register(t3);
@@ -102,7 +104,7 @@ float CalcShadowFactor(float4 shadowPosH)
 
         // Hack to remove shadowmap edge artifacts
         if (shadowPosOffset.x <= 0.01f || shadowPosOffset.x >= 0.99f || shadowPosOffset.y <= 0.01f || shadowPosOffset.y >= 0.99f)
-            return 0;
+            continue;
 
         percentLit += gShadowMap.SampleCmpLevelZero(gShadowSampler,
         shadowPosOffset, depth).r;

@@ -29,6 +29,8 @@ namespace DX12Lib {
 		void InitializeApp();
 		void Reset();
 
+		D3D12_COMMAND_LIST_TYPE GetType() const { return m_type; }
+
 		void SetPipelineState(PipelineState* pipelineState);
 		void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
 		void TransitionResource(ID3D12Resource* res, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES newState, bool transitionNow = false);

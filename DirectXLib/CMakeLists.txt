@@ -52,8 +52,12 @@ set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../extern/NVidiaCodec/Include" "../extern/FFmpeg/include")
-target_include_directories(DirectXLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx)
+target_include_directories(DirectXLib 
+	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} 
+	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx 
+	PUBLIC "../extern/NVidiaCodec/Include" "../extern/FFmpeg/include"
+	PUBLIC "../extern/PIX/Include")
+
 target_link_libraries(DirectXLib 
     PUBLIC assimp
     PUBLIC DirectXTex
@@ -66,6 +70,7 @@ target_link_libraries(DirectXLib
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/swresample.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvcuvid.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvencodeapi.lib"
+    PUBLIC "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/WinPixEventRuntime.lib"
     PUBLIC d3d12.lib
     PUBLIC dxgi.lib
     PUBLIC dxguid.lib)

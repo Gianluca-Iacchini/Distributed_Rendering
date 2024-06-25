@@ -5,6 +5,7 @@
 #include "DX12Lib/Scene/LightComponent.h"
 #include "DX12Lib/Commons/ShadowMap.h"
 #include "DX12Lib/Scene/SceneCamera.h"
+#include <WinPixEventRuntime/pix3.h>
 
 #define PSO_SHADOW_OPAQUE L"ShadowOpaquePso"
 #define PSO_SHADOW_ALPHA_TEST L"ShadowAlphaTestPso"
@@ -36,10 +37,11 @@ namespace Graphics::Renderer
 	int s_clientHeight = 1080;
 
 	std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer = nullptr;
+	std::unique_ptr<DX12Lib::ColorBuffer> s_voxel3DTexture = nullptr;
 
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
 
-	DescriptorHandle m_shadowMapSRVHandle;
+	DescriptorHandle m_commonTextureHandle;
 	CostantBufferCommons m_costantBufferCommons;
 
 	void CreateDefaultPSOs();
@@ -59,8 +61,17 @@ namespace Graphics::Renderer
 		s_shadowBuffer = std::make_unique<ShadowBuffer>();
 		s_shadowBuffer->Create(4096, 4096);
 
-		m_shadowMapSRVHandle = s_textureHeap->Alloc(1);
-		s_device->Get()->CopyDescriptorsSimple(1, m_shadowMapSRVHandle, s_shadowBuffer->GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		s_voxel3DTexture = std::make_unique<ColorBuffer>();
+		s_voxel3DTexture->Create3D(128, 128, 128, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+		m_commonTextureHandle = s_textureHeap->Alloc(2);
+
+		UINT commonTexIndex = -1;
+		commonTexIndex = s_textureHeap->GetOffsetOfHandle(m_commonTextureHandle);
+
+
+		s_device->Get()->CopyDescriptorsSimple(1, (*s_textureHeap)[commonTexIndex], s_shadowBuffer->GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		s_device->Get()->CopyDescriptorsSimple(1, (*s_textureHeap)[commonTexIndex+1], s_voxel3DTexture->GetUAV(0), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		CreateDefaultShaders();
 		CreateDefaultPSOs();
@@ -92,8 +103,11 @@ namespace Graphics::Renderer
 		context.SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE].get());
 	}
 
-	void RenderLayers(CommandContext& context)
-	{ 
+	void ShadowPass(DX12Lib::CommandContext& context)
+	{
+
+		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(40, 40, 40), L"ShadowPass");
+
 		// Shadow pass opaque objects
 		s_shadowBuffer->RenderShadowStart(context);
 
@@ -103,7 +117,7 @@ namespace Graphics::Renderer
 			context.SetPipelineState(shadowPso.get());
 
 			auto shadowCamera = light->GetShadowCamera();
-			
+
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
 
@@ -131,6 +145,12 @@ namespace Graphics::Renderer
 		}
 		s_shadowBuffer->RenderShadowEnd(context);
 
+		PIXEndEvent(context.m_commandList->Get());
+	}
+
+	void MainRenderPass(DX12Lib::CommandContext& context)
+	{
+		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(255, 255, 255), L"MainRenderPass");
 
 		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
 
@@ -146,13 +166,17 @@ namespace Graphics::Renderer
 		if (m_shadowLights.size() > 0)
 		{
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				(UINT)RootSignatureSlot::CommonTextureSRV, m_shadowMapSRVHandle);
+				(UINT)RootSignatureSlot::CommonTextureSRV, m_commonTextureHandle);
 		}
 
-		m_costantBufferCommons.totalTime = GameTime::GetTotalTime();
-		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
-		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
-		m_costantBufferCommons.renderShadows = m_shadowLights.size() > 0;
+		if (s_voxel3DTexture)
+		{
+
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				(UINT)RootSignatureSlot::VoxelTextureUAV, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
+		}
+
+
 
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
@@ -182,9 +206,27 @@ namespace Graphics::Renderer
 			}
 		}
 
+		PIXEndEvent(context.m_commandList->Get());
+	}
+
+	void RenderLayers(CommandContext& context)
+	{ 
+		m_costantBufferCommons.totalTime = GameTime::GetTotalTime();
+		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
+		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
+		m_costantBufferCommons.renderShadows = m_shadowLights.size() > 0;
+
+		if (m_costantBufferCommons.renderShadows)
+		{
+			ShadowPass(context);
+		}
+
+		MainRenderPass(context);
+
 		m_renderers.clear();
 		m_shadowLights.clear();
 		m_mainCamera = nullptr;
+
 	}
 
 	void Shutdown()
@@ -269,6 +311,18 @@ namespace Graphics::Renderer
 		s_swapchain->CurrentBufferIndex = (s_swapchain->CurrentBufferIndex + 1) % s_swapchain->BufferCount;
 	}
 
+	void SetScissorAndViewportSize(int width, int height)
+	{
+		Renderer::s_screenViewport.TopLeftX = 0;
+		Renderer::s_screenViewport.TopLeftY = 0;
+		Renderer::s_screenViewport.Width = static_cast<float>(width);
+		Renderer::s_screenViewport.Height = static_cast<float>(height);
+		Renderer::s_screenViewport.MinDepth = 0.0f;
+		Renderer::s_screenViewport.MaxDepth = 1.0f;
+
+		Renderer::s_scissorRect = { 0, 0, width, height};
+	}
+
 	void CreateDefaultShaders()
 	{
 		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
@@ -332,6 +386,7 @@ namespace Graphics::Renderer
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, NUM_PHONG_TEXTURES);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>((UINT)RootSignatureSlot::Count, 2);
@@ -344,6 +399,7 @@ namespace Graphics::Renderer
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, NUM_PBR_TEXTURES);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 

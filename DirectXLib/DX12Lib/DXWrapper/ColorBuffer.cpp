@@ -176,7 +176,7 @@ void DX12Lib::ColorBuffer::CreateDerivedViews(D3D12_SRV_DIMENSION texDimension, 
 
 	// Create the UAVs for each mip level
 
-	for (uint32_t i = 0; i < m_numMipMaps; ++i)
+	for (uint32_t i = 0; i < numMips; ++i)
 	{
 		if (m_UAVHandle[i].ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		{

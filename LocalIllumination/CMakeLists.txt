@@ -45,3 +45,11 @@ target_link_libraries(LocalIllumination PRIVATE d3d12.lib)
 target_link_libraries(LocalIllumination PRIVATE dxgi.lib)
 target_link_libraries(LocalIllumination PRIVATE D3DCompiler.lib)
 target_link_libraries(LocalIllumination PRIVATE DirectXTK12)
+
+file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll")
+
+foreach(DLL ${DLL_FILES})
+	add_custom_command(TARGET LocalIllumination POST_BUILD
+    		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        		${DLL} $<TARGET_FILE_DIR:LocalIllumination>)
+endforeach()
