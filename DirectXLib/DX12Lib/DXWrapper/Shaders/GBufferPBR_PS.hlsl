@@ -9,8 +9,28 @@ struct PSOut
     float4 GBufferD : SV_Target3;
 };
 
-PSOut PS(VertexOut pIn)
+cbuffer cbPerObject : register(b2)
 {
+    Object object;
+}
+
+Texture2D gEmissiveTex : register(t1);
+Texture2D gNormalMap : register(t2);
+Texture2D gDiffuseTex : register(t3);
+Texture2D gMetallicRoughness : register(t4);
+Texture2D gOcclusion : register(t5);
+
+PSOut PS(VertexOutPosNormalTex pIn)
+{
+    float4 diffuse = gDiffuseTex.Sample(gSampler, pIn.Tex);
+    
+#ifdef ALPHA_TEST
+    if (diffuse.a < 0.1f)
+    {
+        discard;
+    }
+#endif
+    
     PSOut psOut;
     
     pIn.NormalW = normalize(pIn.NormalW);
@@ -22,10 +42,9 @@ PSOut PS(VertexOut pIn)
     // Transform normal from tangent space to world space
     float3 normal = normalize(mul(normalMapSample, tbn));
     
-    psOut.GBufferA = float4(pIn.PosW, oMaterialIndex);
+    psOut.GBufferA = float4(pIn.PosW, object.MaterialIndex);
     psOut.GBufferB = PackNormal(normal);
-    //psOut.GBufferB = float4(normal, 1.0f);
-    psOut.GBufferC = gDiffuseTex.Sample(gSampler, pIn.Tex);
+    psOut.GBufferC = diffuse;
     
     // w coordinated is used to keep track of geometry. Pixels where there is no geometry have a w value of 1.0f
     // due to the fact that the clear color used for this GBuffer is red (1.0f, 0.0f, 0.0f, 1.0f)

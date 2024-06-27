@@ -1,16 +1,25 @@
 #include "Common.hlsli"
 
+cbuffer cbCamera : register(b1)
+{
+    Camera camera;
+}
 
-VertexOut VS(VertexIn vIn)
+cbuffer cbPerObject : register(b2)
+{
+    Object object;
+}
+
+
+VertexOutPosNormalTex VS(VertexInPosNormalTex vIn)
 {   
-    VertexOut vOut;
+    VertexOutPosNormalTex vOut;
     
-    float4 posW = mul(float4(vIn.PosL, 1.0f), oWorld);
+    float4 posW = mul(float4(vIn.PosL, 1.0f), object.World);
     
     vOut.PosW = posW.xyz;
-    vOut.NormalW = mul(vIn.NormalL, (float3x3)oWorld);
-    vOut.PosH = mul(posW, cViewProj);
-    vOut.ShadowPosH = mul(posW, gLights[0].shadowMatrix);
+    vOut.NormalW = mul(vIn.NormalL, (float3x3)object.World);
+    vOut.PosH = mul(posW, camera.ViewProj);
 
     vOut.Tex = vIn.Tex;
     

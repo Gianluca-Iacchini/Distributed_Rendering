@@ -9,16 +9,24 @@ SET(NVCODEC_HEADER "../extern/NvidiaCodec/Include/cuviddec.h" "../extern/NvidiaC
 
 source_group("NVCodec" FILES ${NVCODEC_HEADER})
 
-set(VERTEX_SHADERS DX12Lib/DXWrapper/Shaders/Basic_VS.hlsl DX12Lib/DXWrapper/Shaders/Depth_VS.hlsl)
+set(VERTEX_SHADERS 
+	DX12Lib/DXWrapper/Shaders/Basic_VS.hlsl 
+	DX12Lib/DXWrapper/Shaders/Depth_VS.hlsl
+	DX12Lib/DXWrapper/Shaders/Deferred_VS.hlsl
+)
 
 set(PIXEL_SHADERS 
 	DX12Lib/DXWrapper/Shaders/Basic_PS.hlsl 
  	DX12Lib/DXWrapper/Shaders/BasicPBR_PS.hlsl 
 	DX12Lib/DXWrapper/Shaders/AlphaTest_PS.hlsl
 	DX12Lib/DXWrapper/Shaders/AlphaTestPBR_PS.hlsl
-	DX12Lib/DXWrapper/Shaders/AlphaTestDepth_PS.hlsl)
+	DX12Lib/DXWrapper/Shaders/AlphaTestDepth_PS.hlsl
+	DX12Lib/DXWrapper/Shaders/GBufferPBR_PS.hlsl)
 
-set(INCLUDE_SHADERS DX12Lib/DXWrapper/Shaders/Default.hlsli DX12Lib/DXWrapper/Shaders/Common.hlsli DX12Lib/DXWrapper/Shaders/LightingUtil.hlsli)
+set(INCLUDE_SHADERS 
+	DX12Lib/DXWrapper/Shaders/Common.hlsli
+	DX12Lib/DXWrapper/Shaders/LightingUtil.hlsli
+)
 
 set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
 

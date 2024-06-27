@@ -628,9 +628,9 @@ namespace Graphics::Renderer
 
 		DXLIB_CORE_WARN("REMINDER: Restore alpha test PSO");
 		std::shared_ptr<PipelineState> pbrAlphaTestPso = std::make_shared<PipelineState>();
-		*pbrAlphaTestPso = *pbrPso;
-		//pbrAlphaTestPso->SetRenderTargetFormats((UINT)RenderTargetType::Count, rtvFormats, s_depthStencilBuffer->GetFormat());
-		//pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
+		*pbrAlphaTestPso = *phongAlphaTestPso;
+		pbrAlphaTestPso->SetRenderTargetFormats((UINT)RenderTargetType::Count, rtvFormats, s_depthStencilBuffer->GetFormat());
+		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
 		pbrAlphaTestPso->Finalize();
 
 		D3D12_RASTERIZER_DESC shadowRastDesc = {};

@@ -1,12 +1,9 @@
 #include "Common.hlsli"
 
-struct VSOutput
-{
-    float4 Pos : SV_Position;
-    float2 Tex : TEXCOORD;
-};
+Texture2D gDiffuseTex : register(t3);
 
-void PS(VSOutput vOut)
+
+void PS(VertexOutPosTex vOut)
 {
     float4 color = gDiffuseTex.Sample(gSampler, vOut.Tex);
     if (color.a < 0.1f)

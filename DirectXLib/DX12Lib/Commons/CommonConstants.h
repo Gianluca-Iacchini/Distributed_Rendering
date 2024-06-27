@@ -30,9 +30,7 @@ namespace DX12Lib {
 		float totalTime = 0.0f;
 		float deltaTime = 0.0f;
 		int numLights = 0;
-		//float _pad1 = 0.0f;
-
-		//ConstantBufferLight light;
+		float _pad0 = 0.0f;
 	};
 
 	__declspec(align(16)) struct ConstantBufferCamera
@@ -46,7 +44,11 @@ namespace DX12Lib {
 		// Use by shadow cameras only.
 		DirectX::XMFLOAT3 eyePosition = { 0.0f, 0.0f, 0.0f };
 		float nearPlane = 0.0f;
+
 		float farPlane = 1.0f;
+		float _pad0 = 0.0f;
+		float _pad1 = 0.0f;
+		float _pad2 = 0.0f;
 	};
 
 	__declspec(align(16)) struct ConstantBufferObject
@@ -54,7 +56,11 @@ namespace DX12Lib {
 		DirectX::XMFLOAT4X4 world = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 invWorld = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 texTransform = MathHelper::Identity4x4();
+
 		UINT materialIndex = 1;
+		float _pad0 = 0.0f;
+		float _pad1 = 0.0f;
+		float _pad2 = 0.0f;
 	};
 
 	__declspec(align(16)) struct ConstantBufferMaterial

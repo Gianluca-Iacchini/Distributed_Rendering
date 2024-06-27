@@ -1,34 +1,46 @@
 #include "LightingUtil.hlsli"
 
-cbuffer Commons : register(b0)
+struct Commons
 {
-    float2 cRenderTargetSize : packoffset(c0);
-    float2 cInvRenderTargetSize : packoffset(c0.z);
+    float2 RenderTargetSize;
+    float2 InvRenderTargetSize;
 
-    float cTotalTime : packoffset(c1);
-    float cDeltaTime : packoffset(c1.y);
-    int cNumLights : packoffset(c1.z);
+    float TotalTime;
+    float DeltaTime;
+    int NumLights;
+    float _pad0;
+    float _pad1;
+    float _pad2;
 };
 
-cbuffer Camera : register(b1)
+struct Camera
 {
-    float4x4 cView : packoffset(c0);
-    float4x4 cInvView : packoffset(c4);
-    float4x4 cProj : packoffset(c8);
-    float4x4 cInvProj : packoffset(c12);
-    float4x4 cViewProj : packoffset(c16);
-    float4x4 cInvViewProj : packoffset(c20);
-    float3 cEyePos : packoffset(c24);
-    float cNearPlane : packoffset(c24.w);
-    float cFarPlane : packoffset(c25);
-}
+    float4x4 View;
+    float4x4 InvView;
+    float4x4 Proj;
+    float4x4 InvProj;
+    float4x4 ViewProj;
+    float4x4 InvViewProj;
+    
+    float3 EyePos;
+    float NearPlane;
+    
+    float FarPlane;
+    float _pad0;
+    float _pad1;
+    float _pad2;
+};
 
-cbuffer Object : register(b2)
+struct Object
 {
-    float4x4 oWorld : packoffset(c0);
-    float4x4 oInvWorld : packoffset(c4);
-    float4x4 oTexTransform : packoffset(c8);
-    uint oMaterialIndex : packoffset(c12);
+    float4x4 World;
+    float4x4 InvWorld;
+    float4x4 TexTransform;
+    
+    uint MaterialIndex;
+    float _pad0;
+    float _pad1;
+    float _pad2;
 };
 
 
@@ -36,41 +48,36 @@ cbuffer Object : register(b2)
 Texture2D gShadowMap : register(t0);
 RWTexture3D<float4> gVoxelGrid : register(u0);
 
-Texture2D gEmissiveTex : register(t1);
-Texture2D gNormalMap : register(t2);
-Texture2D gDiffuseTex : register(t3);
-#ifndef PBR
-Texture2D gSpecularTex : register(t4); 
-Texture2D gAmbientTex : register(t5); 
-Texture2D gShininessTex : register(t6);
-Texture2D gOpacity : register(t7);
-Texture2D gBumpMap : register(t8);
-#else
-Texture2D gMetallicRoughness : register(t4);
-Texture2D gOcclusion : register(t5);
-#endif
-
-
-StructuredBuffer<Light> gLights : register(t0, space1);
-StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
 
 SamplerState gSampler : register(s0);
 SamplerComparisonState gShadowSampler : register(s1);
 
-struct VertexIn
+struct VertexInPosNormalTex
 {
     float3 PosL : SV_Position;
     float3 NormalL : NORMAL;
     float2 Tex : TEXCOORD;
 };
 
-struct VertexOut
+struct VertexOutPosNormalTex
 {
     float4 PosH : SV_POSITION;
-    float4 ShadowPosH : POSITION0;
-    float3 PosW : POSITION1;
+    float3 PosW : POSITION0;
     float3 NormalW : NORMAL;
     float2 Tex : TEXCOORD;
+};
+
+struct VertexInPosTex
+{
+    float3 PosL : SV_Position;
+    float2 Tex : TEXCOORD;
+};
+
+struct VertexOutPosTex
+{
+    float4 PosH : SV_POSITION;
+    float2 Tex : TEXCOORD;
+
 };
 
 float CalcShadowFactor(float4 shadowPosH)

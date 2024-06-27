@@ -1,25 +1,24 @@
 #include "Common.hlsli"
 
-struct VSInput
+cbuffer cbCamera : register(b1)
 {
-    float3 Pos : SV_Position;
-    float3 NORMAL : NORMAL;
-    float2 Tex : TEXCOORD;
+    Camera camera;
 };
 
-struct VSOutput
+cbuffer cbPerObject : register(b2)
 {
-    float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD;
+    Object object;
 };
 
-VSOutput VS(VSInput input)
+
+
+VertexOutPosTex VS(VertexInPosNormalTex input)
 {
-    float4 posW = mul(float4(input.Pos, 1.0f), oWorld);
+    float4 posW = mul(float4(input.PosL, 1.0f), object.World);
     
-    VSOutput output;
+    VertexOutPosTex output;
     
-    output.Pos = mul(posW, cViewProj);
+    output.PosH = mul(posW, camera.ViewProj);
     output.Tex = input.Tex;
     return output;
 }

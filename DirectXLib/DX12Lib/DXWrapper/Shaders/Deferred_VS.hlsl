@@ -1,20 +1,10 @@
-struct PositionUV
-{
-	float3 Pos : SV_POSITION;
-	float2 UV : TEXCOORD;
-};
+#include "Common.hlsli"
 
-struct VertexOut
+VertexOutPosTex VS(VertexInPosTex vertexIn)
 {
-    float4 PosH : SV_POSITION;
-    float2 UV : TEXCOORD;
-};
-
-VertexOut VS(PositionUV vertexIn)
-{
-    VertexOut vOut;
-    vOut.PosH = float4(vertexIn.Pos, 1.0f);
-    vOut.UV = vertexIn.UV;
+    VertexOutPosTex vOut;
+    vOut.PosH = float4(vertexIn.PosL, 1.0f);
+    vOut.Tex = vertexIn.Tex;
     
     return vOut;
 }
