@@ -37,9 +37,15 @@ namespace DX12Lib
 		void SetMesh(std::shared_ptr<Mesh> mesh)
 		{
 			m_mesh = mesh;
+
+			if (m_meshMaterial == nullptr)
+			{
+				m_meshMaterial = m_mesh->MeshMaterial;
+				MaterialPSO = m_meshMaterial->GetDefaultPSO();
+			}
 		}
 
-		void SetMaterial(SharedMaterial material)
+		void SetMaterial(Material* material)
 		{
 			assert (material != nullptr);
 
@@ -49,7 +55,7 @@ namespace DX12Lib
 		
 		Material* GetMaterial() const
 		{
-			return m_meshMaterial.get();
+			return m_meshMaterial;
 		}
 
 		const Mesh* GetMesh() const
@@ -68,7 +74,7 @@ namespace DX12Lib
 	private:
 		ModelRenderer* m_modelRenderer = nullptr;
 		std::shared_ptr<Mesh> m_mesh = nullptr;
-		SharedMaterial m_meshMaterial = nullptr;
+		Material* m_meshMaterial = nullptr;
 
 
 		bool m_isVisible = true;

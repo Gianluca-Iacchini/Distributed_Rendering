@@ -172,8 +172,7 @@ void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, S
 
 void DX12Lib::Scene::OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer)
 {
-	SharedMaterial meshMat = modelRenderer.Model->GetMaterialAt(meshRenderer.GetMesh()->m_materialIndex);
-	meshRenderer.SetMaterial(meshMat);
+
 }
 
 

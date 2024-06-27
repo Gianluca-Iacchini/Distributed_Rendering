@@ -17,6 +17,18 @@ using namespace Graphics;
 
 namespace Graphics::Renderer
 {
+	// Render targets for deferred rendering, this could be incorporeted together
+	// (e.g. Storing material in same texture as world pos)
+	// But keeping them separate helps with debugging and understanding the process
+	enum RenderTargetType
+	{
+		WorldPosMatIndex,		// World position in xyz, material index in w
+		Normal,					// Normal in xy, third component computed in shader
+		Diffuse,				// Diffuse albedo
+		MetallicRoughnessAO,	// AO in the R channel, Roughness in the G channel and Metallic in the B channel
+		Count
+	};
+
 	D3D12_VIEWPORT s_screenViewport;
 	D3D12_RECT s_scissorRect;
 
@@ -39,17 +51,31 @@ namespace Graphics::Renderer
 	std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer = nullptr;
 	std::unique_ptr<DX12Lib::ColorBuffer> s_voxel3DTexture = nullptr;
 
+	std::vector<std::unique_ptr<DX12Lib::ColorBuffer>> s_renderTargets;
+
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
 
 	DescriptorHandle m_commonTextureHandle;
+	DescriptorHandle m_gbufferStartHandle;
 	CostantBufferCommons m_costantBufferCommons;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
+
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
+	void BuildRenderQuadGeometry();
 
 	void InitializeApp()
 	{
+
+		DXLIB_CORE_WARN("REMINDER: Restore render shadows");
+
 		s_depthStencilBuffer = std::make_unique<DepthBuffer>();
+		s_depthStencilBuffer->Create(s_clientWidth, s_clientHeight, m_depthStencilFormat);
 
 		s_textureHeap = std::make_shared<DescriptorHeap>();
 		s_textureHeap->Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096);
@@ -57,6 +83,23 @@ namespace Graphics::Renderer
 		s_graphicsMemory = std::make_unique<DirectX::GraphicsMemory>(*s_device);
 		s_textureManager = std::make_unique<TextureManager>();
 		s_materialManager = std::make_unique<MaterialManager>();
+
+		s_renderTargets.resize((UINT)RenderTargetType::Count);
+
+		s_renderTargets[(UINT)RenderTargetType::WorldPosMatIndex] = std::make_unique<ColorBuffer>();
+		s_renderTargets[(UINT)RenderTargetType::WorldPosMatIndex]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R32G32B32A32_FLOAT);
+
+		// We compute the third normal component in the shader, so we only need to store two components
+		s_renderTargets[(UINT)RenderTargetType::Normal] = std::make_unique<ColorBuffer>();
+		s_renderTargets[(UINT)RenderTargetType::Normal]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R16G16_FLOAT);
+
+		s_renderTargets[(UINT)RenderTargetType::Diffuse] = std::make_unique<ColorBuffer>(Color::LightSteelBlue());
+		s_renderTargets[(UINT)RenderTargetType::Diffuse]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+		s_renderTargets[(UINT)RenderTargetType::MetallicRoughnessAO] = std::make_unique<ColorBuffer>(Color::Red());
+		s_renderTargets[(UINT)RenderTargetType::MetallicRoughnessAO]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+
 
 		s_shadowBuffer = std::make_unique<ShadowBuffer>();
 		s_shadowBuffer->Create(4096, 4096);
@@ -73,9 +116,51 @@ namespace Graphics::Renderer
 		s_device->Get()->CopyDescriptorsSimple(1, (*s_textureHeap)[commonTexIndex], s_shadowBuffer->GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		s_device->Get()->CopyDescriptorsSimple(1, (*s_textureHeap)[commonTexIndex+1], s_voxel3DTexture->GetUAV(0), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+		m_gbufferStartHandle = s_textureHeap->Alloc((UINT)RenderTargetType::Count);
+		UINT gbufferStartIndex = s_textureHeap->GetOffsetOfHandle(m_gbufferStartHandle);
+
+		for (UINT i = 0; i < (UINT)RenderTargetType::Count; i++)
+		{
+			s_device->Get()->CopyDescriptorsSimple(1, 
+				(*s_textureHeap)[gbufferStartIndex + i],
+				s_renderTargets[i]->GetSRV(),
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
+
 		CreateDefaultShaders();
 		CreateDefaultPSOs();
+		BuildRenderQuadGeometry();
 		s_materialManager->LoadDefaultMaterials(*s_textureManager);
+	}
+
+	void BuildRenderQuadGeometry()
+	{
+		float vertices[] = {
+			  // Positions        // Texture Coords
+			-1.0f, -1.0f, 0.0f,		0.0f, 1.0f,		    // Bottom Left
+			-1.0f,  1.0f, 0.0f,		0.0f, 0.0f,			// Top Left
+			 1.0f, -1.0f, 0.0f,		1.0f, 1.0f,		    // Bottom Right
+			 1.0f,  1.0f, 0.0f,		1.0f, 0.0f			// Top Right
+		};
+
+		UINT16 indices[] = {
+			0, 1, 2,
+			2, 1, 3
+		};
+
+		UINT numVertices = 4;
+		UINT numIndices = 6;
+
+		UINT vertexStride = sizeof(float) * 5;
+		m_vertexBufferResource = Utils::CreateDefaultBuffer(vertices, vertexStride * numVertices);
+		m_vertexBufferView.BufferLocation = m_vertexBufferResource->GetGPUVirtualAddress();
+		m_vertexBufferView.StrideInBytes = vertexStride;
+		m_vertexBufferView.SizeInBytes = vertexStride * numVertices;
+
+		m_indexBufferResource = Utils::CreateDefaultBuffer(indices, sizeof(UINT16) * numIndices);
+		m_indexBufferView.BufferLocation = m_indexBufferResource->GetGPUVirtualAddress();
+		m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+		m_indexBufferView.SizeInBytes = sizeof(UINT16) * numIndices;
 	}
 
 	void AddRendererToQueue(ModelRenderer* renderer)
@@ -101,6 +186,7 @@ namespace Graphics::Renderer
 
 		// Using Phong as default PSO and root signature just in case
 		context.SetPipelineState(s_PSOs[PSO_PHONG_OPAQUE].get());
+
 	}
 
 	void ShadowPass(DX12Lib::CommandContext& context)
@@ -152,16 +238,24 @@ namespace Graphics::Renderer
 	{
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(255, 255, 255), L"MainRenderPass");
 
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[(UINT)RenderTargetType::Count];
+		for (UINT i = 0; i < (UINT)RenderTargetType::Count; i++)
+		{
+			context.TransitionResource(*s_renderTargets[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
+			context.ClearColor(*s_renderTargets[i], s_renderTargets[i]->GetClearColor().GetPtr(), nullptr);
+			rtvs[i] = s_renderTargets[i]->GetRTV();
+		}
+
+		context.ClearDepthAndStencil(*s_depthStencilBuffer);
+
+		context.FlushResourceBarriers();
+
+		context.SetRenderTargets(
+			(UINT)RenderTargetType::Count,
+			rtvs,
+			s_depthStencilBuffer->GetDSV());
+
 		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
-
-		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
-
-		context.TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-		context.ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
-		context.ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
-
-		context.SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
 
 		if (m_shadowLights.size() > 0)
 		{
@@ -209,19 +303,82 @@ namespace Graphics::Renderer
 		PIXEndEvent(context.m_commandList->Get());
 	}
 
+	void DeferredPass(CommandContext& context)
+	{
+		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"DeferredPass");
+
+		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
+
+		context.TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+		context.ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
+		context.ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
+
+		context.SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
+
+		for (UINT i = 0; i < (UINT)RenderTargetType::Count; i++)
+		{
+			context.TransitionResource(*s_renderTargets[i], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+
+		context.FlushResourceBarriers();
+
+		context.SetPipelineState(s_PSOs[L"deferredPso"].get());
+
+
+
+		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
+			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
+
+		if (m_mainCamera != nullptr)
+			m_mainCamera->UseCamera(context);
+		
+		context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
+			2, LightComponent::GetLightBufferSRV().GpuAddress());
+
+		context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
+			3, s_materialManager->GetMaterialStructuredBuffer().GpuAddress()
+		);
+
+		if (m_shadowLights.size() > 0)
+		{
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				4, m_commonTextureHandle);
+		}
+
+		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+			5, m_gbufferStartHandle);
+
+		if (s_voxel3DTexture)
+		{
+
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				6, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
+		}
+
+		context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+		context.m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
+
+		context.m_commandList->Get()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
+		PIXEndEvent(context.m_commandList->Get());
+	}
+
 	void RenderLayers(CommandContext& context)
 	{ 
 		m_costantBufferCommons.totalTime = GameTime::GetTotalTime();
 		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
 		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
-		m_costantBufferCommons.renderShadows = m_shadowLights.size() > 0;
 
-		if (m_costantBufferCommons.renderShadows)
+
+		if (m_shadowLights.size() > 0)
 		{
 			ShadowPass(context);
 		}
 
 		MainRenderPass(context);
+
+		DeferredPass(context);
 
 		m_renderers.clear();
 		m_shadowLights.clear();
@@ -330,6 +487,8 @@ namespace Graphics::Renderer
 		std::wstring phongPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Basic_PS.hlsl";
 		std::wstring pbrPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\BasicPBR_PS.hlsl";
 		std::wstring depthVSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Depth_VS.hlsl";
+		std::wstring gbufferPBRpsFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\GBufferPBR_PS.hlsl";
+		std::wstring deferredVSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Deferred_VS.hlsl";
 
 		std::wstring alphaTestPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTest_PS.hlsl";
 		std::wstring alphaTestPBRPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTestPBR_PS.hlsl";
@@ -338,6 +497,8 @@ namespace Graphics::Renderer
 		std::shared_ptr<Shader> basicVS = std::make_shared<Shader>(baseVSFile, "VS", "vs_5_1");
 		std::shared_ptr<Shader> phongPS = std::make_shared<Shader>(phongPSFile, "PS", "ps_5_1");
 		std::shared_ptr<Shader> pbrPS = std::make_shared<Shader>(pbrPSFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> gbufferPBRPS = std::make_shared<Shader>(gbufferPBRpsFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> deferredVS = std::make_shared<Shader>(deferredVSFile, "VS", "vs_5_1");
 		std::shared_ptr<Shader> depthVS = std::make_shared<Shader>(depthVSFile, "VS", "vs_5_1");
 
 		std::shared_ptr<Shader> phongAlphaTestPS = std::make_shared<Shader>(alphaTestPSFile, "PS", "ps_5_1");
@@ -347,6 +508,9 @@ namespace Graphics::Renderer
 		basicVS->Compile();
 		phongPS->Compile();
 		pbrPS->Compile();
+		gbufferPBRPS->Compile();
+		deferredVS->Compile();
+
 		depthVS->Compile();
 		phongAlphaTestPS->Compile();
 		pbrAlphaTestPS->Compile();
@@ -355,6 +519,8 @@ namespace Graphics::Renderer
 		s_shaders[L"basicVS"] = std::move(basicVS);
 		s_shaders[L"phongPS"] = std::move(phongPS);
 		s_shaders[L"pbrPS"] = std::move(pbrPS);
+		s_shaders[L"gbufferPBRPS"] = std::move(gbufferPBRPS);
+		s_shaders[L"deferredVS"] = std::move(deferredVS);
 		s_shaders[L"depthVS"] = std::move(depthVS);
 		s_shaders[L"phongAlphaTestPS"] = std::move(phongAlphaTestPS);
 		s_shaders[L"pbrAlphaTestPS"] = std::move(pbrAlphaTestPS);
@@ -380,8 +546,8 @@ namespace Graphics::Renderer
 		baseRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		baseRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
-		(*baseRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(1);
-		(*baseRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(2);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(2);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
@@ -393,8 +559,8 @@ namespace Graphics::Renderer
 		pbrRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		pbrRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
-		(*pbrRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(1);
-		(*pbrRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(2);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(2);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
@@ -402,6 +568,18 @@ namespace Graphics::Renderer
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
+
+		std::shared_ptr<RootSignature> deferredRootSignature = std::make_shared<RootSignature>(7, 2);
+		deferredRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
+		deferredRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
+		(*deferredRootSignature)[0].InitAsConstantBuffer(0);										// Common
+		(*deferredRootSignature)[1].InitAsConstantBuffer(1);										// Camera
+		(*deferredRootSignature)[2].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);				// Light
+		(*deferredRootSignature)[3].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);				// Material
+		(*deferredRootSignature)[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);	// CommonTextures
+		(*deferredRootSignature)[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, (UINT)RenderTargetType::Count);	// GBuffer Textures
+		(*deferredRootSignature)[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);	// Voxel Texture
+		deferredRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<PipelineState> phongPso = std::make_shared<PipelineState>();
 		phongPso->InitializeDefaultStates();
@@ -414,11 +592,32 @@ namespace Graphics::Renderer
 		phongPso->SetRootSignature(baseRootSignature);
 		phongPso->Finalize();
 
+
+		DXGI_FORMAT rtvFormats[(UINT)RenderTargetType::Count];
+
+		for (UINT i = 0; i < (UINT)RenderTargetType::Count; i++)
+		{
+			rtvFormats[i] = s_renderTargets[i]->GetFormat();
+		}
+
 		// Duplicate content of opaquePSO
 		std::shared_ptr<PipelineState> pbrPso = std::make_shared<PipelineState>();
 		*pbrPso = *phongPso;
-		pbrPso->SetShader(s_shaders[L"pbrPS"], ShaderType::Pixel);
+		pbrPso->SetShader(s_shaders[L"gbufferPBRPS"], ShaderType::Pixel);
+		pbrPso->SetRenderTargetFormats((UINT)RenderTargetType::Count, rtvFormats, s_depthStencilBuffer->GetFormat());
 		pbrPso->Finalize();
+
+		std::shared_ptr<PipelineState> deferredPso = std::make_shared<PipelineState>();
+		deferredPso->InitializeDefaultStates();
+		deferredPso->SetInputLayout(DirectX::VertexPositionTexture::InputLayout.pInputElementDescs, \
+					DirectX::VertexPositionTexture::InputLayout.NumElements);
+		deferredPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		deferredPso->SetRenderTargetFormat(m_backBufferFormat, m_depthStencilFormat, 1, 0);
+		deferredPso->SetShader(s_shaders[L"deferredVS"], ShaderType::Vertex);
+		deferredPso->SetShader(s_shaders[L"pbrPS"], ShaderType::Pixel);
+		deferredPso->SetRootSignature(deferredRootSignature);
+		deferredPso->Finalize();
+
 
 		std::shared_ptr<PipelineState> phongAlphaTestPso = std::make_shared<PipelineState>();
 		*phongAlphaTestPso = *phongPso;
@@ -427,9 +626,11 @@ namespace Graphics::Renderer
 		phongAlphaTestPso->SetShader(s_shaders[L"phongAlphaTestPS"], ShaderType::Pixel);
 		phongAlphaTestPso->Finalize();
 
+		DXLIB_CORE_WARN("REMINDER: Restore alpha test PSO");
 		std::shared_ptr<PipelineState> pbrAlphaTestPso = std::make_shared<PipelineState>();
-		*pbrAlphaTestPso = *phongAlphaTestPso;
-		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
+		*pbrAlphaTestPso = *pbrPso;
+		//pbrAlphaTestPso->SetRenderTargetFormats((UINT)RenderTargetType::Count, rtvFormats, s_depthStencilBuffer->GetFormat());
+		//pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
 		pbrAlphaTestPso->Finalize();
 
 		D3D12_RASTERIZER_DESC shadowRastDesc = {};
@@ -514,5 +715,7 @@ namespace Graphics::Renderer
 		s_PSOs[PSO_SHADOW_ALPHA_TEST] = std::move(shadowAlphaTested);
 
 		s_PSOs[PSO_SHADOW_TEST] = std::move(shadowTestPso);
+
+		s_PSOs[L"deferredPso"] = std::move(deferredPso);
 	}
 }

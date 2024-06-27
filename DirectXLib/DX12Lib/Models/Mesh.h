@@ -7,6 +7,8 @@
 
 namespace DX12Lib {
 
+	class Material;
+
 	class Mesh
 	{
 		friend class Model;
@@ -22,7 +24,8 @@ namespace DX12Lib {
 		UINT m_vertexStart = 0;
 		UINT m_indexStart = 0;;
 
-		UINT m_materialIndex = 0;
+
+		Material* MeshMaterial = nullptr;
 
 	};
 }

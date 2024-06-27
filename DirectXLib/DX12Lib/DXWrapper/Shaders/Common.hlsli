@@ -8,18 +8,9 @@ cbuffer Commons : register(b0)
     float cTotalTime : packoffset(c1);
     float cDeltaTime : packoffset(c1.y);
     int cNumLights : packoffset(c1.z);
-    bool cUseShadows : packoffset(c1.w);
 };
 
-cbuffer Object : register(b1)
-{
-    float4x4 oWorld : packoffset(c0);
-    float4x4 oInvWorld : packoffset(c4);
-    float4x4 oTexTransform : packoffset(c8);
-    uint oMaterialIndex : packoffset(c12);
-};
-
-cbuffer Camera : register(b2)
+cbuffer Camera : register(b1)
 {
     float4x4 cView : packoffset(c0);
     float4x4 cInvView : packoffset(c4);
@@ -31,6 +22,16 @@ cbuffer Camera : register(b2)
     float cNearPlane : packoffset(c24.w);
     float cFarPlane : packoffset(c25);
 }
+
+cbuffer Object : register(b2)
+{
+    float4x4 oWorld : packoffset(c0);
+    float4x4 oInvWorld : packoffset(c4);
+    float4x4 oTexTransform : packoffset(c8);
+    uint oMaterialIndex : packoffset(c12);
+};
+
+
 
 Texture2D gShadowMap : register(t0);
 RWTexture3D<float4> gVoxelGrid : register(u0);

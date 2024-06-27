@@ -30,11 +30,9 @@ void Model::LoadMaterials(const aiScene* scene)
 
         auto builder = Renderer::s_materialManager->CreateMaterialBuilder();
         m_materials[i] = builder.BuildFromAssimpMaterial(material);
-        materialCBs[i] = m_materials[i]->BuildMaterialConstantBuffer();
     }
 
-    UINT materialByteSize = sizeof(ConstantBufferMaterial) * materialCBs.size();
-    m_materialBufferResource = Utils::CreateDefaultBuffer(materialCBs.data(), materialByteSize);
+
 }
 
 void Model::LoadMeshes(const aiScene* scene)
@@ -99,8 +97,10 @@ void Model::LoadMeshes(const aiScene* scene)
         totalVertices += assimpMesh->mNumVertices;
         totalIndices += numIndices;
 
+        assert(assimpMesh->mMaterialIndex < m_materials.size() && "Material index out of bounds");
+        assert(m_materials[assimpMesh->mMaterialIndex] != nullptr && "Material is null");
 
-        newMesh->m_materialIndex = assimpMesh->mMaterialIndex;
+        newMesh->MeshMaterial = m_materials[assimpMesh->mMaterialIndex].get();
 
         m_meshes.push_back(newMesh);
     }
@@ -119,8 +119,6 @@ void Model::Draw(ID3D12GraphicsCommandList* commandList)
 
     commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     commandList->IASetIndexBuffer(&m_indexBufferView);
-
-    commandList->SetGraphicsRootShaderResourceView((UINT)RootSignatureSlot::MaterialSRV, m_materialBufferResource->GetGPUVirtualAddress());
 }
 
 void Model::Draw(CommandList* commandList)
@@ -137,8 +135,6 @@ void DX12Lib::Model::UseBuffers(CommandContext& context)
 {
     context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     context.m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
-           
-    context.m_commandList->Get()->SetGraphicsRootShaderResourceView((UINT)RootSignatureSlot::MaterialSRV, m_materialBufferResource->GetGPUVirtualAddress());
 }
 
 void Model::BuildVertexBuffer(UINT stride, UINT numVertices)

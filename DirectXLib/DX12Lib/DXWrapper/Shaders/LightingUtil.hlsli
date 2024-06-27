@@ -9,6 +9,10 @@ struct Light
     float3 position;
     float spotPower;
     float4x4 shadowMatrix;
+    int castShadows;
+    float _pad0;
+    float _pad1;
+    float _pad2;
 };
 
 struct GenericMaterial
@@ -119,6 +123,7 @@ float3x3 CalculateTBN(float3 p, float3 n, float2 tex)
 }
 
 // Compute normal unit vector from two x and y components
+// This is used for material textures which have a format of B8G8R8A8_UNORM
 float3 ComputeTwoChannelNormal(float2 normal)
 {
     // Change normal mapping from [0, 1] to [-1, 1]
@@ -130,6 +135,31 @@ float3 ComputeTwoChannelNormal(float2 normal)
     return float3(xy.x, xy.y, z);
 }
 
+
+// Packing and unpacking of normals for GBuffer
+// From https://jcgt.org/published/0003/02/01/
+
+// Returns ±1
+float2 signNotZero(float2 v)
+{
+    return float2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);
+}
+// Assume normalized input. Output is on [-1, 1] for each component.
+float2 PackNormal(float3 v)
+{
+// Project the sphere onto the octahedron, and then onto the xy plane
+    float2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
+// Reflect the folds of the lower hemisphere over the diagonals
+    return (v.z <= 0.0) ? ((1.0 - abs(p.yx)) * signNotZero(p)) : p;
+}
+
+float3 UnpackNormal(float2 e)
+{
+    float3 v = float3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    if (v.z < 0)
+        v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    return normalize(v);
+}
 
 
 float Spec(float3 lightVec, SurfaceData surfData, float shininess)
@@ -223,3 +253,4 @@ float3 PBRDirectionalLight(Light Light, SurfaceData surfData, float roughness)
     
     return NdotL * Light.color * ((surfData.c_diff * diffuse) + specular);
 }
+

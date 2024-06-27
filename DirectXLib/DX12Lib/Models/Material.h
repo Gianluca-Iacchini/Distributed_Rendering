@@ -73,6 +73,8 @@ namespace DX12Lib {
 
 		virtual void LoadDefaultTextures() {}
 
+		UINT GetIndex() { return m_index; }
+
 	protected:
 		SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
 
@@ -91,6 +93,9 @@ namespace DX12Lib {
 		DescriptorHandle m_firstTextureHandle;
 		bool m_isTransparent = false;
 		std::wstring m_defaultPSO;
+
+	private:
+		UINT m_index = 0;
 	};
 
 	class PhongMaterial : public Material

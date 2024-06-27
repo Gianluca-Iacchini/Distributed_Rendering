@@ -30,8 +30,8 @@ namespace Graphics
 		enum class RootSignatureSlot
 		{
 			CommonCBV = 0,
-			ObjectCBV = 1,
-			CameraCBV = 2,
+			CameraCBV = 1,
+			ObjectCBV = 2,
 			LightSRV = 3,
 			MaterialSRV = 4,
 			CommonTextureSRV = 5,
@@ -62,6 +62,7 @@ namespace Graphics
 		void SetUpRenderFrame(DX12Lib::CommandContext& context);
 		void ShadowPass(DX12Lib::CommandContext& context);
 		void MainRenderPass(DX12Lib::CommandContext& context);
+		void DeferredPass(DX12Lib::CommandContext& context);
 		void RenderLayers(DX12Lib::CommandContext& context);
 		void Shutdown();
 		void InitializeSwapchain(DX12Lib::DX12Window* window);

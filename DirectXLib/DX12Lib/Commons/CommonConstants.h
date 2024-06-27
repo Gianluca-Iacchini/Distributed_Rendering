@@ -15,6 +15,10 @@ namespace DX12Lib {
 		DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f }; // Point, spot
 		float SpotPower = 64.0f; // Spot
 		DirectX::XMFLOAT4X4 shadowTransform = MathHelper::Identity4x4();
+		int CastsShadows = 0;
+		float _pad1 = 0.0f;
+		float _pad2 = 0.0f;
+		float _pad3 = 0.0f;
 	};
 
 	__declspec(align(16)) struct CostantBufferCommons
@@ -26,7 +30,6 @@ namespace DX12Lib {
 		float totalTime = 0.0f;
 		float deltaTime = 0.0f;
 		int numLights = 0;
-		bool renderShadows = true;
 		//float _pad1 = 0.0f;
 
 		//ConstantBufferLight light;

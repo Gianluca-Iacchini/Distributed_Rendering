@@ -23,8 +23,9 @@ void LI::LIScene::Init(DX12Lib::CommandContext& context)
 	lightNode->SetPosition(0, 100, 0);
 	auto light = lightNode->AddComponent<LightComponent>();
 	light->SetCastsShadows(true);
-	light->SetLightColor({ 0.6f, 0.6f, 0.6f });
+	light->SetLightColor({ 0.75f, 0.65f, 0.4f });
 	lightNode->Rotate(lightNode->GetRight(), 1.2f);
+
 
 	m_camera->Node->AddComponent<LI::CameraController>(m_isStreaming);
 

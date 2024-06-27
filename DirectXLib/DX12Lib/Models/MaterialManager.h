@@ -2,6 +2,7 @@
 
 #include "Material.h"
 #include "assimp/material.h"
+#include "GraphicsMemory.h"
 
 namespace DX12Lib
 {
@@ -67,10 +68,17 @@ namespace DX12Lib
 		const std::wstring PHONG_DEFAULT = L"PhongDefault";
 		const std::wstring PBR_DEFAULT = L"PBRDefault";
 
+		DirectX::GraphicsResource GetMaterialStructuredBuffer();
+
 	private:
 
 		
 		std::mutex m_materialCacheMutex;
-		std::unordered_map<std::wstring, SharedMaterial> m_materialCache;
+
+		// Using vector instead of unordered_map because we need to keep the order of the materials
+		// If we use a map, the order of the materials will be determined by the name instead of the index
+		std::vector<SharedMaterial> m_materialCache;
+
+		std::vector<ConstantBufferMaterial> m_materialCbData;
 	};
 }

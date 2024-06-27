@@ -38,6 +38,7 @@ namespace DX12Lib
 		static int GetLightCount() { return m_activeLights.size(); }
 		static void UpdateLights(CommandContext& context);
 		static void RenderLights(CommandContext& context);
+		static DirectX::GraphicsResource& GetLightBufferSRV() { return m_lightBufferSRV; }
 
 	private:
 		static void RemoveLight(int index);

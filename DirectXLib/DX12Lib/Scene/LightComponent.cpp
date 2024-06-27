@@ -100,7 +100,7 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 
 	m_lightCB.Direction = this->Node->GetForward();
 	m_lightCB.Position = this->Node->GetPosition();
-	
+	m_lightCB.CastsShadows = (int)this->m_doesCastShadows;
 
 
 	auto state = Graphics::s_kbTracker->GetLastState();

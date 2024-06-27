@@ -10,7 +10,7 @@ void MaterialBuilder::AddTexture(aiTextureType assimpTextureType, aiString& text
 
 	std::wstring texturePathW = Utils::ToWstring(texturePath.C_Str());
 	SharedTexture texture = Renderer::s_textureManager->LoadFromFile(texturePathW, false);
-
+	auto format = texture->GetDesc().Format;
 	AddTexture(textureType, texture);
 }
 
@@ -337,14 +337,42 @@ void MaterialManager::AddMaterial(SharedMaterial material)
 {
 	std::lock_guard<std::mutex> lock(m_materialCacheMutex);
 
-	m_materialCache[material->m_name] = material;
+
+	// If a material with the same name is found then replace it
+	for (auto mat : m_materialCache)
+	{
+		if (mat->m_name == material->m_name)
+		{
+			material->m_index = mat->m_index;
+			m_materialCache[material->m_index] = material;
+			return;
+		}
+	}
+
+	// Otherwise add this material to the cache
+	material->m_index = m_materialCache.size();
+	m_materialCache.push_back(material);
 }
 
 void MaterialManager::RemoveMaterial(SharedMaterial material)
 {
 	std::lock_guard<std::mutex> lock(m_materialCacheMutex);
 
-	m_materialCache.erase(material->m_name);
+	for (UINT i = 0; i < m_materialCache.size(); i++)
+	{
+		auto mat = m_materialCache[i];
+		
+		if (mat == nullptr || (mat->m_name == material->m_name))
+		{
+			m_materialCache.erase(m_materialCache.begin() + i);
+
+			for (UINT j = i; j < m_materialCache.size(); j++)
+			{
+				m_materialCache[j]->m_index = j;
+			}
+		}
+
+	}
 }
 
 void DX12Lib::MaterialManager::LoadDefaultMaterials(TextureManager& textureManager)
@@ -360,14 +388,39 @@ void DX12Lib::MaterialManager::LoadDefaultMaterials(TextureManager& textureManag
 	pbrBuilder.Build(PBR_DEFAULT);
 }
 
+DirectX::GraphicsResource DX12Lib::MaterialManager::GetMaterialStructuredBuffer()
+{
+
+
+	UINT cacheSize = m_materialCache.size();
+	UINT cbDataByteSize = sizeof(ConstantBufferMaterial) * cacheSize;
+
+	// Only resize if the material cb data vector is smaller than the cache size. We don't care if it's bigger because
+	// Memcpy will only copy the amount of data specified.
+	if (m_materialCbData.size() < cacheSize)
+		m_materialCbData.resize(cacheSize);
+
+	DirectX::GraphicsResource materialBuffer = Renderer::s_graphicsMemory->Allocate(cbDataByteSize);
+	
+
+	for (UINT i = 0; i < cacheSize; i++)
+	{
+		m_materialCbData[i] = m_materialCache[i]->BuildMaterialConstantBuffer();
+	}
+
+	memcpy(materialBuffer.Memory(), m_materialCbData.data(), cbDataByteSize);
+
+	return materialBuffer;
+}
+
 SharedMaterial MaterialManager::GetMaterial(std::wstring materialName)
 {
 	std::lock_guard<std::mutex> lock(m_materialCacheMutex);
 
-	auto it = m_materialCache.find(materialName);
-	if (it != m_materialCache.end())
+	for (auto mat : m_materialCache)
 	{
-		return it->second;
+		if (mat->m_name == materialName)
+			return mat;
 	}
 
 	return nullptr;

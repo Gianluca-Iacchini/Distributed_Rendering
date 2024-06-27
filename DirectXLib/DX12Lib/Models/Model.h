@@ -46,7 +46,6 @@ namespace DX12Lib {
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_materialBufferResource;
 
 		D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
