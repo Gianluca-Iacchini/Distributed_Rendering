@@ -8,8 +8,6 @@ using namespace DirectX;
 
 void DX12Lib::SceneCamera::Init(CommandContext& context)
 {
-
-
 	if (m_isOrthographic)
 	{
 		Camera::SetOrthogonalBounds(m_orthogonalBounds.x, m_orthogonalBounds.y, m_orthogonalBounds.z, m_orthogonalBounds.w);
@@ -35,7 +33,7 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 
 void DX12Lib::SceneCamera::Render(CommandContext& context)
 {
-	Renderer::AddMainCamera(this);
+
 }
 
 void DX12Lib::SceneCamera::OnResize(CommandContext& context, int newWidth, int newHeight)
@@ -50,10 +48,8 @@ void DX12Lib::SceneCamera::OnResize(CommandContext& context, int newWidth, int n
 	}
 }
 
-void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
+DirectX::GraphicsResource DX12Lib::SceneCamera::GetCameraBuffer()
 {
-	if (!IsEnabled) return;
-
 	DirectX::XMMATRIX view = this->GetView();
 	DirectX::XMMATRIX projection = this->GetProjection();
 	DirectX::XMMATRIX viewProjection = view * projection;
@@ -71,12 +67,9 @@ void DX12Lib::SceneCamera::UseCamera(CommandContext& context)
 	m_constantBufferCamera.farPlane = this->m_farZ;
 	m_constantBufferCamera.nearPlane = this->m_nearZ;
 
-	auto cbCamera = Renderer::s_graphicsMemory->AllocateConstant(m_constantBufferCamera);
+					
 
-	context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
-		(UINT)Renderer::RootSignatureSlot::CameraCBV,
-		cbCamera.GpuAddress()
-	);
+	return Renderer::s_graphicsMemory->AllocateConstant(m_constantBufferCamera);
 }
 
 void DX12Lib::SceneCamera::SetOrthogonal(DirectX::XMFLOAT4 bounds)

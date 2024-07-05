@@ -7,17 +7,9 @@
 #include "GameTime.h"
 
 namespace DX12Lib {
-
-	class ColorBuffer;
-	class DepthBuffer;
 	class DX12Window;
-	class Device;
-	class Fence;
-	class CommandAllocator;
-	class CommandQueue;
-	class CommandList;
-	class Swapchain;
 	class Scene;
+	class CommandContext;
 
 	using Microsoft::WRL::ComPtr;
 	class D3DApp
@@ -40,16 +32,16 @@ namespace DX12Lib {
 
 		bool InitializeApp();
 
-		virtual void OnResize(CommandContext& commandContext, int newWidth, int newHeigth);
+		virtual void OnResize(GraphicsContext& commandContext, int newWidth, int newHeigth);
 
 		void SetScene(Scene* scene);
 
 	protected:
 
-		virtual void Initialize(CommandContext& commandContext);
-		virtual void Update(CommandContext& commandContext);
-		virtual void Draw(CommandContext& commandContext);
-		virtual void OnClose(CommandContext& commandContext);
+		virtual void Initialize(GraphicsContext& commandContext);
+		virtual void Update(GraphicsContext& commandContext);
+		virtual void Draw(GraphicsContext& commandContext);
+		virtual void OnClose(GraphicsContext& commandContext);
 
 		// Handling mouse input
 		virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
@@ -84,7 +76,6 @@ namespace DX12Lib {
 
 		std::unique_ptr<DX12Window> m_dx12Window;
 
-		UINT64 mCurrentFence = 0;
 
 		std::wstring mMainWndCaption = L"D3D12 Application";
 		D3D_DRIVER_TYPE mD3DDriverType = D3D_DRIVER_TYPE_HARDWARE;

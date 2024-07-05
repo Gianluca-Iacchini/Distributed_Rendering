@@ -4,8 +4,14 @@
 
 using namespace DX12Lib;
 
+UINT64 DX12Lib::SceneNode::s_numNodes = 0;
+
 DX12Lib::SceneNode::~SceneNode()
 {
+	if (s_numNodes > 0)
+	{
+		s_numNodes--;
+	}
 	// Manually release the vector so the children are deleted before the parent
 	// This is important because the the children may refer the parent components
 	m_children.clear();

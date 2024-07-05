@@ -70,6 +70,12 @@ public:
 		return a + rand() % ((b - a) + 1);
 	}
 
+	// From MiniEngine
+	template <typename T> 
+	static __forceinline T DivideByMultiple(T value, size_t alignment)
+	{
+		return (T)((value + alignment - 1) / alignment);
+	}
 
 
 	static DirectX::XMVECTOR SphericalToCartesian(float radius, float theta, float phi)

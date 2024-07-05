@@ -44,11 +44,6 @@ struct Object
 };
 
 
-
-Texture2D gShadowMap : register(t0);
-RWTexture3D<float4> gVoxelGrid : register(u0);
-
-
 SamplerState gSampler : register(s0);
 SamplerComparisonState gShadowSampler : register(s1);
 
@@ -80,7 +75,7 @@ struct VertexOutPosTex
 
 };
 
-float CalcShadowFactor(float4 shadowPosH)
+float CalcShadowFactor(Texture2D shadowMap, float4 shadowPosH)
 {
     // Complete projection by doing division by w.
     shadowPosH.xyz /= shadowPosH.w;
@@ -89,7 +84,7 @@ float CalcShadowFactor(float4 shadowPosH)
     float depth = shadowPosH.z;
 
     uint width, height, numMips;
-    gShadowMap.GetDimensions(0, width, height, numMips);
+    shadowMap.GetDimensions(0, width, height, numMips);
 
     // Texel size.
     float dx = 1.0f / (float) width;
@@ -114,7 +109,7 @@ float CalcShadowFactor(float4 shadowPosH)
         if (shadowPosOffset.x <= 0.01f || shadowPosOffset.x >= 0.99f || shadowPosOffset.y <= 0.01f || shadowPosOffset.y >= 0.99f)
             continue;
 
-        percentLit += gShadowMap.SampleCmpLevelZero(gShadowSampler,
+        percentLit += shadowMap.SampleCmpLevelZero(gShadowSampler,
         shadowPosOffset, depth).r;
     }
 

@@ -13,6 +13,9 @@ void CVGI::CameraController::Init(DX12Lib::CommandContext& context)
 void CameraController::Update(DX12Lib::CommandContext& context)
 {
 
+
+	float speed = 3.0f;
+
 	float deltaTime = GameTime::GetDeltaTime();
 
 	auto kbState = Graphics::s_kbTracker->GetLastState();
@@ -31,17 +34,20 @@ void CameraController::Update(DX12Lib::CommandContext& context)
 		}
 	}
 
+	if (kbState.LeftShift)
+		speed *= 3.0f;
+
 	if (kbState.W)
-		this->Node->Translate(Node->GetForward(), deltaTime);
+		this->Node->Translate(Node->GetForward(), deltaTime * speed);
 	if (kbState.S)
-		this->Node->Translate(Node->GetForward(), -deltaTime);
+		this->Node->Translate(Node->GetForward(), -deltaTime * speed);
 	if (kbState.A)
-		this->Node->Translate(Node->GetRight(), -deltaTime);
+		this->Node->Translate(Node->GetRight(), -deltaTime * speed);
 	if (kbState.D)
-		this->Node->Translate(Node->GetRight(), deltaTime);
+		this->Node->Translate(Node->GetRight(), deltaTime * speed);
 	if (kbState.E)
-		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, deltaTime);
+		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, deltaTime * speed);
 	if (kbState.Q)
-		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime);
+		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime * speed);
 }
 

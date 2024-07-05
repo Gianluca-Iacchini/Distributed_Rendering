@@ -17,6 +17,18 @@ using namespace Graphics;
 
 namespace Graphics::Renderer
 {
+	enum class DeferredRootSignatureSlot
+	{
+		CommonCBV = 0,
+		CameraCBV = 1,
+		LightSRV = 2,
+		MaterialSRV = 3,
+		CommonTextureSRV = 4,
+		GBufferSRV = 5,
+		VoxelTextureUAV = 6,
+		Count
+	};
+
 	// Render targets for deferred rendering, this could be incorporeted together
 	// (e.g. Storing material in same texture as world pos)
 	// But keeping them separate helps with debugging and understanding the process
@@ -28,6 +40,8 @@ namespace Graphics::Renderer
 		MetallicRoughnessAO,	// AO in the R channel, Roughness in the G channel and Metallic in the B channel
 		Count
 	};
+
+
 
 	D3D12_VIEWPORT s_screenViewport;
 	D3D12_RECT s_scissorRect;
@@ -47,6 +61,9 @@ namespace Graphics::Renderer
 
 	int s_clientWidth = 1920;
 	int s_clientHeight = 1080;
+
+	bool sEnableRenderMainPass = true;
+	bool sEnableRenderShadows = true;
 
 	std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer = nullptr;
 	std::unique_ptr<DX12Lib::ColorBuffer> s_voxel3DTexture = nullptr;
@@ -71,9 +88,6 @@ namespace Graphics::Renderer
 
 	void InitializeApp()
 	{
-
-		DXLIB_CORE_WARN("REMINDER: Restore render shadows");
-
 		s_depthStencilBuffer = std::make_unique<DepthBuffer>();
 		s_depthStencilBuffer->Create(s_clientWidth, s_clientHeight, m_depthStencilFormat);
 
@@ -105,7 +119,7 @@ namespace Graphics::Renderer
 		s_shadowBuffer->Create(4096, 4096);
 
 		s_voxel3DTexture = std::make_unique<ColorBuffer>();
-		s_voxel3DTexture->Create3D(128, 128, 128, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+		s_voxel3DTexture->Create3D(256, 256, 256, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
 		m_commonTextureHandle = s_textureHeap->Alloc(2);
 
@@ -180,7 +194,18 @@ namespace Graphics::Renderer
 		m_mainCamera = camera;
 	}
 
-	void SetUpRenderFrame(DX12Lib::CommandContext& context)
+	void BindVoxelTexture(DX12Lib::CommandContext& context, UINT rootParamSlot)
+	{
+		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+			rootParamSlot, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
+	}
+
+	std::vector<DX12Lib::ModelRenderer*> GetRenderers()
+	{
+		return m_renderers;
+	}
+
+	void SetUpRenderFrame(DX12Lib::GraphicsContext& context)
 	{
 		context.SetDescriptorHeap(s_textureHeap.get());
 
@@ -189,7 +214,7 @@ namespace Graphics::Renderer
 
 	}
 
-	void ShadowPass(DX12Lib::CommandContext& context)
+	void ShadowPass(DX12Lib::GraphicsContext& context)
 	{
 
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(40, 40, 40), L"ShadowPass");
@@ -209,7 +234,16 @@ namespace Graphics::Renderer
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
-				mRenderer->DrawOpaque(context);
+				auto batch = mRenderer->GetAllOpaque();
+
+				mRenderer->Model->UseBuffers(context);
+
+				for (auto& mesh : batch)
+				{
+					context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
+					context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
+					mesh->DrawMesh(context);
+				}
 			}
 		}
 
@@ -226,7 +260,14 @@ namespace Graphics::Renderer
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
-				mRenderer->DrawTransparent(context);
+				auto batch = mRenderer->GetAllTransparent();
+
+				for (auto& mesh : batch)
+				{
+					context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
+					context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
+					mesh->DrawMesh(context);
+				}
 			}
 		}
 		s_shadowBuffer->RenderShadowEnd(context);
@@ -234,7 +275,9 @@ namespace Graphics::Renderer
 		PIXEndEvent(context.m_commandList->Get());
 	}
 
-	void MainRenderPass(DX12Lib::CommandContext& context)
+
+
+	void MainRenderPass(DX12Lib::GraphicsContext& context)
 	{
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(255, 255, 255), L"MainRenderPass");
 
@@ -257,6 +300,8 @@ namespace Graphics::Renderer
 
 		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
 
+		context.SetPipelineState(s_PSOs[PSO_PBR_OPAQUE].get());
+
 		if (m_shadowLights.size() > 0)
 		{
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
@@ -275,8 +320,10 @@ namespace Graphics::Renderer
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
 
-		if (m_mainCamera != nullptr)
-			m_mainCamera->UseCamera(context);
+
+		if (m_mainCamera != nullptr && m_mainCamera->IsEnabled)
+			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+				(UINT)Renderer::RootSignatureSlot::CameraCBV, m_mainCamera->GetCameraBuffer().GpuAddress());
 
 		// Main pass opaque
 		for (auto& pso : s_PSOs)
@@ -285,7 +332,16 @@ namespace Graphics::Renderer
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
-				mRenderer->DrawBatchOpaque(context, pso.first);
+				auto batch = mRenderer->GetAllOpaqueForPSO(pso.first);
+				
+				mRenderer->Model->UseBuffers(context);
+
+				for (auto& mesh : batch)
+				{
+					context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
+					context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
+					mesh->DrawMesh(context);
+				}
 			}
 		}
 
@@ -296,14 +352,23 @@ namespace Graphics::Renderer
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
-				mRenderer->DrawBatchTransparent(context, pso.first);
+				auto batch = mRenderer->GetAllTransparentForPSO(pso.first);
+
+				mRenderer->Model->UseBuffers(context);
+
+				for (auto& mesh : batch)
+				{
+					context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
+					context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
+					mesh->DrawMesh(context);
+				}
 			}
 		}
 
 		PIXEndEvent(context.m_commandList->Get());
 	}
 
-	void DeferredPass(CommandContext& context)
+	void DeferredPass(GraphicsContext& context)
 	{
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"DeferredPass");
 
@@ -328,62 +393,71 @@ namespace Graphics::Renderer
 
 
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
-			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
+			(UINT)Renderer::DeferredRootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
 
-		if (m_mainCamera != nullptr)
-			m_mainCamera->UseCamera(context);
+		if (m_mainCamera != nullptr && m_mainCamera->IsEnabled)
+			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+				(UINT)Renderer::DeferredRootSignatureSlot::CameraCBV, m_mainCamera->GetCameraBuffer().GpuAddress());
 		
 		context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
-			2, LightComponent::GetLightBufferSRV().GpuAddress());
+			(UINT)DeferredRootSignatureSlot::LightSRV, LightComponent::GetLightBufferSRV().GpuAddress());
 
 		context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
-			3, s_materialManager->GetMaterialStructuredBuffer().GpuAddress()
+			(UINT)DeferredRootSignatureSlot::MaterialSRV, s_materialManager->GetMaterialStructuredBuffer().GpuAddress()
 		);
 
 		if (m_shadowLights.size() > 0)
 		{
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				4, m_commonTextureHandle);
+				(UINT)DeferredRootSignatureSlot::CommonTextureSRV, m_commonTextureHandle);
 		}
 
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-			5, m_gbufferStartHandle);
+			(UINT)DeferredRootSignatureSlot::GBufferSRV, m_gbufferStartHandle);
 
 		if (s_voxel3DTexture)
 		{
 
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				6, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
+				(UINT)DeferredRootSignatureSlot::VoxelTextureUAV, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
 		}
 
-		context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		context.m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
-
-		context.m_commandList->Get()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+		DrawScreenQuad(context);
 
 		PIXEndEvent(context.m_commandList->Get());
 	}
 
-	void RenderLayers(CommandContext& context)
+	void RenderLayers(GraphicsContext& context)
 	{ 
 		m_costantBufferCommons.totalTime = GameTime::GetTotalTime();
 		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
 		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
 
 
-		if (m_shadowLights.size() > 0)
+		if (m_shadowLights.size() > 0 && sEnableRenderShadows)
 		{
 			ShadowPass(context);
 		}
 
-		MainRenderPass(context);
+		if (sEnableRenderMainPass)
+			MainRenderPass(context);
 
 		DeferredPass(context);
+	}
 
+	void PostDrawCleanup(CommandContext& context)
+	{
 		m_renderers.clear();
 		m_shadowLights.clear();
 		m_mainCamera = nullptr;
+	}
 
+	void DrawScreenQuad(DX12Lib::GraphicsContext& context)
+	{
+		context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+		context.m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
+
+		context.m_commandList->Get()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 	}
 
 	void Shutdown()
@@ -464,7 +538,7 @@ namespace Graphics::Renderer
 			}
 		}
 
-		CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		GraphicsContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		s_swapchain->CurrentBufferIndex = (s_swapchain->CurrentBufferIndex + 1) % s_swapchain->BufferCount;
 	}
 
@@ -569,19 +643,19 @@ namespace Graphics::Renderer
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
-		std::shared_ptr<RootSignature> deferredRootSignature = std::make_shared<RootSignature>(7, 2);
+		std::shared_ptr<RootSignature> deferredRootSignature = std::make_shared<RootSignature>((UINT)DeferredRootSignatureSlot::Count, 2);
 		deferredRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		deferredRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
-		(*deferredRootSignature)[0].InitAsConstantBuffer(0);										// Common
-		(*deferredRootSignature)[1].InitAsConstantBuffer(1);										// Camera
-		(*deferredRootSignature)[2].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);				// Light
-		(*deferredRootSignature)[3].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);				// Material
-		(*deferredRootSignature)[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);	// CommonTextures
-		(*deferredRootSignature)[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, (UINT)RenderTargetType::Count);	// GBuffer Textures
-		(*deferredRootSignature)[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);	// Voxel Texture
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);										
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);										
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);				
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);				
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);	
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, (UINT)RenderTargetType::Count);	
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);	
 		deferredRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		std::shared_ptr<PipelineState> phongPso = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> phongPso = std::make_shared<GraphicsPipelineState>();
 		phongPso->InitializeDefaultStates();
 		phongPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
 			DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
@@ -591,6 +665,7 @@ namespace Graphics::Renderer
 		phongPso->SetShader(s_shaders[L"phongPS"], ShaderType::Pixel);
 		phongPso->SetRootSignature(baseRootSignature);
 		phongPso->Finalize();
+		phongPso->Name = PSO_PHONG_OPAQUE;
 
 
 		DXGI_FORMAT rtvFormats[(UINT)RenderTargetType::Count];
@@ -601,13 +676,14 @@ namespace Graphics::Renderer
 		}
 
 		// Duplicate content of opaquePSO
-		std::shared_ptr<PipelineState> pbrPso = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> pbrPso = std::make_shared<GraphicsPipelineState>();
 		*pbrPso = *phongPso;
 		pbrPso->SetShader(s_shaders[L"gbufferPBRPS"], ShaderType::Pixel);
 		pbrPso->SetRenderTargetFormats((UINT)RenderTargetType::Count, rtvFormats, s_depthStencilBuffer->GetFormat());
 		pbrPso->Finalize();
+		pbrPso->Name = PSO_PBR_OPAQUE;
 
-		std::shared_ptr<PipelineState> deferredPso = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> deferredPso = std::make_shared<GraphicsPipelineState>();
 		deferredPso->InitializeDefaultStates();
 		deferredPso->SetInputLayout(DirectX::VertexPositionTexture::InputLayout.pInputElementDescs, \
 					DirectX::VertexPositionTexture::InputLayout.NumElements);
@@ -617,21 +693,24 @@ namespace Graphics::Renderer
 		deferredPso->SetShader(s_shaders[L"pbrPS"], ShaderType::Pixel);
 		deferredPso->SetRootSignature(deferredRootSignature);
 		deferredPso->Finalize();
+		deferredPso->Name = L"deferredPso";
 
 
-		std::shared_ptr<PipelineState> phongAlphaTestPso = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> phongAlphaTestPso = std::make_shared<GraphicsPipelineState>();
 		*phongAlphaTestPso = *phongPso;
 		phongAlphaTestPso->InitializeDefaultStates();
 		phongAlphaTestPso->SetCullMode(D3D12_CULL_MODE_NONE);
 		phongAlphaTestPso->SetShader(s_shaders[L"phongAlphaTestPS"], ShaderType::Pixel);
 		phongAlphaTestPso->Finalize();
+		phongAlphaTestPso->Name = PSO_PHONG_ALPHA_TEST;
 
-		DXLIB_CORE_WARN("REMINDER: Restore alpha test PSO");
-		std::shared_ptr<PipelineState> pbrAlphaTestPso = std::make_shared<PipelineState>();
+
+		std::shared_ptr<GraphicsPipelineState> pbrAlphaTestPso = std::make_shared<GraphicsPipelineState>();
 		*pbrAlphaTestPso = *phongAlphaTestPso;
 		pbrAlphaTestPso->SetRenderTargetFormats((UINT)RenderTargetType::Count, rtvFormats, s_depthStencilBuffer->GetFormat());
 		pbrAlphaTestPso->SetShader(s_shaders[L"pbrAlphaTestPS"], ShaderType::Pixel);
 		pbrAlphaTestPso->Finalize();
+		pbrAlphaTestPso->Name = PSO_PBR_ALPHA_TEST;
 
 		D3D12_RASTERIZER_DESC shadowRastDesc = {};
 		shadowRastDesc.FillMode = D3D12_FILL_MODE_SOLID;
@@ -673,7 +752,7 @@ namespace Graphics::Renderer
 		depthTestDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 		depthTestDesc.BackFace = depthTestDesc.FrontFace;
 
-		std::shared_ptr<PipelineState> shadowPso = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> shadowPso = std::make_shared<GraphicsPipelineState>();
 		shadowPso->InitializeDefaultStates();
 		shadowPso->SetRasterizerState(shadowRastDesc);
 		shadowPso->SetBlendState(blendNoColorWrite);
@@ -685,16 +764,18 @@ namespace Graphics::Renderer
 		shadowPso->SetShader(s_shaders[L"depthVS"], ShaderType::Vertex);
 		shadowPso->SetRootSignature(pbrRootSignature);
 		shadowPso->Finalize();
+		shadowPso->Name = PSO_SHADOW_OPAQUE;
 
 		D3D12_RASTERIZER_DESC shadowAlphaTestRastDesc = shadowRastDesc;
 		shadowAlphaTestRastDesc.CullMode = D3D12_CULL_MODE_NONE;
-		std::shared_ptr<PipelineState> shadowAlphaTested = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> shadowAlphaTested = std::make_shared<GraphicsPipelineState>();
 		*shadowAlphaTested = *shadowPso;
 		shadowAlphaTested->SetRasterizerState(shadowAlphaTestRastDesc);
 		shadowAlphaTested->SetShader(s_shaders[L"depthAlphaTestPS"], ShaderType::Pixel);
 		shadowAlphaTested->Finalize();
+		shadowAlphaTested->Name = PSO_SHADOW_ALPHA_TEST;
 
-		std::shared_ptr<PipelineState> shadowTestPso = std::make_shared<PipelineState>();
+		std::shared_ptr<GraphicsPipelineState> shadowTestPso = std::make_shared<GraphicsPipelineState>();
 		shadowTestPso->InitializeDefaultStates();
 		shadowTestPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
 					DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
@@ -704,18 +785,21 @@ namespace Graphics::Renderer
 		shadowTestPso->SetShader(s_shaders[L"depthAlphaTestPS"], ShaderType::Pixel);
 		shadowTestPso->SetRootSignature(pbrRootSignature);
 		shadowTestPso->Finalize();
+		shadowTestPso->Name = PSO_SHADOW_TEST;
+	
 
-		s_PSOs[PSO_PHONG_OPAQUE] = std::move(phongPso);
-		s_PSOs[PSO_PBR_OPAQUE] = std::move(pbrPso);
 
-		s_PSOs[PSO_PHONG_ALPHA_TEST] = std::move(phongAlphaTestPso);
-		s_PSOs[PSO_PBR_ALPHA_TEST] = std::move(pbrAlphaTestPso);
+		s_PSOs[phongPso->Name] = std::move(phongPso);
+		s_PSOs[pbrPso->Name] = std::move(pbrPso);
 
-		s_PSOs[PSO_SHADOW_OPAQUE] = std::move(shadowPso);
-		s_PSOs[PSO_SHADOW_ALPHA_TEST] = std::move(shadowAlphaTested);
+		s_PSOs[phongAlphaTestPso->Name] = std::move(phongAlphaTestPso);
+		s_PSOs[pbrAlphaTestPso->Name] = std::move(pbrAlphaTestPso);
 
-		s_PSOs[PSO_SHADOW_TEST] = std::move(shadowTestPso);
+		s_PSOs[shadowPso->Name] = std::move(shadowPso);
+		s_PSOs[shadowAlphaTested->Name] = std::move(shadowAlphaTested);
 
-		s_PSOs[L"deferredPso"] = std::move(deferredPso);
+		s_PSOs[shadowTestPso->Name] = std::move(shadowTestPso);
+
+		s_PSOs[deferredPso->Name] = std::move(deferredPso);
 	}
 }

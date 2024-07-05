@@ -101,22 +101,22 @@ int D3DApp::Run()
 		GameTime::s_Instance->Tick();
 
 		CalculateFrameStats();
-		CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		Update(*context);
-		context->Finish();
+		GraphicsContext& updateContext = GraphicsContext::Begin();
+		Update(updateContext);
+		updateContext.Finish();
 
-		context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		Draw(*context);
+		GraphicsContext& drawContext = GraphicsContext::Begin();
+		Draw(drawContext);
 		
 		// Present the frame.
 		auto& backBuffer = Renderer::GetCurrentBackBuffer();
-		context->TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
-		Renderer::Present(context->Finish());
+		drawContext.TransitionResource(backBuffer, D3D12_RESOURCE_STATE_PRESENT, true);
+		Renderer::Present(drawContext.Finish());
 	}
 
-	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	OnClose(*context);
-	context->Finish(true);
+	GraphicsContext& context = GraphicsContext::Begin();
+	OnClose(context);
+	context.Finish(true);
 
 	return static_cast<int>(msg.wParam);
 }
@@ -139,14 +139,14 @@ bool D3DApp::InitializeApp()
 
 	s_commandQueueManager->GetGraphicsQueue().Flush();
 
-	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	this->Initialize(*context);
-	context->Finish(true);
+	GraphicsContext& context = GraphicsContext::Begin();
+	this->Initialize(context);
+	context.Finish(true);
 
 	return true;
 }
 
-void DX12Lib::D3DApp::OnResize(CommandContext& commandContext, int newWidth, int newHeight)
+void DX12Lib::D3DApp::OnResize(GraphicsContext& commandContext, int newWidth, int newHeight)
 {
 	// Flush before changing any resources.
 	FlushCommandQueue();
@@ -162,14 +162,14 @@ void DX12Lib::D3DApp::SetScene(Scene* scene)
 	m_Scene = std::unique_ptr<Scene>(scene);
 }
 
-void DX12Lib::D3DApp::Initialize(CommandContext& commandContext)
+void DX12Lib::D3DApp::Initialize(GraphicsContext& commandContext)
 {
 	m_Scene->OnAppStart(commandContext);
 	commandContext.Flush(true);
 	m_Scene->Init(commandContext);
 }
 
-void DX12Lib::D3DApp::Update(CommandContext& commandContext)
+void DX12Lib::D3DApp::Update(GraphicsContext& commandContext)
 {
 	Renderer::WaitForSwapchainBuffers();
 
@@ -179,7 +179,7 @@ void DX12Lib::D3DApp::Update(CommandContext& commandContext)
 	m_Scene->Update(commandContext);
 }
 
-void DX12Lib::D3DApp::Draw(CommandContext& commandContext)
+void DX12Lib::D3DApp::Draw(GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
@@ -187,21 +187,22 @@ void DX12Lib::D3DApp::Draw(CommandContext& commandContext)
 
 	Renderer::RenderLayers(commandContext);
 
+	Renderer::PostDrawCleanup(commandContext);
 }
 
 
-void DX12Lib::D3DApp::OnClose(CommandContext& context)
+void DX12Lib::D3DApp::OnClose(GraphicsContext& context)
 {
 	m_Scene->OnClose(context);
 }
 
 void D3DApp::ResizeCallback(int newWidth, int newHeight)
 {
-	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	GraphicsContext& context = GraphicsContext::Begin();
 
-	OnResize(*context, newWidth, newHeight);
+	OnResize(context, newWidth, newHeight);
 
-	context->Finish(true);
+	context.Finish(true);
 }
 
 

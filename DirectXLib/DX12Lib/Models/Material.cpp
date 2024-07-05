@@ -8,18 +8,10 @@ using namespace DX12Lib;
 
 Material::Material()
 {
-	m_defaultPSO = PSO_PHONG_OPAQUE;
+	m_pso = Renderer::s_PSOs[PSO_PHONG_OPAQUE].get();
 }
 
-
-void Material::UseMaterial(ID3D12GraphicsCommandList* cmdList)
-{
-	// We only need to set the first texture since they are all contiguous in the heap.
-	// The root signature knows how many are to be used.
-	if (GetTextureCount() > 0)
-		cmdList->SetGraphicsRootDescriptorTable((UINT)Renderer::RootSignatureSlot::MaterialTextureSRV, m_firstTextureHandle);
-}
-
+ 
 void DX12Lib::Material::SetTexture(UINT index, SharedTexture texture)
 {
 	if (m_textures != nullptr && index < GetTextureCount())
@@ -33,11 +25,21 @@ Texture* DX12Lib::Material::GetTexture(MaterialTextureType type)
 
 Texture* DX12Lib::Material::GetTexture(UINT index)
 {
+	auto sharedTexture = GetSharedTexture(index);
+
+	if (sharedTexture != nullptr)
+		return sharedTexture.get();
+
+	return nullptr;
+}
+
+SharedTexture DX12Lib::Material::GetSharedTexture(UINT index)
+{
 	if (m_textures == nullptr)
 		return nullptr;
 
 	if (index < (UINT)NUM_COMMON_TEXTURES)
-		return m_textures[index].get();
+		return m_textures[index];
 
 	return nullptr;
 }
@@ -46,14 +48,15 @@ void DX12Lib::Material::SetTransparent(bool isTransparent)
 {
 	m_isTransparent = isTransparent;
 
+	std::wstring PSOName = L"PSO_PHONG_OPAQUE";
+
 	if (m_isTransparent)
 	{
-		m_defaultPSO = PSO_PHONG_ALPHA_TEST;
+
+		PSOName = PSO_PHONG_ALPHA_TEST;
 	}
-	else
-	{
-		m_defaultPSO = PSO_PHONG_OPAQUE;
-	}
+	
+	m_pso = Renderer::s_PSOs[PSOName].get();
 }
 
 SharedTexture DX12Lib::Material::GetDefaultTextureForType(MaterialTextureType textureType)
@@ -84,7 +87,7 @@ SharedTexture DX12Lib::Material::GetDefaultTextureForType(MaterialTextureType te
 PhongMaterial::PhongMaterial()
 {
 	m_textures = new SharedTexture[NUM_PHONG_TEXTURES];
-	m_defaultPSO = PSO_PHONG_OPAQUE;
+	m_pso = Renderer::s_PSOs[PSO_PHONG_OPAQUE].get();
 }
 
 void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
@@ -100,11 +103,21 @@ void PhongMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 
 Texture* DX12Lib::PhongMaterial::GetTexture(UINT index)
 {
+	auto sharedTexture = GetSharedTexture(index);
+
+	if (sharedTexture != nullptr)
+		return sharedTexture.get();
+
+	return nullptr;
+}
+
+SharedTexture DX12Lib::PhongMaterial::GetSharedTexture(UINT index)
+{
 	if (m_textures == nullptr)
 		return nullptr;
 
 	if (index < (UINT)NUM_PHONG_TEXTURES)
-		return m_textures[index].get();
+		return m_textures[index];
 
 	return nullptr;
 }
@@ -144,7 +157,7 @@ void DX12Lib::PhongMaterial::LoadDefaultTextures()
 PBRMaterial::PBRMaterial()
 {
 	m_textures = new SharedTexture[NUM_PBR_TEXTURES];
-	m_defaultPSO = PSO_PBR_OPAQUE;
+	m_pso = Renderer::s_PSOs[PSO_PBR_OPAQUE].get();
 }
 
 void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
@@ -167,12 +180,22 @@ void PBRMaterial::SetTexture(MaterialTextureType type, SharedTexture texture)
 
 Texture* DX12Lib::PBRMaterial::GetTexture(UINT index)
 {
+	auto sharedTex = GetSharedTexture(index);
+
+	if (sharedTex != nullptr)
+		return sharedTex.get();
+
+	return nullptr;
+}
+
+SharedTexture DX12Lib::PBRMaterial::GetSharedTexture(UINT index)
+{
 	if (m_textures == nullptr)
 		return nullptr;
 
 	if (index < (UINT)NUM_PBR_TEXTURES)
-		return m_textures[index].get();
-	
+		return m_textures[index];
+
 	return nullptr;
 }
 
@@ -195,14 +218,14 @@ void DX12Lib::PBRMaterial::SetTransparent(bool isTransparent)
 {
 	m_isTransparent = isTransparent;
 
+	std::wstring PSOName = L"PSO_PBR_OPAQUE";
+
 	if (m_isTransparent)
 	{
-		m_defaultPSO = PSO_PBR_ALPHA_TEST;
+		PSOName = PSO_PBR_ALPHA_TEST;
 	}
-	else
-	{
-		m_defaultPSO = PSO_PBR_OPAQUE;
-	}
+
+	m_pso = Renderer::s_PSOs[PSOName].get();
 }
 
 void DX12Lib::PBRMaterial::LoadDefaultTextures()

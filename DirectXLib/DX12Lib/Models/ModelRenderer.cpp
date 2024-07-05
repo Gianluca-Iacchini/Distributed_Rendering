@@ -8,8 +8,11 @@ DX12Lib::MeshRenderer::~MeshRenderer()
 {
 	if (m_IsInBatch)
 	{
+		DXLIB_CORE_WARN("MeshRenderer was removed from batch");
 		if (m_modelRenderer != nullptr)
 			m_modelRenderer->RemoveMeshRendererFromBatch(this);
+
+
 	}
 }
 
@@ -52,9 +55,6 @@ void DX12Lib::MeshRenderer::Render(CommandContext& context)
 		}
 	}
 
-	if (m_mesh == nullptr || m_meshMaterial == nullptr)
-		return;
-
 }
 
 void DX12Lib::MeshRenderer::DrawMesh(CommandContext& context)
@@ -63,12 +63,22 @@ void DX12Lib::MeshRenderer::DrawMesh(CommandContext& context)
 	if (m_mesh == nullptr)
 		return;
 
-	if (m_meshMaterial != nullptr)
-		m_meshMaterial->UseMaterial(context.m_commandList->Get());
-
-	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, GetObjectCB().GpuAddress());
-
 	m_mesh->Draw(context.m_commandList->Get());
+}
+
+void DX12Lib::MeshRenderer::SetMaterial(Material* material)
+{
+	assert(material != nullptr);
+
+	if (material->GetName() != m_meshMaterial->GetName())
+	{
+		if (m_modelRenderer != nullptr)
+		{
+			m_meshMaterial = material;
+			m_modelRenderer->UpdateMeshRendererBatch(this);
+			m_IsInBatch = true;
+		}
+	}
 }
 
 DirectX::GraphicsResource DX12Lib::MeshRenderer::GetObjectCB()
@@ -81,6 +91,13 @@ DirectX::GraphicsResource DX12Lib::MeshRenderer::GetObjectCB()
 	return Graphics::Renderer::s_graphicsMemory->AllocateConstant(m_objectCB);
 }
 
+const DX12Lib::DescriptorHandle& DX12Lib::MeshRenderer::GetMaterialTextureSRV()
+{
+	assert(m_meshMaterial != nullptr && m_meshMaterial->GetTextureCount() > 0);
+
+	return m_meshMaterial->GetFirstTextureHandle();
+}
+
 void DX12Lib::ModelRenderer::Render(CommandContext& context)
 {
 	if (Model != nullptr)
@@ -89,46 +106,42 @@ void DX12Lib::ModelRenderer::Render(CommandContext& context)
 	}
 }
 
-void DX12Lib::ModelRenderer::DrawMeshes(CommandContext& context, std::vector<MeshRenderer*> meshRenderers)
-{
-	Model->UseBuffers(context);
-	for (auto& mesh : meshRenderers)
-	{
-		mesh->DrawMesh(context);
-	}
-}
 
-void DX12Lib::ModelRenderer::DrawAllBatch(CommandContext& context, std::wstring psoName)
+std::vector<DX12Lib::MeshRenderer*> DX12Lib::ModelRenderer::GetAllForPSO(std::wstring psoName)
 {
 	if (Model == nullptr)
-		return;
+		return std::vector<DX12Lib::MeshRenderer*>();
 
 	auto batch = m_psoMeshRendererBatch.find(psoName);
 
 	if (batch == m_psoMeshRendererBatch.end())
-		return;
+		return std::vector<DX12Lib::MeshRenderer*>();
 
-	DrawMeshes(context, batch->second);
+	return batch->second;
 }
 
-void DX12Lib::ModelRenderer::DrawAll(CommandContext& context)
+std::vector<DX12Lib::MeshRenderer*> DX12Lib::ModelRenderer::GetAll()
 {
+	std::vector<DX12Lib::MeshRenderer*> allMeshes;
+
 	for (auto& batch : m_psoMeshRendererBatch)
 	{
-		DrawAllBatch(context, batch.first);
+		allMeshes.insert(allMeshes.end(), batch.second.begin(), batch.second.end());
 	}
+
+	return allMeshes;
 }
 
-void DX12Lib::ModelRenderer::DrawBatchOpaque(CommandContext& context, std::wstring psoName)
+std::vector<DX12Lib::MeshRenderer*> DX12Lib::ModelRenderer::GetAllOpaqueForPSO(std::wstring psoName)
 {
 
 	if (Model == nullptr)
-		return;
+		return std::vector<DX12Lib::MeshRenderer*>();
 
 	auto batch = m_psoMeshRendererBatch.find(psoName);
 
 	if (batch == m_psoMeshRendererBatch.end())
-		return;
+		return std::vector<DX12Lib::MeshRenderer*>();
 
 	std::vector<MeshRenderer*> opaqueMeshes;
 
@@ -138,18 +151,18 @@ void DX12Lib::ModelRenderer::DrawBatchOpaque(CommandContext& context, std::wstri
 			opaqueMeshes.push_back(mesh);
 	}
 
-	DrawMeshes(context, opaqueMeshes);
+	return opaqueMeshes;
 }
 
-void DX12Lib::ModelRenderer::DrawBatchTransparent(CommandContext& context, std::wstring psoName)
+std::vector<DX12Lib::MeshRenderer*> DX12Lib::ModelRenderer::GetAllTransparentForPSO(std::wstring psoName)
 {
 	if (Model == nullptr)
-		return;
+		return std::vector<DX12Lib::MeshRenderer*>();
 
 	auto batch = m_psoMeshRendererBatch.find(psoName);
 
 	if (batch == m_psoMeshRendererBatch.end())
-		return;
+		return std::vector<DX12Lib::MeshRenderer*>();
 
 	std::vector<MeshRenderer*> transparentMeshes;
 
@@ -159,16 +172,16 @@ void DX12Lib::ModelRenderer::DrawBatchTransparent(CommandContext& context, std::
 			transparentMeshes.push_back(mesh);
 	}
 
-	DrawMeshes(context, transparentMeshes);
+	return transparentMeshes;
 }
 
 
-void DX12Lib::ModelRenderer::DrawOpaque(CommandContext& context)
+std::vector<DX12Lib::MeshRenderer*> DX12Lib::ModelRenderer::GetAllOpaque()
 {
-	DrawMeshes(context, m_opaqueMeshes);
+	return m_opaqueMeshes;
 }
 
-void DX12Lib::ModelRenderer::DrawTransparent(CommandContext& context)
+std::vector<DX12Lib::MeshRenderer*> DX12Lib::ModelRenderer::GetAllTransparent()
 {
-	DrawMeshes(context, m_transparentMeshes);
+	return m_transparentMeshes;
 }

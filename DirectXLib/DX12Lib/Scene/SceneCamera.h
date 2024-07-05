@@ -3,6 +3,7 @@
 #include "DX12Lib/Commons/Camera.h"
 #include "DX12Lib/Scene/Component.h"
 #include "DX12Lib/Commons/CommonConstants.h"
+#include "GraphicsMemory.h"
 
 namespace DX12Lib
 {
@@ -17,7 +18,7 @@ namespace DX12Lib
 		virtual void Render(CommandContext& context) override;
 		virtual void OnResize(CommandContext& context, int newWidth, int newHeight) override;
 
-		virtual void UseCamera(CommandContext& context);
+		virtual DirectX::GraphicsResource GetCameraBuffer();
 
 		virtual void SetOrthogonal(DirectX::XMFLOAT4 bounds);
 		virtual void SetPerspective(float fov, float aspectRatio, float nearZ, float farZ);

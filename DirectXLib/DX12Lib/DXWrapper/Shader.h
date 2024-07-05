@@ -51,7 +51,17 @@ namespace DX12Lib {
 	public:
 		std::vector<std::wstring> m_includeDirs;
 
-		IncludeHandler(const std::vector<std::wstring>& includeDirs) : m_includeDirs(includeDirs) {}
+		IncludeHandler(const std::vector<std::wstring>& includeDirs) : m_includeDirs(includeDirs)
+		{
+			if (DX12LIB_SHADER_DIR.empty())
+			{
+				std::wstring curDir = Utils::ToWstring(SOURCE_DIR) + L"/DX12Lib/DXWrapper/Shaders";
+				std::replace(curDir.begin(), curDir.end(), L'/', L'\\');
+				DX12LIB_SHADER_DIR = curDir;
+			}
+
+			m_includeDirs.push_back(DX12LIB_SHADER_DIR);
+		}
 
 		HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) override;
 
@@ -63,7 +73,10 @@ namespace DX12Lib {
 		}
 
 	public:
-		static std::wstring GetShaderDirectory();
+		static std::wstring GetShaderDirectory(std::wstring shaderPath);
+		
+	private:
+		static std::wstring DX12LIB_SHADER_DIR;
 	};
 }
 

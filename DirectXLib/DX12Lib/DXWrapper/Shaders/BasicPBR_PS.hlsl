@@ -9,7 +9,7 @@ cbuffer cbCamera : register(b1)
 {
     Camera camera;
 }
-
+Texture2D gShadowMap : register(t0);
 Texture2D gBufferaWorld : register(t1);
 Texture2D gBufferNormal : register(t2);
 Texture2D gBufferDiffuse : register(t3);
@@ -17,6 +17,8 @@ Texture2D gBufferMetallicRoughnessAO : register(t4);
 
 StructuredBuffer<Light> gLights : register(t0, space1);
 StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
+
+RWTexture3D<float4> gVoxelGrid : register(u0);
 
 float4 PS(VertexOutPosTex pIn) : SV_Target
 {
@@ -31,9 +33,7 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
     // w coordinate is used to keep track of geometry. If there is no geometry, the w value is 1.0f so we can discard the pixel
     if (RMA.w >= 1.0f)
         discard;
-    
-
-   
+     
     
     PBRMaterial material = GetPBRMaterial(gMaterials[worldPos.w]);
     
@@ -68,7 +68,7 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         if (light.castShadows)
         {
             float4 shadowPosH = mul(float4(worldPos.xyz, 1.0f), light.shadowMatrix);
-            shadowFactor = CalcShadowFactor(shadowPosH);
+            shadowFactor = CalcShadowFactor(gShadowMap, shadowPosH);
         }
         
         light.color *= shadowFactor;

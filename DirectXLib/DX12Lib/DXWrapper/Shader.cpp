@@ -51,11 +51,13 @@ void Shader::Compile()
 #endif
 
 
-	IncludeHandler includeHandler({IncludeHandler::GetShaderDirectory()});
+	// Include handler for shaders. Adds path of the compiled shader directory to the include directories and the path
+	// To the dx12lib shader directory
+	IncludeHandler includeHandler({IncludeHandler::GetShaderDirectory(m_shaderFilePath)});
 
 	HRESULT hr = S_OK;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
-	hr = D3DCompileFromFile(m_shaderFilePath.c_str(), m_shaderDefines.data(), D3D_COMPILE_STANDARD_FILE_INCLUDE, m_entryPoint.c_str(), m_shaderTarget.c_str(), compileFlags, 0, m_shaderByteBlob.GetAddressOf(), m_shaderErrorBlob.GetAddressOf());
+	hr = D3DCompileFromFile(m_shaderFilePath.c_str(), m_shaderDefines.data(), &includeHandler, m_entryPoint.c_str(), m_shaderTarget.c_str(), compileFlags, 0, m_shaderByteBlob.GetAddressOf(), m_shaderErrorBlob.GetAddressOf());
 
 	if (m_shaderErrorBlob != nullptr)
 	{
@@ -98,10 +100,13 @@ HRESULT __stdcall DX12Lib::IncludeHandler::Open(D3D_INCLUDE_TYPE IncludeType, LP
 	return S_OK;
 }
 
-std::wstring DX12Lib::IncludeHandler::GetShaderDirectory()
+std::wstring DX12Lib::IncludeHandler::GetShaderDirectory(std::wstring shaderPath)
 {
-	std::wstring curDir = Utils::ToWstring(SOURCE_DIR) + L"/DX12Lib/DXWrapper/Shaders";
-	std::replace(curDir.begin(), curDir.end(), L'/', L'\\');
+	std::wstring folderPath = Utils::GetFileDirectory(shaderPath);
 
-	return curDir;
+	std::replace(folderPath.begin(), folderPath.end(), L'/', L'\\');
+
+	return folderPath;
 }
+
+std::wstring DX12Lib::IncludeHandler::DX12LIB_SHADER_DIR = L"";

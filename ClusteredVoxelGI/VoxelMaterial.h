@@ -7,7 +7,7 @@ namespace CVGI
 	class VoxelMaterial : public DX12Lib::Material
 	{
 	public:
-		VoxelMaterial() { m_defaultPSO = std::wstring(L"PSO_VOXEL"); }
+		VoxelMaterial();
 		virtual ~VoxelMaterial() = default;
 
 		virtual DX12Lib::ConstantBufferMaterial BuildMaterialConstantBuffer() override;

@@ -10,6 +10,7 @@
 namespace DX12Lib
 {
 	class CommandContext;
+	class GraphicsContext;
 	class ModelRenderer;
 	class LightComponent;
 	class PipelineState;
@@ -19,6 +20,9 @@ namespace DX12Lib
 	class DX12Window;
 	class ColorBuffer;
 	class SceneCamera;
+	class ShadowBuffer;
+	class ColorBuffer;
+	class DescriptorHandle;
 }
 
 
@@ -52,18 +56,30 @@ namespace Graphics
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::PipelineState>> s_PSOs;
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::Shader>> s_shaders;
 
+		extern std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer;
+		extern std::unique_ptr<DX12Lib::ColorBuffer> s_voxel3DTexture;
+
 		extern int s_clientWidth;
 		extern int s_clientHeight;
+
+		extern bool sEnableRenderMainPass;
+		extern bool sEnableRenderShadows;
 
 		void InitializeApp();
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
-		void SetUpRenderFrame(DX12Lib::CommandContext& context);
-		void ShadowPass(DX12Lib::CommandContext& context);
-		void MainRenderPass(DX12Lib::CommandContext& context);
-		void DeferredPass(DX12Lib::CommandContext& context);
-		void RenderLayers(DX12Lib::CommandContext& context);
+		void BindVoxelTexture(DX12Lib::CommandContext& context, UINT rootParamSlot);
+		std::vector<DX12Lib::ModelRenderer*> GetRenderers();
+
+		void SetUpRenderFrame(DX12Lib::GraphicsContext& context);
+		void ShadowPass(DX12Lib::GraphicsContext& context);
+		void MainRenderPass(DX12Lib::GraphicsContext& context);
+		void DeferredPass(DX12Lib::GraphicsContext& context);
+		void RenderLayers(DX12Lib::GraphicsContext& context);
+		void PostDrawCleanup(DX12Lib::CommandContext& context);
+		void DrawScreenQuad(DX12Lib::GraphicsContext& context);
+
 		void Shutdown();
 		void InitializeSwapchain(DX12Lib::DX12Window* window);
 		void WaitForSwapchainBuffers();

@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "DX12Lib/Commons/CommonConstants.h"
+#include "DX12Lib/DXWrapper/PipelineState.h"
 
 namespace DX12Lib {
 
@@ -52,7 +53,6 @@ namespace DX12Lib {
 				delete[] m_textures;
 		}
 
-		void UseMaterial(ID3D12GraphicsCommandList* cmdList);
 		std::wstring& GetName() { return m_name; }
 		void SetName(const std::wstring& name) { m_name = name; }
 
@@ -60,10 +60,11 @@ namespace DX12Lib {
 		void SetTexture(UINT index, SharedTexture texture);
 		Texture* GetTexture(MaterialTextureType type);
 		virtual Texture* GetTexture(UINT index);
-
-		std::wstring GetDefaultPSO() { return m_defaultPSO; }
+		virtual SharedTexture GetSharedTexture(UINT index);
 
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() { return ConstantBufferMaterial(); }
+
+		const DescriptorHandle& GetFirstTextureHandle() { return m_firstTextureHandle; }
 
 		virtual void SetTransparent(bool isTransparent);
 
@@ -74,6 +75,9 @@ namespace DX12Lib {
 		virtual void LoadDefaultTextures() {}
 
 		UINT GetIndex() { return m_index; }
+
+		void SetMaterialPSO(PipelineState* pso) { m_pso = pso; }
+		PipelineState* GetMaterialPSO() { return m_pso; }
 
 	protected:
 		SharedTexture GetDefaultTextureForType(MaterialTextureType textureType);
@@ -92,7 +96,7 @@ namespace DX12Lib {
 		SharedTexture* m_textures = nullptr;
 		DescriptorHandle m_firstTextureHandle;
 		bool m_isTransparent = false;
-		std::wstring m_defaultPSO;
+		PipelineState* m_pso = nullptr;
 
 	private:
 		UINT m_index = 0;
@@ -106,6 +110,7 @@ namespace DX12Lib {
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
 		virtual Texture* GetTexture(UINT index) override;
+		virtual SharedTexture GetSharedTexture(UINT index) override;
 
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 
@@ -132,6 +137,7 @@ namespace DX12Lib {
 
 		virtual void SetTexture(MaterialTextureType type, SharedTexture texture) override;
 		Texture* GetTexture(UINT index) override;
+		virtual SharedTexture GetSharedTexture(UINT index) override;
 
 		virtual ConstantBufferMaterial BuildMaterialConstantBuffer() override;
 

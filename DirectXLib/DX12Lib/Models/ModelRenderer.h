@@ -20,7 +20,6 @@ namespace DX12Lib
 		{
 			assert(modelRenderer != nullptr);
 
-			MaterialPSO = PSO_PHONG_OPAQUE;
 			m_modelRenderer = modelRenderer;
 		}
 
@@ -41,17 +40,10 @@ namespace DX12Lib
 			if (m_meshMaterial == nullptr)
 			{
 				m_meshMaterial = m_mesh->MeshMaterial;
-				MaterialPSO = m_meshMaterial->GetDefaultPSO();
 			}
 		}
 
-		void SetMaterial(Material* material)
-		{
-			assert (material != nullptr);
-
-			m_meshMaterial = material;
-			MaterialPSO = material->GetDefaultPSO();
-		}
+		void SetMaterial(Material* material);
 		
 		Material* GetMaterial() const
 		{
@@ -63,12 +55,13 @@ namespace DX12Lib
 			return m_mesh.get();
 		}
 
-	private:
 		DirectX::GraphicsResource GetObjectCB();
+		const DescriptorHandle& GetMaterialTextureSRV();
+	private:
+
 
 
 	public:
-		std::wstring MaterialPSO = PSO_PHONG_OPAQUE;
 		ConstantBufferObject m_objectCB;
 
 	private:
@@ -96,11 +89,19 @@ namespace DX12Lib
 
 		std::shared_ptr<Model> Model = nullptr;
 
+		void UpdateMeshRendererBatch(MeshRenderer* meshRenderer)
+		{
+			assert(meshRenderer != nullptr);
+
+			RemoveMeshRendererFromBatch(meshRenderer);
+			AddMeshRendererToBatch(meshRenderer);
+		}
+
 		void AddMeshRendererToBatch(MeshRenderer* meshRenderer)
 		{
 			assert(meshRenderer != nullptr);
 
-			m_psoMeshRendererBatch[meshRenderer->MaterialPSO].push_back(meshRenderer);
+			m_psoMeshRendererBatch[meshRenderer->GetMaterial()->GetMaterialPSO()->Name].push_back(meshRenderer);
 			
 			bool isTransparent = false;
 			
@@ -116,9 +117,12 @@ namespace DX12Lib
 		void RemoveMeshRendererFromBatch(MeshRenderer* meshRenderer)
 		{
 			assert(meshRenderer != nullptr);
+			
+			for (auto& batch : m_psoMeshRendererBatch)
+			{
+				batch.second.erase(std::remove(batch.second.begin(), batch.second.end(), meshRenderer), batch.second.end());
+			}
 
-			auto& batch = m_psoMeshRendererBatch[meshRenderer->MaterialPSO];
-			batch.erase(std::remove(batch.begin(), batch.end(), meshRenderer), batch.end());
 			m_opaqueMeshes.erase(std::remove(m_opaqueMeshes.begin(), m_opaqueMeshes.end(), meshRenderer), m_opaqueMeshes.end());
 			m_transparentMeshes.erase(std::remove(m_transparentMeshes.begin(), m_transparentMeshes.end(), meshRenderer), m_transparentMeshes.end());
 		}
@@ -129,15 +133,13 @@ namespace DX12Lib
 		virtual void Render(CommandContext& context) override;
 
 		
-		void DrawAll(CommandContext& context);
-		void DrawOpaque(CommandContext& context);
-		void DrawTransparent(CommandContext& context);
-		void DrawAllBatch(CommandContext& context, std::wstring psoName);
-		void DrawBatchOpaque(CommandContext& context, std::wstring psoName);
-		void DrawBatchTransparent(CommandContext& context, std::wstring psoName);
+		std::vector<DX12Lib::MeshRenderer*> GetAll();
+		std::vector<DX12Lib::MeshRenderer*> GetAllOpaque();
+		std::vector<DX12Lib::MeshRenderer*> GetAllTransparent();
+		std::vector<DX12Lib::MeshRenderer*> GetAllForPSO(std::wstring psoName);
+		std::vector<DX12Lib::MeshRenderer*> GetAllOpaqueForPSO(std::wstring psoName);
+		std::vector<DX12Lib::MeshRenderer*> GetAllTransparentForPSO(std::wstring psoName);
 
-	private:
-		void DrawMeshes(CommandContext& context, std::vector<MeshRenderer*> meshRenderers);
 
 	};
 

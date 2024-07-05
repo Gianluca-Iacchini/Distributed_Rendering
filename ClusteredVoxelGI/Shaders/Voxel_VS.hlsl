@@ -1,15 +1,19 @@
 #include "VoxelUtils.hlsli"
 
-VertexOut VS( VertexIn vIn )
+cbuffer cbPerObject : register(b2)
 {
-    VertexOut vOut;
+    Object object;
+};
+
+VertexOutVoxel VS( VertexInPosNormalTex vIn )
+{
+    VertexOutVoxel vOut;
     
-    float4 posW = mul(float4(vIn.PosL, 1.0f), oWorld);
+    float4 posW = mul(float4(vIn.PosL, 1.0f), object.World);
     
     vOut.PosW = posW.xyz;
-    vOut.NormalW = mul(vIn.NormalL, (float3x3) oWorld);
+    vOut.NormalW = mul(vIn.NormalL, (float3x3) object.World);
     vOut.PosH = posW;
-    vOut.ShadowPosH = vOut.PosH;
     vOut.Tex = vIn.Tex;
     vOut.ProjAxis = 0;
     

@@ -20,7 +20,7 @@ void DX12Lib::ShadowBuffer::Create(uint32_t width, uint32_t height)
 	m_bufferScissorRect = { 1, 1, static_cast<LONG>(width) - 2, static_cast<LONG>(height) - 2 };
 }
 
-void DX12Lib::ShadowBuffer::RenderShadowStart(CommandContext& context)
+void DX12Lib::ShadowBuffer::RenderShadowStart(GraphicsContext& context)
 {
 
 	context.TransitionResource(*this, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
@@ -29,7 +29,7 @@ void DX12Lib::ShadowBuffer::RenderShadowStart(CommandContext& context)
 	context.SetViewportAndScissor(m_bufferViewport, m_bufferScissorRect);
 }
 
-void DX12Lib::ShadowBuffer::RenderShadowEnd(CommandContext& context)
+void DX12Lib::ShadowBuffer::RenderShadowEnd(GraphicsContext& context)
 {
 	context.TransitionResource(*this, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 }

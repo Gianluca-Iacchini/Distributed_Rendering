@@ -36,13 +36,34 @@ void CommandContext::InitializeApp()
 	s_commandQueueManager->CreateCommandList(m_type, &m_commandList, &m_currentAllocator);
 }
 
+CommandContext& DX12Lib::CommandContext::Begin()
+{
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	assert(context != nullptr && "Context is null");
+
+	return *context;
+}
+
 void DX12Lib::CommandContext::SetPipelineState(PipelineState* pipelineState)
 {
 	if (m_currentPipelineState != pipelineState)
 	{
 		m_currentPipelineState = pipelineState;
 		m_commandList->Get()->SetPipelineState(m_currentPipelineState->Get());
-		m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+
+		if (dynamic_cast<GraphicsPipelineState*>(pipelineState) != nullptr)
+		{
+			m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+		}
+		else if (dynamic_cast<ComputePipelineState*>(pipelineState) != nullptr)
+		{
+			m_commandList->Get()->SetComputeRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+		}
+		else
+		{
+			DXLIB_CORE_ERROR("Unknown PipelineState type");
+		}
 	}
 }
 
@@ -106,53 +127,6 @@ void CommandContext::FlushResourceBarriers()
 		m_commandList->GetComPtr()->ResourceBarrier(m_numBarriersToFlush, m_resourceBarrier);
 		m_numBarriersToFlush = 0;
 	}
-}
-
-void DX12Lib::CommandContext::ClearColor(ColorBuffer& target, D3D12_RECT* rect)
-{
-	FlushResourceBarriers();
-	m_commandList->Get()->ClearRenderTargetView(target.GetRTV(), target.GetClearColor().GetPtr(), rect == nullptr? 0 : 1, rect);
-}
-
-void DX12Lib::CommandContext::ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect)
-{
-	FlushResourceBarriers();
-	m_commandList->Get()->ClearRenderTargetView(target.GetRTV(), color, rect == nullptr ? 0 : 1, rect);
-}
-
-void DX12Lib::CommandContext::ClearDepth(DepthBuffer& depthBuffer)
-{
-	FlushResourceBarriers();
-	m_commandList->Get()->ClearDepthStencilView(depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depthBuffer.GetClearDepth(), depthBuffer.GetClearStencil(), 0, nullptr);
-}
-
-void DX12Lib::CommandContext::ClearDepthAndStencil(DepthBuffer& depthBuffer)
-{
-	FlushResourceBarriers();
-	m_commandList->Get()->ClearDepthStencilView(depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depthBuffer.GetClearDepth(), depthBuffer.GetClearStencil(), 0, nullptr);
-}
-
-void DX12Lib::CommandContext::SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv)
-{
-	m_commandList->Get()->OMSetRenderTargets(numRTVs, rtvs, FALSE, &dsv);
-}
-
-void DX12Lib::CommandContext::SetDepthStencilTarget(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
-{
-	SetRenderTargets(0, nullptr, dsv);
-}
-
-void DX12Lib::CommandContext::SetViewportAndScissor(D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect)
-{
-	assert(scissorRect.left < scissorRect.right && scissorRect.top < scissorRect.bottom);
-
-	m_commandList->Get()->RSSetViewports(1, &viewport);
-	m_commandList->Get()->RSSetScissorRects(1, &scissorRect);
-}
-
-void CommandContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
-{
-	Renderer::s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
 }
 
 void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])
@@ -242,7 +216,18 @@ UINT64 CommandContext::Flush(bool waitForCompletion)
 	if (m_currentPipelineState != nullptr)
 	{
 		m_commandList->Get()->SetPipelineState(m_currentPipelineState->Get());
-		m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+		if (dynamic_cast<GraphicsPipelineState*>(m_currentPipelineState) != nullptr)
+		{
+			m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+		}
+		else if (dynamic_cast<ComputePipelineState*>(m_currentPipelineState) != nullptr)
+		{
+			m_commandList->Get()->SetComputeRootSignature(m_currentPipelineState->GetRootSignature()->Get());
+		}
+		else
+		{
+			DXLIB_CORE_ERROR("Unknown PipelineState type");
+		}
 	}
 
 	BindDescriptorHeaps();
@@ -311,4 +296,94 @@ void CommandContextManager::DestroyAllContexts()
 		m_contextPool[i].clear();
 	}
 
+}
+
+void DX12Lib::GraphicsContext::ClearColor(ColorBuffer& target, D3D12_RECT* rect)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearRenderTargetView(target.GetRTV(), target.GetClearColor().GetPtr(), rect == nullptr ? 0 : 1, rect);
+}
+
+void DX12Lib::GraphicsContext::ClearColor(ColorBuffer& target, float color[4], D3D12_RECT* rect)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearRenderTargetView(target.GetRTV(), color, rect == nullptr ? 0 : 1, rect);
+}
+
+void DX12Lib::GraphicsContext::ClearDepth(DepthBuffer& depthBuffer)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearDepthStencilView(depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depthBuffer.GetClearDepth(), depthBuffer.GetClearStencil(), 0, nullptr);
+}
+
+void DX12Lib::GraphicsContext::ClearDepthAndStencil(DepthBuffer& depthBuffer)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->ClearDepthStencilView(depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, depthBuffer.GetClearDepth(), depthBuffer.GetClearStencil(), 0, nullptr);
+}
+
+void DX12Lib::GraphicsContext::SetRenderTargets(UINT numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+{
+	m_commandList->Get()->OMSetRenderTargets(numRTVs, rtvs, FALSE, &dsv);
+}
+
+void DX12Lib::GraphicsContext::SetDepthStencilTarget(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+{
+	SetRenderTargets(0, nullptr, dsv);
+}
+
+void DX12Lib::GraphicsContext::SetViewportAndScissor(D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect)
+{
+	assert(scissorRect.left < scissorRect.right && scissorRect.top < scissorRect.bottom);
+
+	m_commandList->Get()->RSSetViewports(1, &viewport);
+	m_commandList->Get()->RSSetScissorRects(1, &scissorRect);
+}
+
+void GraphicsContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
+{
+	Renderer::s_graphicsMemory->Commit(s_commandQueueManager->GetQueue(type).Get());
+}
+
+GraphicsContext& DX12Lib::GraphicsContext::Begin()
+{
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	assert(context != nullptr && "Context is null");
+
+	return reinterpret_cast<GraphicsContext&>(*context);
+}
+
+ComputeContext& DX12Lib::ComputeContext::Begin()
+{
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+	assert(context != nullptr && "Context is null");
+
+	return reinterpret_cast<ComputeContext&>(*context);
+}
+
+void DX12Lib::ComputeContext::Dispatch(size_t groupCountX, size_t groupCountY, size_t groupCountZ)
+{
+	FlushResourceBarriers();
+	m_commandList->Get()->Dispatch((UINT)groupCountX, (UINT)groupCountY, (UINT)groupCountZ);
+}
+
+void DX12Lib::ComputeContext::Dispatch1D(size_t threadCount, size_t groupSize)
+{
+	Dispatch(MathHelper::DivideByMultiple(threadCount, groupSize), 1, 1);
+}
+
+void DX12Lib::ComputeContext::Dispatch2D(size_t threadCountX, size_t threadCountY, size_t groupSizeX, size_t groupSizeY)
+{
+	Dispatch(MathHelper::DivideByMultiple(threadCountX, groupSizeX), 
+			 MathHelper::DivideByMultiple(threadCountY, groupSizeY), 
+			 1);
+}
+
+void DX12Lib::ComputeContext::Dispatch3D(size_t threadCountX, size_t threadCountY, size_t threadCountZ, size_t groupSizeX, size_t groupSizeY, size_t groupSizeZ)
+{
+	Dispatch(MathHelper::DivideByMultiple(threadCountX, groupSizeX),
+			 MathHelper::DivideByMultiple(threadCountY, groupSizeY),
+			 MathHelper::DivideByMultiple(threadCountZ, groupSizeZ));
 }

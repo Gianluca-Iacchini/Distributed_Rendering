@@ -31,6 +31,8 @@ namespace DX12Lib
 
 		SceneNode* GetRootNode() const { return m_rootNode.get(); }
 
+		SceneCamera* GetMainCamera() const { return m_camera; }
+
 	protected:
 		virtual void OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer);
 

@@ -17,6 +17,8 @@ namespace DX12Lib
 		SceneNode(DX12Lib::Scene& scene) : m_dirtyFlags(0), Scene(scene)
 		{
 			ThrowIfFailed(CoCreateGuid(&m_guid));
+			m_name = L"Node_" + std::to_wstring(s_numNodes++);
+			s_numNodes++;
 		}
 		~SceneNode();
 
@@ -119,8 +121,10 @@ namespace DX12Lib
 			return (this->Transform.m_dirtForFrame > 0) || m_wasLastFrameDirty; 
 		}
 
+		void SetName(const std::wstring& name) { m_name = name; }
+		const std::wstring& GetName() const { return m_name; }
+
 	public:
-		std::wstring Name = L"";
 		Transform Transform;
 		Scene& Scene;
 	
@@ -154,8 +158,10 @@ namespace DX12Lib
 
 	private:
 		GUID m_guid = GUID_NULL;
-
+		std::wstring m_name = L"";
 		bool m_wasLastFrameDirty = false;
+
+		static UINT64 s_numNodes;
 	};
 
 

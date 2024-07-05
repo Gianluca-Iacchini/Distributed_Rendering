@@ -1,6 +1,6 @@
-set(VERTEX_SHADERS Shaders/Voxel_VS.hlsl)
-set(GEOMETRY_SHADERS Shaders/Voxel_GS.hlsl)
-set(PIXEL_SHADERS Shaders/Voxel_PS.hlsl)
+set(VERTEX_SHADERS Shaders/Voxel_VS.hlsl Shaders/VoxelDisplay_VS.hlsl)
+set(GEOMETRY_SHADERS Shaders/Voxel_GS.hlsl Shaders/VoxelDisplay_GS.hlsl)
+set(PIXEL_SHADERS Shaders/Voxel_PS.hlsl Shaders/VoxelDisplay_PS.hlsl)
 set(INCLUDE_SHADERS Shaders/VoxelUtils.hlsli)
 
 set(SHADERS ${VERTEX_SHADERS} ${GEOMETRY_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})

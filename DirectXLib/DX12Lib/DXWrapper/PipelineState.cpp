@@ -9,7 +9,12 @@ using namespace DX12Lib;
 
 
 
-void PipelineState::SetShader(std::shared_ptr<Shader> shader, ShaderType shaderType)
+void PipelineState::SetRootSignature(std::shared_ptr<RootSignature> rootSignature)
+{
+	m_rootSignature = rootSignature;
+}
+
+void GraphicsPipelineState::SetShader(std::shared_ptr<Shader> shader, ShaderType shaderType)
 {
 	if (shaderType == ShaderType::Count)
 	{
@@ -21,7 +26,7 @@ void PipelineState::SetShader(std::shared_ptr<Shader> shader, ShaderType shaderT
 	auto shaderByteCode = CD3DX12_SHADER_BYTECODE(shader->GetShaderByteBlob().Get());
 
 
-	switch (shaderType)	
+	switch (shaderType)
 	{
 	case ShaderType::Vertex:
 		m_psoDesc.VS = shaderByteCode;
@@ -45,33 +50,27 @@ void PipelineState::SetShader(std::shared_ptr<Shader> shader, ShaderType shaderT
 	}
 }
 
-void PipelineState::InitializeDefaultStates()
+void GraphicsPipelineState::InitializeDefaultStates()
 {
 	this->SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
 	this->SetRasterizerState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
-	this->SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT)); 
-	
+	this->SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+
 }
 
-void PipelineState::SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout)
+void GraphicsPipelineState::SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout)
 {
 	m_psoDesc.InputLayout.NumElements = static_cast<UINT>(inputLayout.size());
 	m_psoDesc.InputLayout.pInputElementDescs = inputLayout.data();
 }
 
-void PipelineState::SetInputLayout(const D3D12_INPUT_ELEMENT_DESC* inputLayout, UINT numElements)
+void GraphicsPipelineState::SetInputLayout(const D3D12_INPUT_ELEMENT_DESC* inputLayout, UINT numElements)
 {
 	m_psoDesc.InputLayout.NumElements = numElements;
 	m_psoDesc.InputLayout.pInputElementDescs = inputLayout;
 }
 
-void PipelineState::SetRootSignature(std::shared_ptr<RootSignature> rootSignature)
-{
-	m_rootSignature = rootSignature;
-	m_psoDesc.pRootSignature = rootSignature->Get();
-}
-
-void PipelineState::SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFormat, UINT msaaCount, UINT msaaQuality)
+void GraphicsPipelineState::SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFormat, UINT msaaCount, UINT msaaQuality)
 {
 	assert(numRTVs == 0 || RTVFormats != nullptr && "Array data and array size do not match");
 
@@ -92,12 +91,20 @@ void PipelineState::SetRenderTargetFormats(UINT numRTVs, const DXGI_FORMAT* RTVF
 	m_psoDesc.SampleDesc.Quality = msaaQuality;
 }
 
-void PipelineState::Finalize()
+void GraphicsPipelineState::Finalize()
 {
+	m_psoDesc.pRootSignature = m_rootSignature->Get();
 	ThrowIfFailed(s_device->GetComPtr()->CreateGraphicsPipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
 }
 
+void DX12Lib::ComputePipelineState::SetComputeShader(std::shared_ptr<Shader> computeShader)
+{
+	m_computeShader = computeShader;
+	m_psoDesc.CS = CD3DX12_SHADER_BYTECODE(m_computeShader->GetShaderByteBlob().Get());
+}
 
-
-
-
+void DX12Lib::ComputePipelineState::Finalize()
+{
+	m_psoDesc.pRootSignature = m_rootSignature->Get();
+	ThrowIfFailed(s_device->GetComPtr()->CreateComputePipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
+}

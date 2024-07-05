@@ -16,7 +16,7 @@ using namespace Graphics;
 Scene::Scene()
 {
 	m_rootNode = std::make_unique<SceneNode>(*this);
-	m_rootNode->Name = L"RootNode";
+	m_rootNode->SetName(L"RootNode");
 
 	auto cameraNode = this->AddNode();
 	m_camera = cameraNode->AddComponent<SceneCamera>();
@@ -57,9 +57,7 @@ bool DX12Lib::Scene::AddFromFile(const std::wstring& filename)
 
 
 	auto modelNode = m_rootNode->AddChild();
-	
-	m_numNodes += 1;
-	modelNode->Name = L"FirstChild";
+
 
 
 	auto modelRenderer = modelNode->AddComponent<ModelRenderer>();
@@ -99,6 +97,7 @@ void Scene::Update(CommandContext& context)
 
 void Scene::Render(CommandContext& context)
 {
+	Renderer::AddMainCamera(m_camera);
 	LightComponent::RenderLights(context);
 	m_rootNode->Render(context);
 }
@@ -139,14 +138,14 @@ void DX12Lib::Scene::TraverseModel(ModelRenderer* modelRenderer, aiNode* node, S
 		aiQuaternion rotation;
 
 		auto child = parentNode->AddChild();
-		child->Name = Utils::ToWstring(node->mName.C_Str());
+		child->SetName(Utils::ToWstring(node->mName.C_Str()));
 		node->mTransformation.Decompose(scaling, rotation, position);
 		child->SetRelativePosition({ position.x, position.y, position.z });
 		child->SetRelativeRotation({ rotation.x, rotation.y, rotation.z, rotation.w });
 		child->SetRelativeScale({ scaling.x, scaling.y, scaling.z });
 
 
-		int meshIndex = node->mMeshes[i];
+		int meshIndex = node->mMeshes[i]; 
 		auto mesh = model->GetMeshAt(meshIndex);
 		auto meshRenderer = child->AddComponent<MeshRenderer>(modelRenderer);
 		meshRenderer->SetMesh(mesh);
