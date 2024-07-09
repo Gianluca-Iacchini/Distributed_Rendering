@@ -20,6 +20,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	//auto voxelComputeRootSig = BuildVoxelComputeRootSignature();
 	//auto voxelComputePSO = BuildVoxelComputePso(voxelComputeRootSig);
 
+	m_voxelTexture.Create3D(VoxelTextureDimension.x, VoxelTextureDimension.y, VoxelTextureDimension.z , 1, DXGI_FORMAT_R8G8B8A8_UINT);
+	Renderer::SetVoxelTexture(m_voxelTexture);
+
 	auto voxelSceneRootSig = BuildVoxelizeSceneRootSignature();
 	auto voxelScenePSO = BuildVoxelizeScenePso(voxelSceneRootSig);
 
@@ -29,6 +32,13 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	//Renderer::s_PSOs[voxelComputePSO->Name] = voxelComputePSO;
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
+
+	m_voxelDataBuffer.Create(VoxelTextureDimension.x * VoxelTextureDimension.y * VoxelTextureDimension.z, sizeof(VoxelUAVData));
+
+	m_voxelDataUAVStart = Renderer::s_textureHeap->Alloc(1);
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart, m_voxelDataBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize(), m_voxelDataBuffer.GetCounterBuffer().GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	DirectX::XMFLOAT3 voxelTexDimensions = VoxelTextureDimension;
 	DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
@@ -57,29 +67,28 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	InitializeVoxelDisplayBuffers();
 
-	D3DApp::Initialize(commandContext);
-}
 
-void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
-{
+
+	D3DApp::Initialize(commandContext);
 
 
 	Renderer::SetUpRenderFrame(commandContext);
-	this->m_Scene->Render(commandContext);
-	
-	VoxelScene* voxelScene = dynamic_cast<VoxelScene*>(this->m_Scene.get());
-	VoxelCamera* voxelCamera = voxelScene->GetVoxelCamera();
 
+	VoxelCamera* voxelCamera = voxelScene->GetVoxelCamera();
+	voxelScene->Render(commandContext);
 	if (voxelCamera != nullptr)
 	{
 		VoxelPass(commandContext, voxelCamera);
 	}
 
+	Renderer::PostDrawCleanup(commandContext);
+}
+
+void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
+{
+	Renderer::SetUpRenderFrame(commandContext);
+
 	VoxelDisplayPass(commandContext);
-
-	//VoxelComputePass();
-
-	//Renderer::RenderLayers(commandContext);
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -119,10 +128,13 @@ void ClusteredVoxelGIApp::VoxelPass(DX12Lib::GraphicsContext& context, VoxelCame
 		(UINT)VoxelizeSceneRootParameterSlot::MaterialSRV, Renderer::s_materialManager->GetMaterialStructuredBuffer().GpuAddress()
 	);
 
-	if (Renderer::s_voxel3DTexture)
-	{
-		Renderer::BindVoxelTexture(context, (UINT)VoxelizeSceneRootParameterSlot::VoxelTextureUAV);
-	}
+
+	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+		(UINT)VoxelizeSceneRootParameterSlot::VoxelTextureUAV, Renderer::GetVoxelTextureUAV(context));
+
+	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+		(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV, m_voxelDataUAVStart);
+
 
 	auto modelRenderers = Renderer::GetRenderers();
 
@@ -179,10 +191,10 @@ void CVGI::ClusteredVoxelGIApp::VoxelDisplayPass(DX12Lib::GraphicsContext& conte
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)DisplayVoxelRootParameterSlot::CameraCBV,
 		m_Scene->GetMainCamera()->GetCameraBuffer().GpuAddress());
 
-	if (Renderer::s_voxel3DTexture)
-	{
-		Renderer::BindVoxelTexture(context, (UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV);
-	}
+
+	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+		(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV, Renderer::GetVoxelTextureSRV(context));
+	
 
 	context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	context.m_commandList->Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -225,6 +237,9 @@ std::shared_ptr<DX12Lib::RootSignature> ClusteredVoxelGIApp::BuildVoxelizeSceneR
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::MaterialSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 1);
+	//(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
+	//(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelDataCounterUAV].InitAsBufferUAV(1, D3D12_SHADER_VISIBILITY_ALL, 1);
 	voxelizeSceneRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return voxelizeSceneRootSignature;
@@ -238,7 +253,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusteredVoxelGIApp::BuildVoxelDis
 	displayVoxelRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CameraCBV].InitAsConstantBuffer(1);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 	displayVoxelRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return displayVoxelRootSignature;

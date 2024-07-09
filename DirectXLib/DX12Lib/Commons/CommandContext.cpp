@@ -144,6 +144,7 @@ void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D
 	context->Finish(true);
 }
 
+
 void DX12Lib::CommandContext::SetDescriptorHeap(DescriptorHeap* heap)
 {
 

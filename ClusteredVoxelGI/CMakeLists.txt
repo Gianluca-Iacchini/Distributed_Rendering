@@ -35,6 +35,7 @@ set_source_files_properties( ${PIXEL_SHADERS}
 
 
 set(SOURCE_FILES
+	ClusteredVoxelGI.h
 	ClusteredVoxelGI.cpp
 	VoxelScene.h
 	VoxelScene.cpp

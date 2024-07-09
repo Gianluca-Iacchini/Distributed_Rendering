@@ -17,38 +17,31 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
-RWTexture3D<float4> gVoxelData : register(u0);
+Texture3D<uint4> gVoxelData : register(t0);
 
 [maxvertexcount(36)]
 void GS(
 	point float4 input[1] : SV_POSITION, 
-	inout TriangleStream< PSInput > output
+	inout TriangleStream< PSInput > triOutput
 )
 {
-    if (!any(gVoxelData[input[0].xyz].xyz))
-    {
-        return;
-    }
-    
-    
+
     float3 cubeVertices[8] =
     {
-        float3(-1.0, -1.0, 1.0),   // 0
-        float3(-1.0, 1.0, 1.0),    // 1
-        float3(1.0, 1.0, 1.0),     // 2
-        float3(1.0, -1.0, 1.0),    // 3
-        float3(-1.0, -1.0, -1.0),    // 4
-        float3(-1.0, 1.0, -1.0),     // 5
-        float3(1.0, 1.0, -1.0),      // 6
-        float3(1.0, -1.0, -1.0)      // 7
+        float3(-0.5f, -0.5f, 0.5f), // 0
+        float3(-0.5f, 0.5f, 0.5f), // 1
+        float3(0.5f, 0.5f, 0.5f), // 2
+        float3(0.5f, -0.5f, 0.5f), // 3
+        float3(-0.5f, -0.5f, -0.5f), // 4
+        float3(-0.5f, 0.5f, -0.5f), // 5
+        float3(0.5f, 0.5f, -0.5f), // 6
+        float3(0.5f, -0.5f, -0.5f) // 7
     };
-
-    const int numberOfIndices = 36;
     
-    int cubeIndices[numberOfIndices] =
+    int cubeIndices[36] =
     {
     // Front face
-    0, 1, 2,
+        0, 1, 2,
     0, 2, 3,
     
     // Back face
@@ -71,40 +64,44 @@ void GS(
     3, 7, 4,
     3, 4, 0
     };
+    
+    
+    uint3 voxelColor = gVoxelData[input[0].xyz].xyz;
+    
+    if (!any(voxelColor))
+    {
+        return;
+    }
+    
+   
 
-    float scale = 0.25; // Scale of the cube
+    float scale = 0.5; // Scale of the cube
     
     
     float3 position = input[0].xyz;
     position.y = (voxelCommons.gridDimension.y - 1) - position.y;
+    position = position * scale + float3(0.5f, 0.5f, 0.5f);
     
-    float3 voxelCenter = position * (2.f * scale);
-    
-    for (int i = 0; i < numberOfIndices; i += 3)
+    for (int i = 0; i < 36; i += 3)
     {
-        PSInput output1, output2, output3;
+        PSInput output;
 
-        float3 v1 = scale * cubeVertices[cubeIndices[i]] + voxelCenter;
-        float3 v2 = scale * cubeVertices[cubeIndices[i + 1]] + voxelCenter;
-        float3 v3 = scale * cubeVertices[cubeIndices[i + 2]] + voxelCenter;
+        float3 v1 = scale * cubeVertices[cubeIndices[i]] + position;
+        float3 v2 = scale * cubeVertices[cubeIndices[i + 1]] + position;
+        float3 v3 = scale * cubeVertices[cubeIndices[i + 2]] + position;
 
-        
-        output1.position = mul(float4(v1, 1.0f), camera.ViewProj);
-        output2.position = mul(float4(v2, 1.0f), camera.ViewProj);
-        output3.position = mul(float4(v3, 1.0f), camera.ViewProj);
-
-        // Calculate face normal
         float3 normal = normalize(cross(v2 - v1, v3 - v1));
-        output1.normal = normal;
-        output2.normal = normal;
-        output3.normal = normal;
-
-        output1.color = gVoxelData[input[0].xyz].xyz;
-        output2.color = gVoxelData[input[0].xyz].xyz;
-        output3.color = gVoxelData[input[0].xyz].xyz;
+        output.normal = normal;
+        output.color = (float3) voxelColor / 255.0f;
         
-        output.Append(output1);
-        output.Append(output2);
-        output.Append(output3);
+        output.position = mul(float4(v1, 1.0f), camera.ViewProj);
+        triOutput.Append(output);
+        
+        output.position = mul(float4(v2, 1.0f), camera.ViewProj);
+        triOutput.Append(output);
+        
+        output.position = mul(float4(v3, 1.0f), camera.ViewProj);
+        triOutput.Append(output);
+
     }
 }

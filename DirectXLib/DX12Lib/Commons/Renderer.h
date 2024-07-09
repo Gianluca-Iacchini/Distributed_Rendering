@@ -38,9 +38,8 @@ namespace Graphics
 			ObjectCBV = 2,
 			LightSRV = 3,
 			MaterialSRV = 4,
-			CommonTextureSRV = 5,
-			MaterialTextureSRV = 6,
-			VoxelTextureUAV = 7,
+			MaterialTextureSRV = 5,
+			VoxelTextureUAV = 6,
 			Count
 		};
 
@@ -57,7 +56,6 @@ namespace Graphics
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::Shader>> s_shaders;
 
 		extern std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer;
-		extern std::unique_ptr<DX12Lib::ColorBuffer> s_voxel3DTexture;
 
 		extern int s_clientWidth;
 		extern int s_clientHeight;
@@ -69,7 +67,11 @@ namespace Graphics
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
-		void BindVoxelTexture(DX12Lib::CommandContext& context, UINT rootParamSlot);
+
+		void SetVoxelTexture(DX12Lib::ColorBuffer& voxelTexture);
+		DX12Lib::DescriptorHandle& GetVoxelTextureUAV(DX12Lib::CommandContext& context);
+		DX12Lib::DescriptorHandle& GetVoxelTextureSRV(DX12Lib::CommandContext& context);
+
 		std::vector<DX12Lib::ModelRenderer*> GetRenderers();
 
 		void SetUpRenderFrame(DX12Lib::GraphicsContext& context);

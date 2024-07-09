@@ -38,6 +38,9 @@ namespace CVGI
 	private:
 		ConstantBufferVoxelData m_voxelData;
 		DirectX::XMFLOAT3 m_voxelTexSize = DirectX::XMFLOAT3(128.0f, 128.0f, 128.0f);
+
+		// Half sizes of the scene
+		DirectX::XMFLOAT3 m_sceneExtents = DirectX::XMFLOAT3(16.0f, 16.0f, 16.0f);
 	};
 
 }

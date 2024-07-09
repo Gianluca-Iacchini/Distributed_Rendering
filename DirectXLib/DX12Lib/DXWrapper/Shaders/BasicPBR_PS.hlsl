@@ -10,10 +10,12 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 Texture2D gShadowMap : register(t0);
-Texture2D gBufferaWorld : register(t1);
-Texture2D gBufferNormal : register(t2);
-Texture2D gBufferDiffuse : register(t3);
-Texture2D gBufferMetallicRoughnessAO : register(t4);
+Texture2D gVoxelSrv : register(t1);
+
+Texture2D gBufferaWorld : register(t2);
+Texture2D gBufferNormal : register(t3);
+Texture2D gBufferDiffuse : register(t4);
+Texture2D gBufferMetallicRoughnessAO : register(t5);
 
 StructuredBuffer<Light> gLights : register(t0, space1);
 StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);

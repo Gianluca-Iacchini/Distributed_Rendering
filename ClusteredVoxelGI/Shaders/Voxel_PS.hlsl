@@ -6,7 +6,11 @@ Texture2D gDiffuseTex : register(t2);
 Texture2D gMetallicRoughness : register(t3);
 Texture2D gOcclusion : register(t4);
 
-RWTexture3D<float4> gVoxelGrid : register(u0);
+RWTexture3D<uint4> gVoxelGrid : register(u0);
+
+RWStructuredBuffer<VoxelData> gVoxelData : register(u0, space1);
+
+RWStructuredBuffer<uint> gVoxelCounter : register(u1, space1);
 
 cbuffer cbVoxelCommons : register(b0)
 {
@@ -43,11 +47,18 @@ float4 PS(VertexOutVoxel pIn) : SV_TARGET
         voxelTexCoord.z = min(voxelCommons.gridDimension.z * pIn.PosH.z, (voxelCommons.gridDimension.z - 1));
         retColor = float4(0.0f, 0.0f, 1.0f, 1.0f);
     }
-
-
-    gVoxelGrid[voxelTexCoord] = max(gVoxelGrid[voxelTexCoord], diffuse);
-   
     
+    uint voxelLinearCoord = 
+    voxelTexCoord.x + 
+    voxelTexCoord.y * voxelCommons.gridDimension.x +
+    voxelTexCoord.z * voxelCommons.gridDimension.x * voxelCommons.gridDimension.y;
+    
+    uint4 uintDiffuse = (uint4) (diffuse * 255.0f);
+    uintDiffuse = min(uintDiffuse, uint4(255u, 255u, 255u, 0));
+
+    gVoxelGrid[voxelTexCoord] = uintDiffuse;
+   
+
     
     return retColor;
 

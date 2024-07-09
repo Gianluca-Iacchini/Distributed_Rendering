@@ -21,6 +21,8 @@ namespace DX12Lib {
 
 		D3D12_RESOURCE_STATES GetCurrentState() const { return m_currentState; }
 
+		D3D12_GPU_VIRTUAL_ADDRESS GetGpuVirtualAddress() const { return m_gpuVirtualAddress; }
+
 	protected:
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_resource;

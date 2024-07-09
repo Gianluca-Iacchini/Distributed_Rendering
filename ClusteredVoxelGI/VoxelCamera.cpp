@@ -6,10 +6,8 @@ using namespace CVGI;
 
 void CVGI::VoxelCamera::Init(DX12Lib::CommandContext& context)
 {
-	float baseSize = 128.0f;
-	DirectX::XMFLOAT3 scaleFactor = {m_voxelTexSize.x / baseSize, m_voxelTexSize.y / baseSize, m_voxelTexSize.z / baseSize};
-
-	this->SetOrthogonal({64, 64, 0.1f, 64});
+	// SetOrthogonal takes the bounding box width, height, near value and far values, which equals to 2 * half the size of the scene
+	this->SetOrthogonal({m_sceneExtents.x * 2.f, m_sceneExtents.y * 2.f, 0.1f, m_sceneExtents.z * 2.f});
 }
 
 DirectX::GraphicsResource VoxelCamera::GetCameraBuffer()
@@ -45,36 +43,25 @@ DirectX::GraphicsResource VoxelCamera::GetCameraBuffer()
 
 DirectX::XMMATRIX VoxelCamera::BuildViewMatrix(DirectX::XMFLOAT3 axisDirection)
 {
-	// Define the scene bounds (example values)
-	DirectX::XMFLOAT3 sceneMin = DirectX::XMFLOAT3(-16, -16, -16);
-	DirectX::XMFLOAT3 sceneMax = DirectX::XMFLOAT3(16.0f, 16.0f, 16.0f);
-
-	float d = 32.0f;
-
-	// Calculate the scene center
-	DirectX::XMFLOAT3 sceneCenter = DirectX::XMFLOAT3(
-		(sceneMin.x + sceneMax.x) * 0.5f,
-		(sceneMin.y + sceneMax.y) * 0.5f,
-		(sceneMin.z + sceneMax.z) * 0.5f
-	);
-
+	// In our case the scene is centered at the origin, so the camera is offset at a distance equal to the scene's half size
+	DirectX::XMFLOAT3 cameraDistance = m_sceneExtents;
 
 	DirectX::XMFLOAT4X4 view;
 
 	DirectX::XMVECTOR upVector = DirectX::XMVectorSet(0, 1, 0, 0);
 
-	DirectX::XMVECTOR eyePos = DirectX::XMVectorSet(sceneCenter.x - d, sceneCenter.y, sceneCenter.z, 1);
+	DirectX::XMVECTOR eyePos = DirectX::XMVectorSet(-cameraDistance.x, 0, 0, 1);
 
 
 	if (axisDirection.y == 1 || axisDirection.y == -1)
 	{
 		// If we are looking in the y direction we need to change the up vector
-		eyePos = DirectX::XMVectorSet(sceneCenter.x, sceneCenter.y - d, sceneCenter.z, 1);
+		eyePos = DirectX::XMVectorSet(0, -cameraDistance.y, 0, 1);
 		upVector = DirectX::XMVectorSet(0, 0, 1, 0);
 	}
 	else if (axisDirection.z == 1 || axisDirection.z == -1)
 	{
-		eyePos = DirectX::XMVectorSet(sceneCenter.x, sceneCenter.y, sceneCenter.z - d, 1);
+		eyePos = DirectX::XMVectorSet(0, 0, -cameraDistance.z, 1);
 	}
 
 	DirectX::XMVECTOR lookAt = DirectX::XMLoadFloat3(&axisDirection);

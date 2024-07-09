@@ -22,6 +22,8 @@ enum class VoxelizeSceneRootParameterSlot
 	MaterialSRV,
 	MaterialTextureSRV,
 	VoxelTextureUAV,
+	VoxelDataUAV,
+	//VoxelDataCounterUAV,
 	Count
 };
 
@@ -48,4 +50,15 @@ __declspec(align(16)) struct ConstantBufferVoxelCommons
 	DirectX::XMFLOAT3 invVoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 	float pad1 = 0.0f;
 
+};
+
+__declspec(align(16)) struct VoxelUAVData
+{
+	DirectX::XMFLOAT3 Position;
+	unsigned int NumberOfFragments;
+
+	DirectX::XMFLOAT4 Color;
+	
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMUINT3 VoxelCoordLinear;
 };

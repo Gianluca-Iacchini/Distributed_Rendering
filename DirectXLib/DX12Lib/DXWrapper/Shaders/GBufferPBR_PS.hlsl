@@ -14,11 +14,11 @@ cbuffer cbPerObject : register(b2)
     Object object;
 }
 
-Texture2D gEmissiveTex : register(t1);
-Texture2D gNormalMap : register(t2);
-Texture2D gDiffuseTex : register(t3);
-Texture2D gMetallicRoughness : register(t4);
-Texture2D gOcclusion : register(t5);
+Texture2D gEmissiveTex : register(t0);
+Texture2D gNormalMap : register(t1);
+Texture2D gDiffuseTex : register(t2);
+Texture2D gMetallicRoughness : register(t3);
+Texture2D gOcclusion : register(t4);
 
 PSOut PS(VertexOutPosNormalTex pIn)
 {

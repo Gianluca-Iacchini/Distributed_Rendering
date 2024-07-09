@@ -5,6 +5,8 @@
 #include "DX12Lib/DXWrapper/RootSignature.h"
 #include "DX12Lib/DXWrapper/PipelineState.h"
 #include "CVGIDataTypes.h"
+#include "DX12Lib/DXWrapper/GPUBuffer.h"
+#include "DX12Lib/DXWrapper/DescriptorHeap.h"
 
 namespace CVGI
 {
@@ -46,10 +48,14 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildVoxelComputePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
 
 	public:
-		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(256.0f, 256.0f, 256.0f);
+		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(196.0f, 196.0f, 196.0f);
 
 	private:
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
+		DX12Lib::ColorBuffer m_voxelTexture;
+		DX12Lib::StructuredBuffer m_voxelDataBuffer;
+
+		DX12Lib::DescriptorHandle m_voxelDataUAVStart;
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
 

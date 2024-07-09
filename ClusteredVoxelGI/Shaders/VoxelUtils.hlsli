@@ -42,10 +42,15 @@ struct VoxelCamera
     float pad1;
 };
 
-//Texture2D gEmissiveTex : register(t0);
-//Texture2D gNormalMap : register(t1);
-//Texture2D gDiffuseTex : register(t2);
-//Texture2D gMetallicRoughness : register(t3);
-//Texture2D gOcclusion : register(t4);
+struct VoxelData
+{
+    float3 position;
+    uint numberOfFragments;
 
-//RWTexture3D<float4> gVoxelGrid : register(u0);
+    uint4 color;
+	
+    float3 normal;
+    uint3 voxelCoord;
+};
+
+

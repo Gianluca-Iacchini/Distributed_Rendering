@@ -10,14 +10,14 @@ cbuffer cbPerObject : register(b2)
     Object object;
 }
 
-Texture2D gEmissiveTex : register(t1);
-Texture2D gNormalMap : register(t2);
-Texture2D gDiffuseTex : register(t3);
-Texture2D gSpecularTex : register(t4);
-Texture2D gAmbientTex : register(t5);
-Texture2D gShininessTex : register(t6);
-Texture2D gOpacity : register(t7);
-Texture2D gBumpMap : register(t8);
+Texture2D gEmissiveTex : register(t0);
+Texture2D gNormalMap : register(t1);
+Texture2D gDiffuseTex : register(t2);
+Texture2D gSpecularTex : register(t3);
+Texture2D gAmbientTex : register(t4);
+Texture2D gShininessTex : register(t5);
+Texture2D gOpacity : register(t6);
+Texture2D gBumpMap : register(t7);
 
 StructuredBuffer<Light> gLights : register(t0, space1);
 StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
