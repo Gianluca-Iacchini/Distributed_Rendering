@@ -32,6 +32,8 @@ namespace DX12Lib {
 		D3D12_COMMAND_LIST_TYPE GetType() const { return m_type; }
 
 		static CommandContext& Begin();
+		void CopyBuffer(Resource& dest, Resource& src);
+		void CopyBufferRegion(Resource& dest, size_t destOffset, Resource& src, size_t srcOffset, size_t numBytes);
 		void SetPipelineState(PipelineState* pipelineState);
 		void TransitionResource(Resource& res, D3D12_RESOURCE_STATES newState, bool transitionNow = false);
 		void TransitionResource(ID3D12Resource* res, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES newState, bool transitionNow = false);

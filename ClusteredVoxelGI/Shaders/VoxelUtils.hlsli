@@ -1,5 +1,7 @@
 #include "..\..\DirectXLib\DX12Lib\DXWrapper\Shaders\Common.hlsli"
 
+static const unsigned int UINT_MAX = 0xffffffff;
+
 struct VertexOutVoxel
 {
     float4 PosH : SV_POSITION;
@@ -11,14 +13,14 @@ struct VertexOutVoxel
 
 struct VoxelCommons
 {
-    float3 gridDimension;
+    uint3 gridDimension;
     float totalTimew;
     
     float3 cellSize;
     float deltaTime;
     
     float3 inverseGridDimension;
-    float pad0;
+    uint storeData;
     
     float3 inverseCellSize;
     float pad1;
@@ -42,15 +44,15 @@ struct VoxelCamera
     float pad1;
 };
 
-struct VoxelData
+struct FragmentData
 {
     float3 position;
-    uint numberOfFragments;
+    float pad0;
 
-    uint4 color;
+    float4 color;
 	
     float3 normal;
-    uint3 voxelCoord;
+    uint voxelLinearCoord;
 };
 
 

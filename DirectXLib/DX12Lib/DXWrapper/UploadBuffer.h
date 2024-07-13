@@ -1,37 +1,26 @@
 #pragma once
 
-#include "d3dx12.h"
-#include <wrl/client.h>
+#include "DX12Lib/DXWrapper/Resource.h"
 
-namespace DX12Lib {
+namespace DX12Lib
+{
 
-	class Device;
+    class UploadBuffer : public DX12Lib::Resource
+    {
+    public:
+        virtual ~UploadBuffer() = default;
 
-	template<typename T>
-	class UploadBuffer
-	{
-	public:
-		UploadBuffer(Device& device, UINT elementCount, bool isConstantBuffer);
+        void Create(size_t BufferSize);
 
-		UploadBuffer(const UploadBuffer& rhs) = delete;
-		UploadBuffer& operator=(const UploadBuffer& rhs) = delete;
+        void* Map(void);
+        void Unmap(size_t begin = 0, size_t end = -1);
 
-		void Recreate() override;
+        size_t GetBufferSize() const { return m_BufferSize; }
 
-		~UploadBuffer();
+    protected:
 
-		void CopyData(int elementIndex, const T& data);
-
-
-	private:
-		Device& m_device;
-		BYTE* m_mappedData = nullptr;
-		UINT m_elementByteSize = 0;
-		UINT m_elementCount = 0;
-		bool m_isConstantBuffer = false;
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_resource;
-	};
-
+        size_t m_BufferSize;
+    };
 }
 
 

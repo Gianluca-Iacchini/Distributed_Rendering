@@ -5,11 +5,13 @@
 #include <d3d12.h>
 #include <string>
 #include "GameTime.h"
+#include "DX12Lib/Commons/CommandContext.h"
 
 namespace DX12Lib {
 	class DX12Window;
 	class Scene;
-	class CommandContext;
+
+
 
 	using Microsoft::WRL::ComPtr;
 	class D3DApp

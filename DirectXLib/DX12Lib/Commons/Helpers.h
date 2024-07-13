@@ -7,6 +7,7 @@
 #include <Windows.h>
 #include <d3d12.h>
 #include <assert.h>
+#include "DX12Lib/DXWrapper/Resource.h"
 
 
 // From Microsoft mini engine

@@ -45,6 +45,22 @@ CommandContext& DX12Lib::CommandContext::Begin()
 	return *context;
 }
 
+void DX12Lib::CommandContext::CopyBuffer(Resource& dest, Resource& src)
+{
+	TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionResource(src, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	FlushResourceBarriers();
+	m_commandList->Get()->CopyResource(dest.Get(), src.Get());
+}
+
+void DX12Lib::CommandContext::CopyBufferRegion(Resource& dest, size_t destOffset, Resource& src, size_t srcOffset, size_t numBytes)
+{
+	TransitionResource(dest, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionResource(src, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	FlushResourceBarriers();
+	m_commandList->Get()->CopyBufferRegion(dest.Get(), destOffset, src.Get(), srcOffset, numBytes);
+}
+
 void DX12Lib::CommandContext::SetPipelineState(PipelineState* pipelineState)
 {
 	if (m_currentPipelineState != pipelineState)
