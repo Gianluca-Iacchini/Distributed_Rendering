@@ -2,6 +2,7 @@
 
 #include <wrl.h>
 #include <d3d12.h>
+#include <stdint.h>
 
 namespace DX12Lib {
 

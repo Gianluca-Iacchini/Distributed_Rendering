@@ -2,18 +2,14 @@
 
 #include "DirectXMath.h"
 #include "basetsd.h"
+#include "directx/d3dx12.h"
 
 namespace CVGI {
 
-	enum class VoxelizeSceneComputeRootParameterSlot
+	enum class CompactBufferRootSignature
 	{
-		VoxelCommonCBV = 0,
-		ObjectCBV = 1,
-		VerticesSRV = 2,
-		IndicesSRV = 3,
-		MaterialSRV,
-		MaterialTextureSRV,
-		VoxelTextureUAV,
+		PrefixSumCBV = 0,
+		BufferUAVTable = 1,
 		Count
 	};
 
@@ -51,6 +47,27 @@ namespace CVGI {
 		DirectX::XMFLOAT3 invVoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 		float pad1 = 0.0f;
 
+	};
+
+	__declspec(align(16)) struct ConstantBufferCompactBuffer
+	{
+		UINT32 CurrentPhase = 0;
+		UINT32 CurrentStep = 0;
+		UINT32 CompactBufferSize = 0;
+		UINT32 ElementsPerThread = 128;
+
+		UINT32 NumElementsSweepDown = 0;
+		UINT32 NumElementsBase;
+		UINT32 NumElementsLevel0;
+		UINT32 NumElementsLevel1;
+
+		UINT32 NumElementsLevel2;
+		UINT32 NumElementsLevel3;
+		float pad0 = 0.0f;
+		float pad1 = 0.0f;
+
+		DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
+		float pad2 = 0.0f;
 	};
 
 	__declspec(align(16)) struct FragmentData
@@ -94,17 +111,5 @@ namespace CVGI {
 		static const D3D12_INPUT_ELEMENT_DESC InputElements[InputElementCount];
 	};
 
-
-	const D3D12_INPUT_ELEMENT_DESC VertexSingleUINT::InputElements[] =
-	{
-		{ "SV_Position", 0, DXGI_FORMAT_R32_UINT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-	};
-
-	static_assert(sizeof(VertexSingleUINT) == 4, "Vertex struct/layout mismatch");
-
-	const D3D12_INPUT_LAYOUT_DESC VertexSingleUINT::InputLayout =
-	{
-		VertexSingleUINT::InputElements,
-		VertexSingleUINT::InputElementCount
-	};
+	
 }

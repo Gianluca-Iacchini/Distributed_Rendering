@@ -25,26 +25,16 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto voxelDisplayRootSig = BuildVoxelDisplayRootSignature();
 	auto voxelDisplayPSO = BuildVoxelDisplayPso(voxelDisplayRootSig);
 
-	//Renderer::s_PSOs[voxelComputePSO->Name] = voxelComputePSO;
+	auto compactBufferRootSig = m_voxelBufferManager.BuildCompactBufferRootSignature();
+	auto compactBufferPSO = m_voxelBufferManager.BuildCompactBufferPso(compactBufferRootSig);
+
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
+	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
+
+	m_voxelBufferManager.SetupFirstVoxelPassBuffers(VoxelTextureDimension);
 
 
-	m_voxelDataUAVStart = Renderer::s_textureHeap->Alloc(7);
-
-	UINT32 VoxelOccupiedSize = (VoxelTextureDimension.x * VoxelTextureDimension.y * VoxelTextureDimension.z + 31) / 32;
-
-	m_fragmentCounterBuffer.Create(1, sizeof(UINT32));
-	m_voxelCounterBuffer.Create(1, sizeof(UINT32));
-	m_voxelOccupiedBuffer.Create(VoxelOccupiedSize, sizeof(UINT32));
-	m_voxelIndexBuffer.Create(VoxelTextureDimension.x * VoxelTextureDimension.y * VoxelTextureDimension.z, sizeof(UINT32));
-
-	m_vertexBuffer.Create(VoxelTextureDimension.x * VoxelTextureDimension.y * VoxelTextureDimension.z, sizeof(UINT32));
-
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 0, m_fragmentCounterBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 1, m_voxelCounterBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 2, m_voxelOccupiedBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 3, m_voxelIndexBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
 	DirectX::XMFLOAT3 voxelTexDimensions = VoxelTextureDimension;
@@ -72,16 +62,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_voxelScissorRect = { 0, 0, (LONG)voxelTexDimensions.x, (LONG)voxelTexDimensions.y};
 
-	m_uavBuffers = {
-		&m_fragmentCounterBuffer,
-		&m_voxelCounterBuffer,
-		&m_voxelOccupiedBuffer,
-		&m_voxelIndexBuffer,
-		&m_fragmentDataBuffer,
-		&m_nextIndexBuffer,
-		&m_hashedBuffer
-	};
-
 
 	D3DApp::Initialize(commandContext);
 
@@ -97,64 +77,50 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 
 
-	ReadBackBuffer fragmentCounterReadBackBuffer;
+
 	ReadBackBuffer voxelCounterReadBackBuffer;
-	fragmentCounterReadBackBuffer.Create(1, sizeof(UINT32));
 	voxelCounterReadBackBuffer.Create(1, sizeof(UINT32));
 
-	commandContext.CopyBuffer(fragmentCounterReadBackBuffer, m_fragmentCounterBuffer);
 
+	UINT32* fragmentCount = m_voxelBufferManager.ReadFromBuffer<UINT32*>(commandContext, BufferType::FragmentCounter);
 
-	commandContext.Flush(true);
-
-	void* fragCountData = fragmentCounterReadBackBuffer.ReadBack(m_fragmentCounterBuffer);
-
-
-	UINT32* fragmentCounter = reinterpret_cast<UINT32*>(fragCountData);
-
-	CreateSecondVoxelPassBuffers(*fragmentCounter);
-
-	// We use m_voxelCounterBuffer as a 0 initialized buffer to clear the framgment counter buffer so that we 
-	// Don't need to create another buffer or use a compute shader to clear the buffer
-	commandContext.CopyBuffer(m_fragmentCounterBuffer, m_voxelCounterBuffer);
+	m_voxelBufferManager.SetupSecondVoxelPassBuffers(commandContext, *fragmentCount);
 
 	m_cbVoxelCommons.StoreData = 1;
-
-	UploadBuffer voxelIndexUploader;
-	voxelIndexUploader.Create(VoxelTextureDimension.x * VoxelTextureDimension.y * VoxelTextureDimension.z * sizeof(UINT32));
-
-	void* mappedData = voxelIndexUploader.Map();
-	
-	for (UINT32 i = 0; i < VoxelTextureDimension.x * VoxelTextureDimension.y * VoxelTextureDimension.z; i++)
-	{
-		((UINT32*)mappedData)[i] = UINT32_MAX;
-	}
-
-	// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
-	commandContext.TransitionResource(m_voxelIndexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
-	commandContext.m_commandList->Get()->CopyResource(m_voxelIndexBuffer.Get(), voxelIndexUploader.Get());
 
 	if (voxelCamera != nullptr)
 	{
 		VoxelPass(commandContext, voxelCamera);
 	}
 
-	commandContext.CopyBuffer(m_vertexBuffer, m_voxelIndexBuffer);
-	commandContext.CopyBuffer(voxelCounterReadBackBuffer, m_voxelCounterBuffer);
-	
+	UINT32* voxelCount = m_voxelBufferManager.ReadFromBuffer<UINT32*>(commandContext, BufferType::VoxelCounter);
+
+	DXLIB_CORE_INFO("Voxel Count: {0}", *voxelCount);
+
+	m_voxelBufferManager.SetupCompactBuffers();
+
+	m_voxelBufferManager.CompactBuffers();
 
 
-	commandContext.Flush(true);
+	GPUBuffer* voxelIndexBufferCompact = m_voxelBufferManager.GetBuffer(BufferType::CompactedVoxelIndex);
 
-	voxelIndexUploader.Unmap();
+	m_numberOfVoxels = voxelIndexBufferCompact->GetElementCount();
 
-	void* voxelCountData = voxelCounterReadBackBuffer.ReadBack(m_voxelCounterBuffer);
-	UINT32* voxelCounter = reinterpret_cast<UINT32*>(voxelCountData);
+	m_vertexBuffer.Create(m_numberOfVoxels, sizeof(UINT32));
 
-
-
+	commandContext.CopyBuffer(m_vertexBuffer, *voxelIndexBufferCompact);
 
 	Renderer::PostDrawCleanup(commandContext);
+}
+
+void CVGI::ClusteredVoxelGIApp::Update(DX12Lib::GraphicsContext& commandContext)
+{
+	D3DApp::Update(commandContext);
+
+	m_cbVoxelCommons.totalTime = GameTime::GetTotalTime();
+	m_cbVoxelCommons.deltaTime = GameTime::GetDeltaTime();
+
+	m_cbVoxelCommonsResource = Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons);
 }
 
 void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
@@ -174,16 +140,16 @@ void ClusteredVoxelGIApp::VoxelPass(DX12Lib::GraphicsContext& context, VoxelCame
 
 	context.TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	
-	context.TransitionResource(m_fragmentCounterBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	context.TransitionResource(m_voxelCounterBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	context.TransitionResource(m_voxelOccupiedBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	context.TransitionResource(m_voxelIndexBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::FragmentCounter), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::VoxelCounter), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::VoxelOccupied), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::VoxelIndex), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	if (m_cbVoxelCommons.StoreData > 0)
 	{
-		context.TransitionResource(m_fragmentDataBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		context.TransitionResource(m_nextIndexBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		context.TransitionResource(m_hashedBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::FragmentData), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::NextIndex), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		context.TransitionResource(*m_voxelBufferManager.GetBuffer(BufferType::HashedBuffer), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 
 	context.FlushResourceBarriers();
@@ -216,7 +182,7 @@ void ClusteredVoxelGIApp::VoxelPass(DX12Lib::GraphicsContext& context, VoxelCame
 	);
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV, m_voxelDataUAVStart);
+		(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV, m_voxelBufferManager.GetUAVDescriptorStart());
 
 
 	auto modelRenderers = Renderer::GetRenderers();
@@ -238,38 +204,13 @@ void ClusteredVoxelGIApp::VoxelPass(DX12Lib::GraphicsContext& context, VoxelCame
 	PIXEndEvent(context.m_commandList->Get());
 }
 
-void CVGI::ClusteredVoxelGIApp::VoxelComputePass()
-{
-	ComputeContext& context = ComputeContext::Begin();
-
-	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"VoxelComputePass");
-
-	context.SetPipelineState(Renderer::s_PSOs[L"PSO_VOXELIZE_SCENE_COMPUTE"].get());
-	
-	context.Dispatch3D(VoxelTextureDimension.x, VoxelTextureDimension.y, VoxelTextureDimension.z, 8, 8, 8);
-
-	PIXEndEvent(context.m_commandList->Get());
-
-	context.Finish();
-}
-
-void CVGI::ClusteredVoxelGIApp::CreateSecondVoxelPassBuffers(UINT fragmentCount)
-{
-
-	m_fragmentDataBuffer.Create(fragmentCount, sizeof(FragmentData));
-	m_nextIndexBuffer.Create(fragmentCount, sizeof(UINT32));
-	m_hashedBuffer.Create(fragmentCount, sizeof(UINT32));
-	
 
 
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 4, m_fragmentDataBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 5, m_nextIndexBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, m_voxelDataUAVStart + Renderer::s_textureHeap->GetDescriptorSize() * 6, m_hashedBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-}
 
 void CVGI::ClusteredVoxelGIApp::VoxelDisplayPass(DX12Lib::GraphicsContext& context)
 {
+	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 128), L"Voxel Display Pass");
+
 	auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
 
 	for (auto* buffer : m_uavBuffers)
@@ -290,20 +231,22 @@ void CVGI::ClusteredVoxelGIApp::VoxelDisplayPass(DX12Lib::GraphicsContext& conte
 	context.SetPipelineState(Renderer::s_PSOs[L"PSO_DISPLAY_VOXEL"].get());
 
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV,
-				Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
+				m_cbVoxelCommonsResource.GpuAddress());
 
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)DisplayVoxelRootParameterSlot::CameraCBV,
 		m_Scene->GetMainCamera()->GetCameraBuffer().GpuAddress());
 
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV, m_voxelDataUAVStart);
+		(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV, m_voxelBufferManager.GetUAVDescriptorStart());
 	
 
 	context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBuffer.VertexBufferView());
 	context.m_commandList->Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-	context.m_commandList->Get()->DrawInstanced((UINT)VoxelTextureDimension.x * (UINT)VoxelTextureDimension.y * (UINT)VoxelTextureDimension.z, 1, 0, 0);
+	context.m_commandList->Get()->DrawInstanced(m_numberOfVoxels, 1, 0, 0);
+	
+	PIXEndEvent(context.m_commandList->Get());
 }
 
 
@@ -340,24 +283,6 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusteredVoxelGIApp::BuildVoxelDis
 	return displayVoxelRootSignature;
 }
 
-std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusteredVoxelGIApp::BuildVoxelComputeRootSignature()
-{
-	SamplerDesc defaultSamplerDesc;
-
-	std::shared_ptr<DX12Lib::RootSignature> voxelComputeRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)VoxelizeSceneComputeRootParameterSlot::Count, 1);
-	voxelComputeRootSignature->InitStaticSampler(0, defaultSamplerDesc);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::VoxelCommonCBV].InitAsConstantBuffer(0);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::ObjectCBV].InitAsConstantBuffer(1);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::VerticesSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::IndicesSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::MaterialSRV].InitAsBufferSRV(2, D3D12_SHADER_VISIBILITY_ALL, 1);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
-	(*voxelComputeRootSignature)[(UINT)VoxelizeSceneComputeRootParameterSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
-
-	voxelComputeRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
-
-	return voxelComputeRootSignature;
-}
 
 std::shared_ptr<DX12Lib::GraphicsPipelineState> ClusteredVoxelGIApp::BuildVoxelizeScenePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig)
 {
@@ -434,22 +359,7 @@ std::shared_ptr<DX12Lib::GraphicsPipelineState> CVGI::ClusteredVoxelGIApp::Build
 	return displayVoxelPSO;
 }
 
-std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::ClusteredVoxelGIApp::BuildVoxelComputePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig)
-{
-	std::wstring shaderPath = Utils::ToWstring(SOURCE_DIR) + L"\\Shaders";
-	std::wstring computeShaderPath = shaderPath + L"\\VoxelizeScene_CS.hlsl";
 
-	std::shared_ptr<Shader> computeShader = std::make_shared<Shader>(computeShaderPath, "CS", "cs_5_1");
-	computeShader->Compile();
-
-	std::shared_ptr<ComputePipelineState> voxelComputePSO = std::make_shared<ComputePipelineState>();
-	voxelComputePSO->SetRootSignature(voxelRootSig);
-	voxelComputePSO->SetComputeShader(computeShader);
-	voxelComputePSO->Finalize();
-	voxelComputePSO->Name = L"PSO_VOXELIZE_SCENE_COMPUTE";
-
-	return voxelComputePSO;
-}
 	
 
 

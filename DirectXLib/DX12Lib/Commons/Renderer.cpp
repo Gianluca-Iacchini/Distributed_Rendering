@@ -225,7 +225,7 @@ namespace Graphics::Renderer
 		return m_renderers;
 	}
 
-	void SetUpRenderFrame(DX12Lib::GraphicsContext& context)
+	void SetUpRenderFrame(DX12Lib::CommandContext& context)
 	{
 		context.SetDescriptorHeap(s_textureHeap.get());
 

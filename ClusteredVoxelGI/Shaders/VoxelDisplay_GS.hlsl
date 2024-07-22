@@ -102,23 +102,23 @@ void GS(
     */
     uint fragmentIndex = input[0].VoxelIndex;
     
-    if (fragmentIndex == UINT_MAX)
-    {
-        return;
-    }
     
-    float4 avgColor = float4(0, 0, 0, 0);
     uint voxelLinearCoord = gFragmentDataBuffer[fragmentIndex].voxelLinearCoord;
-    uint fragmentCount = 0;
+    float4 avgColor = gFragmentDataBuffer[fragmentIndex].color;
+   
     
-    while (fragmentIndex != UINT_MAX)
-    {
-        avgColor += gFragmentDataBuffer[fragmentIndex].color;
-        fragmentCount += 1;
-        fragmentIndex = gNextIndexBuffer[fragmentIndex];
-    }
+    //float4 avgColor = float4(0, 0, 0, 0);
+    //uint voxelLinearCoord = gFragmentDataBuffer[fragmentIndex].voxelLinearCoord;
+    //uint fragmentCount = 0;
+    
+    //while (fragmentIndex != UINT_MAX)
+    //{
+    //    avgColor += gFragmentDataBuffer[fragmentIndex].color;
+    //    fragmentCount += 1;
+    //    fragmentIndex = gNextIndexBuffer[fragmentIndex];
+    //}
      
-    avgColor /= fragmentCount;
+    //avgColor /= fragmentCount;
     
     float scale = 0.5f; // Scale of the cube
     

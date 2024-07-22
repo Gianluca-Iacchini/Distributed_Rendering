@@ -74,7 +74,7 @@ namespace Graphics
 
 		std::vector<DX12Lib::ModelRenderer*> GetRenderers();
 
-		void SetUpRenderFrame(DX12Lib::GraphicsContext& context);
+		void SetUpRenderFrame(DX12Lib::CommandContext& context);
 		void ShadowPass(DX12Lib::GraphicsContext& context);
 		void MainRenderPass(DX12Lib::GraphicsContext& context);
 		void DeferredPass(DX12Lib::GraphicsContext& context);
