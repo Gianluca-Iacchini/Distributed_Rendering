@@ -38,16 +38,17 @@ bool isVoxelOccupied(uint value, uint bit)
 
 void SetVoxelOccupied(uint indexHashed)
 {
-    float integerPart;
-    float indexDecimalFloat = float(indexHashed) / 32.0;
-    float fractional = modf(indexDecimalFloat, integerPart);
-    uint index = uint(integerPart);
-    uint bit = uint(fractional * 32.0);
+    // Calculate index and bit position using integer arithmetic
+    uint index = indexHashed / 32;
+    uint bit = indexHashed % 32;
     uint value = (1 << bit);
     uint originalValue = 0;
+
+    // Atomically set the bit in the buffer
     InterlockedOr(gVoxelOccupiedBuffer[index], value, originalValue);
 
-    if (isVoxelOccupied(originalValue, bit) == false)
+    // Check if the bit was previously unset and atomically increment the counter if it was
+    if (!isVoxelOccupied(originalValue, bit))
     {
         InterlockedAdd(gOccupiedVoxelCounter[0], 1);
     }

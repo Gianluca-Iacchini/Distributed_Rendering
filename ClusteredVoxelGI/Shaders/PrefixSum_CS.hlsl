@@ -43,11 +43,11 @@ RWStructuredBuffer<uint> gVoxelIndicesCompacted : register(u10);
 RWStructuredBuffer<uint> gVoxelHashesCompacted : register(u11);
 
 
-[numthreads(8, 8, 1)]
+[numthreads(128, 1, 1)]
 void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
 {
     
-    uint index = GroupID.x * 64 + GroupID.y * 64 + GroupThreadIndex;
+    uint index = GroupID.x * 128 + GroupThreadIndex;
 
     if (gCurrentPhase == 0)
     {
@@ -61,7 +61,7 @@ void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
 
         uint maxIndex = arrayMaxIndex[gCurrentStep];
 
-        if (index >= maxIndex && (gVoxelIndicesCompacted[0] + 1 > 1)  && (gVoxelHashesCompacted[0] + 1 > 1))
+        if (index >= maxIndex)
         {
             return;
         }
@@ -81,6 +81,8 @@ void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
         arrayFinalIndex[2] = initialIndex + min(gElementsPerThread, gNumElementsLevel0);
         arrayFinalIndex[3] = initialIndex + min(gElementsPerThread, gNumElementsLevel1);
         arrayFinalIndex[4] = initialIndex + min(gElementsPerThread, gNumElementsLevel2);
+        
+        const uint finalIndex = arrayFinalIndex[gCurrentStep];
 
         uint arrayThreadWriteIndex[5];
         arrayThreadWriteIndex[0] = index;
@@ -88,8 +90,7 @@ void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
         arrayThreadWriteIndex[2] = index + gNumElementsBase + gNumElementsLevel0;
         arrayThreadWriteIndex[3] = index + gNumElementsBase + gNumElementsLevel0 + gNumElementsLevel1;
         arrayThreadWriteIndex[4] = index + gNumElementsBase + gNumElementsLevel0 + gNumElementsLevel1 + gNumElementsLevel2;
-        
-        const uint finalIndex = arrayFinalIndex[gCurrentStep];
+
         const uint threadWriteIndex = arrayThreadWriteIndex[gCurrentStep];
         uint nonNullCounter = 0;
     
@@ -124,7 +125,7 @@ void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
 
         uint maxIndex = arrayMaxIndex[gCurrentStep];
 
-        if (index >= maxIndex && index <= gIndirectionIndexBuffer[0] && index <= gIndirectionRankBuffer[0])
+        if (index >= maxIndex)
         {
             return;
         }

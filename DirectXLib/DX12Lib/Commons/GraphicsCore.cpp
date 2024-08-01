@@ -4,7 +4,7 @@
 #include "DX12Lib/DXWrapper/Adapter.h"
 #include "dxgidebug.h"
 
-#define DRED 1
+#define DRED 0
 
 
 using namespace Microsoft::WRL;
@@ -98,7 +98,7 @@ namespace Graphics
 		}
 		#endif
 
-		#if defined(DRED)
+		#if DRED
 		{
 			ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&s_dredSettings)));
 			s_dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
@@ -166,7 +166,7 @@ namespace Graphics
 
 	void DeviceRemovedHandler()
 	{
-#if defined(DRED)
+#if DRED
 		Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedData1> pDred;
 		ThrowIfFailed(s_device->GetComPtr()->QueryInterface(IID_PPV_ARGS(&pDred)));
 

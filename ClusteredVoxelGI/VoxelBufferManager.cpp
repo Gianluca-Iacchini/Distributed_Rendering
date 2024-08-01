@@ -254,6 +254,29 @@ void CVGI::VoxelBufferManager::CompactBuffers()
 	context.Finish();
 }
 
+void CVGI::VoxelBufferManager::InitializeClusters()
+{
+	m_numberOfClusters = MathHelper::Min(10000u, (UINT32)(m_voxelCount * 0.1f));
+
+	m_superPixelArea = cbrtf(m_voxelLinearSize / m_numberOfClusters);
+	float denominator = 2.0f * m_superPixelArea;
+
+	TileGridDimension = { (UINT)ceilf(m_voxelTexDimension.x / denominator), (UINT)ceilf(m_voxelTexDimension.y / denominator), (UINT)ceilf(m_voxelTexDimension.z / denominator) };
+	
+	UINT32 clusterTileOccupancy = (m_numberOfClusters + 31) / 32;
+
+	m_clusterDataBuffer.Create(m_numberOfClusters, sizeof(ClusterData));
+	m_distanceMapBuffer.Create(m_voxelCount, sizeof(float));
+	m_assignemtMapBuffer.Create(m_voxelCount, sizeof(UINT32));
+	m_tileBuffer.Create(TileGridDimension.x * TileGridDimension.y * TileGridDimension.z, clusterTileOccupancy * sizeof(UINT32));
+
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::DistanceMap), m_distanceMapBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::AssignmentMap), m_assignemtMapBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::ClusterData), m_clusterDataBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::TileBuffer), m_tileBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+}
+
 void CVGI::VoxelBufferManager::CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX)
 {
 	m_cbCompactBuffer.CurrentStep = m_currentStep;
@@ -271,9 +294,9 @@ void CVGI::VoxelBufferManager::CompactBufferPass(DX12Lib::ComputeContext& contex
 
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::BufferUAVTable, m_voxelDataUAVStart);
 
-
-
-	context.Dispatch(numGroupsX, 1 , 1);
+	// Align to 127 because we have 127 threads per group
+	UINT groupSize = (numGroupsX + 127) / 128;
+	context.Dispatch(groupSize, 1 , 1);
 }
 
 
@@ -306,6 +329,37 @@ std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::VoxelBufferManager::BuildCo
 	voxelComputePSO->Name = VoxelBufferManager::CompactBufferPsoName;
 
 	return voxelComputePSO;
+}
+
+std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelBufferManager::BuildClusterizeRootSignature()
+{
+	SamplerDesc defaultSamplerDesc;
+
+	std::shared_ptr<DX12Lib::RootSignature> clusterRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)ClusterizeRootSignature::Count, 1);
+	clusterRootSignature->InitStaticSampler(0, defaultSamplerDesc);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeCBV].InitAsConstantBuffer(0);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::BufferUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, (UINT)BufferType::Count);
+
+	clusterRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+	return clusterRootSignature;
+}
+
+std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::VoxelBufferManager::BuildClulsterizePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig)
+{
+	std::wstring shaderPath = Utils::ToWstring(SOURCE_DIR) + L"\\Shaders";
+	std::wstring computeShaderPath = shaderPath + L"\\FastSlic_CS.hlsl";
+
+	std::shared_ptr<Shader> computeShader = std::make_shared<Shader>(computeShaderPath, "CS", "cs_5_1");
+	computeShader->Compile();
+
+	std::shared_ptr<ComputePipelineState> voxelClusterizeComputePso = std::make_shared<ComputePipelineState>();
+	voxelClusterizeComputePso->SetRootSignature(voxelRootSig);
+	voxelClusterizeComputePso->SetComputeShader(computeShader);
+	voxelClusterizeComputePso->Finalize();
+	voxelClusterizeComputePso->Name = VoxelBufferManager::CompactBufferPsoName;
+
+	return voxelClusterizeComputePso;
 }
 
 const std::wstring CVGI::VoxelBufferManager::CompactBufferPsoName = L"PSO_PREFIX_SUM";

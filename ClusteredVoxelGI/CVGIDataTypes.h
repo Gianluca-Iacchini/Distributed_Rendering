@@ -13,6 +13,13 @@ namespace CVGI {
 		Count
 	};
 
+	enum class ClusterizeRootSignature
+	{
+		ClusterizeCBV = 0,
+		BufferUAVTable = 1,
+		Count
+	};
+
 	enum class VoxelizeSceneRootParameterSlot
 	{
 		VoxelCommonCBV = 0,
@@ -81,6 +88,14 @@ namespace CVGI {
 		unsigned int VoxelLinearCoord;
 	};
 
+	__declspec(align(16)) struct ClusterData
+	{
+		DirectX::XMFLOAT3 Center;
+		UINT32 VoxelCount;
+
+		DirectX::XMFLOAT3 Normal;
+		float _pad0;
+	};
 
 
 	struct VertexSingleUINT

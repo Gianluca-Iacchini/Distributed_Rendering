@@ -55,6 +55,15 @@ struct FragmentData
     uint voxelLinearCoord;
 };
 
+struct ClusterData
+{
+    float3 Center;
+    uint VoxelCount;
+    
+    float3 Normal;
+    float pad0;
+};
+
 uint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)
 {
     uint3 voxelPosition;
@@ -62,5 +71,12 @@ uint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)
     voxelPosition.y = (voxelLinearCoord / gridDimension.x) % gridDimension.y;
     voxelPosition.z = voxelLinearCoord / (gridDimension.x * gridDimension.y);
     return voxelPosition;
+}
+
+uint GetLinearCoord(uint3 coord3, uint3 gridDimension)
+{
+    return  coord3.x +
+            coord3.y * gridDimension.x +
+            coord3.z * gridDimension.x * gridDimension.y;
 }
 

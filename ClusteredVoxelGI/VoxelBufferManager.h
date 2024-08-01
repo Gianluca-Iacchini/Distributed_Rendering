@@ -22,6 +22,7 @@ namespace CVGI
 
 	enum class BufferType
 	{
+		// Voxelization
 		FragmentCounter = 0,
 		VoxelCounter = 1,
 		VoxelOccupied = 2,
@@ -29,11 +30,21 @@ namespace CVGI
 		FragmentData,
 		NextIndex,
 		HashedBuffer,
+
+		// Compaction
 		PrefixSum,
 		IndirectionRankBuffer,
 		IndirectionIndexBuffer,
 		CompactedVoxelIndex,
 		CompactedHashedBuffer,
+
+		// Clusterization
+		DistanceMap,
+		AssignmentMap,
+		ClusterData,
+		TileBuffer,
+
+
 		Count
 	};
 
@@ -66,8 +77,14 @@ namespace CVGI
 
 		void CompactBuffers();
 
+		void InitializeClusters();
+
 		std::shared_ptr<DX12Lib::RootSignature> BuildCompactBufferRootSignature();
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildCompactBufferPso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
+
+		std::shared_ptr<DX12Lib::RootSignature> BuildClusterizeRootSignature();
+		std::shared_ptr<DX12Lib::ComputePipelineState> BuildClulsterizePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
+
 
 	private:
 		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX);
@@ -76,9 +93,10 @@ namespace CVGI
 		static const std::wstring CompactBufferPsoName;
 
 	private:
-		const UINT m_elementsPerThread = 128;
-
+#pragma region CompactVariables
 		ConstantBufferCompactBuffer m_cbCompactBuffer;
+
+		const UINT m_elementsPerThread = 128;
 
 		DirectX::XMFLOAT3 m_voxelTexDimension = DirectX::XMFLOAT3(128, 128, 128);
 		UINT m_voxelLinearSize = 0;
@@ -96,6 +114,16 @@ namespace CVGI
 		std::vector<UINT32> v_prefixBufferSizeForStep;
 		UINT64 m_prefixBufferSize = 0;
 		bool m_firstSetIsSingleElement = false;
+#pragma endregion
+
+#pragma region ClusterVariables
+		UINT32 m_numberOfClusters = 1;
+		UINT32 m_compactness = 10;
+		float m_superPixelArea = 1;
+
+		DirectX::XMUINT3 TileGridDimension;
+
+#pragma endregion
 
 #pragma region Buffers
 		DX12Lib::DescriptorHandle m_voxelDataUAVStart;
@@ -133,6 +161,12 @@ namespace CVGI
 
 		DX12Lib::StructuredBuffer m_indirectionRankBuffer;
 		DX12Lib::StructuredBuffer m_indirectionIndexBuffer;
+
+		// Clusterization
+		DX12Lib::StructuredBuffer m_distanceMapBuffer;
+		DX12Lib::StructuredBuffer m_assignemtMapBuffer;
+		DX12Lib::StructuredBuffer m_clusterDataBuffer;
+		DX12Lib::StructuredBuffer m_tileBuffer;
 
 		DX12Lib::GPUBuffer* m_buffers[(UINT)BufferType::Count];
 

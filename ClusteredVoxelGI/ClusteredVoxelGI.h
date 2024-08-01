@@ -48,7 +48,7 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::GraphicsPipelineState> BuildVoxelDisplayPso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
 
 	public:
-		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
+		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(768.0f, 768.0f, 768.0f);
 
 	private:
 		VoxelBufferManager m_voxelBufferManager;

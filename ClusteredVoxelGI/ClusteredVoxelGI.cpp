@@ -28,6 +28,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto compactBufferRootSig = m_voxelBufferManager.BuildCompactBufferRootSignature();
 	auto compactBufferPSO = m_voxelBufferManager.BuildCompactBufferPso(compactBufferRootSig);
 
+	auto clusterizeVoxelPso = m_voxelBufferManager.BuildClulsterizePso(compactBufferRootSig);
+
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
@@ -101,6 +103,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_voxelBufferManager.CompactBuffers();
 
+
+	m_voxelBufferManager.InitializeClusters();
 
 	GPUBuffer* voxelIndexBufferCompact = m_voxelBufferManager.GetBuffer(BufferType::CompactedVoxelIndex);
 
