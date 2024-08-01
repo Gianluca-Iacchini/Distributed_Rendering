@@ -186,7 +186,7 @@ void ClusteredVoxelGIApp::VoxelPass(DX12Lib::GraphicsContext& context, VoxelCame
 	);
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV, m_voxelBufferManager.GetUAVDescriptorStart());
+		(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV, m_voxelBufferManager.GetVoxelizeTableUAV());
 
 
 	auto modelRenderers = Renderer::GetRenderers();
@@ -242,7 +242,7 @@ void CVGI::ClusteredVoxelGIApp::VoxelDisplayPass(DX12Lib::GraphicsContext& conte
 
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV, m_voxelBufferManager.GetUAVDescriptorStart());
+		(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV, m_voxelBufferManager.GetVoxelizeTableUAV());
 	
 
 	context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBuffer.VertexBufferView());

@@ -22,14 +22,17 @@ cbuffer cbCamera : register(b1)
 {
     Camera camera;
 }
-RWStructuredBuffer<uint> gFragmentCounter : register(u0);
-RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u1);
-RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u2);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3);
 
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u4);
+RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u0);
+RWStructuredBuffer<uint> gNextIndexBuffer : register(u1);
+RWStructuredBuffer<uint> gFragmentCounter : register(u2);
+RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u3);
+RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u4);
+RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u5);
 
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u5);
+
+
+
 
 RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6);
 

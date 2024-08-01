@@ -31,7 +31,9 @@ void CVGI::VoxelBufferManager::SetupFirstVoxelPassBuffers(DirectX::XMFLOAT3 voxe
 {
 	SetVoxelTextureDimension(voxelTexDimension);
 
-	m_voxelDataUAVStart = Renderer::s_textureHeap->Alloc((UINT)BufferType::Count);
+	m_voxelizationUAVStart = Renderer::s_textureHeap->Alloc(7);
+	m_streamCompactUAVStart = Renderer::s_textureHeap->Alloc(5);
+	m_clusterizeUAVStart = Renderer::s_textureHeap->Alloc(4);
 
 	// Using bit representation of voxels to store whether a voxel is occupied or not.
 	// Each bit represents wheter a specific voxel is occupied or not. We can store 32 voxels in a single UINT32,
@@ -256,6 +258,13 @@ void CVGI::VoxelBufferManager::CompactBuffers()
 
 void CVGI::VoxelBufferManager::InitializeClusters()
 {
+	m_fragmentCounterBuffer.OnDestroy();
+	m_voxelCounterBuffer.OnDestroy();
+	m_voxelOccupiedBuffer.OnDestroy();
+	m_voxelIndexBuffer.OnDestroy();
+	m_hashedBuffer.OnDestroy();
+	m_prefixSumBuffer.OnDestroy();
+
 	m_numberOfClusters = MathHelper::Min(10000u, (UINT32)(m_voxelCount * 0.1f));
 
 	m_superPixelArea = cbrtf(m_voxelLinearSize / m_numberOfClusters);
@@ -292,7 +301,8 @@ void CVGI::VoxelBufferManager::CompactBufferPass(DX12Lib::ComputeContext& contex
 
 	
 
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::BufferUAVTable, m_voxelDataUAVStart);
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::VoxelizeUAVTable, m_voxelizationUAVStart);
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::StreamCompactionUAVTable, m_streamCompactUAVStart);
 
 	// Align to 127 because we have 127 threads per group
 	UINT groupSize = (numGroupsX + 127) / 128;
@@ -307,7 +317,9 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelBufferManager::BuildCompactBu
 	std::shared_ptr<DX12Lib::RootSignature> voxelComputeRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)CompactBufferRootSignature::Count, 1);
 	voxelComputeRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::PrefixSumCBV].InitAsConstantBuffer(0);
-	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::BufferUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, (UINT)BufferType::Count);
+	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::VoxelizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 7, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::StreamCompactionUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 1);
+
 
 	voxelComputeRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
@@ -331,6 +343,28 @@ std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::VoxelBufferManager::BuildCo
 	return voxelComputePSO;
 }
 
+DX12Lib::DescriptorHandle& CVGI::VoxelBufferManager::GetBufferUAVStart(BufferType type)
+{
+	UINT typeIndex = (UINT)type;
+
+	if (typeIndex >= (UINT)BufferType::ClusterData)
+	{
+		UINT offset = typeIndex - (UINT)BufferType::ClusterData;
+
+		return m_clusterizeUAVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * offset;
+	}
+	else if (typeIndex >= (UINT)BufferType::IndirectionRankBuffer)
+	{
+		UINT offset = typeIndex - (UINT)BufferType::IndirectionRankBuffer;
+
+		return m_streamCompactUAVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * offset;
+	}
+	else
+	{
+		return m_voxelizationUAVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * typeIndex;
+	}
+}
+
 std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelBufferManager::BuildClusterizeRootSignature()
 {
 	SamplerDesc defaultSamplerDesc;
@@ -338,7 +372,8 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelBufferManager::BuildClusteriz
 	std::shared_ptr<DX12Lib::RootSignature> clusterRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)ClusterizeRootSignature::Count, 1);
 	clusterRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeCBV].InitAsConstantBuffer(0);
-	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::BufferUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, (UINT)BufferType::Count);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::StreamCompactionUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeCBV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 
 	clusterRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 

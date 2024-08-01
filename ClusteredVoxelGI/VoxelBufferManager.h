@@ -23,27 +23,26 @@ namespace CVGI
 	enum class BufferType
 	{
 		// Voxelization
-		FragmentCounter = 0,
-		VoxelCounter = 1,
-		VoxelOccupied = 2,
-		VoxelIndex = 3,
-		FragmentData,
-		NextIndex,
+		FragmentData = 0,
+		NextIndex = 1,
+		FragmentCounter = 2,
+		VoxelCounter = 3,
+		VoxelOccupied,
+		VoxelIndex,
 		HashedBuffer,
 
 		// Compaction
-		PrefixSum,
 		IndirectionRankBuffer,
 		IndirectionIndexBuffer,
 		CompactedVoxelIndex,
 		CompactedHashedBuffer,
+		PrefixSum,
 
 		// Clusterization
-		DistanceMap,
-		AssignmentMap,
 		ClusterData,
+		AssignmentMap,
+		DistanceMap,
 		TileBuffer,
-
 
 		Count
 	};
@@ -64,11 +63,11 @@ namespace CVGI
 		}
 
 		inline DX12Lib::GPUBuffer* GetBuffer(BufferType type) { return m_buffers[(UINT)type]; }
-		inline DX12Lib::DescriptorHandle& GetBufferUAVStart(BufferType type) 
-		{ 
-			return (m_voxelDataUAVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * (UINT)type); 
-		}
-		inline DX12Lib::DescriptorHandle& GetUAVDescriptorStart() { return m_voxelDataUAVStart; }
+		DX12Lib::DescriptorHandle& GetBufferUAVStart(BufferType type);
+
+		inline DX12Lib::DescriptorHandle& GetVoxelizeTableUAV() { return m_voxelizationUAVStart; }
+		inline DX12Lib::DescriptorHandle& GetCompactionTableUAV() { return m_streamCompactUAVStart; }
+		inline DX12Lib::DescriptorHandle& GetClusterizeTableUAV() { return m_clusterizeUAVStart; }
 
 		template <typename T>
 		T ReadFromBuffer(DX12Lib::CommandContext& context, BufferType type);
@@ -126,7 +125,10 @@ namespace CVGI
 #pragma endregion
 
 #pragma region Buffers
-		DX12Lib::DescriptorHandle m_voxelDataUAVStart;
+		//DX12Lib::DescriptorHandle m_voxelDataUAVStart;
+		DX12Lib::DescriptorHandle m_voxelizationUAVStart;
+		DX12Lib::DescriptorHandle m_streamCompactUAVStart;
+		DX12Lib::DescriptorHandle m_clusterizeUAVStart;
 
 		DX12Lib::ByteAddressBuffer m_fragmentCounterBuffer;
 		DX12Lib::ByteAddressBuffer m_voxelCounterBuffer;

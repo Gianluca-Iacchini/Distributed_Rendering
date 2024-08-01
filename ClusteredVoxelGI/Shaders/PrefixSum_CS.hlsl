@@ -21,27 +21,23 @@ cbuffer cbPrefixSum : register(b0)
     float pad2;
 }
 
-RWStructuredBuffer<uint> gFragmentCounter : register(u0);
-RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u1);
-RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u2);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3);
+RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u0, space0);
+RWStructuredBuffer<uint> gNextIndexBuffer : register(u1, space0);
+RWStructuredBuffer<uint> gFragmentCounter : register(u2, space0);
+RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u3, space0);
+RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u4, space0);
+RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u5, space0);
+RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6, space0);
 
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u4);
 
 
+RWStructuredBuffer<uint> gIndirectionRankBuffer : register(u0, space1);
+RWStructuredBuffer<uint> gIndirectionIndexBuffer : register(u1, space1);
 
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u5);
+RWStructuredBuffer<uint> gVoxelIndicesCompacted : register(u2, space1);
+RWStructuredBuffer<uint> gVoxelHashesCompacted : register(u3, space1);
 
-RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6);
-
-RWStructuredBuffer<uint> gPrefixSumBuffer : register(u7);
-
-RWStructuredBuffer<uint> gIndirectionRankBuffer : register(u8);
-RWStructuredBuffer<uint> gIndirectionIndexBuffer : register(u9);
-
-RWStructuredBuffer<uint> gVoxelIndicesCompacted : register(u10);
-RWStructuredBuffer<uint> gVoxelHashesCompacted : register(u11);
-
+RWStructuredBuffer<uint> gPrefixSumBuffer : register(u4, space1);
 
 [numthreads(128, 1, 1)]
 void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)

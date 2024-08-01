@@ -9,14 +9,16 @@ namespace CVGI {
 	enum class CompactBufferRootSignature
 	{
 		PrefixSumCBV = 0,
-		BufferUAVTable = 1,
+		VoxelizeUAVTable = 1,
+		StreamCompactionUAVTable = 2,
 		Count
 	};
 
 	enum class ClusterizeRootSignature
 	{
 		ClusterizeCBV = 0,
-		BufferUAVTable = 1,
+		StreamCompactionUAVTable = 1,
+		ClusterizeUAVTable = 2,
 		Count
 	};
 

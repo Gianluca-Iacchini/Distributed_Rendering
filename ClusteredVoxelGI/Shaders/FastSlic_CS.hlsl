@@ -14,15 +14,16 @@ cbuffer SLICCommon : register(b0)
     float pad0;
 }
 
-RWStructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(u0);
-RWStructuredBuffer<uint> gVoxelHashedCompactBuffer : register(u1);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u2);
-RWStructuredBuffer<FragmentData> gFragmentBuffer : register(u3);
+RWStructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(u0, space0);
+RWStructuredBuffer<uint> gVoxelHashedCompactBuffer : register(u1, space0);
+RWStructuredBuffer<uint> gNextIndexBuffer : register(u2, space0);
+RWStructuredBuffer<FragmentData> gFragmentBuffer : register(u3, space0);
 
-RWStructuredBuffer<uint> gClusterDistanceBuffer : register(u4);
-RWStructuredBuffer<uint> gClusterAssignmentBuffer : register(u5);
-RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u6);
-RWStructuredBuffer<uint> gTileBuffer : register(u7);
+
+RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u0, space1);
+RWStructuredBuffer<uint> gClusterAssignmentBuffer : register(u1, space1);
+RWStructuredBuffer<uint> gClusterDistanceBuffer : register(u2, space1);
+RWStructuredBuffer<uint> gTileBuffer : register(u3, space1);
 
 [numthreads(128, 1, 1)]
 void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
