@@ -17,8 +17,9 @@ namespace CVGI {
 	enum class ClusterizeRootSignature
 	{
 		ClusterizeCBV = 0,
-		StreamCompactionUAVTable = 1,
-		ClusterizeUAVTable = 2,
+		VoxelBuffersSRVTable = 1,
+		StreamCompactionUAVTable = 2,
+		ClusterizeUAVTable,
 		Count
 	};
 
@@ -37,7 +38,8 @@ namespace CVGI {
 	{
 		VoxelCommonCBV = 0,
 		CameraCBV = 1,
-		VoxelTextureUAV = 2,
+		VoxelSRVBufferTable = 2,
+		CompactSRVBufferTable,
 		Count
 	};
 

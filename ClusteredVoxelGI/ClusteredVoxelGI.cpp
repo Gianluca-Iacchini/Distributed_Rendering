@@ -28,7 +28,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto compactBufferRootSig = m_voxelBufferManager.BuildCompactBufferRootSignature();
 	auto compactBufferPSO = m_voxelBufferManager.BuildCompactBufferPso(compactBufferRootSig);
 
-	auto clusterizeVoxelPso = m_voxelBufferManager.BuildClulsterizePso(compactBufferRootSig);
+	//auto clusterizeVoxelPso = m_voxelBufferManager.BuildClulsterizePso(compactBufferRootSig);
 
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
@@ -106,13 +106,29 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_voxelBufferManager.InitializeClusters();
 
-	GPUBuffer* voxelIndexBufferCompact = m_voxelBufferManager.GetBuffer(BufferType::CompactedVoxelIndex);
 
-	m_numberOfVoxels = voxelIndexBufferCompact->GetElementCount();
+	m_numberOfVoxels = m_voxelBufferManager.GetNumberOfVoxels();
 
+
+
+	UploadBuffer vertexUploadBuffer;
+	vertexUploadBuffer.Create(m_numberOfVoxels * sizeof(UINT32));
 	m_vertexBuffer.Create(m_numberOfVoxels, sizeof(UINT32));
 
-	commandContext.CopyBuffer(m_vertexBuffer, *voxelIndexBufferCompact);
+	void* mappedData = vertexUploadBuffer.Map();
+
+	for (UINT32 i = 0; i < m_numberOfVoxels; i++)
+	{
+		((UINT32*)mappedData)[i] = i;
+	}
+
+	// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
+	commandContext.TransitionResource(m_vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
+	commandContext.m_commandList->Get()->CopyResource(m_vertexBuffer.Get(), vertexUploadBuffer.Get());
+
+	commandContext.Flush(true);
+
+	vertexUploadBuffer.Unmap();
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -242,8 +258,10 @@ void CVGI::ClusteredVoxelGIApp::VoxelDisplayPass(DX12Lib::GraphicsContext& conte
 
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV, m_voxelBufferManager.GetVoxelizeTableUAV());
+		(UINT)DisplayVoxelRootParameterSlot::VoxelSRVBufferTable, m_voxelBufferManager.GetVoxelizeTableSRV());
 	
+	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+		(UINT)DisplayVoxelRootParameterSlot::CompactSRVBufferTable, m_voxelBufferManager.GetCompactionTableSRV());
 
 	context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBuffer.VertexBufferView());
 	context.m_commandList->Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -281,7 +299,8 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusteredVoxelGIApp::BuildVoxelDis
 	displayVoxelRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CameraCBV].InitAsConstantBuffer(1);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 7);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CompactSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	displayVoxelRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return displayVoxelRootSignature;
@@ -345,7 +364,6 @@ std::shared_ptr<DX12Lib::GraphicsPipelineState> CVGI::ClusteredVoxelGIApp::Build
 	vertexShader->Compile();
 	geometryShader->Compile();
 	pixelShader->Compile();
-
 
 	std::shared_ptr<GraphicsPipelineState> displayVoxelPSO = std::make_shared<GraphicsPipelineState>();
 	displayVoxelPSO->InitializeDefaultStates();

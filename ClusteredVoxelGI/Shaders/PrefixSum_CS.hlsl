@@ -23,11 +23,8 @@ cbuffer cbPrefixSum : register(b0)
 
 RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u0, space0);
 RWStructuredBuffer<uint> gNextIndexBuffer : register(u1, space0);
-RWStructuredBuffer<uint> gFragmentCounter : register(u2, space0);
-RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u3, space0);
-RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u4, space0);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u5, space0);
-RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6, space0);
+
+RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u2, space0);
 
 
 
@@ -218,12 +215,11 @@ void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
                 gVoxelHashesCompacted[offset + counter] = i;
                 uint3 result = GetVoxelPosition(i, gVoxelGridDimension);
 
-                uint voxelizationSize = gVoxelGridDimension.x;
-                uint indirectionRankValue = gVoxelGridDimension.z;
-                uint index = voxelizationSize * result.x + result.y;
+                uint voxelizationSize = gVoxelGridDimension.z;
+                uint indirectionIndex = voxelizationSize * result.z + result.y;
 
-                InterlockedAdd(gIndirectionRankBuffer[index], 1);
-                InterlockedMin(gIndirectionIndexBuffer[index], offset + counter);
+                InterlockedAdd(gIndirectionRankBuffer[indirectionIndex], 1);
+                InterlockedMin(gIndirectionIndexBuffer[indirectionIndex], offset + counter);
 
                 counter++;
             }

@@ -23,19 +23,14 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u0);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u1);
-RWStructuredBuffer<uint> gFragmentCounter : register(u2);
-RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u3);
-RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u4);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u5);
+StructuredBuffer<FragmentData> gFragmentDataBuffer : register(t0);
+StructuredBuffer<uint> gNextIndexBuffer : register(t1);
 
+StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space1);
+StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
 
-
-
-
-RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6);
-
+StructuredBuffer<uint> gVoxelIndicesCompacted : register(t2, space1);
+StructuredBuffer<uint> gVoxelHashesCompacted : register(t3, space1);
 
 
 
@@ -48,6 +43,47 @@ uint3 GetVoxelPosition(uint voxelLinearCoord)
     return voxelPosition;
 }
 
+
+uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
+{
+    uint2 result = uint2(0, 0); // y field is control value, 0 means element not found, 1 means element found
+    uint indirectionIndex = gridDimension.z * coord.z + coord.y;
+    uint index = gIndirectionIndexBuffer[indirectionIndex];
+    uint rank = gIndirectionRankBuffer[indirectionIndex];
+    uint hashedPosition = GetLinearCoord(coord, gridDimension);
+    
+    
+    uint tempHashed;
+    uint startIndex = index;
+    uint endIndex = index + rank;
+    uint currentIndex = (startIndex + endIndex) / 2;
+
+    for (int i = 0; i < int(12); ++i)
+    {
+        tempHashed = gVoxelHashesCompacted[currentIndex];
+
+        if (tempHashed == hashedPosition)
+        {
+            return uint2(currentIndex, 1);
+        }
+
+        if (tempHashed < hashedPosition)
+        {
+            startIndex = currentIndex;
+            currentIndex = (startIndex + endIndex) / 2;
+        }
+        else
+        {
+            endIndex = currentIndex;
+            currentIndex = (startIndex + endIndex) / 2;
+        }
+    }
+
+    return result;
+}
+
+
+
 [maxvertexcount(36)]
 void GS(
 	point GSInput input[1], 
@@ -57,14 +93,14 @@ void GS(
 
     float3 cubeVertices[8] =
     {
-        float3(-0.5f, -0.5f, 0.5f), // 0
-        float3(-0.5f, 0.5f, 0.5f), // 1
-        float3(0.5f, 0.5f, 0.5f), // 2
-        float3(0.5f, -0.5f, 0.5f), // 3
-        float3(-0.5f, -0.5f, -0.5f), // 4
-        float3(-0.5f, 0.5f, -0.5f), // 5
-        float3(0.5f, 0.5f, -0.5f), // 6
-        float3(0.5f, -0.5f, -0.5f) // 7
+        float3(-0.5f, -0.5f, -0.5f), // 0
+        float3(-0.5f, 0.5f, -0.5f), // 1
+        float3(0.5f, 0.5f, -0.5f), // 2
+        float3(0.5f, -0.5f, -0.5f), // 3
+        float3(-0.5f, -0.5f, 0.5f), // 4
+        float3(-0.5f, 0.5f, 0.5f), // 5
+        float3(0.5f, 0.5f, 0.5f), // 6
+        float3(0.5f, -0.5f, 0.5f) // 7
     };
     
     int cubeIndices[36] =
@@ -94,6 +130,7 @@ void GS(
     3, 4, 0
     };
     
+    
     // In the voxel index buffer we have that the index represent the voxel linear coord, while the value represent the index in the
     // fragment buffer of the first fragment present at that voxel coord
     /*
@@ -103,11 +140,13 @@ void GS(
     
         At index 0 we have the fragment F3. The index 0 represents the voxel linear coord 0, which is (0,0,0) in our world,
     */
-    uint fragmentIndex = input[0].VoxelIndex;
     
     float4 avgColor = float4(0, 0, 0, 0);
-    uint voxelLinearCoord = gFragmentDataBuffer[fragmentIndex].voxelLinearCoord;
+    uint voxelLinearCoord = gVoxelHashesCompacted[input[0].VoxelIndex];
+    uint fragmentIndex = gVoxelIndicesCompacted[input[0].VoxelIndex];
+    
     uint fragmentCount = 0;
+    
     
     while (fragmentIndex != UINT_MAX)
     {
@@ -118,18 +157,37 @@ void GS(
    
     avgColor = avgColor / fragmentCount;
     
+
+    
     float scale = 0.5f; // Scale of the cube
     
     
-    float3 position = GetVoxelPosition(voxelLinearCoord);
+    uint3 voxelPosition = GetVoxelPosition(voxelLinearCoord);
+    
+    float3 position = float3(voxelPosition);
     position.y = (voxelCommons.gridDimension.y - 1) - position.y;
     position = position * scale + float3(0.5f, 0.5f, 0.5f);
     
     // Move voxel scene to position 0,0,0
     position -= voxelCommons.gridDimension * (scale / 2.f);
     
+
+    uint3 prevElementPos = voxelPosition - uint3(0, 0, 1);
+    
+    uint2 compactedPositionIndex = FindHashedCompactedPositionIndex(prevElementPos, voxelCommons.gridDimension);
+    
+    if (prevElementPos.x == 256)
+        avgColor.x = 1;
+    if (prevElementPos.y == 256)
+        avgColor.y = 1;
+    if (prevElementPos.z == 256)
+        avgColor.z = 1;
+
     for (int i = 0; i < 36; i += 3)
     {
+        if (compactedPositionIndex.y > 0)
+            return;
+        
         PSInput output;
 
         float3 v1 = scale * cubeVertices[cubeIndices[i]] + position;
@@ -149,5 +207,6 @@ void GS(
         output.position = mul(float4(v3, 1.0f), camera.ViewProj);
         triOutput.Append(output);
 
+        triOutput.RestartStrip();
     }
 }

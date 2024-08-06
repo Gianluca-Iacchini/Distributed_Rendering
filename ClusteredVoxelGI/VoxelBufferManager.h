@@ -25,10 +25,10 @@ namespace CVGI
 		// Voxelization
 		FragmentData = 0,
 		NextIndex = 1,
-		FragmentCounter = 2,
-		VoxelCounter = 3,
+		VoxelIndex = 2,
+		FragmentCounter = 3,
+		VoxelCounter,
 		VoxelOccupied,
-		VoxelIndex,
 		HashedBuffer,
 
 		// Compaction
@@ -64,10 +64,15 @@ namespace CVGI
 
 		inline DX12Lib::GPUBuffer* GetBuffer(BufferType type) { return m_buffers[(UINT)type]; }
 		DX12Lib::DescriptorHandle& GetBufferUAVStart(BufferType type);
+		DX12Lib::DescriptorHandle& GetBufferSRVStart(BufferType type);
 
 		inline DX12Lib::DescriptorHandle& GetVoxelizeTableUAV() { return m_voxelizationUAVStart; }
 		inline DX12Lib::DescriptorHandle& GetCompactionTableUAV() { return m_streamCompactUAVStart; }
 		inline DX12Lib::DescriptorHandle& GetClusterizeTableUAV() { return m_clusterizeUAVStart; }
+
+		inline DX12Lib::DescriptorHandle& GetVoxelizeTableSRV() { return m_voxelizationSRVStart; }
+		inline DX12Lib::DescriptorHandle& GetCompactionTableSRV() { return m_streamCompactSRVStart; }
+		inline DX12Lib::DescriptorHandle& GetClusterizeTableSRV() { return m_clusterizeSRVStart; }
 
 		template <typename T>
 		T ReadFromBuffer(DX12Lib::CommandContext& context, BufferType type);
@@ -84,6 +89,7 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::RootSignature> BuildClusterizeRootSignature();
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildClulsterizePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
 
+		UINT32 GetNumberOfVoxels() { return m_voxelCount; }
 
 	private:
 		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX);
@@ -129,6 +135,10 @@ namespace CVGI
 		DX12Lib::DescriptorHandle m_voxelizationUAVStart;
 		DX12Lib::DescriptorHandle m_streamCompactUAVStart;
 		DX12Lib::DescriptorHandle m_clusterizeUAVStart;
+
+		DX12Lib::DescriptorHandle m_voxelizationSRVStart;
+		DX12Lib::DescriptorHandle m_streamCompactSRVStart;
+		DX12Lib::DescriptorHandle m_clusterizeSRVStart;
 
 		DX12Lib::ByteAddressBuffer m_fragmentCounterBuffer;
 		DX12Lib::ByteAddressBuffer m_voxelCounterBuffer;
