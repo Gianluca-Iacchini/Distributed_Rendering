@@ -69,7 +69,7 @@ uint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)
     uint3 voxelPosition;
     voxelPosition.x = voxelLinearCoord % gridDimension.x;
     voxelPosition.y = (voxelLinearCoord / gridDimension.x) % gridDimension.y;
-    voxelPosition.z = voxelLinearCoord / (gridDimension.x * gridDimension.y);
+    voxelPosition.z = voxelLinearCoord / (gridDimension.x * gridDimension.y); 
     return voxelPosition;
 }
 

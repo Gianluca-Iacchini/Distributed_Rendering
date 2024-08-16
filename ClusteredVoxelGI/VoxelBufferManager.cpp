@@ -24,6 +24,7 @@ CVGI::VoxelBufferManager::VoxelBufferManager()
 	m_buffers[(UINT)BufferType::IndirectionIndexBuffer] = &m_indirectionIndexBuffer;
 	m_buffers[(UINT)BufferType::CompactedVoxelIndex] = &m_compactedVoxelIndexBuffer;
 	m_buffers[(UINT)BufferType::CompactedHashedBuffer] = &m_compactedHashedBuffer;
+	m_buffers[(UINT)BufferType::ClusterData] = &m_clusterDataBuffer;
 
 }
 
@@ -33,11 +34,11 @@ void CVGI::VoxelBufferManager::SetupFirstVoxelPassBuffers(DirectX::XMFLOAT3 voxe
 
 	m_voxelizationUAVStart = Renderer::s_textureHeap->Alloc(7);
 	m_streamCompactUAVStart = Renderer::s_textureHeap->Alloc(5);
-	m_clusterizeUAVStart = Renderer::s_textureHeap->Alloc(4);
+	m_clusterizeUAVStart = Renderer::s_textureHeap->Alloc(7);
 
 	m_voxelizationSRVStart = Renderer::s_textureHeap->Alloc(2);
 	m_streamCompactSRVStart = Renderer::s_textureHeap->Alloc(4);
-	m_clusterizeSRVStart = Renderer::s_textureHeap->Alloc(2);
+	m_clusterizeSRVStart = Renderer::s_textureHeap->Alloc(3);
 
 	// Using bit representation of voxels to store whether a voxel is occupied or not.
 	// Each bit represents wheter a specific voxel is occupied or not. We can store 32 voxels in a single UINT32,
@@ -269,6 +270,48 @@ void CVGI::VoxelBufferManager::CompactBuffers()
 	context.Finish();
 }
 
+void CVGI::VoxelBufferManager::ClusterizeBuffers()
+{
+	ComputeContext& context = ComputeContext::Begin();
+
+	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"ClusterizePass");
+
+	m_cbClusterizeBuffer.CurrentPhase = 0;
+	m_cbClusterizeBuffer.VoxelCount = m_voxelCount;
+	m_cbClusterizeBuffer.m = 1;
+	m_cbClusterizeBuffer.K = m_numberOfClusters;
+
+	m_cbClusterizeBuffer.VoxelTextureDimensions = DirectX::XMUINT3(UINT(m_voxelTexDimension.x), UINT(m_voxelTexDimension.y), UINT(m_voxelTexDimension.z));
+	m_cbClusterizeBuffer.S = UINT32(ceil(m_superPixelArea));
+
+	m_cbClusterizeBuffer.TileGridDimension = TileGridDimension;
+
+	context.TransitionResource(m_fragmentDataBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	context.TransitionResource(m_nextIndexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+	context.TransitionResource(m_indirectionRankBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	context.TransitionResource(m_indirectionIndexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	context.TransitionResource(m_compactedVoxelIndexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	context.TransitionResource(m_compactedHashedBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+	context.TransitionResource(m_clusterDataBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(m_voxelClusterLinkedList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(m_assignemtMapBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(m_distanceMapBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(m_tileTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(m_nextClusterList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.TransitionResource(m_clusterCounterBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+
+	context.FlushResourceBarriers();
+
+	ClusterizeBufferPass(context);
+
+	PIXEndEvent(context.m_commandList->Get());
+
+	context.Finish();
+}
+
 void CVGI::VoxelBufferManager::InitializeClusters()
 {
 	m_fragmentCounterBuffer.OnDestroy();
@@ -288,15 +331,22 @@ void CVGI::VoxelBufferManager::InitializeClusters()
 	UINT32 clusterTileOccupancy = (m_numberOfClusters + 31) / 32;
 
 	m_clusterDataBuffer.Create(m_numberOfClusters, sizeof(ClusterData));
-	m_distanceMapBuffer.Create(m_voxelCount, sizeof(float));
 	m_assignemtMapBuffer.Create(m_voxelCount, sizeof(UINT32));
-	m_tileBuffer.Create(TileGridDimension.x * TileGridDimension.y * TileGridDimension.z, clusterTileOccupancy * sizeof(UINT32));
+	m_voxelClusterLinkedList.Create(m_voxelCount, sizeof(UINT32));
+	m_distanceMapBuffer.Create(m_voxelCount, sizeof(float));
+	m_nextClusterList.Create(m_numberOfClusters, sizeof(UINT16));
+	m_tileTexture.Create3D(TileGridDimension.x, TileGridDimension.y, TileGridDimension.z, 1, DXGI_FORMAT_R16_UINT);
+	m_clusterCounterBuffer.Create(1, sizeof(UINT32));
 
-
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::DistanceMap), m_distanceMapBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::AssignmentMap), m_assignemtMapBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::ClusterData), m_clusterDataBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::TileBuffer), m_tileBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::AssignmentMap), m_assignemtMapBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::NextVoxel), m_voxelClusterLinkedList.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::DistanceMap), m_distanceMapBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::NextCluster), m_nextClusterList.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::TileBuffer), m_tileTexture.GetUAV(0), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::ClusterCounterBuffer), m_clusterCounterBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferSRVStart(BufferType::ClusterData), m_clusterDataBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void CVGI::VoxelBufferManager::CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX)
@@ -322,6 +372,20 @@ void CVGI::VoxelBufferManager::CompactBufferPass(DX12Lib::ComputeContext& contex
 	context.Dispatch(numGroupsX, 1 , 1);
 }
 
+void CVGI::VoxelBufferManager::ClusterizeBufferPass(DX12Lib::ComputeContext& context)
+{
+	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
+	context.SetPipelineState(Renderer::s_PSOs[ClusterizeBufferPsoName].get());
+
+	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ClusterizeRootSignature::ClusterizeCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbClusterizeBuffer).GpuAddress());
+	
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ClusterizeRootSignature::VoxelBuffersSRVTable, m_voxelizationSRVStart);
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ClusterizeRootSignature::StreamCompactionSRVTable, m_streamCompactSRVStart);
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ClusterizeRootSignature::ClusterizeUAVTable, m_clusterizeUAVStart);
+
+	context.Dispatch(TileGridDimension.x, TileGridDimension.y, TileGridDimension.z);
+}
+
 DX12Lib::DescriptorHandle& CVGI::VoxelBufferManager::GetBufferSRVStart(BufferType type)
 {
 	switch (type)
@@ -342,8 +406,11 @@ DX12Lib::DescriptorHandle& CVGI::VoxelBufferManager::GetBufferSRVStart(BufferTyp
 
 	case CVGI::BufferType::ClusterData:
 		return m_clusterizeSRVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * 0;
-	case CVGI::BufferType::AssignmentMap:
+	case CVGI::BufferType::NextVoxel:
 		return m_clusterizeSRVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * 1;
+	case CVGI::BufferType::AssignmentMap:
+		return m_clusterizeSRVStart + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * 2;
+
 
 	default:
 		throw std::exception("Invalid buffer type");
@@ -416,7 +483,8 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelBufferManager::BuildClusteriz
 	clusterRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeCBV].InitAsConstantBuffer(0);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::VoxelBuffersSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
-	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::StreamCompactionUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::StreamCompactionSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 7, D3D12_SHADER_VISIBILITY_ALL, 0);
 
 	clusterRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
@@ -435,9 +503,10 @@ std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::VoxelBufferManager::BuildCl
 	voxelClusterizeComputePso->SetRootSignature(voxelRootSig);
 	voxelClusterizeComputePso->SetComputeShader(computeShader);
 	voxelClusterizeComputePso->Finalize();
-	voxelClusterizeComputePso->Name = VoxelBufferManager::CompactBufferPsoName;
+	voxelClusterizeComputePso->Name = VoxelBufferManager::ClusterizeBufferPsoName;
 
 	return voxelClusterizeComputePso;
 }
 
 const std::wstring CVGI::VoxelBufferManager::CompactBufferPsoName = L"PSO_PREFIX_SUM";
+const std::wstring CVGI::VoxelBufferManager::ClusterizeBufferPsoName = L"PSO_FAST_SLIC ";

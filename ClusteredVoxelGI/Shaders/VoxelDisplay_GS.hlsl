@@ -32,6 +32,7 @@ StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
 StructuredBuffer<uint> gVoxelIndicesCompacted : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashesCompacted : register(t3, space1);
 
+StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
 
 
 uint3 GetVoxelPosition(uint voxelLinearCoord)
@@ -52,6 +53,8 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
     uint rank = gIndirectionRankBuffer[indirectionIndex];
     uint hashedPosition = GetLinearCoord(coord, gridDimension);
     
+    if (rank == 0)
+        return result;
     
     uint tempHashed;
     uint startIndex = index;
@@ -84,7 +87,7 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 
 
 
-[maxvertexcount(36)]
+[maxvertexcount(72)]
 void GS(
 	point GSInput input[1], 
 	inout TriangleStream< PSInput > triOutput
@@ -142,8 +145,11 @@ void GS(
     */
     
     float4 avgColor = float4(0, 0, 0, 0);
-    uint voxelLinearCoord = gVoxelHashesCompacted[input[0].VoxelIndex];
-    uint fragmentIndex = gVoxelIndicesCompacted[input[0].VoxelIndex];
+    
+    uint index = input[0].VoxelIndex;
+    
+    uint voxelLinearCoord = gVoxelHashesCompacted[index];
+    uint fragmentIndex = gVoxelIndicesCompacted[index];
     
     uint fragmentCount = 0;
     
@@ -185,9 +191,6 @@ void GS(
 
     for (int i = 0; i < 36; i += 3)
     {
-        if (compactedPositionIndex.y > 0)
-            return;
-        
         PSInput output;
 
         float3 v1 = scale * cubeVertices[cubeIndices[i]] + position;
@@ -209,4 +212,6 @@ void GS(
 
         triOutput.RestartStrip();
     }
+    
+
 }

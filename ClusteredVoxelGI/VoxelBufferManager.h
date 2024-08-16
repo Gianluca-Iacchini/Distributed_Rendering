@@ -2,6 +2,7 @@
 
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
+#include "DX12Lib/DXWrapper/ColorBuffer.h"
 #include "DirectXMath.h"
 #include "CVGIDataTypes.h"
 
@@ -40,9 +41,12 @@ namespace CVGI
 
 		// Clusterization
 		ClusterData,
+		NextVoxel,
 		AssignmentMap,
 		DistanceMap,
 		TileBuffer,
+		NextCluster,
+		ClusterCounterBuffer,
 
 		Count
 	};
@@ -80,6 +84,7 @@ namespace CVGI
 		void SetupCompactBuffers();
 
 		void CompactBuffers();
+		void ClusterizeBuffers();
 
 		void InitializeClusters();
 
@@ -93,13 +98,16 @@ namespace CVGI
 
 	private:
 		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX);
+		void ClusterizeBufferPass(DX12Lib::ComputeContext& context);
 
 	public:
 		static const std::wstring CompactBufferPsoName;
+		static const std::wstring ClusterizeBufferPsoName;
 
 	private:
 #pragma region CompactVariables
 		ConstantBufferCompactBuffer m_cbCompactBuffer;
+		ConstantBufferClusterizeBuffer m_cbClusterizeBuffer;
 
 		const UINT m_elementsPerThread = 128;
 
@@ -175,10 +183,14 @@ namespace CVGI
 		DX12Lib::StructuredBuffer m_indirectionIndexBuffer;
 
 		// Clusterization
-		DX12Lib::StructuredBuffer m_distanceMapBuffer;
-		DX12Lib::StructuredBuffer m_assignemtMapBuffer;
 		DX12Lib::StructuredBuffer m_clusterDataBuffer;
-		DX12Lib::StructuredBuffer m_tileBuffer;
+		DX12Lib::StructuredBuffer m_assignemtMapBuffer;
+		DX12Lib::StructuredBuffer m_voxelClusterLinkedList;
+		DX12Lib::StructuredBuffer m_distanceMapBuffer;
+		DX12Lib::StructuredBuffer m_nextClusterList;
+		DX12Lib::StructuredBuffer m_clusterCounterBuffer;
+		DX12Lib::ColorBuffer m_tileTexture;
+
 
 		DX12Lib::GPUBuffer* m_buffers[(UINT)BufferType::Count];
 

@@ -14,76 +14,154 @@ cbuffer SLICCommon : register(b0)
     float pad0;
 }
 
-RWStructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(u0, space0);
-RWStructuredBuffer<uint> gVoxelHashedCompactBuffer : register(u1, space0);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u2, space0);
-RWStructuredBuffer<FragmentData> gFragmentBuffer : register(u3, space0);
+// Using groupshared memory to store number of voxels and clusters in the current tile
+// Each thread group represent a tile
+groupshared uint smVoxelInTileCount;
+groupshared uint smClusterInTileCount;
+
+StructuredBuffer<FragmentData> gFragmentBuffer : register(t0, space0);
+StructuredBuffer<uint> gNextIndexBuffer : register(t1, space0);
+
+StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space1);
+StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
+StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space1);
+StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 
 
-RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u0, space1);
-RWStructuredBuffer<uint> gClusterAssignmentBuffer : register(u1, space1);
-RWStructuredBuffer<uint> gClusterDistanceBuffer : register(u2, space1);
-RWStructuredBuffer<uint> gTileBuffer : register(u3, space1);
+RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u0, space0);
+RWStructuredBuffer<uint> gNextVoxelBuffer: register(u1, space0);
+RWStructuredBuffer<uint> gClusterAssignmentBuffer : register(u2, space0);
+RWStructuredBuffer<uint> gClusterDistanceBuffer : register(u3, space0);
+RWTexture3D<uint> gTileBuffer : register(u4, space0);
+RWStructuredBuffer<uint> gNextCluster : register(u5, space0);
+RWStructuredBuffer<uint> gClusterCounterBuffer : register(u6, space0);
 
-[numthreads(128, 1, 1)]
-void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
+uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 {
+    uint2 result = uint2(0, 0); // y field is control value, 0 means element not found, 1 means element found
+    uint indirectionIndex = gridDimension.z * coord.z + coord.y;
+    uint index = gIndirectionIndexBuffer[indirectionIndex];
+    uint rank = gIndirectionRankBuffer[indirectionIndex];
+    uint hashedPosition = GetLinearCoord(coord, gridDimension);
+    
+    if (rank > 0)
+    {
+        uint tempHashed;
+        uint startIndex = index;
+        uint endIndex = index + rank;
+        uint currentIndex = (startIndex + endIndex) / 2;
 
-    // Phase 0 is dispatched with 1D thread groups of size gVoxelHashedCompactBuffer.Count / 128 
-    if (CurrentPhase == 0)
-    {        
-        uint linearIndex = GroupID.x * 128 + GroupThreadIndex;
-        
-        if (linearIndex <= VoxelCount)
+        for (int i = 0; i < int(12); ++i)
         {
-            gClusterDistanceBuffer[linearIndex] = UINT_MAX;
-            gClusterAssignmentBuffer[linearIndex] = UINT_MAX;
+            tempHashed = gVoxelHashedCompactBuffer[currentIndex];
+
+            if (tempHashed == hashedPosition)
+            {
+                return uint2(currentIndex, 1);
+            }
+
+            if (tempHashed < hashedPosition)
+            {
+                startIndex = currentIndex;
+                currentIndex = (startIndex + endIndex) / 2;
+            }
+            else
+            {
+                endIndex = currentIndex;
+                currentIndex = (startIndex + endIndex) / 2;
+            }
+        }
+        return result;
+    }
+    // This unnecessary else statement is here because the HLSL compiler doesn't like early returns. This is a workaround to avoid
+    // Getting compiler warnings
+    else
+    {
+        return result;
+    }
+}
+
+[numthreads(8, 8, 8)]
+void CS(uint3 TileID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 GroupThreadID : SV_GroupThreadID)
+{
+  
+    uint threadLinearIndex = TileID.z * (TileDimension.x * TileDimension.y) + TileID.y * TileDimension.x + TileID.x;
+    threadLinearIndex = threadLinearIndex * 8 * 8 * 8 + GroupThreadIndex;
+   
+    // Each group represents a tile, but each group has 8x8x8 threads.
+    // A tile has a dimension of 2S X 2S X 2S, therefore each thread is responsible for (2S / 8) X (2S / 8) X (2S / 8) voxels
+    uint ThreadTilePiece = ceil(S / 4);
+    
+    // Coord of the first voxel of this tile
+    uint3 FirstVoxelInTile = TileID * (2 * S);
+    // Coord of the first voxel of the thread for this tile
+    uint3 TileStart = FirstVoxelInTile + (GroupThreadID * ThreadTilePiece);
+    
+    uint3 TileEnd = min(TileStart + ThreadTilePiece, FirstVoxelInTile + uint3(2 * S, 2 * S, 2 * S));
+    
+    if (CurrentPhase == 0)
+    {
+        for (uint i = TileStart.x; i < TileEnd.x; i++)
+        {
+            for (uint j = TileStart.y; j < TileEnd.y; j++)
+            {
+                for (uint k = TileStart.z; k < TileEnd.z; k++)
+                {
+                    uint2 hashedPositionIndex = FindHashedCompactedPositionIndex(uint3(i, j, k), GridDimension);
+                    InterlockedAdd(smVoxelInTileCount, hashedPositionIndex.y);
+                }
+            }
         }
         
-        if (linearIndex >= TileDimension.x * TileDimension.y * TileDimension.z)
+        
+        GroupMemoryBarrierWithGroupSync();
+        
+        if (GroupThreadIndex > 0)
         {
             return;
         }
         
-        uint voxelIndex = gVoxelHashedCompactBuffer[linearIndex];
-        uint3 voxelPosition = GetVoxelPosition(voxelIndex, GridDimension);
+        uint numberOfClusterInTile = ceil(K * ((float) smVoxelInTileCount / VoxelCount));
+        float clusterOffset = (2.0f * S) / numberOfClusterInTile;
         
-        uint3 tilePosition = uint3(voxelPosition.x / (2 * S), voxelPosition.y / (2 * S), voxelPosition.z / (2 * S));
-        uint tileLinearIndex = GetLinearCoord(tilePosition, TileDimension);
-        uint outValue = 0;
+        uint tileClusterGrid = ceil(pow(numberOfClusterInTile, 1 / 3.0f));
         
-        InterlockedExchange(gTileBuffer[tileLinearIndex], UINT_MAX, outValue);
+        ClusterData data;
+        data.Normal = float3(0.0f, 0.0f, 0.0f);
+        data.VoxelCount = 0;
+        data.pad0 = 0;
         
-        if (outValue == 0)
+        uint originalValue = 0;
+        
+        for (uint nCluster = 0; nCluster < numberOfClusterInTile; nCluster++)
         {
-            ClusterData data;
-            data.VoxelCount = 0;
-            data.Normal = float3(0, 0, 0);
-            data.pad0 = 0;
+            float3 pos = GetVoxelPosition(nCluster, uint3(tileClusterGrid, tileClusterGrid, tileClusterGrid));
+
+            pos = FirstVoxelInTile + (pos + 0.5f) * clusterOffset;
             
-            float3 tileCenter = float3(tilePosition.x * (2 * S) + S, tilePosition.y * (2 * S) + S, tilePosition.z * (2 * S) + S);
+            data.Center = pos;
             
-            uint clusterOffset = 0;
+            InterlockedAdd(gClusterCounterBuffer[0], 1, originalValue);
             
-            for (int i = -1; i < 2; i += 2)
-            {
-                for (int j = -1; j < 2; j += 2)
-                {
-                    for (int k = -1; k < 2; k += 2)
-                    {
-                        if (tileLinearIndex + clusterOffset >= K)
-                            continue;
-                        
-                        data.Center = tileCenter + float3(i * S/2, j * S/2, k * S/2);
-                        gClusterDataBuffer[tileLinearIndex + clusterOffset] = data;
-                        clusterOffset++;
-                    }
-                }
-            }
+            if (originalValue >= K)
+                return;
+            
+            gClusterDataBuffer[originalValue] = data;
         }
+        
     }
     else if (CurrentPhase == 1)
     {
+        uint voxelsPerThread = ceil(VoxelCount / (TileDimension.x * TileDimension.y * TileDimension.z * 8 * 8 * 8));
+        uint clusterPerThread = ceil(K / (TileDimension.x * TileDimension.y * TileDimension.z * 8 * 8 * 8));
+       
+        uint initialindex = threadLinearIndex * voxelsPerThread;
+        uint finalindex = min(initialindex + voxelsPerThread, VoxelCount);
         
+        for (uint i = initialindex; i < finalindex; i++)
+        {
+            gClusterAssignmentBuffer[i] = UINT_MAX;
+            gClusterDistanceBuffer[i] = UINT_MAX;
+        }
     }
 }

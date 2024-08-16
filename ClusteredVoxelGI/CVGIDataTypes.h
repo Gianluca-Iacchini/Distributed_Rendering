@@ -18,7 +18,7 @@ namespace CVGI {
 	{
 		ClusterizeCBV = 0,
 		VoxelBuffersSRVTable = 1,
-		StreamCompactionUAVTable = 2,
+		StreamCompactionSRVTable = 2,
 		ClusterizeUAVTable,
 		Count
 	};
@@ -40,6 +40,7 @@ namespace CVGI {
 		CameraCBV = 1,
 		VoxelSRVBufferTable = 2,
 		CompactSRVBufferTable,
+		ClusterSRVBufferTable,
 		Count
 	};
 
@@ -80,6 +81,20 @@ namespace CVGI {
 		DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
 		float pad2 = 0.0f;
 	};
+
+	__declspec(align(16)) struct ConstantBufferClusterizeBuffer
+	{
+		UINT32 CurrentPhase = 0;
+		UINT32 VoxelCount = 0;
+		UINT32 K = 0;
+		UINT32 m = 0;
+
+		DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
+		UINT32 S = 1;
+
+		DirectX::XMUINT3 TileGridDimension = DirectX::XMUINT3(6, 6, 6);
+		float pad0 = 0.0f;
+	}; 
 
 	__declspec(align(16)) struct FragmentData
 	{
