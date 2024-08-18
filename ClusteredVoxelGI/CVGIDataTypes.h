@@ -86,14 +86,17 @@ namespace CVGI {
 	{
 		UINT32 CurrentPhase = 0;
 		UINT32 VoxelCount = 0;
-		UINT32 K = 0;
-		UINT32 m = 0;
+		UINT32 K = 10000;
+		float m = 1.0f;
 
 		DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
 		UINT32 S = 1;
 
 		DirectX::XMUINT3 TileGridDimension = DirectX::XMUINT3(6, 6, 6);
-		float pad0 = 0.0f;
+		UINT32 FirstClusterSet = 1;
+
+		DirectX::XMUINT3 CurrentTileUpdate = DirectX::XMUINT3(0, 0, 0);
+		float pad1 = 0.0f;
 	}; 
 
 	__declspec(align(16)) struct FragmentData
@@ -110,10 +113,16 @@ namespace CVGI {
 	__declspec(align(16)) struct ClusterData
 	{
 		DirectX::XMFLOAT3 Center;
-		UINT32 VoxelCount;
+		float _pad0 = 0.0f;
 
 		DirectX::XMFLOAT3 Normal;
-		float _pad0;
+		float _pad1 = 0.0f;
+
+		DirectX::XMFLOAT3 CenterAccum;
+		UINT32 VoxelCount;
+
+		DirectX::XMFLOAT3 NormalAccum;
+		float _pad2 = 0.0f;
 	};
 
 

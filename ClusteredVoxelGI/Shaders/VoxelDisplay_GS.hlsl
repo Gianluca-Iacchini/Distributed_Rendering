@@ -33,6 +33,8 @@ StructuredBuffer<uint> gVoxelIndicesCompacted : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashesCompacted : register(t3, space1);
 
 StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
+StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
+StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
 
 uint3 GetVoxelPosition(uint voxelLinearCoord)
@@ -85,7 +87,28 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
     return result;
 }
 
+float3 LinearIndexToColor(uint index)
+{
+    if (index == UINT_MAX)
+        return float3(0, 0, 0);
+    
+    // Hash the index to produce a pseudo-random float3 color
+        uint hash = index;
 
+    // Example hash function (based on bitwise operations)
+    hash = (hash ^ 61) ^ (hash >> 16);
+    hash = hash + (hash << 3);
+    hash = hash ^ (hash >> 4);
+    hash = hash * 0x27d4eb2d;
+    hash = hash ^ (hash >> 15);
+
+    // Convert the hash to a float3 color in the range [0, 1]
+    float r = (float) ((hash >> 16) & 0xFF) / 255.0;
+    float g = (float) ((hash >> 8) & 0xFF) / 255.0;
+    float b = (float) (hash & 0xFF) / 255.0;
+
+    return float3(r, g, b);
+}
 
 [maxvertexcount(72)]
 void GS(
@@ -164,6 +187,9 @@ void GS(
     avgColor = avgColor / fragmentCount;
     
 
+
+    
+    avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[index]);
     
     float scale = 0.5f; // Scale of the cube
     
@@ -177,17 +203,6 @@ void GS(
     // Move voxel scene to position 0,0,0
     position -= voxelCommons.gridDimension * (scale / 2.f);
     
-
-    uint3 prevElementPos = voxelPosition - uint3(0, 0, 1);
-    
-    uint2 compactedPositionIndex = FindHashedCompactedPositionIndex(prevElementPos, voxelCommons.gridDimension);
-    
-    if (prevElementPos.x == 256)
-        avgColor.x = 1;
-    if (prevElementPos.y == 256)
-        avgColor.y = 1;
-    if (prevElementPos.z == 256)
-        avgColor.z = 1;
 
     for (int i = 0; i < 36; i += 3)
     {

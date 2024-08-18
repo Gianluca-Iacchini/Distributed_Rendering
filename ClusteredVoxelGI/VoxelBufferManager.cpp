@@ -278,7 +278,7 @@ void CVGI::VoxelBufferManager::ClusterizeBuffers()
 
 	m_cbClusterizeBuffer.CurrentPhase = 0;
 	m_cbClusterizeBuffer.VoxelCount = m_voxelCount;
-	m_cbClusterizeBuffer.m = 1;
+	m_cbClusterizeBuffer.m = 10.0f;
 	m_cbClusterizeBuffer.K = m_numberOfClusters;
 
 	m_cbClusterizeBuffer.VoxelTextureDimensions = DirectX::XMUINT3(UINT(m_voxelTexDimension.x), UINT(m_voxelTexDimension.y), UINT(m_voxelTexDimension.z));
@@ -307,6 +307,43 @@ void CVGI::VoxelBufferManager::ClusterizeBuffers()
 
 	ClusterizeBufferPass(context);
 
+	DirectX::XMUINT3 tileGroups[8] =
+	{
+		{ 0, 0, 0},
+		{ 0, 0, 1},
+		{ 0, 1, 0},
+		{ 0, 1, 1},
+		{ 1, 0, 0},
+		{ 1, 0, 1},
+		{ 1, 1, 0},
+		{ 1, 1, 1}
+	};
+
+
+
+	for (int n = 0; n < 1; n++)
+	{
+		m_cbClusterizeBuffer.FirstClusterSet = n == 0 ? 1 : 0;
+
+		m_cbClusterizeBuffer.CurrentPhase = 1;
+
+		ClusterizeBufferPass(context);
+
+		m_cbClusterizeBuffer.CurrentPhase = 2;
+
+
+		for (UINT i = 0; i < 8; i++)
+		{
+			m_cbClusterizeBuffer.CurrentTileUpdate = tileGroups[i];
+			ClusterizeBufferPass(context);
+			context.Flush();
+		}
+
+		//m_cbClusterizeBuffer.CurrentPhase = 3;
+		//ClusterizeBufferPass(context);
+
+		//context.Flush(true);
+	}
 	PIXEndEvent(context.m_commandList->Get());
 
 	context.Finish();
@@ -334,8 +371,8 @@ void CVGI::VoxelBufferManager::InitializeClusters()
 	m_assignemtMapBuffer.Create(m_voxelCount, sizeof(UINT32));
 	m_voxelClusterLinkedList.Create(m_voxelCount, sizeof(UINT32));
 	m_distanceMapBuffer.Create(m_voxelCount, sizeof(float));
-	m_nextClusterList.Create(m_numberOfClusters, sizeof(UINT16));
-	m_tileTexture.Create3D(TileGridDimension.x, TileGridDimension.y, TileGridDimension.z, 1, DXGI_FORMAT_R16_UINT);
+	m_nextClusterList.Create(m_numberOfClusters, sizeof(UINT32));
+	m_tileTexture.Create3D(TileGridDimension.x, TileGridDimension.y, TileGridDimension.z, 1, DXGI_FORMAT_R32_UINT);
 	m_clusterCounterBuffer.Create(1, sizeof(UINT32));
 
 	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::ClusterData), m_clusterDataBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -347,6 +384,8 @@ void CVGI::VoxelBufferManager::InitializeClusters()
 	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferUAVStart(BufferType::ClusterCounterBuffer), m_clusterCounterBuffer.GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	
 	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferSRVStart(BufferType::ClusterData), m_clusterDataBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferSRVStart(BufferType::NextVoxel), m_voxelClusterLinkedList.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, GetBufferSRVStart(BufferType::AssignmentMap), m_assignemtMapBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void CVGI::VoxelBufferManager::CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX)

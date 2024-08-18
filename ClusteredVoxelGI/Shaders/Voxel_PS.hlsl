@@ -53,7 +53,16 @@ void SetVoxelOccupied(uint indexHashed)
 
 
 float4 PS(VertexOutVoxel pIn) : SV_TARGET
-{
+{   
+    pIn.NormalW = normalize(pIn.NormalW);
+    
+    // Get normal from normal map. Compute Z from X and Y.
+    float3 normalMapSample = ComputeTwoChannelNormal(gNormalMap.Sample(gSampler, pIn.Tex).xy);
+    // Compute TBN matrix from position, normal and texture coordinates.
+    float3x3 tbn = CalculateTBN(pIn.PosW, pIn.NormalW, pIn.Tex);
+    // Transform normal from tangent space to world space
+    float3 normal = normalize(mul(normalMapSample, tbn));
+    
     float4 diffuse = gDiffuseTex.Sample(gSampler, pIn.Tex);
     
     float4 retColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -100,7 +109,7 @@ float4 PS(VertexOutVoxel pIn) : SV_TARGET
         
         FragmentData fragmentData;
         fragmentData.color = diffuse;
-        fragmentData.normal = float3(0, 0, 0);
+        fragmentData.normal = normal;
         fragmentData.position = pIn.PosW;
         fragmentData.voxelLinearCoord = voxelLinearCoord;
         fragmentData.pad0 = 0.0f;
@@ -108,7 +117,6 @@ float4 PS(VertexOutVoxel pIn) : SV_TARGET
         gFragmentDataBuffer[lastFragmentCount] = fragmentData;
         gNextIndexBuffer[lastFragmentCount] = UINT_MAX;
         
-        //gVoxelIndicesBuffer[voxelLinearCoord] = lastFragmentCount;
         
         uint newVal = lastFragmentCount;
         uint prev = UINT_MAX;
