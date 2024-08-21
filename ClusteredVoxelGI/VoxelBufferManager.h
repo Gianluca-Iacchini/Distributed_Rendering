@@ -47,6 +47,9 @@ namespace CVGI
 		TileBuffer,
 		NextCluster,
 		ClusterCounterBuffer,
+		VoxelNormalDirection,
+		VoxelClusterData,
+		NextVoxelClusterData,
 
 		Count
 	};
@@ -132,7 +135,7 @@ namespace CVGI
 #pragma region ClusterVariables
 		UINT32 m_numberOfClusters = 1;
 		UINT32 m_compactness = 10;
-		float m_superPixelArea = 1;
+		UINT32 m_superPixelArea = 1;
 
 		DirectX::XMUINT3 TileGridDimension;
 
@@ -189,6 +192,10 @@ namespace CVGI
 		DX12Lib::StructuredBuffer m_distanceMapBuffer;
 		DX12Lib::StructuredBuffer m_nextClusterList;
 		DX12Lib::StructuredBuffer m_clusterCounterBuffer;
+		DX12Lib::StructuredBuffer m_voxelNormalDirectionBuffer;
+		DX12Lib::StructuredBuffer m_voxelClusterDataBuffer;
+		DX12Lib::StructuredBuffer m_nextVoxelClusterDataBuffer;
+
 		DX12Lib::ColorBuffer m_tileTexture;
 
 

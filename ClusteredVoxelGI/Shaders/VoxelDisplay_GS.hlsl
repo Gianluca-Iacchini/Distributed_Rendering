@@ -107,7 +107,14 @@ float3 LinearIndexToColor(uint index)
     float g = (float) ((hash >> 8) & 0xFF) / 255.0;
     float b = (float) (hash & 0xFF) / 255.0;
 
-    return float3(r, g, b);
+    if (r < 0.1 && g < 0.1 && b < 0.1)
+    {
+        r = 0.4f;
+        g = 0.4f;
+        b = 0.4f;
+    }
+    
+        return float3(r, g, b);
 }
 
 [maxvertexcount(72)]

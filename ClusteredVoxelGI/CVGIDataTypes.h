@@ -113,16 +113,11 @@ namespace CVGI {
 	__declspec(align(16)) struct ClusterData
 	{
 		DirectX::XMFLOAT3 Center;
-		float _pad0 = 0.0f;
-
-		DirectX::XMFLOAT3 Normal;
-		float _pad1 = 0.0f;
-
-		DirectX::XMFLOAT3 CenterAccum;
 		UINT32 VoxelCount;
 
-		DirectX::XMFLOAT3 NormalAccum;
-		float _pad2 = 0.0f;
+		DirectX::XMFLOAT3 Normal;
+		UINT32 FirstVoxelDataIndex;
+
 	};
 
 

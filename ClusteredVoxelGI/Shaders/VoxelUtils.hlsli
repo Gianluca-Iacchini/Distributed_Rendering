@@ -58,16 +58,11 @@ struct FragmentData
 struct ClusterData
 {
     float3 Center;
-    float pad0;
-    
-    float3 Normal;
-    float pad1;
-    
-    float3 CenterAccum;
     uint VoxelCount;
     
-    float3 NormalAccum;
-    float pad2;
+    float3 Normal;
+    uint FirstDataIndex;
+
 };
 
 uint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)
