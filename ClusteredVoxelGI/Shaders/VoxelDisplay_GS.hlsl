@@ -36,6 +36,7 @@ StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
 StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
 StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
+RWStructuredBuffer<float3> gVoxelNormalBuffer : register(u7, space0);
 
 uint3 GetVoxelPosition(uint voxelLinearCoord)
 {
@@ -86,6 +87,9 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 
     return result;
 }
+
+
+
 
 float3 LinearIndexToColor(uint index)
 {
@@ -197,6 +201,12 @@ void GS(
 
     
     avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[index]);
+    //avgColor.xyz = gVoxelNormalBuffer[index];
+    //avgColor.xyz = avgColor.xyz;
+    
+    //avgColor.x = avgColor.x == -1 ? 0.15f : avgColor.x;
+    //avgColor.y = avgColor.y == -1 ? 0.15f : avgColor.y;
+    //avgColor.z = avgColor.z == -1 ? 0.15f : avgColor.z;
     
     float scale = 0.5f; // Scale of the cube
     

@@ -48,7 +48,6 @@ namespace CVGI
 		NextCluster,
 		ClusterCounterBuffer,
 		VoxelNormalDirection,
-		VoxelClusterData,
 		NextVoxelClusterData,
 
 		Count
@@ -193,7 +192,6 @@ namespace CVGI
 		DX12Lib::StructuredBuffer m_nextClusterList;
 		DX12Lib::StructuredBuffer m_clusterCounterBuffer;
 		DX12Lib::StructuredBuffer m_voxelNormalDirectionBuffer;
-		DX12Lib::StructuredBuffer m_voxelClusterDataBuffer;
 		DX12Lib::StructuredBuffer m_nextVoxelClusterDataBuffer;
 
 		DX12Lib::ColorBuffer m_tileTexture;

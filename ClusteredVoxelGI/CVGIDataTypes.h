@@ -41,6 +41,7 @@ namespace CVGI {
 		VoxelSRVBufferTable = 2,
 		CompactSRVBufferTable,
 		ClusterSRVBufferTable,
+		ClusterUAVBufferTable,
 		Count
 	};
 
