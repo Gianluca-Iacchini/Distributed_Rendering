@@ -23,6 +23,14 @@ namespace CVGI {
 		Count
 	};
 
+	enum class ClusterReduceRootSignature
+	{
+		ClusterReduceCBV = 0,
+		ClusterizeSRVTable = 1,
+		ClusterizeUAVTable = 2,
+		Count
+	};
+
 	enum class VoxelizeSceneRootParameterSlot
 	{
 		VoxelCommonCBV = 0,
@@ -99,6 +107,26 @@ namespace CVGI {
 		DirectX::XMUINT3 CurrentTileUpdate = DirectX::XMUINT3(0, 0, 0);
 		float pad1 = 0.0f;
 	}; 
+
+	__declspec(align(16)) struct ConstantBufferClusterReduce
+	{
+		UINT32 CurrentStep = 0;
+		UINT32 NumberOfSubClusters = 0;
+		UINT32 NumberOfSuperClusters = 0;
+		float Compactness = 10.0f;
+
+		DirectX::XMUINT3 VoxelDimension = DirectX::XMUINT3(512, 512, 512);
+		UINT32 S = 1;
+
+		DirectX::XMUINT3 TileGridDimension = DirectX::XMUINT3(6, 6, 6);
+		UINT32 FirstClusterSet = UINT_MAX;
+
+		UINT32 CurrentIteration = 1;
+		UINT32 VoxelCount = 0;
+		float _pad1;
+		float _pad2;
+	};
+
 
 	__declspec(align(16)) struct FragmentData
 	{

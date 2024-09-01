@@ -31,10 +31,14 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto clusterizeRootSignature = m_voxelBufferManager.BuildClusterizeRootSignature();
 	auto clusterizeVoxelPso = m_voxelBufferManager.BuildClulsterizePso(clusterizeRootSignature);
 
+	auto clusterReduceRootSignature = m_voxelBufferManager.BuildClusterReduceRootSignature();
+	auto clusterReducePso = m_voxelBufferManager.BuildClusterReducePso(clusterReduceRootSignature);
+
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
 	Renderer::s_PSOs[clusterizeVoxelPso->Name] = clusterizeVoxelPso;
+	Renderer::s_PSOs[clusterReducePso->Name] = clusterReducePso;
 
 	m_voxelBufferManager.SetupFirstVoxelPassBuffers(VoxelTextureDimension);
 
@@ -110,6 +114,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_voxelBufferManager.InitializeClusters();
 	m_voxelBufferManager.ClusterizeBuffers();
+
+	m_voxelBufferManager.SetUpClusterReduceBuffers(commandContext);
+	m_voxelBufferManager.ReduceClusters();
 
 	UploadBuffer vertexUploadBuffer;
 	vertexUploadBuffer.Create(m_numberOfVoxels * sizeof(UINT32));

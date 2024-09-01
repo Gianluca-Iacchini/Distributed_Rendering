@@ -5,6 +5,7 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
     float3 color : COLOR;
+    uint ClusterIndex : CLUSTERINDEX;
 };
 
 struct GSInput
@@ -95,6 +96,8 @@ float3 LinearIndexToColor(uint index)
 {
     if (index == UINT_MAX)
         return float3(0, 0, 0);
+    else if (index == 0)
+        return float3(1, 1, 1);
     
     // Hash the index to produce a pseudo-random float3 color
         uint hash = index;
@@ -113,9 +116,9 @@ float3 LinearIndexToColor(uint index)
 
     if (r < 0.1 && g < 0.1 && b < 0.1)
     {
-        r = 0.4f;
-        g = 0.4f;
-        b = 0.4f;
+        r = 0.39f;
+        g = 0.39f;
+        b = 0.39f;
     }
     
         return float3(r, g, b);
@@ -188,19 +191,26 @@ void GS(
     uint fragmentCount = 0;
     
     
-    while (fragmentIndex != UINT_MAX)
-    {
-        avgColor += gFragmentDataBuffer[fragmentIndex].color;
-        fragmentIndex = gNextIndexBuffer[fragmentIndex];
-        fragmentCount += 1;
-    }
+    //while (fragmentIndex != UINT_MAX)
+    //{
+    //    avgColor += gFragmentDataBuffer[fragmentIndex].color;
+    //    fragmentIndex = gNextIndexBuffer[fragmentIndex];
+    //    fragmentCount += 1;
+    //}
    
-    avgColor = avgColor / fragmentCount;
+    //avgColor = avgColor / fragmentCount;
+    avgColor.xyz = float3(0.0f, 0.0f, 0.0f);
+    uint clusterIndex = gClusterAssignmentBuffer[index];
+    avgColor.xyz = LinearIndexToColor(clusterIndex);
+    
+    //for (uint j = 0; j < 210; j++)
+    //{
+    //    if (gClusterAssignmentBuffer[j + 100000] == gClusterAssignmentBuffer[index])
+    //        avgColor.xyz = float3(j * 0.1f, 1.0f - j * 0.1f, 0.0f);
+
+    //}
     
 
-
-    
-    avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[index]);
     //avgColor.xyz = gVoxelNormalBuffer[index];
     //avgColor.xyz = avgColor.xyz;
     
@@ -232,6 +242,7 @@ void GS(
         float3 normal = normalize(cross(v2 - v1, v3 - v1));
         output.normal = normal;
         output.color = avgColor.xyz;
+        output.ClusterIndex = clusterIndex;
         
         output.position = mul(float4(v1, 1.0f), camera.ViewProj);
         triOutput.Append(output);

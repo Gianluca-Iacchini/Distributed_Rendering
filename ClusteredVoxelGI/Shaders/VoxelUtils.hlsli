@@ -1,6 +1,7 @@
 #include "..\..\DirectXLib\DX12Lib\DXWrapper\Shaders\Common.hlsli"
 
 static const unsigned int UINT_MAX = 0xffffffff;
+static const float cos30 = 0.81915204428f;
 
 struct VertexOutVoxel
 {

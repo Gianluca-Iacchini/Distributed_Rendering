@@ -49,6 +49,7 @@ namespace CVGI
 		ClusterCounterBuffer,
 		VoxelNormalDirection,
 		NextVoxelClusterData,
+		SubClusterData,
 
 		Count
 	};
@@ -84,9 +85,12 @@ namespace CVGI
 		T ReadFromBuffer(DX12Lib::CommandContext& context, BufferType type);
 
 		void SetupCompactBuffers();
+		void SetUpClusterReduceBuffers(DX12Lib::CommandContext& context);
 
 		void CompactBuffers();
 		void ClusterizeBuffers();
+		void ReduceClusters();
+
 
 		void InitializeClusters();
 
@@ -96,20 +100,26 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::RootSignature> BuildClusterizeRootSignature();
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildClulsterizePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
 
+		std::shared_ptr<DX12Lib::RootSignature> BuildClusterReduceRootSignature();
+		std::shared_ptr<DX12Lib::ComputePipelineState> BuildClusterReducePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
+
 		UINT32 GetNumberOfVoxels() { return m_voxelCount; }
 
 	private:
 		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT numGroupsX);
-		void ClusterizeBufferPass(DX12Lib::ComputeContext& context);
+		void ClusterizeBufferPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize);
+		void ReduceClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize);
 
 	public:
 		static const std::wstring CompactBufferPsoName;
 		static const std::wstring ClusterizeBufferPsoName;
+		static const std::wstring ClusterReduceBufferPsoName;
 
 	private:
 #pragma region CompactVariables
 		ConstantBufferCompactBuffer m_cbCompactBuffer;
 		ConstantBufferClusterizeBuffer m_cbClusterizeBuffer;
+		ConstantBufferClusterReduce m_cbClusterReduce;
 
 		const UINT m_elementsPerThread = 128;
 
@@ -132,11 +142,13 @@ namespace CVGI
 #pragma endregion
 
 #pragma region ClusterVariables
-		UINT32 m_numberOfClusters = 1;
-		UINT32 m_compactness = 10;
+		UINT32 m_numberOfSuperClusters = 1;
+		float m_compactness = 10.0f;
 		UINT32 m_superPixelArea = 1;
 
 		DirectX::XMUINT3 TileGridDimension;
+
+		UINT32 m_numberOfSubClusters = 0;
 
 #pragma endregion
 
@@ -193,6 +205,9 @@ namespace CVGI
 		DX12Lib::StructuredBuffer m_clusterCounterBuffer;
 		DX12Lib::StructuredBuffer m_voxelNormalDirectionBuffer;
 		DX12Lib::StructuredBuffer m_nextVoxelClusterDataBuffer;
+
+		DX12Lib::StructuredBuffer m_subClusterDataBuffer;
+		DX12Lib::StructuredBuffer m_subClusterAssignmentBuffer;
 
 		DX12Lib::ColorBuffer m_tileTexture;
 
