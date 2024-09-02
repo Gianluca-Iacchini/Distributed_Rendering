@@ -9,6 +9,8 @@
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "VoxelBufferManager.h"
 #include "GraphicsMemory.h"
+#include "VoxelizeScene.h"
+#include "PrefixSumVoxels.h"
 
 namespace CVGI
 {
@@ -51,6 +53,9 @@ namespace CVGI
 		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
 
 	private:
+		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
+		std::unique_ptr<PrefixSumVoxels> m_prefixSumVoxels;
+
 		VoxelBufferManager m_voxelBufferManager;
 
 		ConstantBufferVoxelCommons m_cbVoxelCommons;

@@ -24,6 +24,7 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
+
 StructuredBuffer<FragmentData> gFragmentDataBuffer : register(t0);
 StructuredBuffer<uint> gNextIndexBuffer : register(t1);
 
@@ -33,11 +34,11 @@ StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
 StructuredBuffer<uint> gVoxelIndicesCompacted : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashesCompacted : register(t3, space1);
 
-StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
-StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
-StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
+//StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
+//StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
+//StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
-RWStructuredBuffer<float3> gVoxelNormalBuffer : register(u7, space0);
+//RWStructuredBuffer<float3> gVoxelNormalBuffer : register(u7, space0);
 
 uint3 GetVoxelPosition(uint voxelLinearCoord)
 {
@@ -49,80 +50,81 @@ uint3 GetVoxelPosition(uint voxelLinearCoord)
 }
 
 
-uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
-{
-    uint2 result = uint2(0, 0); // y field is control value, 0 means element not found, 1 means element found
-    uint indirectionIndex = gridDimension.z * coord.z + coord.y;
-    uint index = gIndirectionIndexBuffer[indirectionIndex];
-    uint rank = gIndirectionRankBuffer[indirectionIndex];
-    uint hashedPosition = GetLinearCoord(coord, gridDimension);
+//uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
+//{
+//    uint2 result = uint2(0, 0); // y field is control value, 0 means element not found, 1 means element found
+//    uint indirectionIndex = gridDimension.z * coord.z + coord.y;
+//    uint index = gIndirectionIndexBuffer[indirectionIndex];
+//    uint rank = gIndirectionRankBuffer[indirectionIndex];
+//    uint hashedPosition = GetLinearCoord(coord, gridDimension);
     
-    if (rank == 0)
-        return result;
+//    if (rank == 0)
+//        return result;
     
-    uint tempHashed;
-    uint startIndex = index;
-    uint endIndex = index + rank;
-    uint currentIndex = (startIndex + endIndex) / 2;
+//    uint tempHashed;
+//    uint startIndex = index;
+//    uint endIndex = index + rank;
+//    uint currentIndex = (startIndex + endIndex) / 2;
 
-    for (int i = 0; i < int(12); ++i)
-    {
-        tempHashed = gVoxelHashesCompacted[currentIndex];
+//    for (int i = 0; i < int(12); ++i)
+//    {
+//        tempHashed = gVoxelHashesCompacted[currentIndex];
 
-        if (tempHashed == hashedPosition)
-        {
-            return uint2(currentIndex, 1);
-        }
+//        if (tempHashed == hashedPosition)
+//        {
+//            return uint2(currentIndex, 1);
+//        }
 
-        if (tempHashed < hashedPosition)
-        {
-            startIndex = currentIndex;
-            currentIndex = (startIndex + endIndex) / 2;
-        }
-        else
-        {
-            endIndex = currentIndex;
-            currentIndex = (startIndex + endIndex) / 2;
-        }
-    }
+//        if (tempHashed < hashedPosition)
+//        {
+//            startIndex = currentIndex;
+//            currentIndex = (startIndex + endIndex) / 2;
+//        }
+//        else
+//        {
+//            endIndex = currentIndex;
+//            currentIndex = (startIndex + endIndex) / 2;
+//        }
+//    }
 
-    return result;
-}
-
-
+//    return result;
+//}
 
 
-float3 LinearIndexToColor(uint index)
-{
-    if (index == UINT_MAX)
-        return float3(0, 0, 0);
-    else if (index == 0)
-        return float3(1, 1, 1);
+
+
+//float3 LinearIndexToColor(uint index)
+//{
+//    if (index == UINT_MAX)
+//        return float3(0, 0, 0);
+//    else if (index == 0)
+//        return float3(1, 1, 1);
     
-    // Hash the index to produce a pseudo-random float3 color
-        uint hash = index;
+//    // Hash the index to produce a pseudo-random float3 color
+//        uint hash = index;
 
-    // Example hash function (based on bitwise operations)
-    hash = (hash ^ 61) ^ (hash >> 16);
-    hash = hash + (hash << 3);
-    hash = hash ^ (hash >> 4);
-    hash = hash * 0x27d4eb2d;
-    hash = hash ^ (hash >> 15);
+//    // Example hash function (based on bitwise operations)
+//    hash = (hash ^ 61) ^ (hash >> 16);
+//    hash = hash + (hash << 3);
+//    hash = hash ^ (hash >> 4);
+//    hash = hash * 0x27d4eb2d;
+//    hash = hash ^ (hash >> 15);
 
-    // Convert the hash to a float3 color in the range [0, 1]
-    float r = (float) ((hash >> 16) & 0xFF) / 255.0;
-    float g = (float) ((hash >> 8) & 0xFF) / 255.0;
-    float b = (float) (hash & 0xFF) / 255.0;
+//    // Convert the hash to a float3 color in the range [0, 1]
+//    float r = (float) ((hash >> 16) & 0xFF) / 255.0;
+//    float g = (float) ((hash >> 8) & 0xFF) / 255.0;
+//    float b = (float) (hash & 0xFF) / 255.0;
 
-    if (r < 0.1 && g < 0.1 && b < 0.1)
-    {
-        r = 0.39f;
-        g = 0.39f;
-        b = 0.39f;
-    }
+//    if (r < 0.1 && g < 0.1 && b < 0.1)
+//    {
+//        r = 0.39f;
+//        g = 0.39f;
+//        b = 0.39f;
+//    }
     
-        return float3(r, g, b);
-}
+//        return float3(r, g, b);
+//}
+
 
 [maxvertexcount(72)]
 void GS(
@@ -181,27 +183,34 @@ void GS(
         At index 0 we have the fragment F3. The index 0 represents the voxel linear coord 0, which is (0,0,0) in our world,
     */
     
-    float4 avgColor = float4(0, 0, 0, 0);
+
+    
+    
     
     uint index = input[0].VoxelIndex;
+
     
     uint voxelLinearCoord = gVoxelHashesCompacted[index];
     uint fragmentIndex = gVoxelIndicesCompacted[index];
     
+
+    
+    float4 avgColor = float4(0.0f, 0, 0, 1.0f);
+    
     uint fragmentCount = 0;
     
     
-    //while (fragmentIndex != UINT_MAX)
-    //{
-    //    avgColor += gFragmentDataBuffer[fragmentIndex].color;
-    //    fragmentIndex = gNextIndexBuffer[fragmentIndex];
-    //    fragmentCount += 1;
-    //}
+    while (fragmentIndex != UINT_MAX)
+    {
+        avgColor += gFragmentDataBuffer[fragmentIndex].color;
+        fragmentIndex = gNextIndexBuffer[fragmentIndex];
+        fragmentCount += 1;
+    }
    
-    //avgColor = avgColor / fragmentCount;
-    avgColor.xyz = float3(0.0f, 0.0f, 0.0f);
-    uint clusterIndex = gClusterAssignmentBuffer[index];
-    avgColor.xyz = LinearIndexToColor(clusterIndex);
+    avgColor = avgColor / fragmentCount;
+    //avgColor.xyz = float3(0.0f, 0.0f, 0.0f);
+    //uint clusterIndex = gClusterAssignmentBuffer[index];
+    //avgColor.xyz = LinearIndexToColor(clusterIndex);
     
     //for (uint j = 0; j < 210; j++)
     //{
@@ -242,7 +251,7 @@ void GS(
         float3 normal = normalize(cross(v2 - v1, v3 - v1));
         output.normal = normal;
         output.color = avgColor.xyz;
-        output.ClusterIndex = clusterIndex;
+        output.ClusterIndex = 1; //clusterIndex;
         
         output.position = mul(float4(v1, 1.0f), camera.ViewProj);
         triOutput.Append(output);
