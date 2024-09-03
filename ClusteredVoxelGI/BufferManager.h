@@ -2,7 +2,9 @@
 
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
+#include "DX12Lib/DXWrapper/ColorBuffer.h"
 #include "assert.h"
+#include "DirectXMath.h"
 
 namespace CVGI
 {
@@ -16,6 +18,8 @@ namespace CVGI
 
 		UINT AddStructuredBuffer(UINT32 elementCount, size_t elementSize);
 		UINT AddByteAddressBuffer();
+		UINT Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format);
+		UINT Add3DTextureBuffer(DirectX::XMUINT3, DXGI_FORMAT format);
 		
 		void RemoveBuffer(int index);
 		void ResizeBuffer(int index, UINT32 elementCount);
@@ -26,7 +30,7 @@ namespace CVGI
 
 		void TransitionAll(DX12Lib::CommandContext& context, D3D12_RESOURCE_STATES newState, bool flusBarriers = false);
 
-		DX12Lib::GPUBuffer& GetBuffer(UINT index) { return *m_buffers[index]; }
+		DX12Lib::GPUBuffer& GetBuffer(UINT index);
 
 		DX12Lib::DescriptorHandle& GetUAVHandle() { return m_uavHandle; }
 		DX12Lib::DescriptorHandle& GetSRVHandle() { return m_srvHandle; }
@@ -35,7 +39,7 @@ namespace CVGI
 		inline T ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex);
 
 	private:
-		std::vector<std::unique_ptr<DX12Lib::GPUBuffer>> m_buffers;
+		std::vector<std::unique_ptr<DX12Lib::Resource>> m_buffers;
 
 		DX12Lib::DescriptorHandle m_uavHandle;
 		DX12Lib::DescriptorHandle m_srvHandle;
@@ -46,7 +50,9 @@ namespace CVGI
 	{
 		assert(bufferIndex < m_buffers.size() && bufferIndex >= 0);
 
-		GPUBuffer* buffer = m_buffers[bufferIndex].get();
+		GPUBuffer* buffer = dynamic_cast<GPUBuffer*>(m_buffers[bufferIndex].get());
+
+		assert(buffer != nullptr);
 
 		ReadBackBuffer readBuffer;
 		readBuffer.Create(buffer->GetElementCount(), buffer->GetElementSize());

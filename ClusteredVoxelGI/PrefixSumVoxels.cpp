@@ -218,6 +218,11 @@ void CVGI::PrefixSumVoxels::CompactBufferPass(DX12Lib::ComputeContext& context, 
 	context.Dispatch(numGroupsX, 1, 1);
 }
 
+void CVGI::PrefixSumVoxels::DeleteTemporaryBuffers()
+{
+	m_bufferManager.RemoveBuffer((UINT)PrefixSumBufferType::PrefixSum);
+}
+
 std::shared_ptr<DX12Lib::RootSignature> CVGI::PrefixSumVoxels::BuildPrefixSumRootSignature()
 {
 	SamplerDesc defaultSamplerDesc;

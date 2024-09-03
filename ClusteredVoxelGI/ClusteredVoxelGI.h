@@ -11,6 +11,7 @@
 #include "GraphicsMemory.h"
 #include "VoxelizeScene.h"
 #include "PrefixSumVoxels.h"
+#include "ClusterVoxels.h"
 
 namespace CVGI
 {
@@ -55,6 +56,8 @@ namespace CVGI
 	private:
 		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
 		std::unique_ptr<PrefixSumVoxels> m_prefixSumVoxels;
+		std::unique_ptr<ClusterVoxels> m_clusterVoxels;
+
 
 		VoxelBufferManager m_voxelBufferManager;
 

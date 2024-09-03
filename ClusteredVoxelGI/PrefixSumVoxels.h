@@ -63,6 +63,7 @@ namespace CVGI
 
 		void StartPrefixSum(BufferManager* voxelBufferManager);
 		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT32 numGroupsX, BufferManager* voxelBufferManager);
+		void DeleteTemporaryBuffers();
 
 		std::shared_ptr<DX12Lib::RootSignature> BuildPrefixSumRootSignature();
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildPrefixSumPipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSig);

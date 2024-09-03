@@ -117,7 +117,9 @@ namespace CVGI
 		void SetVertexData(DX12Lib::CommandContext& context, UINT32 vertexCount);
 		
 		void VoxelizePass(DX12Lib::GraphicsContext& context, VoxelCamera* voxelCamera);
-		void DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX12Lib::SceneCamera* camera, BufferManager* compactBufferManager);
+		void DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX12Lib::SceneCamera* camera, BufferManager* compactBufferManager, BufferManager* clusterBufferManager);
+
+		void DeleteTemporaryBuffers();
 
 		DX12Lib::GPUBuffer& GetVoxelBuffer(VoxelBufferType type) { return m_bufferManager.GetBuffer((UINT)type); }
 

@@ -29,6 +29,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_voxelizeScene = std::make_unique<VoxelizeScene>(voxelTexDimensions, voxelCellSize);
 	m_prefixSumVoxels = std::make_unique<PrefixSumVoxels>(voxelTexDimensions);
+	m_clusterVoxels = std::make_unique<ClusterVoxels>(voxelTexDimensions);
 
 
 
@@ -41,8 +42,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto compactBufferRootSig = m_prefixSumVoxels->BuildPrefixSumRootSignature(); //m_voxelBufferManager.BuildCompactBufferRootSignature();
 	auto compactBufferPSO = m_prefixSumVoxels->BuildPrefixSumPipelineState(compactBufferRootSig); //m_voxelBufferManager.BuildCompactBufferPso(compactBufferRootSig);
 
-	auto clusterizeRootSignature = m_voxelBufferManager.BuildClusterizeRootSignature();
-	auto clusterizeVoxelPso = m_voxelBufferManager.BuildClulsterizePso(clusterizeRootSignature);
+	auto clusterizeRootSignature = m_clusterVoxels->BuildClusterizeRootSignature(); // m_voxelBufferManager.BuildClusterizeRootSignature();
+	auto clusterizeVoxelPso = m_clusterVoxels->BuildClusterizePipelineState(clusterizeRootSignature); // m_voxelBufferManager.BuildClulsterizePso(clusterizeRootSignature);
 
 	auto clusterReduceRootSignature = m_voxelBufferManager.BuildClusterReduceRootSignature();
 	auto clusterReducePso = m_voxelBufferManager.BuildClusterReducePso(clusterReduceRootSignature);
@@ -76,25 +77,23 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		m_voxelizeScene->VoxelizePass(commandContext, voxelCamera);
 	}
 
+	UINT32 voxelCount = *m_voxelizeScene->GetBufferManager()->ReadFromBuffer<UINT32*>(commandContext, (UINT)BufferType::VoxelCounter);
+	
 
 
-	//m_voxelizeScene->SetVertexData(commandContext, m_voxelizeScene->GetVoxelBuffer(VoxelizeScene::VoxelBufferType::VoxelIndex));
-
-	//UINT32* voxelCount = m_voxelBufferManager.ReadFromBuffer<UINT32*>(commandContext, BufferType::VoxelCounter);
-
-	//DXLIB_CORE_INFO("Voxel Count: {0}", *voxelCount);
 
 	m_prefixSumVoxels->InitializeBuffers(commandContext);
 	m_prefixSumVoxels->StartPrefixSum(m_voxelizeScene->GetBufferManager());
 
-	UINT32* voxelCount = m_voxelizeScene->GetBufferManager()->ReadFromBuffer<UINT32*>(commandContext, (UINT)BufferType::VoxelCounter);
+	// Voxelize scene temporary buffers can be deleted after the voxelization and prefix sum passes.
+	m_voxelizeScene->DeleteTemporaryBuffers();
+	// Prefix sum temporary buffers are only needed for the prefix sum pass.
+	m_prefixSumVoxels->DeleteTemporaryBuffers();
 
-	m_voxelizeScene->SetVertexData(commandContext, *voxelCount);
+	m_clusterVoxels->InitializeBuffers(voxelCount);
+	m_clusterVoxels->StartClustering(*m_voxelizeScene->GetBufferManager(), *m_prefixSumVoxels->GetBufferManager());
 
-	//m_voxelBufferManager.SetupCompactBuffers();
-
-	//m_voxelBufferManager.CompactBuffers();
-
+	m_voxelizeScene->SetVertexData(commandContext, voxelCount);
 
 	//m_numberOfVoxels = m_voxelBufferManager.GetNumberOfVoxels();
 
@@ -142,7 +141,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager());
+	m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager(), m_clusterVoxels->GetBufferManager());
 
 	//VoxelDisplayPass(commandContext);
 
