@@ -7,30 +7,30 @@ using namespace DX12Lib;
 
 UINT BufferManager::AddStructuredBuffer(UINT32 elementCount, size_t elementSize)
 {
-	std::unique_ptr<StructuredBuffer> buffer = std::make_unique<StructuredBuffer>();
+	std::shared_ptr<StructuredBuffer> buffer = std::make_shared<StructuredBuffer>();
 	buffer->Create(elementCount, elementSize);
 
-	m_buffers.push_back(std::move(buffer));
+	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
 
 UINT CVGI::BufferManager::AddByteAddressBuffer()
 {
-	std::unique_ptr<ByteAddressBuffer> buffer = std::make_unique<ByteAddressBuffer>();
+	std::shared_ptr<ByteAddressBuffer> buffer = std::make_shared<ByteAddressBuffer>();
 	buffer->Create(1, sizeof(UINT32));
 
-	m_buffers.push_back(std::move(buffer));
+	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
 
 UINT CVGI::BufferManager::Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format)
 {
-	std::unique_ptr<ColorBuffer> buffer = std::make_unique<ColorBuffer>();
+	std::shared_ptr<ColorBuffer> buffer = std::make_shared<ColorBuffer>();
 	buffer->Create3D(width, height, depth, 1, format);
 
-	m_buffers.push_back(std::move(buffer));
+	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
@@ -119,6 +119,42 @@ void CVGI::BufferManager::ResizeBuffer(int index, UINT32 elementCount)
 
 }
 
+void CVGI::BufferManager::ReplaceBuffer(UINT index, UINT32 elementCount, size_t elementSize)
+{
+	UINT actualIndex = index;
+	if (index >= m_buffers.size())
+	{
+		actualIndex = m_buffers.size();
+		m_buffers.resize(actualIndex + 1);
+	}
+
+	std::shared_ptr<StructuredBuffer> buffer = std::make_shared<StructuredBuffer>();
+	buffer->Create(elementCount, elementSize);
+
+
+	if (m_srvHandle.GetGPUPtr() != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+	{
+		Graphics::s_device->Get()->CopyDescriptorsSimple(
+			1,
+			m_srvHandle + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * actualIndex,
+			buffer->GetSRV(),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+	}
+
+	if (m_uavHandle.GetGPUPtr() != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+	{
+		Graphics::s_device->Get()->CopyDescriptorsSimple(
+			1,
+			m_uavHandle + Graphics::Renderer::s_textureHeap->GetDescriptorSize() * actualIndex,
+			buffer->GetUAV(),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+	}
+
+	m_buffers[actualIndex] = buffer;
+}
+
 void CVGI::BufferManager::AllocateBuffers()
 {
 	m_uavHandle =  Graphics::Renderer::s_textureHeap->Alloc(m_buffers.size());
@@ -128,6 +164,9 @@ void CVGI::BufferManager::AllocateBuffers()
 	{
 		auto descriptorStart = Graphics::Renderer::s_textureHeap->GetDescriptorSize() * i;
 		Resource* resource = m_buffers[i].get();
+
+		if (resource == nullptr)
+			continue;
 
 		bool isGpuBuffer = dynamic_cast<GPUBuffer*>(resource) != nullptr;
 
@@ -180,7 +219,7 @@ void CVGI::BufferManager::ZeroBuffer(DX12Lib::CommandContext& context, UINT inde
 
 void CVGI::BufferManager::TransitionAll(DX12Lib::CommandContext& context, D3D12_RESOURCE_STATES newState, bool flusBarriers)
 {
-	for (auto& buffer : m_buffers)
+	for (auto buffer : m_buffers)
 	{
 		context.TransitionResource(*buffer, newState);
 	}
@@ -200,6 +239,19 @@ DX12Lib::GPUBuffer& CVGI::BufferManager::GetBuffer(UINT index)
 	assert(buffer != nullptr);
 
 	return *buffer;
+}
+
+void CVGI::BufferManager::MoveDataTo(BufferManager& other)
+{
+	other.m_buffers.clear();
+
+	for (UINT i = 0; i < m_buffers.size(); i++)
+	{
+		other.m_buffers.push_back(m_buffers[i]);
+	}
+
+	other.m_uavHandle = this->m_uavHandle;
+	other.m_srvHandle = this->m_srvHandle;
 }
 
 

@@ -14,15 +14,6 @@ namespace CVGI
 	class ClusterVoxels
 	{
 	private:
-		__declspec(align(16)) struct ClusterData
-		{
-			DirectX::XMFLOAT3 Center;
-			UINT32 VoxelCount;
-
-			DirectX::XMFLOAT3 Normal;
-			UINT32 FirstVoxelDataIndex;
-
-		};
 
 		__declspec(align(16)) struct ConstantBufferClusterizeBuffer
 		{
@@ -65,6 +56,16 @@ namespace CVGI
 			SubClusterData,
 		};
 
+		__declspec(align(16)) struct ClusterData
+		{
+			DirectX::XMFLOAT3 Center;
+			UINT32 VoxelCount;
+
+			DirectX::XMFLOAT3 Normal;
+			UINT32 FirstVoxelDataIndex;
+
+		};
+
 	public:
 		ClusterVoxels(DirectX::XMUINT3 VoxelSceneSize) : m_voxelSceneDimensions(VoxelSceneSize) {}
 		~ClusterVoxels() {}
@@ -78,6 +79,13 @@ namespace CVGI
 
 		BufferManager* GetBufferManager() { return &m_bufferManager; }
 
+		UINT32 GetNumberOfClusters() { return m_numberOfClusters; }
+		UINT32 GetNonEmptyClusters() { return m_numberOfNonEmptyClusters; }
+		float GetCompactness() { return m_compactness; }
+		UINT32 GetSuperPixelWidth() { return m_superPixelWidth; }
+		UINT32 GetVoxelCount() { return m_voxelCount; }
+		DirectX::XMUINT3 GetTileGridDimension() { return m_tileGridDimension; }
+
 	private:
 		DirectX::XMUINT3 m_voxelSceneDimensions;
 		BufferManager m_bufferManager;
@@ -88,6 +96,8 @@ namespace CVGI
 		UINT32 m_numberOfClusters;
 		UINT32 m_superPixelWidth;
 		UINT32 m_voxelCount;
+
+		UINT32 m_numberOfNonEmptyClusters = 0;
 
 		DirectX::XMUINT3 m_tileGridDimension;
 

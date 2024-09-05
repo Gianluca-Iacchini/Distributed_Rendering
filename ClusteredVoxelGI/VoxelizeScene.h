@@ -35,7 +35,7 @@ namespace CVGI
 			VoxelSRVBufferTable = 2,
 			CompactSRVBufferTable,
 			ClusterSRVBufferTable,
-			ClusterUAVBufferTable,
+			FaceVisibilitySRVBufferTable,
 			Count
 		};
 
@@ -117,7 +117,7 @@ namespace CVGI
 		void SetVertexData(DX12Lib::CommandContext& context, UINT32 vertexCount);
 		
 		void VoxelizePass(DX12Lib::GraphicsContext& context, VoxelCamera* voxelCamera);
-		void DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX12Lib::SceneCamera* camera, BufferManager* compactBufferManager, BufferManager* clusterBufferManager);
+		void DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX12Lib::SceneCamera* camera, BufferManager* compactBufferManager, BufferManager* clusterBufferManager, BufferManager* faceBufferManager);
 
 		void DeleteTemporaryBuffers();
 

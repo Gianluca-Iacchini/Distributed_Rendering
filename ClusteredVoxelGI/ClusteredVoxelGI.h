@@ -12,6 +12,8 @@
 #include "VoxelizeScene.h"
 #include "PrefixSumVoxels.h"
 #include "ClusterVoxels.h"
+#include "MergeClusters.h"
+#include "ClusterVisibility.h"
 
 namespace CVGI
 {
@@ -37,18 +39,8 @@ namespace CVGI
 		virtual void Update(DX12Lib::GraphicsContext& commandContext) override;
 		virtual void Draw(DX12Lib::GraphicsContext& commandContext) override;
 
-		void VoxelPass(DX12Lib::GraphicsContext& context, VoxelCamera* voxelCamera);
-		void VoxelDisplayPass(DX12Lib::GraphicsContext& context);
 
 	private:
-
-		std::shared_ptr<DX12Lib::RootSignature> BuildVoxelizeSceneRootSignature();
-		std::shared_ptr<DX12Lib::RootSignature> BuildVoxelDisplayRootSignature();
-
-
-
-		std::shared_ptr<DX12Lib::GraphicsPipelineState> BuildVoxelizeScenePso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
-		std::shared_ptr<DX12Lib::GraphicsPipelineState> BuildVoxelDisplayPso(std::shared_ptr<DX12Lib::RootSignature> voxelRootSig);
 
 	public:
 		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
@@ -57,9 +49,9 @@ namespace CVGI
 		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
 		std::unique_ptr<PrefixSumVoxels> m_prefixSumVoxels;
 		std::unique_ptr<ClusterVoxels> m_clusterVoxels;
+		std::unique_ptr<MergeClusters> m_mergeClusters;
+		std::unique_ptr<ClusterVisibility> m_clusterVisibility;
 
-
-		VoxelBufferManager m_voxelBufferManager;
 
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;

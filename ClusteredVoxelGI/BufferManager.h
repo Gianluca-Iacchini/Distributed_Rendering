@@ -23,6 +23,7 @@ namespace CVGI
 		
 		void RemoveBuffer(int index);
 		void ResizeBuffer(int index, UINT32 elementCount);
+		void ReplaceBuffer(UINT index, UINT32 elementCount, size_t elementSize);
 
 		void AllocateBuffers();
 
@@ -38,8 +39,10 @@ namespace CVGI
 		template<typename T>
 		inline T ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex);
 
+		void MoveDataTo(BufferManager& other);
+
 	private:
-		std::vector<std::unique_ptr<DX12Lib::Resource>> m_buffers;
+		std::vector<std::shared_ptr<DX12Lib::Resource>> m_buffers;
 
 		DX12Lib::DescriptorHandle m_uavHandle;
 		DX12Lib::DescriptorHandle m_srvHandle;
@@ -50,20 +53,18 @@ namespace CVGI
 	{
 		assert(bufferIndex < m_buffers.size() && bufferIndex >= 0);
 
-		GPUBuffer* buffer = dynamic_cast<GPUBuffer*>(m_buffers[bufferIndex].get());
-
-		assert(buffer != nullptr);
+		GPUBuffer& buffer = GetBuffer(bufferIndex);
 
 		ReadBackBuffer readBuffer;
-		readBuffer.Create(buffer->GetElementCount(), buffer->GetElementSize());
+		readBuffer.Create(buffer.GetElementCount(), buffer.GetElementSize());
 
 
 
-		context.CopyBuffer(readBuffer, *buffer);
+		context.CopyBuffer(readBuffer, buffer);
 
 		context.Flush(true);
 
-		void* data = readBuffer.ReadBack(*buffer);
+		void* data = readBuffer.ReadBack(buffer);
 		return reinterpret_cast<T>(data);
 	}
 }

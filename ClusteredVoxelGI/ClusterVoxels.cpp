@@ -121,16 +121,13 @@ void CVGI::ClusterVoxels::StartClustering(BufferManager& voxelBufferManager, Buf
 	m_cbClusterizeBuffer.CurrentPhase = 6;
 	ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
 
-	//UINT32* buffCount = ReadFromBuffer<UINT32*>(context, BufferType::ClusterCounterBuffer);
-	//m_numberOfSubClusters = *buffCount;
+	m_numberOfNonEmptyClusters = *m_bufferManager.ReadFromBuffer<UINT32*>(context, (UINT)ClusterBufferType::ClusterCounterBuffer);
 
-
-
-	//DXLIB_CORE_INFO("Cluster count: {0}", m_numberOfSubClusters);
+	DXLIB_CORE_INFO("Cluster count: {0}", m_numberOfNonEmptyClusters);
 
 	PIXEndEvent(context.m_commandList->Get());
 
-	context.Finish(true);
+	context.Finish();
 }
 
 void CVGI::ClusterVoxels::ClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize, BufferManager& voxelBufferManager, BufferManager& compactBufferManager)

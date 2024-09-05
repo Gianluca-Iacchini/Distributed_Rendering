@@ -392,7 +392,6 @@ void CVGI::VoxelBufferManager::SetUpClusterReduceBuffers(CommandContext& context
 	m_cbClusterReduce.Compactness = m_compactness;
 	m_cbClusterReduce.VoxelCount = m_voxelCount;
 
-
 }
 
 void CVGI::VoxelBufferManager::ReduceClusters()

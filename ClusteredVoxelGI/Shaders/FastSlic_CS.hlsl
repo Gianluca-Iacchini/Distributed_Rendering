@@ -501,6 +501,9 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         float minDistance = UINT_MAX;// gClusterDistanceBuffer[threadLinearIndex];
         uint closestClusterIndex = UINT_MAX;
         
+        bool noCloseAngle = true;
+        float minSpatialDistance = UINT_MAX;
+        
         float3 avgNormal = gVoxelNormalDirectionBuffer[threadLinearIndex];
         
         for (uint t = 0; t < adjacentTileCount; t++)
@@ -523,19 +526,31 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
                 
                 float dotProduct = cData.VoxelCount > 0 ? dot(avgNormal, cData.Normal) : cos30 + EPSILON;
                 
-                float distance = fraction * (d.x + d.y + d.z) + 6 * S * (1.0f - dotProduct);
+                float distance = fraction * (d.x + d.y + d.z);
                 
                 if (dotProduct > cos30)
-                {
+                {                    
+                    dotProduct = 6 * S * (1.0f - dotProduct);
+                    distance = distance + dotProduct;
+                    
                     if (distance < minDistance)
                     {
                         minDistance = distance;
                         closestClusterIndex = clusterIndex;
                     }
+                    
+                    noCloseAngle = false;
                 }
-                else if (FirstClusterSet == 0 && closestClusterIndex == UINT_MAX)
+                //else if (FirstClusterSet == 0 && closestClusterIndex == UINT_MAX)
+                //{
+                //    closestClusterIndex = clusterIndex;
+                //}
+                else if (noCloseAngle && distance < minSpatialDistance)
                 {
+
+                    minSpatialDistance = distance;
                     closestClusterIndex = clusterIndex;
+                    
                 }
                 else if (closestClusterIndex == UINT_MAX)
                 {

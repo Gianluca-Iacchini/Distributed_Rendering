@@ -76,30 +76,6 @@ float3 SetClusterNormalDirection(float3 normal)
     return float3(axisDirections[normalDirection]);
 }
 
-float2 GetClusterDistance(ClusterData subClusterData, ClusterData superClusterData, float maxDistance)
-{
-    float fraction = (m / S);
-
-        
-    float3 subClusterNormal = subClusterData.Normal;
-                
-    float3 d = float3(abs(subClusterData.Center.x - superClusterData.Center.x),
-                    abs(subClusterData.Center.y - superClusterData.Center.y),
-                    abs(subClusterData.Center.z - superClusterData.Center.z));
-
-    // x = distance, y = meets threshold angle
-    float2 distance = float2(UINT_MAX, 0.0f);
-    
-    if (all(d <= maxDistance))
-    {
-        float dotProduct = superClusterData.VoxelCount > 0 ? dot(subClusterData.Normal, superClusterData.Normal) : cos30 + EPSILON;
-                
-        distance.x = fraction * (d.x + d.y + d.z) + 6.0f * S * (1.0f - dotProduct);
-        distance.y = step(cos30, dotProduct);
-    }
-    
-    return distance;
-}
 
 [numthreads(8, 8, 8)]
 void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 GroupThreadID : SV_GroupThreadID)
@@ -120,12 +96,13 @@ void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 Group
         uint nSubClusterInTile = 0;
             
         uint subClusterIndex = gTileBuffer[TileID];
-                    
+
+          
         // At step 0 the sub cluster data is the old super cluster data, so we
         // Read from the super cluster buffer. We only want to know how many clusters are in a tile
         // So we can also reset the tile and next cluster buffer as we go
         while (subClusterIndex != UINT_MAX)
-        {                        
+        {
             nSubClusterInTile++;
             uint nextIndex = gNextSubClusterInSuperCluster[subClusterIndex];
             gNextSubClusterInSuperCluster[subClusterIndex] = UINT_MAX;
@@ -261,7 +238,10 @@ void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 Group
         
         int offset = (int) tileMapOffset;
         float maxDistance = (float) tileMapOffset * S;
+        float fraction = (m / S);
         
+        bool noCloseAngle = true;
+        float minSpatialDistance = UINT_MAX;
         
         for (int i = -offset; i <= offset; i++)
         {
@@ -280,30 +260,48 @@ void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 Group
         
                     while (clusterIndex != UINT_MAX)
                     {
-                        float2 distance = GetClusterDistance(subClusterData, gSuperClusterDataBuffer[clusterIndex], maxDistance);
+                        ClusterData superClusterData = gSuperClusterDataBuffer[clusterIndex];
                         
-                        if (distance.x < minDistance)
+                        
+                        float3 d = float3(abs(subClusterData.Center.x - superClusterData.Center.x),
+                            abs(subClusterData.Center.y - superClusterData.Center.y),
+                            abs(subClusterData.Center.z - superClusterData.Center.z));
+                        
+                        if (any(d) > maxDistance)
                         {
-                            if (distance.y > 0.0f)
-                            {
-                                minDistance = distance.x;
-                                closestClusterIndex = clusterIndex;
-                            }
-                            // We always want to assing a cluster to a super cluster if it is the first iteration
-                            // of the algorithm, even if the cosine threshold is not met.
-                            // However we don't want to overwrite a cluster that has met the cosine threshold
-                            // in a previous iteration.
-                            else if (FirstClusterSet == 0 && closestClusterIndex == UINT_MAX)
-                            {
-                                closestClusterIndex = clusterIndex;
-                            }
-                            // If it's not the first iteration and the cosine threshold is not met, we assing
-                            // the first cluster that meets the distance threshold, even if it's not the closest
-                            else if (closestClusterIndex == UINT_MAX)
-                            {
-                                closestClusterIndex = clusterIndex;
-                            }
+                            clusterIndex = gNextSuperClusterInTile[clusterIndex];
+                            continue;
                         }
+
+
+                        float dotProduct = superClusterData.VoxelCount > 0 ? dot(subClusterData.Normal, superClusterData.Normal) : cos30 + EPSILON;
+                        
+                        
+                        float distance = fraction * (d.x + d.y + d.z);
+    
+                        if (dotProduct > cos30)
+                        {
+                            dotProduct = 6.0f * S * (1.0f - dotProduct);
+                            distance += dotProduct;
+                            
+                            if (distance < minDistance)
+                            {
+                                minDistance = distance;
+                                closestClusterIndex = clusterIndex;
+                            }
+                            
+                            noCloseAngle = false;
+                        }
+                        else if (noCloseAngle && distance < minSpatialDistance)
+                        {
+                            minSpatialDistance = distance;
+                            closestClusterIndex = clusterIndex;
+                        }
+                        else if (closestClusterIndex == UINT_MAX)
+                        {
+                            closestClusterIndex = clusterIndex;
+                        }
+                        
 
                         clusterIndex = gNextSuperClusterInTile[clusterIndex];
                     }

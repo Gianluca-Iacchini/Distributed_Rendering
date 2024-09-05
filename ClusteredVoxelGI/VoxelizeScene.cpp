@@ -174,7 +174,7 @@ void VoxelizeScene::VoxelizePass(DX12Lib::GraphicsContext& context, VoxelCamera*
 	PIXEndEvent(context.m_commandList->Get());
 }
 
-void CVGI::VoxelizeScene::DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX12Lib::SceneCamera* camera, BufferManager* compactBufferManager, BufferManager* clusterBufferManager)
+void CVGI::VoxelizeScene::DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX12Lib::SceneCamera* camera, BufferManager* compactBufferManager, BufferManager* clusterBufferManager, BufferManager* faceBufferManager)
 {
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 128), L"Voxel Display Pass");
 
@@ -190,6 +190,10 @@ void CVGI::VoxelizeScene::DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX
 	if (clusterBufferManager != nullptr)
 	{
 		clusterBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	}
+	if (faceBufferManager != nullptr)
+	{
+		faceBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 
 	context.TransitionResource(m_vertexBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
@@ -226,6 +230,11 @@ void CVGI::VoxelizeScene::DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX
 			(UINT)DisplayVoxelRootParameterSlot::ClusterSRVBufferTable, clusterBufferManager->GetSRVHandle());
 	}
 
+	if (faceBufferManager != nullptr)
+	{
+		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+			(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable, faceBufferManager->GetSRVHandle());
+	}
 
 	//context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 	//	(UINT)DisplayVoxelRootParameterSlot::ClusterUAVBufferTable, m_voxelBufferManager.GetClusterizeTableUAV());
@@ -311,14 +320,14 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelizeScene::BuildDisplayVoxelRo
 {
 	SamplerDesc defaultSamplerDesc;
 
-	std::shared_ptr<DX12Lib::RootSignature> displayVoxelRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)DisplayVoxelRootParameterSlot::Count - 1, 1);
+	std::shared_ptr<DX12Lib::RootSignature> displayVoxelRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)DisplayVoxelRootParameterSlot::Count, 1);
 	displayVoxelRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CameraCBV].InitAsConstantBuffer(1);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CompactSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ClusterSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
-	//(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ClusterUAVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 8, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
 	displayVoxelRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return displayVoxelRootSignature;

@@ -38,7 +38,8 @@ StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
 StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
 StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
-//RWStructuredBuffer<float3> gVoxelNormalBuffer : register(u7, space0);
+StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
+
 
 uint3 GetVoxelPosition(uint voxelLinearCoord)
 {
@@ -188,16 +189,17 @@ void GS(
     
     
     uint index = input[0].VoxelIndex;
-
+    uint2 faceData = gVoxelFaceDataBuffer[index];
     
-    uint voxelLinearCoord = gVoxelHashesCompacted[index];
-    uint fragmentIndex = gVoxelIndicesCompacted[index];
+    
+    uint voxelLinearCoord = gVoxelHashesCompacted[faceData.x];
+    uint fragmentIndex = gVoxelIndicesCompacted[faceData.x];
     
 
     
     float4 avgColor = float4(0.0f, 0, 0, 1.0f);
     
-    uint fragmentCount = 0;
+    //uint fragmentCount = 0;
     
     
     //while (fragmentIndex != UINT_MAX)
@@ -210,8 +212,8 @@ void GS(
     //avgColor = avgColor / fragmentCount;
     //avgColor.xyz = float3(0.0f, 0.0f, 0.0f);
     
-    //uint clusterIndex = gClusterAssignmentBuffer[index];
-    //avgColor.xyz = LinearIndexToColor(clusterIndex);
+    uint clusterIndex = gClusterAssignmentBuffer[faceData.x];
+    avgColor.xyz = LinearIndexToColor(clusterIndex);
     
     
 
@@ -224,34 +226,31 @@ void GS(
     
     float scale = 0.5f; // Scale of the cube
     
-    
-    uint3 voxelPosition = GetVoxelPosition(voxelLinearCoord);
-    
-    if (FindHashedCompactedPositionIndex(voxelPosition, voxelCommons.gridDimension).y == 1)
-        avgColor = float4(1.0f, 0, 0, 1.0f);
+
+   
 
         
     
-    float3 position = float3(voxelPosition);
+    float3 position = float3(GetVoxelPosition(voxelLinearCoord));
     position.y = (voxelCommons.gridDimension.y - 1) - position.y;
     position = position * scale + float3(0.5f, 0.5f, 0.5f);
     
     // Move voxel scene to position 0,0,0
     position -= voxelCommons.gridDimension * (scale / 2.f);
     
-
-    for (int i = 0; i < 36; i += 3)
+    [unroll]
+    for (int i = 0; i < 6; i += 3)
     {
         PSInput output;
-
-        float3 v1 = scale * cubeVertices[cubeIndices[i]] + position;
-        float3 v2 = scale * cubeVertices[cubeIndices[i + 1]] + position;
-        float3 v3 = scale * cubeVertices[cubeIndices[i + 2]] + position;
-
+        
+        float3 v1 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i)]] + position;
+        float3 v2 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]] + position;
+        float3 v3 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]] + position;
+        
         float3 normal = normalize(cross(v2 - v1, v3 - v1));
         output.normal = normal;
         output.color = avgColor.xyz;
-        output.ClusterIndex = 1; //clusterIndex;
+        output.ClusterIndex = 1;
         
         output.position = mul(float4(v1, 1.0f), camera.ViewProj);
         triOutput.Append(output);
@@ -261,9 +260,35 @@ void GS(
         
         output.position = mul(float4(v3, 1.0f), camera.ViewProj);
         triOutput.Append(output);
-
+        
         triOutput.RestartStrip();
     }
+    
+
+    //for (int i = 0; i < 36; i += 3)
+    //{
+    //    PSInput output;
+
+    //    float3 v1 = scale * cubeVertices[cubeIndices[i]] + position;
+    //    float3 v2 = scale * cubeVertices[cubeIndices[i + 1]] + position;
+    //    float3 v3 = scale * cubeVertices[cubeIndices[i + 2]] + position;
+
+    //    float3 normal = normalize(cross(v2 - v1, v3 - v1));
+    //    output.normal = normal;
+    //    output.color = avgColor.xyz;
+    //    output.ClusterIndex = 1; //clusterIndex;
+        
+    //    output.position = mul(float4(v1, 1.0f), camera.ViewProj);
+    //    triOutput.Append(output);
+        
+    //    output.position = mul(float4(v2, 1.0f), camera.ViewProj);
+    //    triOutput.Append(output);
+        
+    //    output.position = mul(float4(v3, 1.0f), camera.ViewProj);
+    //    triOutput.Append(output);
+
+    //    triOutput.RestartStrip();
+    //}
     
 
 }

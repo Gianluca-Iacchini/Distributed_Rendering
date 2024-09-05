@@ -104,6 +104,7 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 		}
 	}
 
+	m_cbCompactBuffer.VoxelTextureDimensions = m_voxelizationSize;
 	m_cbCompactBuffer.NumElementsBase = v_prefixBufferSizeForStep[0];
 	m_cbCompactBuffer.NumElementsLevel0 = v_prefixBufferSizeForStep[1];
 	m_cbCompactBuffer.NumElementsLevel1 = v_prefixBufferSizeForStep[2];

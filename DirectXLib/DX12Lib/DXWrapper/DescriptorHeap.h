@@ -34,6 +34,12 @@ namespace DX12Lib {
 	class DescriptorHandle
 	{
 	public:
+		DescriptorHandle(const DescriptorHandle& other)
+		{
+			m_cpuHandle = other.m_cpuHandle;
+			m_gpuHandle = other.m_gpuHandle;
+		}
+
 		DescriptorHandle();
 
 		DescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle)
@@ -54,6 +60,15 @@ namespace DX12Lib {
 			ret += offsetScaledByDescriptorSize;
 			return ret;
 		}
+
+		DescriptorHandle operator= (const DescriptorHandle& other)
+		{
+			m_cpuHandle = other.m_cpuHandle;
+			m_gpuHandle = other.m_gpuHandle;
+			return *this;
+		}
+
+
 
 		size_t GetCPUPtr() const { return m_cpuHandle.ptr; }
 		size_t GetGPUPtr() const { return m_gpuHandle.ptr; }
