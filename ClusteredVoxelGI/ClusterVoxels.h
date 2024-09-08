@@ -71,7 +71,7 @@ namespace CVGI
 		~ClusterVoxels() {}
 
 		void InitializeBuffers(UINT VoxelCount);
-		void StartClustering(BufferManager& voxelBufferManager, BufferManager& compactBufferManager);
+		void StartClustering(DX12Lib::ComputeContext& context, BufferManager& voxelBufferManager, BufferManager& compactBufferManager);
 		void ClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize, BufferManager& voxelBufferManager, BufferManager& compactBufferManager);
 
 		std::shared_ptr<DX12Lib::RootSignature> BuildClusterizeRootSignature();

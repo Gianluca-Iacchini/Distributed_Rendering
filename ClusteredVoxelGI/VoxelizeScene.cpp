@@ -239,7 +239,9 @@ void CVGI::VoxelizeScene::DisplayVoxelPass(DX12Lib::GraphicsContext& context, DX
 	//context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 	//	(UINT)DisplayVoxelRootParameterSlot::ClusterUAVBufferTable, m_voxelBufferManager.GetClusterizeTableUAV());
 
-	context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBuffer.VertexBufferView());
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = m_vertexBuffer.VertexBufferView();
+
+	context.m_commandList->Get()->IASetVertexBuffers(0, 1, &vertexBufferView);
 	context.m_commandList->Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
 	context.m_commandList->Get()->DrawInstanced(m_vertexCount, 1, 0, 0);

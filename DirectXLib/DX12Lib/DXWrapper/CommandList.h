@@ -30,6 +30,8 @@ namespace DX12Lib {
 
 	private:
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> m_dxrCommandList;
+
 		std::shared_ptr<PipelineState> m_pipelineState;
 		bool m_closed = false;
 
@@ -40,6 +42,10 @@ namespace DX12Lib {
 		ID3D12GraphicsCommandList** GetAddressOf() { return m_commandList.GetAddressOf(); }
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetComPtr() const { return m_commandList; }
 
+
+		ID3D12GraphicsCommandList4* GetDXR() const { return m_dxrCommandList.Get(); }
+		ID3D12GraphicsCommandList4** GetDXRAddressOf() { return m_dxrCommandList.GetAddressOf(); }
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> GetDXRComPtr() const { return m_dxrCommandList; }
 	};
 
 }

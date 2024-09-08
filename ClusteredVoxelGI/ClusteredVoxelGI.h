@@ -7,7 +7,6 @@
 #include "CVGIDataTypes.h"
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
-#include "VoxelBufferManager.h"
 #include "GraphicsMemory.h"
 #include "VoxelizeScene.h"
 #include "PrefixSumVoxels.h"
@@ -41,6 +40,7 @@ namespace CVGI
 
 
 	private:
+		bool IsDirectXRaytracingSupported() const;
 
 	public:
 		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);

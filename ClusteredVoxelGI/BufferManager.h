@@ -5,6 +5,7 @@
 #include "DX12Lib/DXWrapper/ColorBuffer.h"
 #include "assert.h"
 #include "DirectXMath.h"
+#include "DX12Lib/Commons/CommandContext.h"
 
 namespace CVGI
 {
@@ -53,9 +54,9 @@ namespace CVGI
 	{
 		assert(bufferIndex < m_buffers.size() && bufferIndex >= 0);
 
-		GPUBuffer& buffer = GetBuffer(bufferIndex);
+		DX12Lib::GPUBuffer& buffer = BufferManager::GetBuffer(bufferIndex);
 
-		ReadBackBuffer readBuffer;
+		DX12Lib::ReadBackBuffer readBuffer;
 		readBuffer.Create(buffer.GetElementCount(), buffer.GetElementSize());
 
 

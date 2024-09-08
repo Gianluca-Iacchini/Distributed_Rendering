@@ -61,7 +61,7 @@ namespace CVGI
 
 		void InitializeBuffers(DX12Lib::CommandContext& context);
 
-		void StartPrefixSum(BufferManager* voxelBufferManager);
+		void StartPrefixSum(DX12Lib::ComputeContext& context, BufferManager* voxelBufferManager);
 		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT32 numGroupsX, BufferManager* voxelBufferManager);
 		void DeleteTemporaryBuffers();
 

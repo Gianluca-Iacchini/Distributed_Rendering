@@ -401,11 +401,14 @@ void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 Group
             nVoxels += 1;
         }
             
-        
-        cData.Center = clamp(round(posAverage / max(nVoxels, 1)), 0.0f, (float)GridDimension);
-        // No need to divide since we are normalizing
-        cData.Normal = normalize(lastNormal);
+        if (nVoxels > 0)
+        {
+            cData.Center = posAverage / nVoxels;
+            cData.Normal = normalize(lastNormal);
+        }
+        cData.Center = clamp(round(cData.Center), 0.0f, (float) GridDimension);
         cData.VoxelCount = nVoxels;
+
             
         gSuperClusterDataBuffer[threadLinearIndex] = cData;
                 
@@ -419,7 +422,11 @@ void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 Group
         ClusterData cData = gSuperClusterDataBuffer[threadLinearIndex];
         
         if (cData.VoxelCount < 1)
+        {
+            gSuperClusterDataBuffer[threadLinearIndex].FirstDataIndex = UINT_MAX;
             return;
+        }
+
         
         uint originalValue = 0;
         InterlockedAdd(gClusterCounterBuffer[0], 1, originalValue);
@@ -470,5 +477,41 @@ void CS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 Group
             InterlockedCompareExchange(gTileBuffer[tileCoord], prev, threadLinearIndex, currentValue);
         }
     }
- 
+    else if (CurrentPhase == 7)
+    {
+        if (threadLinearIndex >= NumberOfSubclusters)
+            return;
+        
+        ClusterData cData = gSubClusterDataBuffer[threadLinearIndex];
+        cData.FirstDataIndex = UINT_MAX;
+        cData.VoxelCount = 0;
+        
+        gSuperClusterDataBuffer[threadLinearIndex] = cData;
+    }
+    else if (CurrentPhase == 8)
+    {
+        if (threadLinearIndex >= VoxelCount)
+            return;
+        
+        uint clusterIndex = gVoxelAssignmentBuffer[threadLinearIndex];
+        
+        if (clusterIndex == UINT_MAX)
+            return;
+        
+        // Linked list of voxels in the cluster
+        uint prev = UINT_MAX;
+        uint currentValue;
+        InterlockedCompareExchange(gSuperClusterDataBuffer[clusterIndex].FirstDataIndex, prev, threadLinearIndex, currentValue);
+        
+        [allow_uav_condition]
+        while (currentValue != prev)
+        {
+            prev = currentValue;
+            gNextVoxelBuffer[threadLinearIndex] = currentValue;
+            InterlockedCompareExchange(gSuperClusterDataBuffer[clusterIndex].FirstDataIndex, prev, threadLinearIndex, currentValue);
+        }
+        
+        InterlockedAdd(gSuperClusterDataBuffer[clusterIndex].VoxelCount, 1);
+    }
+
 }

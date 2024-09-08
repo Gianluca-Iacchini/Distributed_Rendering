@@ -18,6 +18,12 @@ using namespace CVGI;
 
 void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 {
+
+	if (!IsDirectXRaytracingSupported() || Graphics::s_device->GetDXRComPtr() == nullptr)
+	{
+		throw std::exception("DirectX Raytracing is not supported by your GPU.");
+	}
+
 	DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 
 	VoxelScene* voxelScene = static_cast<VoxelScene*>(this->m_Scene.get());
@@ -50,15 +56,20 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto clusterReduceRootSignature = m_mergeClusters->BuildMergeClustersRootSignature(); 
 	auto clusterReducePso = m_mergeClusters->BuildMergeClustersPipelineState(clusterReduceRootSignature); 
 
-	auto clusterVisibility = m_clusterVisibility->BuildFaceCountRootSignature();
-	auto clusterVisibilityPso = m_clusterVisibility->BuildFaceCountPipelineState(clusterVisibility);
+	auto faceCountRootSignature = m_clusterVisibility->BuildFaceCountRootSignature();
+	auto faceCountPso = m_clusterVisibility->BuildFaceCountPipelineState(faceCountRootSignature);
+
+	auto aabbGenerationRootSignature = m_clusterVisibility->BuildAABBGenerationRootSignature();
+	auto aabbGenerationPso = m_clusterVisibility->BuildAABBGenerationPipelineState(aabbGenerationRootSignature);
 
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
 	Renderer::s_PSOs[clusterizeVoxelPso->Name] = clusterizeVoxelPso;
 	Renderer::s_PSOs[clusterReducePso->Name] = clusterReducePso;
-	Renderer::s_PSOs[clusterVisibilityPso->Name] = clusterVisibilityPso;
+	Renderer::s_PSOs[faceCountPso->Name] = faceCountPso;
+	Renderer::s_PSOs[aabbGenerationPso->Name] = aabbGenerationPso;
+
 
 
 
@@ -83,13 +94,13 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		m_voxelizeScene->VoxelizePass(commandContext, voxelCamera);
 	}
 
-	UINT32 voxelCount = *m_voxelizeScene->GetBufferManager()->ReadFromBuffer<UINT32*>(commandContext, (UINT)BufferType::VoxelCounter);
+	UINT32 voxelCount = *m_voxelizeScene->GetBufferManager()->ReadFromBuffer<UINT32*>(commandContext, (UINT)VoxelizeScene::VoxelBufferType::VoxelCounter);
 	
 
-
+	ComputeContext& computeContext = ComputeContext::Begin();
 
 	m_prefixSumVoxels->InitializeBuffers(commandContext);
-	m_prefixSumVoxels->StartPrefixSum(m_voxelizeScene->GetBufferManager());
+	m_prefixSumVoxels->StartPrefixSum(computeContext, m_voxelizeScene->GetBufferManager());
 
 	// Voxelize scene temporary buffers can be deleted after the voxelization and prefix sum passes.
 	m_voxelizeScene->DeleteTemporaryBuffers();
@@ -97,13 +108,19 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_prefixSumVoxels->DeleteTemporaryBuffers();
 
 	m_clusterVoxels->InitializeBuffers(voxelCount);
-	m_clusterVoxels->StartClustering(*m_voxelizeScene->GetBufferManager(), *m_prefixSumVoxels->GetBufferManager());
+	m_clusterVoxels->StartClustering(computeContext, *m_voxelizeScene->GetBufferManager(), *m_prefixSumVoxels->GetBufferManager());
 
 	m_mergeClusters->InitializeBuffers(commandContext, *m_clusterVoxels);
-	m_mergeClusters->StartMerging(*m_prefixSumVoxels->GetBufferManager());
+	m_mergeClusters->StartMerging(computeContext, *m_prefixSumVoxels->GetBufferManager());
+	
+	m_clusterVisibility->InitializeBuffers(voxelCount, m_mergeClusters->GetClusterCount());
+	m_clusterVisibility->StartVisibility(computeContext, *m_prefixSumVoxels->GetBufferManager());
 
-	m_clusterVisibility->InitializeBuffers(voxelCount);
-	m_clusterVisibility->StartVisibility(*m_prefixSumVoxels->GetBufferManager());
+	m_clusterVisibility->StartAABBGeneration(computeContext, *m_prefixSumVoxels->GetBufferManager(), *m_mergeClusters->GetBufferManager());
+
+	m_clusterVisibility->BuildAccelerationStructures(computeContext);
+
+	computeContext.Finish(true);
 
 	m_voxelizeScene->SetVertexData(commandContext, m_clusterVisibility->GetFaceCount());
 
@@ -124,11 +141,21 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager(), m_mergeClusters->GetBufferManager(), m_clusterVisibility->GetBufferManager());
+	m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager(), m_mergeClusters->GetBufferManager(), m_clusterVisibility->GetFaceBufferManager());
 
 	//VoxelDisplayPass(commandContext);
 
 	Renderer::PostDrawCleanup(commandContext);
+}
+
+bool CVGI::ClusteredVoxelGIApp::IsDirectXRaytracingSupported() const
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupport = {};
+
+	if (FAILED(Graphics::s_device->Get()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupport, sizeof(featureSupport))))
+		return false;
+
+	return featureSupport.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }
 
 

@@ -311,6 +311,7 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         }
             
         SetUpVoxelNormal(GridID.x * 512 + GroupThreadIndex);
+        gNextVoxelBuffer[threadLinearIndex] = UINT_MAX;
     }
     else if (CurrentPhase == 1)
     {
@@ -626,7 +627,11 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         }
             
         if (nVoxels < 1)
+        {
+            gClusterDataBuffer[threadLinearIndex].FirstDataIndex = UINT_MAX;
             return;
+        }
+
             
         uint originalValue = 0;
         InterlockedAdd(gClusterCounterBuffer[0], 1, originalValue);

@@ -37,10 +37,8 @@ void CVGI::MergeClusters::InitializeBuffers(CommandContext& context, ClusterVoxe
 	context.Flush(true);
 }
 
-void MergeClusters::StartMerging(BufferManager& compactBufferManager)
+void MergeClusters::StartMerging(ComputeContext& context, BufferManager& compactBufferManager)
 {
-	ComputeContext& context = ComputeContext::Begin();
-
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"ReduceClusters");
 
 	bool isLessThan10kClusters = m_numberOfSuperClusters < 10000;
@@ -133,9 +131,16 @@ void MergeClusters::StartMerging(BufferManager& compactBufferManager)
 		m_bufferManager.ZeroBuffer(context, (UINT)ClusterVoxels::ClusterBufferType::ClusterCounterBuffer);
 	}
 
+	m_cbMergeClusters.CurrentStep = 7;
+	m_cbMergeClusters.NumberOfSubClusters = m_numberOfSubClusters;
+	MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSubClusters / 512.0f), 1, 1), compactBufferManager);
+	context.Flush(true);
+
+	m_cbMergeClusters.CurrentStep = 8;
+	MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
 
 	PIXEndEvent(context.m_commandList->Get());
-	context.Finish(true);
+	context.Flush(true);
 }
 
 void CVGI::MergeClusters::MergeClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize, BufferManager& compactBufferManager)

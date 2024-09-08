@@ -26,6 +26,13 @@ bool Device::InitializeApp(Adapter* adapter)
 	CbvSrvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	SamplerDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
+	HRESULT hrDXR = m_device->QueryInterface(IID_PPV_ARGS(m_dxrDevice.GetAddressOf()));
+
+	if (FAILED(hrDXR))
+	{
+		DXLIB_CORE_WARN("Failed to create ID3D12Device5, DXR will not be available.");
+	}
+
 	return SUCCEEDED(hr);
 }
 

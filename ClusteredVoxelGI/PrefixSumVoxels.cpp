@@ -117,11 +117,8 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 	m_cbCompactBuffer.NumElementsSweepDown = m_downSweepStepCount;
 }
 
-void CVGI::PrefixSumVoxels::StartPrefixSum(BufferManager* voxelBufferManager)
+void CVGI::PrefixSumVoxels::StartPrefixSum(ComputeContext& context, BufferManager* voxelBufferManager)
 {
-
-	ComputeContext& context = ComputeContext::Begin();
-
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"PrefixSumPass");
 
 
@@ -190,7 +187,8 @@ void CVGI::PrefixSumVoxels::StartPrefixSum(BufferManager* voxelBufferManager)
 	DXLIB_CORE_INFO("Prefix sum value after copy: {0}", prefixSumValue);
 
 	PIXEndEvent(context.m_commandList->Get());
-	context.Finish();
+	
+	context.Flush();
 }
 
 void CVGI::PrefixSumVoxels::CompactBufferPass(DX12Lib::ComputeContext& context, UINT32 numGroupsX, BufferManager* voxelBufferManager)

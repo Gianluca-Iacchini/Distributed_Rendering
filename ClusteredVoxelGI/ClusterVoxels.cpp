@@ -62,9 +62,8 @@ void CVGI::ClusterVoxels::InitializeBuffers(UINT voxelCount)
 	m_cbClusterizeBuffer.TileGridDimension = m_tileGridDimension;
 }
 
-void CVGI::ClusterVoxels::StartClustering(BufferManager& voxelBufferManager, BufferManager& compactBufferManager)
+void CVGI::ClusterVoxels::StartClustering(ComputeContext& context, BufferManager& voxelBufferManager, BufferManager& compactBufferManager)
 {
-	ComputeContext& context = ComputeContext::Begin();
 
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"ClusterizePass");
 	
@@ -127,7 +126,7 @@ void CVGI::ClusterVoxels::StartClustering(BufferManager& voxelBufferManager, Buf
 
 	PIXEndEvent(context.m_commandList->Get());
 
-	context.Finish();
+	context.Flush();
 }
 
 void CVGI::ClusterVoxels::ClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize, BufferManager& voxelBufferManager, BufferManager& compactBufferManager)

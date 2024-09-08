@@ -14,6 +14,13 @@ CommandList::CommandList(Device& device, CommandAllocator& cmdAllocator, D3D12_C
 	}
 
 	ThrowIfFailed(device.GetComPtr()->CreateCommandList(0, cmdType, cmdAllocator.Get(), pso, IID_PPV_ARGS(&m_commandList)));
+
+	HRESULT hr = m_commandList.As(&m_dxrCommandList);
+
+	if (FAILED(hr))
+	{
+		DXLIB_CORE_WARN("Failed to create ID3D12GraphicsCommandList4, DXR will not be available.");
+	}
 }
 
 void DX12Lib::CommandList::SetDescriptorHeaps(std::vector<DescriptorHeap*> heaps)

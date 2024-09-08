@@ -43,11 +43,13 @@ namespace CVGI
 		BufferManager* GetBufferManager() { return &m_bufferManager; }
 
 		void InitializeBuffers(DX12Lib::CommandContext& context, ClusterVoxels& clusterVoxels);
-		void StartMerging(BufferManager& compactBufferManager);
+		void StartMerging(DX12Lib::ComputeContext& context, BufferManager& compactBufferManager);
 		void MergeClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize, BufferManager& compactBufferManager);
 
 		std::shared_ptr<DX12Lib::RootSignature> BuildMergeClustersRootSignature();
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildMergeClustersPipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSignature);
+
+		UINT32 GetClusterCount() { return m_numberOfSubClusters; }
 
 		void ConvertClusterBuffers(DX12Lib::CommandContext& context, ClusterVoxels& clusterVoxels);
 
