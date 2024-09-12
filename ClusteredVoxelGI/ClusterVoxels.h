@@ -29,7 +29,7 @@ namespace CVGI
 			UINT32 FirstClusterSet = 1;
 
 			DirectX::XMUINT3 CurrentTileUpdate = DirectX::XMUINT3(0, 0, 0);
-			float pad1 = 0.0f;
+			UINT32 UnassignedOnlyPass = 0;
 		};
 
 		enum class ClusterizeRootSignature
@@ -45,14 +45,12 @@ namespace CVGI
 		enum class ClusterBufferType
 		{
 			ClusterData,
-			NextVoxel,
+			NextVoxelLinkedList,
 			AssignmentMap,
-			DistanceMap,
 			TileBuffer,
-			NextCluster,
-			ClusterCounterBuffer,
+			NextClusterInTileLinkedList,
+			Counter,
 			VoxelNormalDirection,
-			NextVoxelClusterData,
 			SubClusterData,
 		};
 

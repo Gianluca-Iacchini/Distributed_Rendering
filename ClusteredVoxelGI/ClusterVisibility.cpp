@@ -198,11 +198,12 @@ void CVGI::ClusterVisibility::BuildAccelerationStructures(ComputeContext& contex
 	auto leavesGroups = octree.GetLeaves();
 
 	GPUBuffer& aabbBuffer = m_aabbBufferManager.GetBuffer(0);
-	aabbBuffer.GetComPtr()->SetName(L"ClusterVisibility::aabbBuffer");
 	context.TransitionResource(aabbBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
 	
 	auto baseAddress = aabbBuffer.GetGpuVirtualAddress();
 
+	int nClusters = clusterAABBs.size();
+	std::vector<int> duplicateIdx = std::vector<int>(nClusters, 0);
 
 	for (std::vector<unsigned int>& leaf : leavesGroups)
 	{
@@ -210,6 +211,9 @@ void CVGI::ClusterVisibility::BuildAccelerationStructures(ComputeContext& contex
 
 		for (unsigned int index : leaf)
 		{
+			duplicateIdx[index] += 1;
+			assert(duplicateIdx[index] == 1);
+			nClusters -= 1;
 			auto& clusterInfo = clusterAABBInfo[index];
 			blas->AddGeometry(clusterInfo.ClusterElementCount, 
 				baseAddress + clusterInfo.ClusterStartIndex * sizeof(VoxelAABB),
@@ -219,6 +223,8 @@ void CVGI::ClusterVisibility::BuildAccelerationStructures(ComputeContext& contex
 		blas->Build(context);
 		m_TLAS.AddBLAS(blas);
 	}
+
+	assert(nClusters == 0 && "Error building TLAS with no geometry");
 
 	m_TLAS.Build(context);
 

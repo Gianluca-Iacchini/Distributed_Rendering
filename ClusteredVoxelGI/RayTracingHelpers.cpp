@@ -26,10 +26,11 @@ void CVGI::Octree::CreateOctree(unsigned int maxDepth, unsigned int maxElements)
 
 void CVGI::Octree::CreateOctreeRecursive(DirectX::XMFLOAT3 minBoundary, DirectX::XMFLOAT3 maxBoundary, std::vector<unsigned int> currentIndices, unsigned int currentDepth)
 {
+	// Subdivide the octree space
 	DirectX::XMFLOAT3 offset = DirectX::XMFLOAT3(
-		maxBoundary.x - minBoundary.x,
-		maxBoundary.y - minBoundary.y, 
-		maxBoundary.z - minBoundary.z);
+		(maxBoundary.x - minBoundary.x) / 2,
+		(maxBoundary.y - minBoundary.y) / 2,
+		(maxBoundary.z - minBoundary.z) / 2);
 
 	DirectX::XMFLOAT3 newMinBoundary[8];
 	DirectX::XMFLOAT3 newMaxBoundary[8];
@@ -41,38 +42,62 @@ void CVGI::Octree::CreateOctreeRecursive(DirectX::XMFLOAT3 minBoundary, DirectX:
 			for (unsigned int z = 0; z < 2; z++)
 			{
 				unsigned int index = x + 2 * y + 4 * z;
-
 				newMinBoundary[index] = DirectX::XMFLOAT3(
-					minBoundary.x + x * offset.x / 2,
-					minBoundary.y + y * offset.y / 2,
-					minBoundary.z + z * offset.z / 2);
-
+					minBoundary.x + x * offset.x,
+					minBoundary.y + y * offset.y,
+					minBoundary.z + z * offset.z);
 				newMaxBoundary[index] = DirectX::XMFLOAT3(
-					minBoundary.x + (x + 1) * offset.x / 2,
-					minBoundary.y + (y + 1) * offset.y / 2,
-					minBoundary.z + (z + 1) * offset.z / 2);
+					newMinBoundary[index].x + offset.x,
+					newMinBoundary[index].y + offset.y,
+					newMinBoundary[index].z + offset.z);
 			}
 		}
 	}
 
 	std::vector<unsigned int> newIndices[8];
 
-	for (auto index : currentIndices)
+	// Assign elements to the octant that covers the largest portion of the object
+	for (unsigned int index : currentIndices)
 	{
+		auto& element = m_elementsAABBs[index];
+
+		float maxVolume = -10.0f;
+		unsigned int bestOctant = 0;
+
 		for (unsigned int i = 0; i < 8; i++)
 		{
-			auto& element = m_elementsAABBs[index];
+			// Calculate the overlap volume between the AABB and the octant
+			float overlapMinX = max(element.min.x, newMinBoundary[i].x);
+			float overlapMaxX = std::min(element.max.x, newMaxBoundary[i].x);
+			float overlapMinY = max(element.min.y, newMinBoundary[i].y);
+			float overlapMaxY = std::min(element.max.y, newMaxBoundary[i].y);
+			float overlapMinZ = max(element.min.z, newMinBoundary[i].z);
+			float overlapMaxZ = std::min(element.max.z, newMaxBoundary[i].z);
 
-			if (element.min.x >= newMinBoundary[i].x && element.max.x <= newMaxBoundary[i].x &&
-				element.min.y >= newMinBoundary[i].y && element.max.y <= newMaxBoundary[i].y &&
-				element.min.z >= newMinBoundary[i].z && element.max.z <= newMaxBoundary[i].z)
+			// Calculate the extents of the overlap region
+			float overlapX = overlapMaxX - overlapMinX;
+			float overlapY = overlapMaxY - overlapMinY;
+			float overlapZ = overlapMaxZ - overlapMinZ;
+
+			// Ensure overlap is valid (positive extents)
+			if (overlapX > 0 && overlapY > 0 && overlapZ > 0)
 			{
-				newIndices[i].push_back(index);
-				break;
+				float overlapVolume = overlapX * overlapY * overlapZ;
+
+				// Find the octant with the largest overlap volume
+				if (overlapVolume > maxVolume)
+				{
+					maxVolume = overlapVolume;
+					bestOctant = i;
+				}
 			}
 		}
+
+		// Assign the element to the octant with the largest overlap
+		newIndices[bestOctant].push_back(index);
 	}
 
+	// Recursively create child nodes
 	for (unsigned int i = 0; i < 8; i++)
 	{
 		if (newIndices[i].size() > m_maxElements && currentDepth < m_maxDepth)
@@ -93,25 +118,6 @@ std::vector<std::vector<unsigned int>> CVGI::Octree::GetLeaves()
 
 
 
-//void CVGI::BLAS::Build(DX12Lib::ComputeContext& context)
-//{
-//	assert(m_geometries.size() > 0 && "Error building BLAS with no geometry");
-//
-//	m_blasInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-//	m_blasInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-//	m_blasInputs.NumDescs = m_geometries.size();
-//	m_blasInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-//	m_blasInputs.pGeometryDescs = m_geometries.data();
-//
-//	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
-//	Graphics::s_device->GetDXR()->GetRaytracingAccelerationStructurePrebuildInfo(&m_blasInputs, &prebuildInfo);
-//
-//	assert(prebuildInfo.ResultDataMaxSizeInBytes > 0);
-//
-//	DX12Lib::StructuredBuffer scratchBuffer;
-//	scratchBuffer.Create(1, prebuildInfo.ScratchDataSizeInBytes);
-//
-//}
 
 void CVGI::AccelerationStructure::Create(UINT byteSize)
 {

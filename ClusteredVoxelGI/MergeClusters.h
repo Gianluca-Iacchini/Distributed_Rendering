@@ -14,6 +14,7 @@ namespace CVGI
 			ClusterReduceCBV = 0,
 			ClusterizeSRVTable = 1,
 			ClusterizeUAVTable = 2,
+			ReduceUAVTable = 3,
 			Count
 		};
 
@@ -25,16 +26,21 @@ namespace CVGI
 			float Compactness = 10.0f;
 
 			DirectX::XMUINT3 VoxelDimension = DirectX::XMUINT3(512, 512, 512);
-			UINT32 S = 1;
+			UINT32 VoxelCount = 0;
+
 
 			DirectX::XMUINT3 TileGridDimension = DirectX::XMUINT3(6, 6, 6);
-			UINT32 FirstClusterSet = UINT_MAX;
+			UINT32 S = 1;
+
+			DirectX::XMUINT3 PreviousTileDimension = DirectX::XMUINT3(6, 6, 6);
+			UINT32 PreviousS = 1;
 
 			UINT32 CurrentIteration = 1;
-			UINT32 VoxelCount = 0;
-			float _pad1;
-			float _pad2;
+			UINT32 FirstClusterSet = 0;
+			float _pad1 = 0.0f;
+			float _pad2 = 0.0f;
 		};
+
 
 	public:
 		MergeClusters(DirectX::XMUINT3 voxelDimensions) : m_voxelTexDimension(voxelDimensions) {}
@@ -50,8 +56,6 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::ComputePipelineState> BuildMergeClustersPipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSignature);
 
 		UINT32 GetClusterCount() { return m_numberOfSubClusters; }
-
-		void ConvertClusterBuffers(DX12Lib::CommandContext& context, ClusterVoxels& clusterVoxels);
 
 	private:
 		ConstantBufferClusterReduce m_cbMergeClusters;
