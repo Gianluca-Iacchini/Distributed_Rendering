@@ -439,36 +439,24 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         data.Normal = float3(1.0f, 1.0f, 1.0f);
         data.FirstDataIndex = UINT_MAX;
         
+
         // Create a number of clusters per tile proportional to the number of voxels in the same tile.
         // Spread the clusters along the voxels in the same tile and give them a default normal.
-        for (uint x = TileStart.x; x < TileEnd.x; x++)
+        // Create a number of clusters per tile proportional to the number of voxels in the tile.
+        
+        for (uint clusterIndex = 0; clusterIndex < numberOfClusterInTile; clusterIndex++)
         {
-            for (uint y = TileStart.y; y < TileEnd.y; y++)
-            {
-                for (uint z = TileStart.z; z < TileEnd.z; z++)
-                {
-                    uint2 hashedPositionIndex = FindHashedCompactedPositionIndex(uint3(x, y, z), GridDimension);
-                    nVoxel += hashedPositionIndex.y;
-                    
-                    if (nVoxel >= voxelsPerCluster)
-                    {
-                        nVoxel = 0;
-                        
-                        // We check that the ClusterDataBuffer is not full
-                        uint originalValue = 0;
-                        InterlockedAdd(gCounter[0], 1, originalValue);
-                        
-                        if (originalValue < K)
-                        {
-                            data.Center = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[hashedPositionIndex.x], GridDimension));
-                            gClusterDataBuffer[originalValue] = data;
-                            gNextClusterInTileLinkedList[originalValue] = UINT_MAX;
-                        }
+            uint originalValue = 0;
+            InterlockedAdd(gCounter[0], 1, originalValue);
 
-                    }
-                }
+            if (originalValue < K)
+            {
+                data.Center = TileID * 2 * S + S;
+                gClusterDataBuffer[originalValue] = data;
+                gNextClusterInTileLinkedList[originalValue] = UINT_MAX;
             }
         }
+
     }
     // Called with (TileDimension.x / 8, TileDimension.y / 8, TileDimension.z / 8) thread groups
     else if (CurrentPhase == 2)
@@ -508,7 +496,7 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
             cData.Normal = normalAverage;
             cData.VoxelCount = nVoxels;
             cData.FirstDataIndex = UINT_MAX;
-            cData.Center = clamp(round(cData.Center), 0.0f, (float) GridDimension);
+            cData.Center = clamp(cData.Center, 0.0f, (float) GridDimension);
             
             gClusterDataBuffer[j] = cData;
             
@@ -602,14 +590,10 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
                 
                 float distance = fraction * (dis.x + dis.y + dis.z);
                 
-                if (dotProd > cos30 || ((FirstClusterSet == 0 || UnassignedOnlyPass == 1) && closestClusterIndex == UINT_MAX))
-                {           
-                    if (distance < minDistance)
-                    {
-                        minDistance = distance;
-                        closestClusterIndex = clusterIndex;
-                    }
-                    
+                if (dotProd > cos30 || FirstClusterSet == 0)
+                {
+                    closestClusterIndex = clusterIndex;
+                    break;
                 }
 
                 clusterIndex = gNextClusterInTileLinkedList[clusterIndex];
@@ -617,6 +601,9 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         }
         
         gVoxelAssignmentMap[threadLinearIndex] = closestClusterIndex;
+        
+        if (closestClusterIndex == UINT_MAX)
+            return;
         
         uint prev = UINT_MAX;
         uint currentValue;
@@ -661,71 +648,75 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         if (threadLinearIndex >= K)
             return;
         
-        ClusterData cData = gClusterDataBuffer[threadLinearIndex];
+        //ClusterData cData = gClusterDataBuffer[threadLinearIndex];
             
-        uint voxelDataIndex = cData.FirstDataIndex;
-        uint nVoxels = 0;
-        float3 posAverage = float3(0.0f, 0.0f, 0.0f);
-        float3 normalAverage = float3(0.0f, 0.0f, 0.0f);
+        //uint voxelDataIndex = cData.FirstDataIndex;
+        //uint nVoxels = 0;
+        //float3 posAverage = float3(0.0f, 0.0f, 0.0f);
+        //float3 normalAverage = float3(0.0f, 0.0f, 0.0f);
             
-        IterateLinkedList(voxelDataIndex, false, posAverage, normalAverage, nVoxels);
+        //IterateLinkedList(voxelDataIndex, false, posAverage, normalAverage, nVoxels);
         
-        if (nVoxels < 8)
+        //if (nVoxels < 8)
+        //{
+        //    uint idx = cData.FirstDataIndex;
+        //    while (idx != UINT_MAX)
+        //    {
+        //        gVoxelAssignmentMap[idx] = UINT_MAX;
+        //        idx = gNextVoxelLinkedList[idx];
+        //    }
+            
+        //    cData.FirstDataIndex = UINT_MAX;
+        //    cData.VoxelCount = 0;
+        //    gClusterDataBuffer[threadLinearIndex] = cData;
+        //    return;
+        //}
+        
+        if (gClusterDataBuffer[threadLinearIndex].VoxelCount > 0)
         {
-            uint idx = cData.FirstDataIndex;
-            while (idx != UINT_MAX)
-            {
-                gVoxelAssignmentMap[idx] = UINT_MAX;
-                idx = gNextVoxelLinkedList[idx];
-            }
-            
-            cData.FirstDataIndex = UINT_MAX;
-            cData.VoxelCount = 0;
-            gClusterDataBuffer[threadLinearIndex] = cData;
-            return;
+            uint originalValue = 0;
+            InterlockedAdd(gCounter[0], 1, originalValue);
         }
+
         
-        uint originalValue = 0;
-        InterlockedAdd(gCounter[0], 1, originalValue);
+        //if (originalValue >= K)
+        //    return;
         
-        if (originalValue >= K)
-            return;
+        //uint voxIdx = cData.FirstDataIndex;
+        //while (voxIdx != UINT_MAX)
+        //{
+        //    gVoxelAssignmentMap[voxIdx] = originalValue;
+        //    voxIdx = gNextVoxelLinkedList[voxIdx];
+        //}
         
-        uint voxIdx = cData.FirstDataIndex;
-        while (voxIdx != UINT_MAX)
-        {
-            gVoxelAssignmentMap[voxIdx] = originalValue;
-            voxIdx = gNextVoxelLinkedList[voxIdx];
-        }
+        //IterateLinkedList(voxelDataIndex, false, posAverage, normalAverage, nVoxels);
         
-        IterateLinkedList(voxelDataIndex, false, posAverage, normalAverage, nVoxels);
-        
-        cData.Center = posAverage;
-        cData.Normal = normalize(normalAverage);
-        cData.VoxelCount = nVoxels;
-        gClusterDataBuffer[threadLinearIndex] = cData;
+        //cData.Center = posAverage;
+        //cData.Normal = normalize(normalAverage);
+        //cData.VoxelCount = nVoxels;
+        //gClusterDataBuffer[threadLinearIndex] = cData;
         
         
 
         
-        uint3 tileCoord = (uint3) floor(cData.Center / (2 * S));
+        //uint3 tileCoord = (uint3) floor(cData.Center / (2 * S));
         
-        // We fill the tile buffer again because we are going to do a final pass to assing orphan voxels
-        uint prev = UINT_MAX;
-        uint currentValue;
-        InterlockedCompareExchange(gTileBuffer[tileCoord], prev, originalValue, currentValue);
+        //// We fill the tile buffer again because we are going to do a final pass to assing orphan voxels
+        //uint prev = UINT_MAX;
+        //uint currentValue;
+        //InterlockedCompareExchange(gTileBuffer[tileCoord], prev, originalValue, currentValue);
         
-        [allow_uav_condition]
-        while (currentValue != prev)
-        {
-            prev = currentValue;
-            gNextClusterInTileLinkedList[originalValue] = currentValue;
-            InterlockedCompareExchange(gTileBuffer[tileCoord], prev, originalValue, currentValue);
-        }
+        //[allow_uav_condition]
+        //while (currentValue != prev)
+        //{
+        //    prev = currentValue;
+        //    gNextClusterInTileLinkedList[originalValue] = currentValue;
+        //    InterlockedCompareExchange(gTileBuffer[tileCoord], prev, originalValue, currentValue);
+        //}
         
-        // We need a second buffer to store the new cluster data, because if we reuse gClusterDataBuffer, there is no way to guarantee
-        // that gClusterDataBuffer[originalValue] is safe to be updated.
-        gSubclusterDataBuffer[originalValue] = cData;
+        //// We need a second buffer to store the new cluster data, because if we reuse gClusterDataBuffer, there is no way to guarantee
+        //// that gClusterDataBuffer[originalValue] is safe to be updated.
+        //gSubclusterDataBuffer[originalValue] = cData;
     }
 
 }

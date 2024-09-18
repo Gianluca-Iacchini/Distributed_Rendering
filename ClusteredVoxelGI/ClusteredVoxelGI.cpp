@@ -110,11 +110,11 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_clusterVoxels->InitializeBuffers(voxelCount);
 	m_clusterVoxels->StartClustering(computeContext, *m_voxelizeScene->GetBufferManager(), *m_prefixSumVoxels->GetBufferManager());
 
-	m_mergeClusters->InitializeBuffers(commandContext, *m_clusterVoxels);
-	m_mergeClusters->StartMerging(computeContext, *m_prefixSumVoxels->GetBufferManager());
+	//m_mergeClusters->InitializeBuffers(commandContext, *m_clusterVoxels);
+	//m_mergeClusters->StartMerging(computeContext, *m_prefixSumVoxels->GetBufferManager());
 	
-	//m_clusterVisibility->InitializeBuffers(voxelCount, m_clusterVoxels->GetNonEmptyClusters());
-	//m_clusterVisibility->StartVisibility(computeContext, *m_prefixSumVoxels->GetBufferManager());
+	m_clusterVisibility->InitializeBuffers(voxelCount, m_clusterVoxels->GetNonEmptyClusters());
+	m_clusterVisibility->StartVisibility(computeContext, *m_prefixSumVoxels->GetBufferManager());
 
 	//m_clusterVisibility->StartAABBGeneration(computeContext, *m_prefixSumVoxels->GetBufferManager(), *m_clusterVoxels->GetBufferManager());
 
@@ -122,7 +122,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	computeContext.Finish(true);
 
-	//m_voxelizeScene->SetVertexData(commandContext, m_clusterVisibility->GetFaceCount());
+	m_voxelizeScene->SetVertexData(commandContext, m_clusterVisibility->GetFaceCount());
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -141,7 +141,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	//m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager(), m_clusterVoxels->GetBufferManager(), m_clusterVisibility->GetFaceBufferManager());
+	m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager(), m_clusterVoxels->GetBufferManager(), m_clusterVisibility->GetFaceBufferManager());
 
 	//VoxelDisplayPass(commandContext);
 

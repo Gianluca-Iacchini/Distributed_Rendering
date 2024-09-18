@@ -63,7 +63,6 @@ struct ClusterData
     
     float3 Normal;
     uint FirstDataIndex;
-
 };
 
 uint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)

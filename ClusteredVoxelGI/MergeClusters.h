@@ -37,8 +37,8 @@ namespace CVGI
 
 			UINT32 CurrentIteration = 1;
 			UINT32 FirstClusterSet = 0;
-			float _pad1 = 0.0f;
-			float _pad2 = 0.0f;
+			UINT32 UnassignedPassOnly = 0;
+			UINT32 MaxClusterCount = 0;
 		};
 
 

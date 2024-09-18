@@ -113,25 +113,24 @@ void CVGI::ClusterVoxels::StartClustering(ComputeContext& context, BufferManager
 	context.Flush();
 
 
-	context.CopyBuffer(
-		m_bufferManager.GetBuffer((UINT)ClusterBufferType::ClusterData),
-		m_bufferManager.GetBuffer((UINT)ClusterBufferType::SubClusterData)
-	);
-	context.Flush();
+	//context.CopyBuffer(
+	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::ClusterData),
+	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::SubClusterData)
+	//);
+	//context.Flush();
 
 
+	//// Reassing orphan voxels
+	//m_cbClusterizeBuffer.CurrentPhase = 3;
+	//m_cbClusterizeBuffer.UnassignedOnlyPass = 1;
+	//ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
+	//context.Flush();
 
-	// Reassing orphan voxels
-	m_cbClusterizeBuffer.CurrentPhase = 3;
-	m_cbClusterizeBuffer.UnassignedOnlyPass = 1;
-	ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
-	context.Flush();
-
-	context.CopyBuffer(
-		m_bufferManager.GetBuffer((UINT)ClusterBufferType::SubClusterData),
-		m_bufferManager.GetBuffer((UINT)ClusterBufferType::ClusterData)
-	);
-	context.Flush();
+	//context.CopyBuffer(
+	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::SubClusterData),
+	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::ClusterData)
+	//);
+	//context.Flush();
 	// Copy sub cluster data to cluster data for reassigning orphan voxels
 	m_numberOfNonEmptyClusters = *m_bufferManager.ReadFromBuffer<UINT32*>(context, (UINT)ClusterBufferType::Counter);
 

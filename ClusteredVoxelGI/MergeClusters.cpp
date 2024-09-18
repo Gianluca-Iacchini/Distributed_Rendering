@@ -19,6 +19,7 @@ void CVGI::MergeClusters::InitializeBuffers(CommandContext& context, ClusterVoxe
 
 	m_tileGridDimension = clusterVoxels.GetTileGridDimension();
 	m_superPixelWidth = clusterVoxels.GetSuperPixelWidth();
+	m_voxelCount = clusterVoxels.GetVoxelCount();
 
 	m_clusterBufferManager = clusterVoxels.GetBufferManager();
 
@@ -26,6 +27,7 @@ void CVGI::MergeClusters::InitializeBuffers(CommandContext& context, ClusterVoxe
 	m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
 	m_bufferManager.Add3DTextureBuffer(clusterVoxels.GetTileGridDimension(), DXGI_FORMAT_R32_UINT);
 	m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
+	m_bufferManager.AddStructuredBuffer(m_numberOfSuperClusters, sizeof(ClusterVoxels::ClusterData));
 
 	m_bufferManager.AllocateBuffers();
 
@@ -46,10 +48,8 @@ void MergeClusters::StartMerging(ComputeContext& context, BufferManager& compact
 	m_cbMergeClusters.PreviousTileDimension = m_tileGridDimension;
 	m_cbMergeClusters.S = m_superPixelWidth;
 	m_cbMergeClusters.PreviousS = m_superPixelWidth;
+	m_cbMergeClusters.MaxClusterCount = m_numberOfSuperClusters;
 
-	m_cbMergeClusters.CurrentStep = 0;
-	MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
-	context.Flush();
 
 	// We set m_numberOfSuperClusters to m_numberOfSubClusters, because in the first pass we are resetting all the buffers, so we passed
 	// the total number of cluster is the SuperClusterCount field, now we are setting it to the SubClusterCount which is the actual
@@ -57,14 +57,16 @@ void MergeClusters::StartMerging(ComputeContext& context, BufferManager& compact
 	// This will then be subdivided by 2 each iteration.
 	m_numberOfSuperClusters = m_numberOfSubClusters;
 
-	for (UINT it = 0; it < 1; it++)
+	bool isLessThan10k = false;
+
+	for (UINT it = 0; it < 5 && !isLessThan10k; it++)
 	{
 		currentSubd = currentSubd * 2;
 
 		m_cbMergeClusters.PreviousS = m_superPixelWidth;
 		m_cbMergeClusters.PreviousTileDimension = m_tileGridDimension;
 
-		m_numberOfSuperClusters = m_numberOfSuperClusters / 2;
+		m_numberOfSuperClusters = m_numberOfSubClusters / 2;
 		m_superPixelWidth = ceilf(cbrtf((float)voxelLinearSize / m_numberOfSuperClusters));
 
 		float denominator = 2.0f * m_superPixelWidth;
@@ -78,7 +80,9 @@ void MergeClusters::StartMerging(ComputeContext& context, BufferManager& compact
 		m_cbMergeClusters.S = m_superPixelWidth;
 		m_cbMergeClusters.CurrentStep = 0;
 		m_cbMergeClusters.FirstClusterSet = 0;
+		m_cbMergeClusters.UnassignedPassOnly = 0;
 
+		isLessThan10k = m_numberOfSuperClusters < 10000;
 
 		DirectX::XMUINT3 groupSize =
 		{
@@ -86,6 +90,10 @@ void MergeClusters::StartMerging(ComputeContext& context, BufferManager& compact
 			(UINT)ceil(m_tileGridDimension.y / (8.0f)),
 			(UINT)ceil(m_tileGridDimension.z / (8.0f))
 		};
+
+		m_cbMergeClusters.CurrentStep = 0;
+		MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
+		context.Flush();
 
 		m_cbMergeClusters.CurrentStep = 1;
 		MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_numberOfSubClusters / 512), 1, 1), compactBufferManager);
@@ -95,82 +103,64 @@ void MergeClusters::StartMerging(ComputeContext& context, BufferManager& compact
 		MergeClusterPass(context, groupSize, compactBufferManager);
 		context.Flush();
 
-		m_cbMergeClusters.CurrentStep = 3;
+		for (int n = 0; n < 2; n++)
+		{
+			m_cbMergeClusters.FirstClusterSet = n == 0 ? 0 : 1;
+			m_cbMergeClusters.CurrentStep = 3;
+			MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_numberOfSuperClusters / 512), 1, 1), compactBufferManager);
+			context.Flush();
+
+			m_cbMergeClusters.CurrentStep = 4;
+			MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_numberOfSubClusters / 512), 1, 1), compactBufferManager);
+			context.Flush();
+
+			m_cbMergeClusters.CurrentStep = 5;
+			MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_voxelCount / 512), 1, 1), compactBufferManager);
+			context.Flush();
+
+
+		}
+		m_cbMergeClusters.CurrentStep = 6;
 		MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_numberOfSuperClusters / 512), 1, 1), compactBufferManager);
 		context.Flush();
 
-		//	UINT32 numberOfClusters = *m_clusterBufferManager->ReadFromBuffer<UINT32*>(context, (UINT)ClusterVoxels::ClusterBufferType::Counter);
-		//	DXLIB_INFO("ClusterCounter before: {0}", numberOfClusters);
+		context.CopyBuffer(
+			m_clusterBufferManager->GetBuffer((UINT)ClusterVoxels::ClusterBufferType::ClusterData),
+			m_bufferManager.GetBuffer(4) // Voxel Temp Buffer
+		);
+		context.Flush();
 
+		m_cbMergeClusters.CurrentStep = 4;
+		m_cbMergeClusters.UnassignedPassOnly = 1;
+		MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_numberOfSubClusters / 512), 1, 1), compactBufferManager);
+		context.Flush();
 
-		//	MergeClusterPass(context, groupSize, compactBufferManager);
-		//	context.Flush(true);
+		m_cbMergeClusters.CurrentStep = 7;
+		MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_voxelCount / 512), 1, 1), compactBufferManager);
+		context.Flush();
 
-		//	numberOfClusters = *m_clusterBufferManager->ReadFromBuffer<UINT32*>(context, (UINT)ClusterVoxels::ClusterBufferType::Counter);
-		//	DXLIB_INFO("Super cluster Filled: {0}", numberOfClusters);
+		m_cbMergeClusters.CurrentStep = 8;
+		MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_voxelCount / 512), 1, 1), compactBufferManager);
+		context.Flush();
 
-		//	for (int n = 0; n < 10; n++)
-		//	{
-		//		m_cbMergeClusters.FirstClusterSet = n == 0 ? 0 : 1;
+		context.CopyBuffer(
+			m_clusterBufferManager->GetBuffer((UINT)ClusterVoxels::ClusterBufferType::SubClusterData),
+			m_clusterBufferManager->GetBuffer((UINT)ClusterVoxels::ClusterBufferType::ClusterData)
+		);
 
-
-
-		//		m_cbMergeClusters.CurrentStep = 1;
-
-		//		MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSuperClusters / 512.0f), 1, 1), compactBufferManager);
-		//		context.Flush();
-
-
-		//		m_cbMergeClusters.CurrentStep = 2;
-		//		MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSubClusters / 512.0f), 1, 1), compactBufferManager);
-		//		context.Flush();
-
-
-		//		m_cbMergeClusters.CurrentStep = 3;
-		//		MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
-		//		context.Flush(true);
-		//	}
-
-		//	m_cbMergeClusters.CurrentStep = 4;
-		//	MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSuperClusters / 512.0f), 1, 1), compactBufferManager);
-		//	context.Flush(true);
-
-		//	m_cbMergeClusters.CurrentStep = 5;
-		//	MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSuperClusters / 512.0f), 1, 1), compactBufferManager);
-		//	context.Flush(true);
-
-		//	m_cbMergeClusters.CurrentStep = 6;
-		//	MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
-		//	context.Flush(true);
-
-		//	m_numberOfSubClusters = *m_clusterBufferManager->ReadFromBuffer<UINT32*>(context, (UINT)ClusterVoxels::ClusterBufferType::Counter);
-
-		//	m_clusterBufferManager->ZeroBuffer(context, (UINT)ClusterVoxels::ClusterBufferType::Counter);
-
-		//	if (m_numberOfSubClusters < 5000)
-		//	{
-		//		DXLIB_WARN("Less than 10K clusters, ending");
-		//		break;
-		//	}
-		//}
-
-		//m_cbMergeClusters.CurrentStep = 7;
-		//m_cbMergeClusters.NumberOfSubClusters = m_numberOfSubClusters;
-		//MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSubClusters / 512.0f), 1, 1), compactBufferManager);
-		//context.Flush(true);
-
-		//m_cbMergeClusters.CurrentStep = 8;
-		//MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
-		//context.Flush(true);
-
-		//m_cbMergeClusters.CurrentStep = 9;
-		//MergeClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfSubClusters / 512.0f), 1, 1), compactBufferManager);
-		//context.Flush(true);
-
-		//m_cbMergeClusters.CurrentStep = 10;
-		//MergeClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), compactBufferManager);
+		m_numberOfSubClusters = *m_clusterBufferManager->ReadFromBuffer<UINT32*>(context, (UINT)ClusterVoxels::ClusterBufferType::Counter);
+		
 
 	}
+
+	m_cbMergeClusters.CurrentStep = 9;
+	MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_numberOfSubClusters / 512), 1, 1), compactBufferManager);
+	context.Flush();
+
+	m_cbMergeClusters.CurrentStep = 10;
+	MergeClusterPass(context, DirectX::XMUINT3(ceilf(m_voxelCount / 512), 1, 1), compactBufferManager);
+	context.Flush();
+
 	PIXEndEvent(context.m_commandList->Get());
 	context.Flush(true);
 }
@@ -205,7 +195,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::MergeClusters::BuildMergeClustersR
 	(*clusterRootSignature)[(UINT)ClusterReduceRootSignature::ClusterReduceCBV].InitAsConstantBuffer(0);
 	(*clusterRootSignature)[(UINT)ClusterReduceRootSignature::ClusterizeSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
 	(*clusterRootSignature)[(UINT)ClusterReduceRootSignature::ClusterizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 8, D3D12_SHADER_VISIBILITY_ALL, 0);
-	(*clusterRootSignature)[(UINT)ClusterReduceRootSignature::ReduceUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
+	(*clusterRootSignature)[(UINT)ClusterReduceRootSignature::ReduceUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 1);
 
 	clusterRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
