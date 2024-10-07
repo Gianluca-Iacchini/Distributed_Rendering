@@ -28,6 +28,7 @@ namespace DX12Lib
 		ShadowCamera() : Camera() {}
 		void SetCenter(const DirectX::XMFLOAT3& center) { m_shadowCenter = center; }
 		void SetBounds(const DirectX::XMFLOAT3& bounds) { m_shadowBounds = bounds; }
+		DirectX::XMFLOAT3 GetBounds() const { return m_shadowBounds; }
 		void UpdateShadowMatrix(SceneNode& node);
 		DirectX::GraphicsResource GetShadowCB();
 		DirectX::XMFLOAT4X4 GetShadowTransform() const { return m_shadowTransform; }

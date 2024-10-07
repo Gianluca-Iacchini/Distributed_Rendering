@@ -88,7 +88,7 @@ namespace DX12Lib
 		virtual void Create(UINT32 numElements, UINT32 elementSize) override;
 		void Create(StructuredBuffer& buffer);
 
-		void* ReadBack(GPUBuffer& srcBuffer);
+		void* ReadBack(UINT32 byteSize);
 
 		virtual void CreateDerivedViews() override {}
 	};

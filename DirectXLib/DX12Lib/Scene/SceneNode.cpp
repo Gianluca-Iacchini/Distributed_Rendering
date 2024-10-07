@@ -346,6 +346,17 @@ void DX12Lib::SceneNode::Rotate(float pitch, float yaw, float roll)
 	this->Transform.SetRelativeRotation(quaternion);
 }
 
+void DX12Lib::SceneNode::LookAt(const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up)
+{
+	DirectX::XMVECTOR positionVec = this->Transform.GetWorldPosition();
+	DirectX::XMVECTOR targetVec = DirectX::XMLoadFloat3(&target);
+	DirectX::XMVECTOR upVec = DirectX::XMLoadFloat3(&up);
+
+	DirectX::XMMATRIX lookAtMatrix = DirectX::XMMatrixLookAtLH(positionVec, targetVec, upVec);
+
+	this->Transform.SetWorldPosition(positionVec);
+}
+
 void DX12Lib::SceneNode::Rotate(const DirectX::XMFLOAT3& axis, float value)
 {
 	this->Rotate(axis.x * value, axis.y * value , axis.z * value);

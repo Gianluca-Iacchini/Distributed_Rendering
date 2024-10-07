@@ -75,6 +75,8 @@ namespace DX12Lib
 		void SetWorldRotation(DirectX::XMFLOAT4 rot);
 		void SetWorldScale(DirectX::XMFLOAT3 scale);
 
+		void SetWorldMatrix(DirectX::FXMMATRIX world);
+
 		void Update();
 
 		void SetDirty(DirtyFlags flag);

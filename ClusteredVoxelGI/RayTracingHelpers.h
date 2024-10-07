@@ -5,13 +5,13 @@
 #include "DX12Lib/DXWrapper/Resource.h"
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include "DX12Lib/DXWrapper/UploadBuffer.h"
+
 #include <vector>
 #include <memory>
-namespace DX12Lib
-{
-	class CommandContext;
-	class ComputeContext;
-}
+#include "d3dx12.h"
+#include "DX12Lib/DXWrapper/PipelineState.h"
+#include "DX12Lib/Commons/CommandContext.h"
+
 
 namespace CVGI
 {
@@ -46,9 +46,12 @@ namespace CVGI
 
 		D3D12_RAYTRACING_INSTANCE_DESC& GetInstanceDesc() { return m_instanceDesc; }
 
+		bool IsBuilt() const { return m_built; }
+
 	private:
 		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_geometryDescs;
 		D3D12_RAYTRACING_INSTANCE_DESC m_instanceDesc;
+		bool m_built = false;
 	};
 
 	class TopLevelAccelerationStructure : public AccelerationStructure
@@ -58,29 +61,22 @@ namespace CVGI
 		void AddBLAS(std::shared_ptr<BottomLevelAccelerationStructure> structure);
 		virtual void Build(DX12Lib::CommandContext& context) override;
 
+		UINT GetBLASCount() const { return static_cast<UINT>(m_blasVector.size()); }
+
 		std::vector<std::shared_ptr<BottomLevelAccelerationStructure>> m_blasVector;
 	};
 
-	class Octree
+	
+	class RayTracingContext : public DX12Lib::ComputeContext
 	{
 	public:
-		Octree(std::vector<AABB> elementsAABBs, DirectX::XMFLOAT3 octreeSize) : 
-			m_elementsAABBs(elementsAABBs), m_OctreeSize(octreeSize) {}
-		~Octree() {}
+		virtual ~RayTracingContext() = default;
 
-		void CreateOctree(unsigned int maxDepth = 10, unsigned int maxElements = 10);
-		std::vector<std::vector<unsigned int>> GetLeaves();
+		static RayTracingContext& Begin();
 
-	private:
-		void CreateOctreeRecursive(DirectX::XMFLOAT3 minBoundary, DirectX::XMFLOAT3 maxBoundary, std::vector<unsigned int> currentIndices, unsigned int currentDepth);
-
-	private:
-		std::vector<AABB> m_elementsAABBs;
-		DirectX::XMFLOAT3 m_OctreeSize;
-		std::vector<std::vector<unsigned int>> m_elementsPerLeaf;
-
-		unsigned int m_maxDepth = 10;
-		unsigned int m_maxElements = 10;
+		void DispatchRays1D(UINT width);
+		void DispatchRays2D(UINT width, UINT height);
+		void DispatchRays3D(UINT width, UINT height, UINT depth);
 	};
 
 

@@ -279,6 +279,12 @@ void DX12Lib::Transform::SetWorldScale(DirectX::XMFLOAT3 scale)
 	this->SetWorldScale(newScale);
 }
 
+void DX12Lib::Transform::SetWorldMatrix(DirectX::FXMMATRIX world)
+{
+	DirectX::XMStoreFloat4x4(&m_world, world);
+    SetDirty(DirtyFlags::All);
+}
+
 void DX12Lib::Transform::Update()
 {
     GetWorldPosition();

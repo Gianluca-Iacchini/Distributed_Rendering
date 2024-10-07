@@ -132,14 +132,14 @@ out uint numberOfVoxels)
 
 void ComputeDistance(ClusterData supData, ClusterData subData, out float3 distance, out float dotProduct)
 {
-    float3 d = float3(abs(supData.Center.x - subData.Center.x),
-                          abs(supData.Center.y - subData.Center.y),
-                          abs(supData.Center.z - subData.Center.z));
+    //float3 d = float3(abs(supData.Center.x - subData.Center.x),
+    //                      abs(supData.Center.y - subData.Center.y),
+    //                      abs(supData.Center.z - subData.Center.z));
     
-    float dotP = supData.VoxelCount > 0 ? dot(subData.Normal, supData.Normal) : cos30 + EPSILON;
+    //float dotP = supData.VoxelCount > 0 ? dot(subData.Normal, supData.Normal) : cos30 + EPSILON;
     
-    dotProduct = dotP;
-    distance = d;
+    dotProduct = 0.9f;
+    distance = 0.0f;
 }
 
 

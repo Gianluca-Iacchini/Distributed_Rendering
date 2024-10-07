@@ -18,9 +18,12 @@ namespace CVGI
 		~BufferManager() {}
 
 		UINT AddStructuredBuffer(UINT32 elementCount, size_t elementSize);
-		UINT AddByteAddressBuffer();
+		UINT AddByteAddressBuffer(UINT32 elementCount = 1);
+		UINT Add2DTextureBuffer(UINT32 width, UINT32 height, DXGI_FORMAT format);
+		UINT Add2DTextureBuffer(DirectX::XMUINT2 size, DXGI_FORMAT format);
+
 		UINT Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format);
-		UINT Add3DTextureBuffer(DirectX::XMUINT3, DXGI_FORMAT format);
+		UINT Add3DTextureBuffer(DirectX::XMUINT3 size, DXGI_FORMAT format);
 		
 		void RemoveBuffer(int index);
 		void ResizeBuffer(int index, UINT32 elementCount);
@@ -38,7 +41,7 @@ namespace CVGI
 		DX12Lib::DescriptorHandle& GetSRVHandle() { return m_srvHandle; }
 
 		template<typename T>
-		inline T ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex);
+		inline T ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex, UINT32 bufferSize = 0);
 
 		void MoveDataTo(BufferManager& other);
 
@@ -50,22 +53,36 @@ namespace CVGI
 	};
 
 	template<typename T>
-	inline T BufferManager::ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex)
+	inline T BufferManager::ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex, UINT32 bufferSize)
 	{
 		assert(bufferIndex < m_buffers.size() && bufferIndex >= 0);
 
 		DX12Lib::GPUBuffer& buffer = BufferManager::GetBuffer(bufferIndex);
 
+		UINT elementCount = 1;
+		UINT64 elementSize = bufferSize;
+
+		if (bufferSize == 0)
+		{
+			elementCount = buffer.GetElementCount();
+			elementSize = buffer.GetElementSize();
+		}
+
 		DX12Lib::ReadBackBuffer readBuffer;
-		readBuffer.Create(buffer.GetElementCount(), buffer.GetElementSize());
+		readBuffer.Create(elementCount, elementSize);
 
-
-
-		context.CopyBuffer(readBuffer, buffer);
+		if (bufferSize == 0)
+		{
+			context.CopyBuffer(readBuffer, buffer);
+		}
+		else
+		{
+			context.CopyBufferRegion(readBuffer, 0, buffer, 0, elementCount * elementSize);
+		}
 
 		context.Flush(true);
 
-		void* data = readBuffer.ReadBack(buffer);
+		void* data = readBuffer.ReadBack(elementCount * elementSize);
 		return reinterpret_cast<T>(data);
 	}
 }

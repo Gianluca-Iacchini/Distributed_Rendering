@@ -39,6 +39,8 @@ void DX12Lib::UploadBuffer::Create(size_t BufferSize)
 
 void* DX12Lib::UploadBuffer::Map(void)
 {
+    m_isMapped = true;
+
     auto range = CD3DX12_RANGE(0, m_BufferSize);
 
     void* memory;
@@ -50,4 +52,6 @@ void DX12Lib::UploadBuffer::Unmap(size_t begin, size_t end)
 {
     auto range = CD3DX12_RANGE(begin, std::min(end, m_BufferSize));
     m_resource->Unmap(0, &range);
+
+    m_isMapped = false;
 }

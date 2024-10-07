@@ -119,7 +119,7 @@ namespace Graphics::Renderer
 
 
 		s_shadowBuffer = std::make_unique<ShadowBuffer>();
-		s_shadowBuffer->Create(4096, 4096);
+		s_shadowBuffer->Create(2048, 2048);
 
 
 		m_commonTextureHandle = s_textureHeap->Alloc(1);
@@ -200,24 +200,11 @@ namespace Graphics::Renderer
 			rootParamSlot, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
 	}
 
-	void SetVoxelTexture(DX12Lib::ColorBuffer& voxelTexture)
-	{
-		s_voxel3DTexture = &voxelTexture;
 
-		s_device->Get()->CopyDescriptorsSimple(1, m_voxelTextureUAVHandle, s_voxel3DTexture->GetUAV(0), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		s_device->Get()->CopyDescriptorsSimple(1, m_voxelTextureSRVHandle, s_voxel3DTexture->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	}
-
-	DX12Lib::DescriptorHandle& GetVoxelTextureUAV(DX12Lib::CommandContext& context)
+	DX12Lib::DescriptorHandle& GetShadowMapSrv(DX12Lib::CommandContext& context)
 	{
-		context.TransitionResource(*s_voxel3DTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-		return m_voxelTextureUAVHandle;
-	}
-
-	DX12Lib::DescriptorHandle& GetVoxelTextureSRV(DX12Lib::CommandContext& context)
-	{
-		context.TransitionResource(*s_voxel3DTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
-		return m_voxelTextureSRVHandle;
+		context.TransitionResource(*s_shadowBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		return m_commonTextureHandle;
 	}
 
 	std::vector<DX12Lib::ModelRenderer*> GetRenderers()

@@ -66,20 +66,9 @@ void DX12Lib::CommandContext::SetPipelineState(PipelineState* pipelineState)
 	if (m_currentPipelineState != pipelineState)
 	{
 		m_currentPipelineState = pipelineState;
-		m_commandList->Get()->SetPipelineState(m_currentPipelineState->Get());
+		pipelineState->Use(*m_commandList);
 
-		if (dynamic_cast<GraphicsPipelineState*>(pipelineState) != nullptr)
-		{
-			m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
-		}
-		else if (dynamic_cast<ComputePipelineState*>(pipelineState) != nullptr)
-		{
-			m_commandList->Get()->SetComputeRootSignature(m_currentPipelineState->GetRootSignature()->Get());
-		}
-		else
-		{
-			DXLIB_CORE_ERROR("Unknown PipelineState type");
-		}
+		m_currentPipelineState->UseRootSignature(*m_commandList);
 	}
 }
 
@@ -232,19 +221,8 @@ UINT64 CommandContext::Flush(bool waitForCompletion)
 
 	if (m_currentPipelineState != nullptr)
 	{
-		m_commandList->Get()->SetPipelineState(m_currentPipelineState->Get());
-		if (dynamic_cast<GraphicsPipelineState*>(m_currentPipelineState) != nullptr)
-		{
-			m_commandList->Get()->SetGraphicsRootSignature(m_currentPipelineState->GetRootSignature()->Get());
-		}
-		else if (dynamic_cast<ComputePipelineState*>(m_currentPipelineState) != nullptr)
-		{
-			m_commandList->Get()->SetComputeRootSignature(m_currentPipelineState->GetRootSignature()->Get());
-		}
-		else
-		{
-			DXLIB_CORE_ERROR("Unknown PipelineState type");
-		}
+		m_currentPipelineState->Use(*m_commandList);
+		m_currentPipelineState->UseRootSignature(*m_commandList);
 	}
 
 	BindDescriptorHeaps();
@@ -404,3 +382,4 @@ void DX12Lib::ComputeContext::Dispatch3D(size_t threadCountX, size_t threadCount
 			 MathHelper::DivideByMultiple(threadCountY, groupSizeY),
 			 MathHelper::DivideByMultiple(threadCountZ, groupSizeZ));
 }
+

@@ -42,7 +42,7 @@ namespace DX12Lib
 
 			for (auto& component : m_components)
 			{
-				T* castedComponent = static_cast<T*>(component.get());
+				T* castedComponent = dynamic_cast<T*>(component.get());
 				if (castedComponent != nullptr)
 				{
 					return castedComponent;
@@ -88,6 +88,7 @@ namespace DX12Lib
 		void Translate(float x, float y, float z);
 		void Rotate(const DirectX::XMFLOAT3& axis, float value = 1.0f);
 		void Rotate(float pitch, float yaw, float roll);
+		void LookAt(const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up = DirectX::XMFLOAT3(0, 1, 0));
 
 		inline DirectX::XMFLOAT3 GetForward(){ return this->Transform.GetForward3f();}
 		inline DirectX::XMFLOAT3 GetRight()  { return this->Transform.GetRight3f(); }

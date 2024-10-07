@@ -37,6 +37,7 @@ void DX12Lib::LightComponent::SetCastsShadows(bool value)
 
 ShadowCamera* DX12Lib::LightComponent::GetShadowCamera()
 {
+	assert(m_shadowCamera != nullptr);
 	return m_shadowCamera.get();
 }
 
@@ -95,6 +96,11 @@ DX12Lib::LightComponent::~LightComponent()
 	RemoveLight(m_lightIndex);
 }
 
+void DX12Lib::LightComponent::Init(CommandContext& context)
+{
+	m_shadowCamera->UpdateShadowMatrix(*this->Node);
+}
+
 void DX12Lib::LightComponent::Update(CommandContext& context)
 {
 
@@ -108,8 +114,8 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	auto rotation = DirectX::XMConvertToDegrees(this->Node->GetRotationEulerAngles().x);
 	float time = GameTime::GetTotalTime();
 
-	float maxRot = 115.0f;
-	float minRot = 65.0f;
+	float maxRot = 112.0f;
+	float minRot = 68.0f;
 	
 	static float modifier = 1.f;
 
@@ -121,16 +127,12 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	{
 		modifier = -1.f;
 	}
-	
-	// Speed up the rotation when the light is at the edges and slow it down when it's in the middle
-	float smoothStep = MathHelper::MinMaxScale(minRot, maxRot, rotation);
-	smoothStep = MathHelper::Abs(0.5f - smoothStep) * 2.f;
-	float rotSpeed = MathHelper::Lerp(0.08f, 0.6f, smoothStep);
-	
 
-	float rotVelocity = modifier * rotSpeed;
+	float rotVelocity = modifier * 0.1f;
 	this->Node->Rotate(this->Node->GetRight(), rotVelocity * GameTime::GetDeltaTime());
 	 
+
+
 	memcpy(s_lightBufferData + m_lightIndex, &m_lightCB, sizeof(m_lightCB));
 
 	if (this->m_doesCastShadows)

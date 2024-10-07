@@ -4,11 +4,14 @@
 #include <d3d12.h>
 #include <VertexTypes.h>
 #include "DX12Lib/Commons/Helpers.h"
+#include "unordered_map"
 
 namespace DX12Lib {
 
 	class Shader;
 	class RootSignature;
+	class CommandList;
+	class CommandContext;
 
 	enum class ShaderType
 	{
@@ -22,6 +25,8 @@ namespace DX12Lib {
 
 	class PipelineState
 	{
+		friend class CommandContext;
+
 	public:
 		PipelineState()
 		{
@@ -29,10 +34,16 @@ namespace DX12Lib {
 		}
 		virtual ~PipelineState() {}
 
+
+
 		void SetRootSignature(std::shared_ptr<RootSignature> rootSignature);
 		std::shared_ptr<RootSignature> GetRootSignature() const { return m_rootSignature; }
 
 		std::wstring GetGUID() const { return Utils::GUIDToWstring(m_guid); }
+
+	protected:
+		virtual void UseRootSignature(CommandList& commandList) const = 0;
+		virtual void Use(CommandList& commandList) const = 0;
 
 	public:
 		std::wstring Name;
@@ -71,6 +82,9 @@ namespace DX12Lib {
 		void SetShader(std::shared_ptr<Shader> shader, ShaderType type);
 		void InitializeDefaultStates();
 
+		virtual void UseRootSignature(CommandList& commandList) const override;
+		virtual void Use(CommandList& commandList) const override;
+
 		void SetBlendState(const D3D12_BLEND_DESC& blendDesc) { m_psoDesc.BlendState = blendDesc; }
 		void SetRasterizerState(const D3D12_RASTERIZER_DESC& rasterizerDesc) { m_psoDesc.RasterizerState = rasterizerDesc; }
 		void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& depthStencilDesc) { m_psoDesc.DepthStencilState = depthStencilDesc; }
@@ -89,18 +103,7 @@ namespace DX12Lib {
 		std::unordered_map<ShaderType, std::shared_ptr<Shader>> m_shaders;
 
 	public:
-		void operator=(const GraphicsPipelineState& rhs)
-		{
-			m_psoDesc = rhs.m_psoDesc;
-			m_rootSignature = rhs.m_rootSignature;
-
-			this->m_shaders.clear();
-
-			for (auto& shader : rhs.m_shaders)
-			{
-				this->m_shaders[shader.first] = shader.second;
-			}
-		}
+		void operator=(const GraphicsPipelineState& rhs);
 	};
 
 	class ComputePipelineState : public PipelineState
@@ -110,6 +113,10 @@ namespace DX12Lib {
 		{
 			ZeroMemory(&m_psoDesc, sizeof(D3D12_COMPUTE_PIPELINE_STATE_DESC));
 		}
+
+		void UseRootSignature(CommandList& commandList) const override;
+
+		virtual void Use(CommandList& commandList) const override;
 
 		void SetComputeShader(std::shared_ptr<Shader> computeShader);
 

@@ -58,6 +58,16 @@ void GraphicsPipelineState::InitializeDefaultStates()
 
 }
 
+void DX12Lib::GraphicsPipelineState::UseRootSignature(CommandList& commandList) const
+{
+	commandList.Get()->SetGraphicsRootSignature(m_rootSignature->Get());
+}
+
+void DX12Lib::GraphicsPipelineState::Use(CommandList& commandList) const
+{
+	commandList.Get()->SetPipelineState(m_pipelineState.Get());
+}
+
 void GraphicsPipelineState::SetInputLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout)
 {
 	m_psoDesc.InputLayout.NumElements = static_cast<UINT>(inputLayout.size());
@@ -95,6 +105,29 @@ void GraphicsPipelineState::Finalize()
 {
 	m_psoDesc.pRootSignature = m_rootSignature->Get();
 	ThrowIfFailed(s_device->GetComPtr()->CreateGraphicsPipelineState(&m_psoDesc, IID_PPV_ARGS(m_pipelineState.GetAddressOf())));
+}
+
+void DX12Lib::GraphicsPipelineState::operator=(const GraphicsPipelineState& rhs)
+{
+	m_psoDesc = rhs.m_psoDesc;
+	m_rootSignature = rhs.m_rootSignature;
+
+	this->m_shaders.clear();
+
+	for (auto& shader : rhs.m_shaders)
+	{
+		this->m_shaders[shader.first] = shader.second;
+	}
+}
+
+void DX12Lib::ComputePipelineState::UseRootSignature(CommandList& commandList) const
+{
+	commandList.Get()->SetComputeRootSignature(m_rootSignature->Get());
+}
+
+void DX12Lib::ComputePipelineState::Use(CommandList& commandList) const
+{
+	commandList.Get()->SetPipelineState(m_pipelineState.Get());
 }
 
 void DX12Lib::ComputePipelineState::SetComputeShader(std::shared_ptr<Shader> computeShader)

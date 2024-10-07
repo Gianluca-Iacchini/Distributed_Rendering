@@ -13,7 +13,7 @@ void CVGI::ClusterVoxels::InitializeBuffers(UINT voxelCount)
 
 	UINT32 voxelLinearSize = m_voxelSceneDimensions.x * m_voxelSceneDimensions.y * m_voxelSceneDimensions.z;
 	m_numberOfClusters = MathHelper::Min(250000u, (UINT32)(m_voxelCount / 10));
-	m_superPixelWidth = ceilf(cbrtf((float)voxelLinearSize / m_numberOfClusters));
+	m_superPixelWidth = cbrtf((float)voxelLinearSize / m_numberOfClusters);
 
 	float denominator = 2.0f * m_superPixelWidth;
 	m_tileGridDimension = { (UINT)ceilf(m_voxelSceneDimensions.x / denominator), (UINT)ceilf(m_voxelSceneDimensions.y / denominator), (UINT)ceilf(m_voxelSceneDimensions.z / denominator) };
@@ -48,7 +48,7 @@ void CVGI::ClusterVoxels::InitializeBuffers(UINT voxelCount)
 
 	m_cbClusterizeBuffer.CurrentPhase = 0;
 	m_cbClusterizeBuffer.VoxelCount = m_voxelCount;
-	m_cbClusterizeBuffer.S = m_superPixelWidth;
+	m_cbClusterizeBuffer.S = ceil(m_superPixelWidth);
 	m_cbClusterizeBuffer.m = m_compactness;
 	m_cbClusterizeBuffer.K = m_numberOfClusters;
 	m_cbClusterizeBuffer.VoxelTextureDimensions = DirectX::XMUINT3(UINT(m_voxelSceneDimensions.x), UINT(m_voxelSceneDimensions.y), UINT(m_voxelSceneDimensions.z));
@@ -68,75 +68,48 @@ void CVGI::ClusterVoxels::StartClustering(ComputeContext& context, BufferManager
 
 	context.FlushResourceBarriers();
 
-	// Initialize buffers
+	m_cbClusterizeBuffer.CurrentPhase = 0;
 	ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
 	context.Flush();
 
 	m_cbClusterizeBuffer.CurrentPhase = 1;
-
-	DirectX::XMUINT3 groupSize =
-	{
-		(uint32_t)ceil(m_tileGridDimension.x / 8.0f),
-		(uint32_t)ceil(m_tileGridDimension.y / 8.0f),
-		(uint32_t)ceil(m_tileGridDimension.z / 8.0f)
-	};
-
-	// Prepare clusters
-	ClusterPass(context, groupSize, voxelBufferManager, compactBufferManager);
-	context.Flush();
-
-
-	for (int n = 0; n < 10; n++)
-	{
-		m_cbClusterizeBuffer.FirstClusterSet = n == 0 ? 0 : 1;
-
-		// Update cluster data
-		m_cbClusterizeBuffer.CurrentPhase = 2;
-		ClusterPass(context, groupSize, voxelBufferManager, compactBufferManager);
-		context.Flush();
-
-		// Assign voxels to clusters
-		m_cbClusterizeBuffer.CurrentPhase = 3;
-		ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
-		context.Flush();
-
-		// Reset data
-		m_cbClusterizeBuffer.CurrentPhase = 4;
-		ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
-		context.Flush();
-
-	}
-
-	// Remove clusters with little voxels
-	m_cbClusterizeBuffer.CurrentPhase = 5;
 	ClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
 	context.Flush();
 
 
-	//context.CopyBuffer(
-	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::ClusterData),
-	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::SubClusterData)
-	//);
-	//context.Flush();
+	for (int i = 0; i < 10; i++)
+	{
+		m_cbClusterizeBuffer.CurrentPhase = 2;
+		ClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
+		context.Flush();
 
+		m_cbClusterizeBuffer.CurrentPhase = 3;
+		ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
+		context.Flush();
 
-	//// Reassing orphan voxels
-	//m_cbClusterizeBuffer.CurrentPhase = 3;
-	//m_cbClusterizeBuffer.UnassignedOnlyPass = 1;
-	//ClusterPass(context, DirectX::XMUINT3(ceil(m_voxelCount / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
-	//context.Flush();
+		m_cbClusterizeBuffer.CurrentPhase = 4;
+		ClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
+		context.Flush();
+	}
 
-	//context.CopyBuffer(
-	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::SubClusterData),
-	//	m_bufferManager.GetBuffer((UINT)ClusterBufferType::ClusterData)
-	//);
-	//context.Flush();
-	// Copy sub cluster data to cluster data for reassigning orphan voxels
+	m_cbClusterizeBuffer.UnassignedOnlyPass = 1;
+	m_cbClusterizeBuffer.CurrentPhase = 2;
+	ClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
+	context.Flush();
+
+	m_cbClusterizeBuffer.CurrentPhase = 5;
+	ClusterPass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1), voxelBufferManager, compactBufferManager);
+	context.Flush();
+
+	context.CopyBuffer(m_bufferManager.GetBuffer((UINT)ClusterVoxels::ClusterBufferType::ClusterData), 
+		m_bufferManager.GetBuffer((UINT)ClusterVoxels::ClusterBufferType::SubClusterData));
+
 	m_numberOfNonEmptyClusters = *m_bufferManager.ReadFromBuffer<UINT32*>(context, (UINT)ClusterBufferType::Counter);
-
 	DXLIB_CORE_INFO("Cluster count: {0}", m_numberOfNonEmptyClusters);
 
 	PIXEndEvent(context.m_commandList->Get());
+
+
 
 	context.Flush();
 }

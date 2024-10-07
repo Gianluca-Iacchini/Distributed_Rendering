@@ -13,14 +13,14 @@
 #include "ClusterVoxels.h"
 #include "MergeClusters.h"
 #include "ClusterVisibility.h"
+#include "DX12Lib/Scene/LightComponent.h"
+
+#include "LightVoxel.h"
+
 
 namespace CVGI
 {
 	class VoxelCamera;
-
-
-
-
 
 	class ClusteredVoxelGIApp : public DX12Lib::D3DApp
 	{
@@ -51,6 +51,7 @@ namespace CVGI
 		std::unique_ptr<ClusterVoxels> m_clusterVoxels;
 		std::unique_ptr<MergeClusters> m_mergeClusters;
 		std::unique_ptr<ClusterVisibility> m_clusterVisibility;
+		std::unique_ptr<LightVoxel> m_lightVoxel;
 
 
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
@@ -64,5 +65,7 @@ namespace CVGI
 		std::vector<DX12Lib::GPUBuffer*> m_uavBuffers;
 
 		UINT64 m_numberOfVoxels = 0;
+
+		DX12Lib::ShadowCamera* m_shadowCamera = nullptr;
 	};
 }

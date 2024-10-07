@@ -18,7 +18,7 @@ namespace DX12Lib
         size_t GetBufferSize() const { return m_BufferSize; }
 
     protected:
-
+        bool m_isMapped = false;
         size_t m_BufferSize;
     };
 }

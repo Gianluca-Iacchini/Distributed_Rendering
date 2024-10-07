@@ -22,6 +22,7 @@ namespace DX12Lib
 		LightComponent();
 		~LightComponent();
 
+		void Init(CommandContext& context) override;
 		void Update(CommandContext& context) override;
 		void Render(CommandContext& context) override;
 
@@ -47,7 +48,7 @@ namespace DX12Lib
 		UINT m_lightIndex;
 		LightType m_lightType = LightType::Directional;
 		ConstantBufferLight m_lightCB;
-		std::unique_ptr<ShadowCamera> m_shadowCamera;
+		std::unique_ptr<ShadowCamera> m_shadowCamera = nullptr;
 		bool m_doesCastShadows = false;
 	private:
 		static std::vector<LightComponent*> m_activeLights;

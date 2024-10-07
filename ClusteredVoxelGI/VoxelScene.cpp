@@ -17,11 +17,11 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	m_voxelTexture.Create3D(VoxelTextureDimensions.x, VoxelTextureDimensions.y, VoxelTextureDimensions.z, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
 	auto lightNode = this->AddNode();
-	lightNode->SetPosition(0, 100, 0);
+	lightNode->SetPosition(0, 150, 0);
 	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
 	light->SetLightColor({ 0.6f, 0.52f, 0.16f });
-	lightNode->Rotate(lightNode->GetRight(), 1.2f);
+	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
 
 	m_camera->Node->AddComponent<CameraController>();
 

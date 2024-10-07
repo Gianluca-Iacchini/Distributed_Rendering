@@ -23,7 +23,7 @@ namespace CVGI
 			float m = 1.0f;
 
 			DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
-			UINT32 S = 1;
+			UINT32 S = 1.0f;
 
 			DirectX::XMUINT3 TileGridDimension = DirectX::XMUINT3(6, 6, 6);
 			UINT32 FirstClusterSet = 1;
@@ -56,7 +56,7 @@ namespace CVGI
 
 		__declspec(align(16)) struct ClusterData
 		{
-			DirectX::XMFLOAT3 Center;
+			DirectX::XMUINT3 Center;
 			UINT32 VoxelCount;
 
 			DirectX::XMFLOAT3 Normal;
@@ -80,7 +80,7 @@ namespace CVGI
 		UINT32 GetNumberOfClusters() { return m_numberOfClusters; }
 		UINT32 GetNonEmptyClusters() { return m_numberOfNonEmptyClusters; }
 		float GetCompactness() { return m_compactness; }
-		UINT32 GetSuperPixelWidth() { return m_superPixelWidth; }
+		float GetSuperPixelWidth() { return m_superPixelWidth; }
 		UINT32 GetVoxelCount() { return m_voxelCount; }
 		DirectX::XMUINT3 GetTileGridDimension() { return m_tileGridDimension; }
 
@@ -92,7 +92,7 @@ namespace CVGI
 
 		float m_compactness = 10.0f;
 		UINT32 m_numberOfClusters;
-		UINT32 m_superPixelWidth;
+		float m_superPixelWidth;
 		UINT32 m_voxelCount;
 
 		UINT32 m_numberOfNonEmptyClusters = 0;

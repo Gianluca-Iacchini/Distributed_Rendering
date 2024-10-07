@@ -1,7 +1,9 @@
 #include "..\..\DirectXLib\DX12Lib\DXWrapper\Shaders\Common.hlsli"
 
+
 static const unsigned int UINT_MAX = 0xffffffff;
 static const float cos30 = 0.81915204428f;
+static const float cos25 = 0.9f;
 
 struct VertexOutVoxel
 {
@@ -58,7 +60,7 @@ struct FragmentData
 
 struct ClusterData
 {
-    float3 Center;
+    uint3 Center;
     uint VoxelCount;
     
     float3 Normal;

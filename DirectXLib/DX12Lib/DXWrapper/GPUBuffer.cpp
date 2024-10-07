@@ -199,10 +199,10 @@ void DX12Lib::ReadBackBuffer::Create(StructuredBuffer& buffer)
 	this->Create(buffer.m_elementCount, m_elementSize);
 }
 
-void* DX12Lib::ReadBackBuffer::ReadBack(GPUBuffer& srcBuffer)
+void* DX12Lib::ReadBackBuffer::ReadBack(UINT32 byteSize)
 {
 	void* pData;
-	CD3DX12_RANGE readRange(0, srcBuffer.GetBufferSize());
+	CD3DX12_RANGE readRange(0, byteSize);
 	
 	ThrowIfFailed(m_resource->Map(0, &readRange, &pData));
 

@@ -68,9 +68,7 @@ namespace Graphics
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
 
-		void SetVoxelTexture(DX12Lib::ColorBuffer& voxelTexture);
-		DX12Lib::DescriptorHandle& GetVoxelTextureUAV(DX12Lib::CommandContext& context);
-		DX12Lib::DescriptorHandle& GetVoxelTextureSRV(DX12Lib::CommandContext& context);
+		DX12Lib::DescriptorHandle& GetShadowMapSrv(DX12Lib::CommandContext& context);
 
 		std::vector<DX12Lib::ModelRenderer*> GetRenderers();
 

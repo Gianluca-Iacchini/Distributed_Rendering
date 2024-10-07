@@ -40,6 +40,10 @@ StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
 StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
+ByteAddressBuffer gVoxelShadowBuffer : register(t0, space4);
+ByteAddressBuffer gTaaShadowBUffer : register(t1, space4);
+//StructuredBuffer<uint> gVoxelShadowBuffer : register(t0, space4);
+
 
 uint3 GetVoxelPosition(uint voxelLinearCoord)
 {
@@ -126,6 +130,15 @@ float3 LinearIndexToColor(uint index)
     return float3(r, g, b);
 }
 
+bool IsVoxelLit(uint voxelIndex, ByteAddressBuffer shadowBuffer)
+{
+    uint offset = (voxelIndex / 32) * 4;
+    uint bitPosition = voxelIndex % 32;
+    
+    uint shadowVal = shadowBuffer.Load(offset);
+    
+    return (shadowVal & (1 << bitPosition)) > 0;
+}
 
 [maxvertexcount(72)]
 void GS(
@@ -164,13 +177,13 @@ void GS(
     3, 2, 6,
     3, 6, 7,
     
-    // Top face
-    1, 5, 6,
-    1, 6, 2,
-    
     // Bottom face
     3, 7, 4,
-    3, 4, 0
+    3, 4, 0,
+        
+    // Top face
+    1, 5, 6,
+    1, 6, 2
     };
     
     
@@ -199,24 +212,62 @@ void GS(
     
     float4 avgColor = float4(0.0f, 0, 0, 1.0f);
     
-    //uint fragmentCount = 0;
+    uint3 voxelCoord = GetVoxelPosition(voxelLinearCoord);
+    int3 iVoxelCoord = int3(voxelCoord);
     
     
-    //while (fragmentIndex != UINT_MAX)
-    //{
-    //    avgColor += gFragmentDataBuffer[fragmentIndex].color;
-    //    fragmentIndex = gNextIndexBuffer[fragmentIndex];
-    //    fragmentCount += 1;
-    //}
-   
+    bool isLit = IsVoxelLit(faceData.x, gVoxelShadowBuffer);
+    bool isTaaLit = IsVoxelLit(faceData.x, gTaaShadowBUffer);
+    uint nLit = 0;
+    
+    if (!isLit)
+    {
+        for (int ix = -1; ix <= 1; ++ix)
+        {
+            for (int jy = -1; jy <= 1; ++jy)
+            {
+                for (int kz = -1; kz <= 1; ++kz)
+                {
+
+                    int3 neighborCoord = iVoxelCoord + int3(ix, jy, kz);
+                
+                    if (any(neighborCoord < 0) || any(neighborCoord >= voxelCommons.gridDimension))
+                        continue;
+                
+                    uint2 neighborIndex = FindHashedCompactedPositionIndex(neighborCoord, voxelCommons.gridDimension);
+                
+                    if (neighborIndex.y != 0)
+                    {
+                        if (IsVoxelLit(neighborIndex.x, gVoxelShadowBuffer) || IsVoxelLit(neighborIndex.x, gTaaShadowBUffer))
+                        {
+                            nLit++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        isLit = nLit > 4;
+    }
+
+    
+    if (isLit)
+    {
+        avgColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    else
+    {
+        avgColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
     //avgColor = avgColor / fragmentCount;
     //avgColor.xyz = float3(0.0f, 0.0f, 0.0f);
     
-    uint clusterIndex = gClusterAssignmentBuffer[faceData.x];
-    avgColor.xyz = LinearIndexToColor(clusterIndex);
+    //uint clusterIndex = gClusterAssignmentBuffer[faceData.x];
+    //avgColor.xyz = LinearIndexToColor(clusterIndex);
     
     
-
+    
+    
     //avgColor.xyz = gVoxelNormalBuffer[index];
     //avgColor.xyz = avgColor.xyz;
     
@@ -224,15 +275,14 @@ void GS(
     //avgColor.y = avgColor.y == -1 ? 0.15f : avgColor.y;
     //avgColor.z = avgColor.z == -1 ? 0.15f : avgColor.z;
     
-    float scale = 0.5f; // Scale of the cube
+        float scale = 0.5f; // Scale of the cube
     
 
    
 
         
     
-    float3 position = float3(GetVoxelPosition(voxelLinearCoord));
-    position.y = (voxelCommons.gridDimension.y - 1) - position.y;
+    float3 position = float3(voxelCoord);
     position = position * scale + float3(0.5f, 0.5f, 0.5f);
     
     // Move voxel scene to position 0,0,0

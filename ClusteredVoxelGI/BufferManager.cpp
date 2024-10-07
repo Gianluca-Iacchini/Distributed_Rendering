@@ -15,14 +15,29 @@ UINT BufferManager::AddStructuredBuffer(UINT32 elementCount, size_t elementSize)
 	return m_buffers.size() - 1;
 }
 
-UINT CVGI::BufferManager::AddByteAddressBuffer()
+UINT CVGI::BufferManager::AddByteAddressBuffer(UINT32 elementCount)
 {
 	std::shared_ptr<ByteAddressBuffer> buffer = std::make_shared<ByteAddressBuffer>();
-	buffer->Create(1, sizeof(UINT32));
+	buffer->Create(elementCount, sizeof(UINT32));
 
 	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
+}
+
+UINT CVGI::BufferManager::Add2DTextureBuffer(UINT32 width, UINT32 height, DXGI_FORMAT format)
+{
+	std::shared_ptr<ColorBuffer> buffer = std::make_shared<ColorBuffer>();
+	buffer->Create3D(width, height, 1, 1, format);
+
+	m_buffers.push_back(buffer);
+
+	return m_buffers.size() - 1;
+}
+
+UINT CVGI::BufferManager::Add2DTextureBuffer(DirectX::XMUINT2 size, DXGI_FORMAT format)
+{
+	return Add2DTextureBuffer(size.x, size.y, format);
 }
 
 UINT CVGI::BufferManager::Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format)
