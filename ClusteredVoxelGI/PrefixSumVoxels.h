@@ -1,40 +1,14 @@
 #pragma once
 #include "BufferManager.h"
 #include "DirectXMath.h"
+#include "Technique.h"
 
-namespace DX12Lib
-{
-	class CommandContext;
-	class ComputeContext;
-	class RootSignature;
-	class ComputePipelineState;
-}
 
 namespace CVGI
 {
-	class PrefixSumVoxels
+	class PrefixSumVoxels : public Technique
 	{
 	private:
-		__declspec(align(16)) struct ConstantBufferCompactBuffer
-		{
-			UINT32 CurrentPhase = 0;
-			UINT32 CurrentStep = 0;
-			UINT32 CompactBufferSize = 0;
-			UINT32 ElementsPerThread = 128;
-
-			UINT32 NumElementsSweepDown = 0;
-			UINT32 NumElementsBase = 0;
-			UINT32 NumElementsLevel0 = 0;
-			UINT32 NumElementsLevel1 = 0;
-
-			UINT32 NumElementsLevel2 = 0;
-			UINT32 NumElementsLevel3 = 0;
-			float pad0 = 0.0f;
-			float pad1 = 0.0f;
-
-			DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
-			float pad2 = 0.0f;
-		};
 
 		enum class PrefixSumBufferType
 		{
@@ -54,30 +28,25 @@ namespace CVGI
 		};
 
 	public:
-		PrefixSumVoxels(DirectX::XMUINT3 VoxelizationSize) : m_voxelizationSize(VoxelizationSize) {}
-		~PrefixSumVoxels() {}
+		PrefixSumVoxels(std::shared_ptr<TechniqueData> data);
 
-		BufferManager* GetBufferManager() { return &m_bufferManager; }
+		virtual ~PrefixSumVoxels() {}
 
-		void InitializeBuffers(DX12Lib::CommandContext& context);
+		virtual void InitializeBuffers(DX12Lib::ComputeContext& context) override;
 
-		void StartPrefixSum(DX12Lib::ComputeContext& context, BufferManager* voxelBufferManager);
-		void CompactBufferPass(DX12Lib::ComputeContext& context, UINT32 numGroupsX, BufferManager* voxelBufferManager);
+		virtual void PerformTechnique(DX12Lib::ComputeContext& context) override;
+		virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 		void DeleteTemporaryBuffers();
 
-		std::shared_ptr<DX12Lib::RootSignature> BuildPrefixSumRootSignature();
-		std::shared_ptr<DX12Lib::ComputePipelineState> BuildPrefixSumPipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSig);
+		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
+		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 
 	private:
 		void ComputePrefixSumVariables();
-
+	public:
+		static const std::wstring Name;
 	private:
-
-		BufferManager m_bufferManager;
-
 		ConstantBufferCompactBuffer m_cbCompactBuffer;
-
-		DirectX::XMUINT3 m_voxelizationSize = DirectX::XMUINT3(128, 128, 128);
 
 		// Size of the prefix sum buffer for the current step
 		std::vector<UINT32> v_prefixBufferSizeForStep;
@@ -91,7 +60,6 @@ namespace CVGI
 		UINT m_currentPhase = 0;
 
 		const UINT ELEMENTS_PER_THREAD = 128;
-		const std::wstring PrefixSumPsoName = L"PREFIX_SUM_PSO";
 	};
 }
 

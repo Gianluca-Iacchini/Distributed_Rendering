@@ -9,11 +9,15 @@
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "GraphicsMemory.h"
 #include "VoxelizeScene.h"
+#include "DisplayVoxelScene.h"
 #include "PrefixSumVoxels.h"
 #include "ClusterVoxels.h"
 #include "MergeClusters.h"
 #include "ClusterVisibility.h"
+#include "FaceCountTechnique.h"
+#include "BuildAABBsTechnique.h"
 #include "DX12Lib/Scene/LightComponent.h"
+#include "Technique.h"
 
 #include "LightVoxel.h"
 
@@ -47,10 +51,13 @@ namespace CVGI
 
 	private:
 		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
+		std::unique_ptr<DisplayVoxelScene> m_displayVoxelScene;
 		std::unique_ptr<PrefixSumVoxels> m_prefixSumVoxels;
 		std::unique_ptr<ClusterVoxels> m_clusterVoxels;
 		std::unique_ptr<MergeClusters> m_mergeClusters;
 		std::unique_ptr<ClusterVisibility> m_clusterVisibility;
+		std::unique_ptr<FaceCountTechnique> m_faceCountTechnique;
+		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
 		std::unique_ptr<LightVoxel> m_lightVoxel;
 
 
@@ -67,5 +74,7 @@ namespace CVGI
 		UINT64 m_numberOfVoxels = 0;
 
 		DX12Lib::ShadowCamera* m_shadowCamera = nullptr;
+
+		std::shared_ptr<TechniqueData> m_data = nullptr;
 	};
 }

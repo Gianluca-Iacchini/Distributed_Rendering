@@ -8,6 +8,7 @@
 #include "RaytracingShadow.h"
 #include "DX12Lib/Commons/CommonConstants.h"
 #include "DX12Lib/DXWrapper/SamplerDesc.h"
+#include "Technique.h"
 
 namespace DX12Lib
 {
@@ -31,26 +32,30 @@ namespace CVGI
 		Count
 	};
 
-	class LightVoxel
+	class LightVoxel : public Technique
 	{
 	public:
-		LightVoxel(DirectX::XMUINT3 voxelTexSize) : m_voxelTexDimensions(voxelTexSize) {}
+		LightVoxel(std::shared_ptr<TechniqueData> data);
 		~LightVoxel() {}
 
-		void InitializeBuffers(UINT voxelCount);
-		void StartLightVoxel(DX12Lib::ShadowCamera& camera, BufferManager& compactBufferManager, BufferManager& aabbBufferManager,  BufferManager& rtBufferManager, TopLevelAccelerationStructure& tlas);
-		void LightVoxelPass(RayTracingContext& context, DX12Lib::ShadowCamera& camera, BufferManager& compactBufferManager, BufferManager& aabbBufferManager, BufferManager& rtBufferManager, TopLevelAccelerationStructure& tlas);
+		virtual void InitializeBuffers() override;
+		virtual void PerformTechnique(RayTracingContext& context) override;
+		virtual void TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
 
-		BufferManager* GetShadowBufferManager() { return &m_bufferManager; }
 
-		std::shared_ptr<DX12Lib::RootSignature> BuildLightVoxelRootSignature();
-		std::shared_ptr<RaytracingStateObject> BuildLightVoxelPipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSig);
-	
+		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+
+		void SetShadowCamera(DX12Lib::ShadowCamera* shadowCamera) { m_shadowCamera = shadowCamera; }
+		
+	protected:
+		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
+
+	public:
+		static const std::wstring Name;
+
 	private:
 		ConstantBufferRTShadows m_cbShadowRaytrace;
-		BufferManager m_bufferManager;
-		DirectX::XMUINT3 m_voxelTexDimensions;
-		UINT32 m_voxelCount;
+		DX12Lib::ShadowCamera* m_shadowCamera;
 	};
 }
 

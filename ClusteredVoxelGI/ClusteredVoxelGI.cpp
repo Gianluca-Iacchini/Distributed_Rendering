@@ -33,41 +33,40 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		VoxelTextureDimension.y,
 		VoxelTextureDimension.z);
 
-	m_voxelizeScene = std::make_unique<VoxelizeScene>(voxelTexDimensions, voxelCellSize);
-	m_prefixSumVoxels = std::make_unique<PrefixSumVoxels>(voxelTexDimensions);
-	m_clusterVoxels = std::make_unique<ClusterVoxels>(voxelTexDimensions);
+	m_data = std::make_shared<TechniqueData>();
+	m_data->VoxelGridSize = voxelTexDimensions;
+
+	m_voxelizeScene = std::make_unique<VoxelizeScene>(m_data);
+	m_displayVoxelScene = std::make_unique<DisplayVoxelScene>(m_data);
+	m_prefixSumVoxels = std::make_unique<PrefixSumVoxels>(m_data);
+	m_clusterVoxels = std::make_unique<ClusterVoxels>(m_data);
 	m_mergeClusters = std::make_unique<MergeClusters>(voxelTexDimensions);
-	m_clusterVisibility = std::make_unique<ClusterVisibility>(voxelTexDimensions);
-	m_lightVoxel = std::make_unique<LightVoxel>(voxelTexDimensions);
+	m_clusterVisibility = std::make_unique<ClusterVisibility>(m_data);
+	m_faceCountTechnique = std::make_unique<FaceCountTechnique>(m_data);
+	m_buildAABBsTechnique = std::make_unique<BuildAABBsTechnique>(m_data);
+	m_lightVoxel = std::make_unique<LightVoxel>(m_data);
 
 
 
-	auto voxelSceneRootSig = m_voxelizeScene->BuildVoxelizeSceneRootSignature();
-	auto voxelScenePSO = m_voxelizeScene->BuildVoxelizeScenePso(voxelSceneRootSig); 
+	auto voxelScenePSO = m_voxelizeScene->BuildPipelineState(); 
+	auto voxelDisplayPSO = m_displayVoxelScene->BuildPipelineState();
 
-	auto voxelDisplayRootSig = m_voxelizeScene->BuildDisplayVoxelRootSignature(); 
-	auto voxelDisplayPSO = m_voxelizeScene->BuildDisplayVoxelPso(voxelDisplayRootSig);
 
-	auto compactBufferRootSig = m_prefixSumVoxels->BuildPrefixSumRootSignature(); 
-	auto compactBufferPSO = m_prefixSumVoxels->BuildPrefixSumPipelineState(compactBufferRootSig); 
+	auto compactBufferPSO = m_prefixSumVoxels->BuildPipelineState();
 
-	auto clusterizeRootSignature = m_clusterVoxels->BuildClusterizeRootSignature(); 
-	auto clusterizeVoxelPso = m_clusterVoxels->BuildClusterizePipelineState(clusterizeRootSignature); 
+	auto clusterizeVoxelPso = m_clusterVoxels->BuildPipelineState(); 
 
 	auto clusterReduceRootSignature = m_mergeClusters->BuildMergeClustersRootSignature(); 
 	auto clusterReducePso = m_mergeClusters->BuildMergeClustersPipelineState(clusterReduceRootSignature); 
 
-	auto faceCountRootSignature = m_clusterVisibility->BuildFaceCountRootSignature();
-	auto faceCountPso = m_clusterVisibility->BuildFaceCountPipelineState(faceCountRootSignature);
 
-	auto aabbGenerationRootSignature = m_clusterVisibility->BuildAABBGenerationRootSignature();
-	auto aabbGenerationPso = m_clusterVisibility->BuildAABBGenerationPipelineState(aabbGenerationRootSignature);
+	auto faceCountPso = m_faceCountTechnique->BuildPipelineState();
 
-	auto raytraceRootSignature = m_clusterVisibility->BuildRaytracingGlobalRootSignature();
-	auto raytracePso = m_clusterVisibility->BuildRayTracingPipelineState(raytraceRootSignature);
+	auto aabbGenerationPso = m_buildAABBsTechnique->BuildPipelineState();
 
-	auto lightVoxelRootSignature = m_lightVoxel->BuildLightVoxelRootSignature();
-	auto lightVoxelPso = m_lightVoxel->BuildLightVoxelPipelineState(lightVoxelRootSignature);
+	auto raytracePso = m_clusterVisibility->BuildPipelineState();
+
+	auto lightVoxelPso = m_lightVoxel->BuildPipelineState();
 
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
@@ -86,48 +85,44 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	Renderer::SetUpRenderFrame(commandContext);
 
-	VoxelCamera* voxelCamera = voxelScene->GetVoxelCamera();
+
 	voxelScene->Render(commandContext);
-	if (voxelCamera != nullptr)
-	{
-		m_voxelizeScene->VoxelizePass(commandContext, voxelCamera);
-	}
 
+	VoxelCamera* voxelCamera = voxelScene->GetVoxelCamera();
 
-	m_voxelizeScene->UpdateBuffers(commandContext);
+	m_voxelizeScene->SetVoxelCamera(voxelCamera);
+	m_voxelizeScene->PerformTechnique(commandContext);
 
-	if (voxelCamera != nullptr)
-	{
-		m_voxelizeScene->VoxelizePass(commandContext, voxelCamera);
-	}
-
-	UINT32 voxelCount = *m_voxelizeScene->GetBufferManager()->ReadFromBuffer<UINT32*>(commandContext, (UINT)VoxelizeScene::VoxelBufferType::VoxelCounter);
-	
+	commandContext.Flush(true);
 
 	ComputeContext& computeContext = ComputeContext::Begin();
 
-	m_prefixSumVoxels->InitializeBuffers(commandContext);
-	m_prefixSumVoxels->StartPrefixSum(computeContext, m_voxelizeScene->GetBufferManager());
+	m_prefixSumVoxels->InitializeBuffers(computeContext);
+	m_prefixSumVoxels->PerformTechnique(computeContext);
+
 
 	// Voxelize scene temporary buffers can be deleted after the voxelization and prefix sum passes.
 	m_voxelizeScene->DeleteTemporaryBuffers();
 	// Prefix sum temporary buffers are only needed for the prefix sum pass.
 	m_prefixSumVoxels->DeleteTemporaryBuffers();
 
-	m_clusterVoxels->InitializeBuffers(voxelCount);
-	m_clusterVoxels->StartClustering(computeContext, *m_voxelizeScene->GetBufferManager(), *m_prefixSumVoxels->GetBufferManager());
+	m_clusterVoxels->InitializeBuffers();
+	m_clusterVoxels->PerformTechnique(computeContext);
+
 
 	//m_mergeClusters->InitializeBuffers(commandContext, *m_clusterVoxels);
 	//m_mergeClusters->StartMerging(computeContext, *m_prefixSumVoxels->GetBufferManager());
 	
-	m_clusterVisibility->InitializeBuffers(voxelCount, m_clusterVoxels->GetNonEmptyClusters());
-	m_clusterVisibility->StartVisibility(computeContext, *m_prefixSumVoxels->GetBufferManager());
+	m_faceCountTechnique->InitializeBuffers();
+	m_faceCountTechnique->PerformTechnique(computeContext);
 
-	m_clusterVisibility->StartAABBGeneration(computeContext, *m_prefixSumVoxels->GetBufferManager(), *m_clusterVoxels->GetBufferManager());
+	m_buildAABBsTechnique->InitializeBuffers();
+	m_buildAABBsTechnique->PerformTechnique(computeContext);
 
-	m_clusterVisibility->BuildAccelerationStructures(computeContext);
+	m_clusterVisibility->InitializeBuffers();
+	m_data->SetTlas(m_clusterVisibility->BuildAccelerationStructures(computeContext));
 
-	m_clusterVisibility->ClusterRayTrace(*m_prefixSumVoxels->GetBufferManager(), *m_clusterVoxels->GetBufferManager());
+	m_clusterVisibility->PerformTechnique(computeContext);
 
 	auto* node = m_Scene->GetRootNode();
 
@@ -149,11 +144,13 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	assert(m_shadowCamera != nullptr && "Failed to find light component with shadows enabled.");
 
-	m_lightVoxel->InitializeBuffers(voxelCount);
+	m_lightVoxel->InitializeBuffers();
+	m_lightVoxel->SetShadowCamera(m_shadowCamera);
 
 	computeContext.Finish(true);
 
-	m_voxelizeScene->SetVertexData(commandContext, m_clusterVisibility->GetFaceCount());
+	m_displayVoxelScene->SetCamera(m_Scene->GetMainCamera());
+	m_displayVoxelScene->SetVertexData(commandContext);
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -172,13 +169,12 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
+	RayTracingContext& context = RayTracingContext::Begin();
 
-	m_lightVoxel->StartLightVoxel(*m_shadowCamera, *m_prefixSumVoxels->GetBufferManager(), *m_clusterVisibility->GetAABBBufferManager(), *m_clusterVisibility->GetRayTracingBufferManager(), m_clusterVisibility->GetTLAS());
+	m_lightVoxel->PerformTechnique(context);
+	context.Finish();
 
-	m_voxelizeScene->DisplayVoxelPass(commandContext, m_Scene->GetMainCamera(), m_prefixSumVoxels->GetBufferManager(), m_clusterVoxels->GetBufferManager(), m_clusterVisibility->GetFaceBufferManager(), m_lightVoxel->GetShadowBufferManager());
-
-	//VoxelDisplayPass(commandContext);
-
+	m_displayVoxelScene->PerformTechnique(commandContext);
 	Renderer::PostDrawCleanup(commandContext);
 }
 

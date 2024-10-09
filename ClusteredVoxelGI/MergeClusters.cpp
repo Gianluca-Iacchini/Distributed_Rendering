@@ -10,26 +10,26 @@ using namespace Graphics;
 
 void CVGI::MergeClusters::InitializeBuffers(CommandContext& context, ClusterVoxels& clusterVoxels)
 {
-	m_cbMergeClusters.VoxelDimension = DirectX::XMUINT3(UINT(m_voxelTexDimension.x), UINT(m_voxelTexDimension.y), UINT(m_voxelTexDimension.z));
-	m_cbMergeClusters.Compactness = clusterVoxels.GetCompactness();
-	m_cbMergeClusters.VoxelCount = clusterVoxels.GetVoxelCount();
+	//m_cbMergeClusters.VoxelDimension = DirectX::XMUINT3(UINT(m_voxelTexDimension.x), UINT(m_voxelTexDimension.y), UINT(m_voxelTexDimension.z));
+	//m_cbMergeClusters.Compactness = clusterVoxels.GetCompactness();
+	//m_cbMergeClusters.VoxelCount = clusterVoxels.GetVoxelCount();
 
-	m_numberOfSubClusters = clusterVoxels.GetNonEmptyClusters();
-	m_numberOfSuperClusters = clusterVoxels.GetNumberOfClusters();
+	//m_numberOfSubClusters = clusterVoxels.GetNonEmptyClusters();
+	//m_numberOfSuperClusters = clusterVoxels.GetNumberOfClusters();
 
-	m_tileGridDimension = clusterVoxels.GetTileGridDimension();
-	m_superPixelWidth = clusterVoxels.GetSuperPixelWidth();
-	m_voxelCount = clusterVoxels.GetVoxelCount();
+	//m_tileGridDimension = clusterVoxels.GetTileGridDimension();
+	//m_superPixelWidth = clusterVoxels.GetSuperPixelWidth();
+	//m_voxelCount = clusterVoxels.GetVoxelCount();
 
-	m_clusterBufferManager = clusterVoxels.GetBufferManager();
+	//m_clusterBufferManager = clusterVoxels.GetBufferManager();
 
-	m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
-	m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
-	m_bufferManager.Add3DTextureBuffer(clusterVoxels.GetTileGridDimension(), DXGI_FORMAT_R32_UINT);
-	m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
-	m_bufferManager.AddStructuredBuffer(m_numberOfSuperClusters, sizeof(ClusterVoxels::ClusterData));
+	//m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
+	//m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
+	//m_bufferManager.Add3DTextureBuffer(clusterVoxels.GetTileGridDimension(), DXGI_FORMAT_R32_UINT);
+	//m_bufferManager.AddStructuredBuffer(m_numberOfSubClusters, sizeof(UINT32));
+	//m_bufferManager.AddStructuredBuffer(m_numberOfSuperClusters, sizeof(ClusterVoxels::ClusterData));
 
-	m_bufferManager.AllocateBuffers();
+	//m_bufferManager.AllocateBuffers();
 
 	context.Flush(true);
 }

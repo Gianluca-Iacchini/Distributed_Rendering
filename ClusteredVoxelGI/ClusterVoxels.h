@@ -1,6 +1,6 @@
 #pragma once
 #include <DirectXMath.h>
-#include "BufferManager.h"
+#include "Technique.h"
 
 namespace DX12Lib
 {
@@ -11,27 +11,18 @@ namespace DX12Lib
 
 namespace CVGI
 {
-	class ClusterVoxels
+	class ClusterVoxels : public Technique
 	{
-	private:
-
-		__declspec(align(16)) struct ConstantBufferClusterizeBuffer
+		struct ClusterData
 		{
-			UINT32 CurrentPhase = 0;
-			UINT32 VoxelCount = 0;
-			UINT32 K = 10000;
-			float m = 1.0f;
+			XMUINT3 Center;
+			UINT32 VoxelCount;
 
-			DirectX::XMUINT3 VoxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
-			UINT32 S = 1.0f;
-
-			DirectX::XMUINT3 TileGridDimension = DirectX::XMUINT3(6, 6, 6);
-			UINT32 FirstClusterSet = 1;
-
-			DirectX::XMUINT3 CurrentTileUpdate = DirectX::XMUINT3(0, 0, 0);
-			UINT32 UnassignedOnlyPass = 0;
+			XMFLOAT3 Normal;
+			UINT32 FirstVoxelDataIndex;
 		};
 
+	private:
 		enum class ClusterizeRootSignature
 		{
 			ClusterizeCBV = 0,
@@ -44,8 +35,8 @@ namespace CVGI
 	public:
 		enum class ClusterBufferType
 		{
-			ClusterData,
-			NextVoxelLinkedList,
+			ClusterData = 0,
+			NextVoxelLinkedList = 1,
 			AssignmentMap,
 			TileBuffer,
 			NextClusterInTileLinkedList,
@@ -54,52 +45,37 @@ namespace CVGI
 			SubClusterData,
 		};
 
-		__declspec(align(16)) struct ClusterData
-		{
-			DirectX::XMUINT3 Center;
-			UINT32 VoxelCount;
-
-			DirectX::XMFLOAT3 Normal;
-			UINT32 FirstVoxelDataIndex;
-
-		};
-
 	public:
-		ClusterVoxels(DirectX::XMUINT3 VoxelSceneSize) : m_voxelSceneDimensions(VoxelSceneSize) {}
+		ClusterVoxels(std::shared_ptr<TechniqueData> data)
+		{
+			m_bufferManager = std::make_shared<BufferManager>();
+			data->AddBufferManager(Name, m_bufferManager);
+			m_data = data;	
+		}
 		~ClusterVoxels() {}
 
-		void InitializeBuffers(UINT VoxelCount);
-		void StartClustering(DX12Lib::ComputeContext& context, BufferManager& voxelBufferManager, BufferManager& compactBufferManager);
-		void ClusterPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize, BufferManager& voxelBufferManager, BufferManager& compactBufferManager);
+		virtual void InitializeBuffers() override;
+		virtual void PerformTechnique(DX12Lib::ComputeContext& context) override;
+		virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 
-		std::shared_ptr<DX12Lib::RootSignature> BuildClusterizeRootSignature();
-		std::shared_ptr<DX12Lib::ComputePipelineState> BuildClusterizePipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSig);
+		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
+		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 
-		BufferManager* GetBufferManager() { return &m_bufferManager; }
-
-		UINT32 GetNumberOfClusters() { return m_numberOfClusters; }
-		UINT32 GetNonEmptyClusters() { return m_numberOfNonEmptyClusters; }
-		float GetCompactness() { return m_compactness; }
-		float GetSuperPixelWidth() { return m_superPixelWidth; }
-		UINT32 GetVoxelCount() { return m_voxelCount; }
-		DirectX::XMUINT3 GetTileGridDimension() { return m_tileGridDimension; }
+	public:
+		static const std::wstring Name;
 
 	private:
-		DirectX::XMUINT3 m_voxelSceneDimensions;
-		BufferManager m_bufferManager;
-
 		ConstantBufferClusterizeBuffer m_cbClusterizeBuffer;
 
 		float m_compactness = 10.0f;
 		UINT32 m_numberOfClusters;
 		float m_superPixelWidth;
-		UINT32 m_voxelCount;
 
 		UINT32 m_numberOfNonEmptyClusters = 0;
 
 		DirectX::XMUINT3 m_tileGridDimension;
 
-		const std::wstring ClusterPsoName = L"FAST_SLIC_PSO";
+
 	};
 }
 

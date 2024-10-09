@@ -1,53 +1,66 @@
 #include "PrefixSumVoxels.h"
 #include "DX12Lib/pch.h"
 #include "DX12Lib/DXWrapper/UploadBuffer.h"
-#include "WinPixEventRuntime/pix3.h"
+#include "VoxelizeScene.h"
 
 using namespace CVGI;
 using namespace DX12Lib;
 using namespace Graphics;
 
-void CVGI::PrefixSumVoxels::InitializeBuffers(DX12Lib::CommandContext& context)
+CVGI::PrefixSumVoxels::PrefixSumVoxels(std::shared_ptr<TechniqueData> data)
 {
+	m_bufferManager = std::make_shared<BufferManager>();
+	data->AddBufferManager(Name, m_bufferManager);
+	m_data = data;
+}
+
+void CVGI::PrefixSumVoxels::InitializeBuffers(DX12Lib::ComputeContext& context)
+{
+
+	DirectX::XMUINT3 voxelGridSize = m_data->VoxelGridSize;
+
 	// Indirection Rank Buffer (u0)
-	m_bufferManager.AddStructuredBuffer(m_voxelizationSize.y * m_voxelizationSize.z, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(voxelGridSize.y * voxelGridSize.z, sizeof(UINT32));
 
 	// Indirection Index Buffer (u1)
-	UINT indIndBuffIdx = m_bufferManager.AddStructuredBuffer(m_voxelizationSize.y * m_voxelizationSize.z, sizeof(UINT32));
+	UINT indIndBuffIdx = m_bufferManager->AddStructuredBuffer(voxelGridSize.y * voxelGridSize.z, sizeof(UINT32));
 
 	UploadBuffer uploadBuffer;
-	uploadBuffer.Create(m_voxelizationSize.y * m_voxelizationSize.z * sizeof(UINT32));
+	uploadBuffer.Create(voxelGridSize.y * voxelGridSize.z * sizeof(UINT32));
 
 	void* mappedData = uploadBuffer.Map();
 
-	for (UINT32 i = 0; i < m_voxelizationSize.y * m_voxelizationSize.z; i++)
+	for (UINT32 i = 0; i < voxelGridSize.y * voxelGridSize.z; i++)
 	{
 		((UINT32*)mappedData)[i] = UINT_MAX;
 	}
 
 
-	DX12Lib::GPUBuffer& indIndBuff = m_bufferManager.GetBuffer(indIndBuffIdx);
+	DX12Lib::GPUBuffer& indIndBuff = m_bufferManager->GetBuffer(indIndBuffIdx);
 	// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
 	context.TransitionResource(indIndBuff, D3D12_RESOURCE_STATE_COPY_DEST, true);
 	context.m_commandList->Get()->CopyResource(indIndBuff.Get(), uploadBuffer.Get());
+
 
 	ComputePrefixSumVariables();
 
 	// Voxel Index Compacted Buffer (u2)
 	// Will be resized later
-	m_bufferManager.AddStructuredBuffer(1, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
 
 	// Compact hash buffer (u3)
 	// Will be resized later
-	m_bufferManager.AddStructuredBuffer(1, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
 
 	// Prefix Sum Buffer (u4)
-	m_bufferManager.AddStructuredBuffer(m_prefixBufferSize, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(m_prefixBufferSize, sizeof(UINT32));
 
-	m_bufferManager.AllocateBuffers();
+	m_bufferManager->AllocateBuffers();
 
 	DXLIB_INFO("Number of steps reduce: {0}", m_reduceStepCount);
 	DXLIB_INFO("Planar buffer size: {0}", m_prefixBufferSize);
+
+
 
 	context.Flush(true);
 
@@ -61,7 +74,10 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 	v_prefixBufferSizeForStep.resize(5); // Up to four levels needed to the prefix parallel sum
 	memset(v_prefixBufferSizeForStep.data(), 0, v_prefixBufferSizeForStep.size() * size_t(sizeof(UINT32)));
 
-	v_prefixBufferSizeForStep[0] = (m_voxelizationSize.x * m_voxelizationSize.y * m_voxelizationSize.z) / ELEMENTS_PER_THREAD;
+	DirectX::XMUINT3 voxelGridSize = m_data->VoxelGridSize;
+	UINT voxelLinearSize = voxelGridSize.x * voxelGridSize.y * voxelGridSize.z;
+
+	v_prefixBufferSizeForStep[0] = (voxelLinearSize) / ELEMENTS_PER_THREAD;
 
 	m_prefixBufferSize = 0;
 	// The maximum number of elements in bufferHistogramBuffer is 536862720,
@@ -104,7 +120,8 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 		}
 	}
 
-	m_cbCompactBuffer.VoxelTextureDimensions = m_voxelizationSize;
+
+	m_cbCompactBuffer.VoxelGridSize = m_data->VoxelGridSize;
 	m_cbCompactBuffer.NumElementsBase = v_prefixBufferSizeForStep[0];
 	m_cbCompactBuffer.NumElementsLevel0 = v_prefixBufferSizeForStep[1];
 	m_cbCompactBuffer.NumElementsLevel1 = v_prefixBufferSizeForStep[2];
@@ -117,29 +134,32 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 	m_cbCompactBuffer.NumElementsSweepDown = m_downSweepStepCount;
 }
 
-void CVGI::PrefixSumVoxels::StartPrefixSum(ComputeContext& context, BufferManager* voxelBufferManager)
+void CVGI::PrefixSumVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 {
-	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"PrefixSumPass");
+	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), Name.c_str());
 
 
 	m_cbCompactBuffer.ElementsPerThread = ELEMENTS_PER_THREAD;
 
+	DirectX::XMUINT3 groupSize = DirectX::XMUINT3(1, 1, 1);
+
 	// Reduce
 	for (m_currentStep = 0; m_currentStep < m_reduceStepCount; m_currentStep++)
 	{
-		CompactBufferPass(context, v_prefixBufferSizeForStep[m_currentStep], voxelBufferManager);
+		groupSize.x = v_prefixBufferSizeForStep[m_currentStep];
+		TechniquePass(context, groupSize);
 		context.Flush();
 	}
 
 	UINT32 prefixSumValue = 0;
 	{
-		UINT32* prefixBufferData = m_bufferManager.ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::PrefixSum);
+		UINT32* prefixBufferData = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::PrefixSum);
 		prefixSumValue = prefixBufferData[m_prefixBufferSize - 1];
 	}
 	DXLIB_CORE_INFO("Prefix sum value after reduce: {0}", prefixSumValue);
 
-	m_bufferManager.ResizeBuffer((UINT)PrefixSumBufferType::CompactedVoxelIndex, prefixSumValue);
-	m_bufferManager.ResizeBuffer((UINT)PrefixSumBufferType::CompactedHashedBuffer, prefixSumValue);
+	m_bufferManager->ResizeBuffer((UINT)PrefixSumBufferType::CompactedVoxelIndex, prefixSumValue);
+	m_bufferManager->ResizeBuffer((UINT)PrefixSumBufferType::CompactedHashedBuffer, prefixSumValue);
 
 
 	// Subtracting one to m_currentStep due to the increment in the last iteration of the for loop
@@ -163,7 +183,8 @@ void CVGI::PrefixSumVoxels::StartPrefixSum(ComputeContext& context, BufferManage
 	// Sweep down; we start from the second-last level and go down to the first level
 	while ((m_currentStep + 1) > 0)
 	{
-		CompactBufferPass(context, UINT32(ceilf(float(v_prefixBufferSizeForStep[m_currentStep]) / float(ELEMENTS_PER_THREAD))), voxelBufferManager);
+		groupSize.x = UINT(ceilf(float(v_prefixBufferSizeForStep[m_currentStep]) / float(ELEMENTS_PER_THREAD)));
+		TechniquePass(context, groupSize);
 		m_currentStep--;
 		context.Flush();
 	}
@@ -172,57 +193,55 @@ void CVGI::PrefixSumVoxels::StartPrefixSum(ComputeContext& context, BufferManage
 	m_currentPhase = 2;
 
 	{
-		auto val = m_bufferManager.ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::PrefixSum);
+		auto val = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::PrefixSum);
 		prefixSumValue = val[m_prefixBufferSize - 1];
 	}
 
 	DXLIB_CORE_INFO("Prefix sum value after sweep: {0}", prefixSumValue);
 
-	CompactBufferPass(context, v_prefixBufferSizeForStep[0], voxelBufferManager);
+	groupSize.x = v_prefixBufferSizeForStep[0];
+	TechniquePass(context, groupSize);
 
 	{
-		auto val = m_bufferManager.ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::PrefixSum);
+		auto val = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::PrefixSum);
 		prefixSumValue = val[m_prefixBufferSize - 1];
 	}
 	DXLIB_CORE_INFO("Prefix sum value after copy: {0}", prefixSumValue);
 
 	PIXEndEvent(context.m_commandList->Get());
-	
+
 	context.Flush();
 }
 
-void CVGI::PrefixSumVoxels::CompactBufferPass(DX12Lib::ComputeContext& context, UINT32 numGroupsX, BufferManager* voxelBufferManager)
+void CVGI::PrefixSumVoxels::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
 	m_cbCompactBuffer.CurrentStep = m_currentStep;
 	m_cbCompactBuffer.CurrentPhase = m_currentPhase;
 
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
-	context.SetPipelineState(Renderer::s_PSOs[PrefixSumPsoName].get());
+	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)CompactBufferRootSignature::PrefixSumCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbCompactBuffer).GpuAddress());
 
-	m_bufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 
+	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	voxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	if (voxelBufferManager != nullptr)
-	{
-		voxelBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::VoxelizeUAVTable, voxelBufferManager->GetUAVHandle());
-	}
-	
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::StreamCompactionUAVTable, m_bufferManager.GetUAVHandle());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::VoxelizeUAVTable, voxelBufferManager.GetUAVHandle());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)CompactBufferRootSignature::StreamCompactionUAVTable, m_bufferManager->GetUAVHandle());
 
 	// Align to 127 because we have 127 threads per group
-	UINT groupSize = (numGroupsX + 127) / 128;
-	context.Dispatch(numGroupsX, 1, 1);
+	UINT elementSize = (groupSize.x + 127) / 128;
+	context.Dispatch(elementSize, 1, 1);
 }
 
 void CVGI::PrefixSumVoxels::DeleteTemporaryBuffers()
 {
-	m_bufferManager.RemoveBuffer((UINT)PrefixSumBufferType::PrefixSum);
+	m_bufferManager->RemoveBuffer((UINT)PrefixSumBufferType::PrefixSum);
 }
 
-std::shared_ptr<DX12Lib::RootSignature> CVGI::PrefixSumVoxels::BuildPrefixSumRootSignature()
+std::shared_ptr<DX12Lib::RootSignature> CVGI::PrefixSumVoxels::BuildRootSignature()
 {
 	SamplerDesc defaultSamplerDesc;
 
@@ -238,8 +257,10 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::PrefixSumVoxels::BuildPrefixSumRoo
 	return voxelComputeRootSignature;
 }
 
-std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::PrefixSumVoxels::BuildPrefixSumPipelineState(std::shared_ptr<DX12Lib::RootSignature> rootSig)
+std::shared_ptr<DX12Lib::PipelineState> CVGI::PrefixSumVoxels::BuildPipelineState()
 {
+	std::shared_ptr<RootSignature> rootSig = BuildRootSignature();
+
 	std::wstring shaderPath = Utils::ToWstring(SOURCE_DIR) + L"\\Shaders";
 	std::wstring computeShaderPath = shaderPath + L"\\PrefixSum_CS.hlsl";
 
@@ -250,7 +271,9 @@ std::shared_ptr<DX12Lib::ComputePipelineState> CVGI::PrefixSumVoxels::BuildPrefi
 	voxelComputePSO->SetRootSignature(rootSig);
 	voxelComputePSO->SetComputeShader(computeShader);
 	voxelComputePSO->Finalize();
-	voxelComputePSO->Name = PrefixSumPsoName;
+	voxelComputePSO->Name = Name;
 
 	return voxelComputePSO;
 }
+
+const std::wstring CVGI::PrefixSumVoxels::Name = L"PrefixSumVoxels";

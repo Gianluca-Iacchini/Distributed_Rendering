@@ -13,6 +13,61 @@ using namespace DirectX;
 
 #endif // HLSL
 
+struct ConstantBufferVoxelCommons
+{
+
+	XMUINT3 voxelTextureDimensions;
+	float totalTime;
+
+	XMFLOAT3 voxelCellSize;
+	float deltaTime;
+
+	XMFLOAT3 invVoxelTextureDimensions;
+	UINT StoreData;
+
+	XMFLOAT3 invVoxelCellSize;
+	float pad1;
+
+};
+
+struct ConstantBufferCompactBuffer
+{
+	UINT CurrentPhase;
+	UINT CurrentStep;
+	UINT CompactBufferSize;
+	UINT ElementsPerThread;
+
+	UINT NumElementsSweepDown;
+	UINT NumElementsBase;
+	UINT NumElementsLevel0;
+	UINT NumElementsLevel1;
+
+	UINT NumElementsLevel2;
+	UINT NumElementsLevel3;
+	float pad0;
+	float pad1;
+
+	XMUINT3 VoxelGridSize;
+	float pad2;
+};
+
+struct ConstantBufferClusterizeBuffer
+{
+	UINT CurrentPhase;
+	UINT VoxelCount;
+	UINT K;
+	float m;
+
+	XMUINT3 VoxelTextureDimensions;
+	UINT S;
+
+	XMUINT3 TileGridDimension;
+	UINT FirstClusterSet;
+
+	XMUINT3 CurrentTileUpdate;
+	UINT UnassignedOnlyPass;
+};
+
 struct ConstantBufferRTShadows
 {
 	XMUINT3 GridDimension;
@@ -52,6 +107,8 @@ struct ConstantBufferAABBGeneration
 	XMUINT3 GridDimension;
 	UINT ClusterCount;
 };
+
+
 
 struct AABBInfo
 {

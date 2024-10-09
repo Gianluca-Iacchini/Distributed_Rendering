@@ -17,13 +17,22 @@ StructuredBuffer<uint> gVoxelAssignmentBuffer : register(t2, space1);
 
 RWStructuredBuffer<AABB> gVoxelAABBBuffer : register(u0, space0);
 RWStructuredBuffer<AABBInfo> gClusterAABBInfoBuffer : register(u1, space0);
-// Map from aabbVoxelIndices to gVoxelIndicesCompactBuffer
+// Map from aabbVoxelIndices to gVoxelIndicesCompactBuffer.
 RWStructuredBuffer<uint> gAABBVoxelIndices : register(u2, space0);
+// Buffer used to create offsets for aabb indices.
 RWStructuredBuffer<uint> gAABBCounter : register(u3, space0);
-RWStructuredBuffer<uint> gAABBDebug : register(u4, space0);
+// Buffer used to return the number of aabb grids.
+RWStructuredBuffer<uint> gAABBGridCount : register(u4, space0);
 
+// Groupshared memory used to store the aabb at the correct indices. We only care that aabbs from the same
+// group are stored contiguously so we can build the acceleration structures later.
+
+// We use two counters per thread group to avoid performing two passes.
+// Counter at position 0 is used to find the offset of this aabb group.
+// Counter at position 1 is used to find the offset of the single aabb withing the group.
 groupshared uint voxelCount[2] = { 0, 0 };
 
+// Store the start index of the aabb group.
 groupshared uint aabbStart = 0;
 
 
@@ -108,7 +117,7 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint GroupThreadIndex : SV_GroupIndex
         if (voxelCount[0] > 0)
         {
             uint aabbGroupIdx = 0;
-            InterlockedAdd(gAABBDebug[0], 1, aabbGroupIdx);
+            InterlockedAdd(gAABBGridCount[0], 1, aabbGroupIdx);
         
             AABBInfo info = { aabbStart, voxelCount[0], 0.0f, 0.0f };
             gClusterAABBInfoBuffer[aabbGroupIdx] = info;
