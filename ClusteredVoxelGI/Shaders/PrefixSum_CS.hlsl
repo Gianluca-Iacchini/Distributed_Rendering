@@ -21,10 +21,11 @@ cbuffer cbPrefixSum : register(b0)
     float pad2;
 }
 
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u0, space0);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u1, space0);
-
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u2, space0);
+// Unused in this shader
+// RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u0, space0);
+RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u1, space0);
+RWStructuredBuffer<uint> gNextIndexBuffer : register(u2, space0);
+RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3, space0);
 
 
 

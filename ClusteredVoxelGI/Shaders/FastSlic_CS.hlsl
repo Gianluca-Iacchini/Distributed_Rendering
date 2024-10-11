@@ -18,8 +18,9 @@ cbuffer SLICCommon : register(b0)
 }
 
 
-StructuredBuffer<FragmentData> gFragmentBuffer : register(t0, space0);
-StructuredBuffer<uint> gNextIndexBuffer : register(t1, space0);
+ByteAddressBuffer gVoxelOccupiedBuffer : register(t0, space0);
+StructuredBuffer<FragmentData> gFragmentBuffer : register(t1, space0);
+StructuredBuffer<uint> gNextIndexBuffer : register(t2, space0);
 
 StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space1);
 StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
@@ -125,6 +126,9 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 
 uint GetEmptyVoxelX(uint3 voxelCoord)
 {
+    bool isInBoundsPos = IsWithinBounds(voxelCoord, int3(1, 0, 0), GridDimension);
+    bool isInBoundsNeg = IsWithinBounds(voxelCoord, int3(-1, 0, 0), GridDimension);
+    
     int3 negNeighbour = int3(voxelCoord.x - 1, voxelCoord.y, voxelCoord.z);
     int3 posNeighbour = int3(voxelCoord.x + 1, voxelCoord.y, voxelCoord.z);
     
@@ -134,18 +138,24 @@ uint GetEmptyVoxelX(uint3 voxelCoord)
     {
         for (int j = -1; j <= 1; j++)
         {
-            int3 adjacentVoxel = negNeighbour + int3(0, i, j);
-            
-            if (any(adjacentVoxel >= 0) && any(adjacentVoxel < int3(GridDimension)))
+            int3 adjacentOffset = int3(0, i, j);
+            bool isNeighbourInBounds = false;
+            if (isInBoundsNeg)
             {
-                emptyVoxels += 1 - FindHashedCompactedPositionIndex(uint3(adjacentVoxel), GridDimension).y;
+                isNeighbourInBounds = IsWithinBounds(negNeighbour, adjacentOffset, GridDimension);
+                if (isNeighbourInBounds)
+                {
+                    emptyVoxels += 1 - (uint) IsVoxelPresent(uint3(negNeighbour + adjacentOffset), GridDimension, gVoxelOccupiedBuffer);
+                }
             }
-            
-            adjacentVoxel = posNeighbour + int3(0, i, j);
-            
-            if (any(adjacentVoxel >= 0) || any(adjacentVoxel < int3(GridDimension)))
+
+            if (isInBoundsPos)
             {
-                emptyVoxels += 1 - FindHashedCompactedPositionIndex(uint3(adjacentVoxel), GridDimension).y;
+                isNeighbourInBounds = IsWithinBounds(posNeighbour, adjacentOffset, GridDimension);
+                if (isNeighbourInBounds)
+                {
+                    emptyVoxels += 1 - (uint) IsVoxelPresent(uint3(posNeighbour + adjacentOffset), GridDimension, gVoxelOccupiedBuffer);
+                }
             }
         }
     }
@@ -155,6 +165,9 @@ uint GetEmptyVoxelX(uint3 voxelCoord)
 
 uint GetEmptyVoxelY(uint3 voxelCoord)
 {
+    bool isInBoundsPos = IsWithinBounds(voxelCoord, int3(0, 1, 0), GridDimension);
+    bool isInBoundsNeg = IsWithinBounds(voxelCoord, int3(0, -1, 0), GridDimension);
+    
     int3 negNeighbour = int3(voxelCoord.x, voxelCoord.y - 1, voxelCoord.z);
     int3 posNeighbour = int3(voxelCoord.x, voxelCoord.y + 1, voxelCoord.z);
     
@@ -164,26 +177,24 @@ uint GetEmptyVoxelY(uint3 voxelCoord)
     {
         for (int j = -1; j <= 1; j++)
         {
-            int3 adjacentVoxel = negNeighbour + int3(i, 0, j);
-            
-            if (any(adjacentVoxel < 0) || any(adjacentVoxel >= int3(GridDimension)))
+            int3 adjacentOffset = int3(i, 0, j);
+            bool isNeighbourInBounds = false;
+            if (isInBoundsNeg)
             {
-                emptyVoxels++;
+                isNeighbourInBounds = IsWithinBounds(negNeighbour, adjacentOffset, GridDimension);
+                if (isNeighbourInBounds)
+                {
+                    emptyVoxels += 1 - (uint) IsVoxelPresent(uint3(negNeighbour + adjacentOffset), GridDimension, gVoxelOccupiedBuffer);
+                }
             }
-            else
+
+            if (isInBoundsPos)
             {
-                emptyVoxels += 1 - FindHashedCompactedPositionIndex(uint3(adjacentVoxel), GridDimension).y;
-            }
-            
-            adjacentVoxel = posNeighbour + int3(i, 0, j);
-            
-            if (any(adjacentVoxel < 0) || any(adjacentVoxel >= int3(GridDimension)))
-            {
-                emptyVoxels++;
-            }
-            else
-            {
-                emptyVoxels += 1 - FindHashedCompactedPositionIndex(uint3(adjacentVoxel), GridDimension).y;
+                isNeighbourInBounds = IsWithinBounds(posNeighbour, adjacentOffset, GridDimension);
+                if (isNeighbourInBounds)
+                {
+                    emptyVoxels += 1 - (uint) IsVoxelPresent(uint3(posNeighbour + adjacentOffset), GridDimension, gVoxelOccupiedBuffer);
+                }
             }
         }
     }
@@ -193,6 +204,9 @@ uint GetEmptyVoxelY(uint3 voxelCoord)
 
 uint GetEmptyVoxelZ(uint3 voxelCoord)
 {
+    bool isInBoundsPos = IsWithinBounds(voxelCoord, int3(0, 0, 1), GridDimension);
+    bool isInBoundsNeg = IsWithinBounds(voxelCoord, int3(0, 0, -1), GridDimension);
+    
     int3 negNeighbour = int3(voxelCoord.x, voxelCoord.y, voxelCoord.z - 1);
     int3 posNeighbour = int3(voxelCoord.x, voxelCoord.y, voxelCoord.z + 1);
     
@@ -202,26 +216,24 @@ uint GetEmptyVoxelZ(uint3 voxelCoord)
     {
         for (int j = -1; j <= 1; j++)
         {
-            int3 adjacentVoxel = negNeighbour + int3(i, j, 0);
-            
-            if (any(adjacentVoxel < 0) || any(adjacentVoxel >= int3(GridDimension)))
+            int3 adjacentOffset = int3(i, j, 0);
+            bool isNeighbourInBounds = false;
+            if (isInBoundsNeg)
             {
-                emptyVoxels++;
+                isNeighbourInBounds = IsWithinBounds(negNeighbour, adjacentOffset, GridDimension);
+                if (isNeighbourInBounds)
+                {
+                    emptyVoxels += 1 - (uint) IsVoxelPresent(uint3(negNeighbour + adjacentOffset), GridDimension, gVoxelOccupiedBuffer);
+                }
             }
-            else
+
+            if (isInBoundsPos)
             {
-                emptyVoxels += 1 - FindHashedCompactedPositionIndex(uint3(adjacentVoxel), GridDimension).y;
-            }
-            
-            adjacentVoxel = posNeighbour + int3(i, j, 0);
-            
-            if (any(adjacentVoxel < 0) || any(adjacentVoxel >= int3(GridDimension)))
-            {
-                emptyVoxels++;
-            }
-            else
-            {
-                emptyVoxels += 1 - FindHashedCompactedPositionIndex(uint3(adjacentVoxel), GridDimension).y;
+                isNeighbourInBounds = IsWithinBounds(posNeighbour, adjacentOffset, GridDimension);
+                if (isNeighbourInBounds)
+                {
+                    emptyVoxels += 1 - (uint) IsVoxelPresent(uint3(posNeighbour + adjacentOffset), GridDimension, gVoxelOccupiedBuffer);
+                }
             }
         }
     }
@@ -499,10 +511,10 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
             {
                 for (int k = -1; k <= 1 && !done; k++)
                 {
-                    int3 tileCoord = voxelTile + int3(i, j, k);
-                    
-                    if (any(tileCoord < 0) || any(tileCoord >= int3(TileDimension)))
+                    if (!IsWithinBounds(voxelTile, int3(i, j, k), TileDimension))
                         continue;
+                    
+                    int3 tileCoord = voxelTile + int3(i, j, k);
 
                     uint clusterIndex = gTileBuffer[uint3(tileCoord)];
                     

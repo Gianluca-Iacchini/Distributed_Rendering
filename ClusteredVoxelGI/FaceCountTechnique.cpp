@@ -1,5 +1,6 @@
 #include "FaceCountTechnique.h"
 #include "DX12Lib/pch.h"
+#include "VoxelizeScene.h"
 #include "PrefixSumVoxels.h"
 
 using namespace CVGI;
@@ -22,7 +23,7 @@ void CVGI::FaceCountTechnique::PerformTechnique(DX12Lib::ComputeContext& context
 {
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"FaceCount");
 
-	m_cbFaceCount.GridDimension = m_data->VoxelGridSize;
+	m_cbFaceCount.GridDimension = m_data->GetVoxelGridSize();
 	m_cbFaceCount.CurrentPhase = 0;
 	m_cbFaceCount.VoxelCount = m_data->VoxelCount;
 
@@ -47,16 +48,19 @@ void CVGI::FaceCountTechnique::PerformTechnique(DX12Lib::ComputeContext& context
 
 void CVGI::FaceCountTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
+	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
 
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
+	voxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)FaceCountRootSignature::FaceCountCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbFaceCount).GpuAddress());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FaceCountRootSignature::VoxelSRVTable, voxelBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FaceCountRootSignature::CompactSRVTable, compactBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FaceCountRootSignature::FaceCountUAVTable, m_bufferManager->GetUAVHandle());
 
@@ -89,7 +93,8 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::FaceCountTechnique::BuildRootSigna
 	std::shared_ptr<DX12Lib::RootSignature> faceCountRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)FaceCountRootSignature::Count, 1);
 	faceCountRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::FaceCountCBV].InitAsConstantBuffer(0);
-	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::CompactSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::VoxelSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::CompactSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::FaceCountUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 0);
 
 	faceCountRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);

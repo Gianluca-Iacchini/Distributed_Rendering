@@ -34,7 +34,8 @@ namespace CVGI
 		enum class FaceCountRootSignature
 		{
 			FaceCountCBV = 0,
-			CompactSRVTable = 1,
+			VoxelSRVTable = 1,
+			CompactSRVTable,
 			FaceCountUAVTable,
 			Count
 		};

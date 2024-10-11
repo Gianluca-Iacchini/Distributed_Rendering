@@ -4,6 +4,15 @@
 #include <string>
 #include <tgmath.h>
 
+namespace DX12Lib
+{
+	struct AABB
+	{
+		DirectX::XMFLOAT3 Min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+		DirectX::XMFLOAT3 Max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+	};
+}
+
 class MathHelper
 {
 public:

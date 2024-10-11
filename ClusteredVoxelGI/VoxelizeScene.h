@@ -16,6 +16,7 @@ namespace CVGI
 			VoxelCommonCBV = 0,
 			VoxelCameraCBV = 1,
 			ObjectCBV = 2,
+			VoxelConstantCBV,
 			MaterialSRV,
 			MaterialTextureSRV,
 			VoxelDataUAV,
@@ -36,12 +37,12 @@ namespace CVGI
 	public:
 		enum class VoxelBufferType
 		{
-			FragmentData = 0,
-			NextIndex = 1,
-			VoxelIndex = 2,
-			FragmentCounter = 3,
+			VoxelOccupied = 0,
+			FragmentData = 1,
+			NextIndex = 2,
+			VoxelIndex,
+			FragmentCounter,
 			VoxelCounter,
-			VoxelOccupied,
 			HashedBuffer,
 		};
 
@@ -74,8 +75,9 @@ namespace CVGI
 		static const std::wstring Name;
 
 	private:
-		ConstantBufferVoxelCommons m_cbVoxelCommons;
 		VoxelCamera* m_voxelCamera = nullptr;
+
+		UINT32 m_currentPass = 0;
 
 		D3D12_VIEWPORT m_voxelScreenViewport;
 		D3D12_RECT m_voxelScissorRect;

@@ -21,14 +21,24 @@ namespace CVGI
 {
 	enum class RayTraceShadowRootSignature
 	{
-		RayTracinShadowCommonCBV = 0,
-		ShadowCameraCBV = 1,
+		VoxelCommonCBV = 0,
+		ShadowCommonCBV = 1,
 		AccelerationStructureSRV = 2,
-		ShadowMapSRV,
-		CompactTableSRV,
-		AABBTableSRV,
-		ASBufferMapSRV,
+		PrefixSumBufferSRV,
+		FaceBufferSRV,
 		RayTraceShadowTableUAV,
+		Count
+	};
+
+	enum class ShadowRootSignature
+	{
+		VoxelCommonCBV = 0,
+		ShadowCommonCBV = 1,
+		ShadowMapSRV,
+		VoxelSRV,
+		CompactSRV,
+		ClusterSRV,
+		ShadowBuffersUAV,
 		Count
 	};
 
@@ -39,13 +49,17 @@ namespace CVGI
 		~LightVoxel() {}
 
 		virtual void InitializeBuffers() override;
+		//virtual void PerformTechnique(DX12Lib::ComputeContext& context) override;
+		//virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 		virtual void PerformTechnique(RayTracingContext& context) override;
 		virtual void TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
+	
+	
 
 
 		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 
-		void SetShadowCamera(DX12Lib::ShadowCamera* shadowCamera) { m_shadowCamera = shadowCamera; }
+		void SetLightComponent(DX12Lib::LightComponent* lightComponent) { m_lightComponent = lightComponent; }
 		
 	protected:
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
@@ -55,7 +69,7 @@ namespace CVGI
 
 	private:
 		ConstantBufferRTShadows m_cbShadowRaytrace;
-		DX12Lib::ShadowCamera* m_shadowCamera;
+		DX12Lib::LightComponent* m_lightComponent;
 	};
 }
 

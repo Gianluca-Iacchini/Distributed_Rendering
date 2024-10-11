@@ -4,6 +4,7 @@
 #include "WinPixEventRuntime/pix3.h"
 #include "VoxelCamera.h"
 #include "DX12Lib/DXWrapper/UploadBuffer.h"
+#include "DX12Lib/Commons/ShadowMap.h"
 
 
 
@@ -34,7 +35,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		VoxelTextureDimension.z);
 
 	m_data = std::make_shared<TechniqueData>();
-	m_data->VoxelGridSize = voxelTexDimensions;
+	m_data->SetVoxelGridSize(voxelTexDimensions);
 
 	m_voxelizeScene = std::make_unique<VoxelizeScene>(m_data);
 	m_displayVoxelScene = std::make_unique<DisplayVoxelScene>(m_data);
@@ -85,6 +86,47 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	Renderer::SetUpRenderFrame(commandContext);
 
+	auto* rootNode = m_Scene->GetRootNode();
+	UINT childCount = rootNode->GetChildCount();
+
+	DX12Lib::AABB sceneBounds;
+
+	for (UINT i = 0; i < childCount; i++)
+	{
+		auto* child = rootNode->GetChildAt(i);
+
+		auto* renderer = child->GetComponent<ModelRenderer>();
+
+		if (renderer != nullptr)
+		{
+			sceneBounds = renderer->Model->GetBounds();
+		}
+	}
+
+	float minComponent = std::min(sceneBounds.Min.x, std::min(sceneBounds.Min.y, sceneBounds.Min.z));
+	float maxComponent = std::max(sceneBounds.Max.x, std::max(sceneBounds.Max.y, sceneBounds.Max.z));
+
+	float extent = maxComponent - minComponent;
+
+	sceneBounds.Min.x = minComponent;
+	sceneBounds.Min.y = minComponent;
+	sceneBounds.Min.z = minComponent;
+
+	sceneBounds.Max.x = maxComponent;
+	sceneBounds.Max.y = maxComponent;
+	sceneBounds.Max.z = maxComponent;
+
+	voxelCellSize.x = extent / voxelTexDimensions.x;
+	voxelCellSize.y = extent / voxelTexDimensions.y;
+	voxelCellSize.z = extent / voxelTexDimensions.z;
+
+	m_data->SetVoxelCellSize(voxelCellSize);
+	m_data->SetSceneAABB(sceneBounds);
+
+
+	DXLIB_CORE_INFO("Scene bounds found at: Min: {0} {1} {2}; Max: {3} {4} {5}",
+				sceneBounds.Min.x, sceneBounds.Min.y, sceneBounds.Min.z,
+				sceneBounds.Max.x, sceneBounds.Max.y, sceneBounds.Max.z);
 
 	voxelScene->Render(commandContext);
 
@@ -124,28 +166,26 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_clusterVisibility->PerformTechnique(computeContext);
 
-	auto* node = m_Scene->GetRootNode();
 
-	assert(node != nullptr && "Root node is null");
+	m_lightVoxel->InitializeBuffers();
 
-	UINT nChildren = node->GetChildCount();
-
-	for (UINT i = 0; i < nChildren; i++)
+	bool foundLightComponent = false;
+	for (UINT i = 0; i < childCount; i++)
 	{
-		auto* child = node->GetChildAt(i);
+		auto* child = rootNode->GetChildAt(i);
 
 		auto lightComponent = child->GetComponent<LightComponent>();
 
 		if (lightComponent != nullptr)
 		{
-			m_shadowCamera = lightComponent->GetShadowCamera();
+			m_lightVoxel->SetLightComponent(lightComponent);
+			foundLightComponent = true;
+			break;
 		}
 	}
 
-	assert(m_shadowCamera != nullptr && "Failed to find light component with shadows enabled.");
+	assert(foundLightComponent && "Failed to find light component with shadows enabled.");
 
-	m_lightVoxel->InitializeBuffers();
-	m_lightVoxel->SetShadowCamera(m_shadowCamera);
 
 	computeContext.Finish(true);
 
@@ -158,11 +198,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 void CVGI::ClusteredVoxelGIApp::Update(DX12Lib::GraphicsContext& commandContext)
 {
 	D3DApp::Update(commandContext);
-
-	m_cbVoxelCommons.totalTime = GameTime::GetTotalTime();
-	m_cbVoxelCommons.deltaTime = GameTime::GetDeltaTime();
-
-	m_cbVoxelCommonsResource = Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons);
 }
 
 void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
@@ -170,11 +205,12 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	Renderer::SetUpRenderFrame(commandContext);
 
 	RayTracingContext& context = RayTracingContext::Begin();
-
 	m_lightVoxel->PerformTechnique(context);
+
 	context.Finish();
 
 	m_displayVoxelScene->PerformTechnique(commandContext);
+
 	Renderer::PostDrawCleanup(commandContext);
 }
 

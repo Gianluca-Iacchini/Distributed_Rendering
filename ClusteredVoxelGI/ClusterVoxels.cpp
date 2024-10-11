@@ -11,7 +11,7 @@ using namespace Graphics;
 void CVGI::ClusterVoxels::InitializeBuffers()
 {
 
-	DirectX::XMUINT3 voxelGridSize = m_data->VoxelGridSize;
+	DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
 
 	UINT32 voxelLinearSize = voxelGridSize.x * voxelGridSize.y * voxelGridSize.z;
 	m_numberOfClusters = MathHelper::Min(250000u, (UINT32)(m_data->VoxelCount / 10));
@@ -114,7 +114,6 @@ void CVGI::ClusterVoxels::TechniquePass(DX12Lib::ComputeContext& context, Direct
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
-	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ClusterizeRootSignature::ClusterizeCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbClusterizeBuffer).GpuAddress());
 
 	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
@@ -124,6 +123,7 @@ void CVGI::ClusterVoxels::TechniquePass(DX12Lib::ComputeContext& context, Direct
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	context.FlushResourceBarriers();
 
+	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ClusterizeRootSignature::ClusterizeCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbClusterizeBuffer).GpuAddress());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ClusterizeRootSignature::VoxelBuffersSRVTable, voxelBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ClusterizeRootSignature::StreamCompactionSRVTable, compactBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ClusterizeRootSignature::ClusterizeUAVTable, m_bufferManager->GetUAVHandle());
@@ -138,7 +138,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusterVoxels::BuildRootSignature(
 	std::shared_ptr<DX12Lib::RootSignature> clusterRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)ClusterizeRootSignature::Count, 1);
 	clusterRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeCBV].InitAsConstantBuffer(0);
-	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::VoxelBuffersSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::VoxelBuffersSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::StreamCompactionSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 8, D3D12_SHADER_VISIBILITY_ALL, 0);
 

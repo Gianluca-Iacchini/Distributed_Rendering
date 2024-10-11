@@ -3,6 +3,7 @@
 
 #ifdef HLSL
 #include "HlslCompat.h"
+#define XMFLOAT4X4 float4x4
 #define XMUINT2 uint2
 #define XMUINT3 uint3 /* I don't know why, but this won't work if i define it in the HlslCompat.h file */
 #else
@@ -28,6 +29,11 @@ struct ConstantBufferVoxelCommons
 	XMFLOAT3 invVoxelCellSize;
 	float pad1;
 
+	XMFLOAT3 SceneAABBMin;
+	float pad2;
+
+	XMFLOAT3 SceneAABBMax;
+	float pad3;
 };
 
 struct ConstantBufferCompactBuffer
@@ -70,12 +76,8 @@ struct ConstantBufferClusterizeBuffer
 
 struct ConstantBufferRTShadows
 {
-	XMUINT3 GridDimension;
-	float pad0;
-
-	XMUINT2 ShadowTexDimensions;
-	float pad1;
-	float pad2;
+	XMFLOAT3 LightDirection;
+	UINT FaceCount;
 };
 
 struct RTSceneVisibility

@@ -17,7 +17,7 @@ CVGI::PrefixSumVoxels::PrefixSumVoxels(std::shared_ptr<TechniqueData> data)
 void CVGI::PrefixSumVoxels::InitializeBuffers(DX12Lib::ComputeContext& context)
 {
 
-	DirectX::XMUINT3 voxelGridSize = m_data->VoxelGridSize;
+	DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
 
 	// Indirection Rank Buffer (u0)
 	m_bufferManager->AddStructuredBuffer(voxelGridSize.y * voxelGridSize.z, sizeof(UINT32));
@@ -74,7 +74,7 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 	v_prefixBufferSizeForStep.resize(5); // Up to four levels needed to the prefix parallel sum
 	memset(v_prefixBufferSizeForStep.data(), 0, v_prefixBufferSizeForStep.size() * size_t(sizeof(UINT32)));
 
-	DirectX::XMUINT3 voxelGridSize = m_data->VoxelGridSize;
+	DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
 	UINT voxelLinearSize = voxelGridSize.x * voxelGridSize.y * voxelGridSize.z;
 
 	v_prefixBufferSizeForStep[0] = (voxelLinearSize) / ELEMENTS_PER_THREAD;
@@ -121,7 +121,7 @@ void CVGI::PrefixSumVoxels::ComputePrefixSumVariables()
 	}
 
 
-	m_cbCompactBuffer.VoxelGridSize = m_data->VoxelGridSize;
+	m_cbCompactBuffer.VoxelGridSize = m_data->GetVoxelGridSize();
 	m_cbCompactBuffer.NumElementsBase = v_prefixBufferSizeForStep[0];
 	m_cbCompactBuffer.NumElementsLevel0 = v_prefixBufferSizeForStep[1];
 	m_cbCompactBuffer.NumElementsLevel1 = v_prefixBufferSizeForStep[2];
@@ -248,7 +248,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::PrefixSumVoxels::BuildRootSignatur
 	std::shared_ptr<DX12Lib::RootSignature> voxelComputeRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)CompactBufferRootSignature::Count, 1);
 	voxelComputeRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::PrefixSumCBV].InitAsConstantBuffer(0);
-	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::VoxelizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::VoxelizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 	(*voxelComputeRootSignature)[(UINT)CompactBufferRootSignature::StreamCompactionUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 1);
 
 

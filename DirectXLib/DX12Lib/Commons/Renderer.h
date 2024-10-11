@@ -23,6 +23,9 @@ namespace DX12Lib
 	class ShadowBuffer;
 	class ColorBuffer;
 	class DescriptorHandle;
+
+	class MaterialManager;
+	class TextureManager;
 }
 
 
@@ -68,7 +71,8 @@ namespace Graphics
 		void AddLightToQueue(DX12Lib::LightComponent* light);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
 
-		DX12Lib::DescriptorHandle& GetShadowMapSrv(DX12Lib::CommandContext& context);
+		DX12Lib::ShadowBuffer* const GetShadowBuffer();
+		DX12Lib::DescriptorHandle& GetShadowMapSrv();
 
 		std::vector<DX12Lib::ModelRenderer*> GetRenderers();
 

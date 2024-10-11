@@ -62,6 +62,8 @@ void Model::LoadMeshes(const aiScene* scene)
             if (assimpMesh->HasTextureCoords(0))
                 vertex.textureCoordinate = { assimpMesh->mTextureCoords[0][v].x, assimpMesh->mTextureCoords[0][v].y };
 
+            m_minBounds = MathHelper::Min(m_minBounds, vertex.position);
+			m_maxBounds = MathHelper::Max(m_maxBounds, vertex.position);
 
             vertices.push_back(vertex);
         }

@@ -9,14 +9,12 @@ Texture2D gMetallicRoughness : register(t3);
 Texture2D gOcclusion : register(t4);
 
 
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u0);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u1);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u2);
-RWStructuredBuffer<uint> gFragmentCounter : register(u3);
-RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u4);
-RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u5);
-
-
+RWByteAddressBuffer gVoxelOccupiedBuffer : register(u0);
+RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u1);
+RWStructuredBuffer<uint> gNextIndexBuffer : register(u2);
+RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3);
+RWStructuredBuffer<uint> gFragmentCounter : register(u4);
+RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u5);
 RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6);
 
 
@@ -27,25 +25,16 @@ cbuffer cbVoxelCommons : register(b0)
     VoxelCommons voxelCommons;
 }
 
-bool isVoxelOccupied(uint value, uint bit)
+cbuffer RootConstant : register(b3)
 {
-    bool result = ((value & (1 << bit)) > 0);
-    return result;
+    uint StoreData;
 }
 
 void SetVoxelOccupied(uint indexHashed)
 {
-    // Calculate index and bit position using integer arithmetic
-    uint index = indexHashed / 32;
-    uint bit = indexHashed % 32;
-    uint value = (1 << bit);
-    uint originalValue = 0;
-
-    // Atomically set the bit in the buffer
-    InterlockedOr(gVoxelOccupiedBuffer[index], value, originalValue);
-
+    bool wasAlreadyOccupied = SetVoxelPresence(indexHashed, gVoxelOccupiedBuffer);
     // Check if the bit was previously unset and atomically increment the counter if it was
-    if (!isVoxelOccupied(originalValue, bit))
+    if (!wasAlreadyOccupied)
     {
         InterlockedAdd(gOccupiedVoxelCounter[0], 1);
     }
@@ -100,7 +89,7 @@ float4 PS(VertexOutVoxel pIn) : SV_TARGET
     
 
     
-    if (voxelCommons.storeData > 0)
+    if (StoreData > 0)
     {
         uint voxelLinearCoord =
             voxelTexCoord.x +

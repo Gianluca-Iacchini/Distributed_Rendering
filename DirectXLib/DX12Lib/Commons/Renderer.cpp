@@ -200,10 +200,13 @@ namespace Graphics::Renderer
 			rootParamSlot, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
 	}
 
-
-	DX12Lib::DescriptorHandle& GetShadowMapSrv(DX12Lib::CommandContext& context)
+	DX12Lib::ShadowBuffer* const GetShadowBuffer()
 	{
-		context.TransitionResource(*s_shadowBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		return s_shadowBuffer.get();
+	}
+
+	DX12Lib::DescriptorHandle& GetShadowMapSrv()
+	{
 		return m_commonTextureHandle;
 	}
 

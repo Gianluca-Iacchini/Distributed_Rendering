@@ -53,23 +53,6 @@ namespace CVGI {
 		Count
 	};
 
-	__declspec(align(16)) struct ConstantBufferVoxelCommons
-	{
-
-		DirectX::XMUINT3 voxelTextureDimensions = DirectX::XMUINT3(128, 128, 128);
-		float totalTime = 0.0f;
-
-		DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
-		float deltaTime = 0.0f;
-
-		DirectX::XMFLOAT3 invVoxelTextureDimensions = DirectX::XMFLOAT3(1.0f / 128.0f, 1.0f / 128.0f, 1.0f / 128.0f);
-		UINT32 StoreData = 0;
-
-		DirectX::XMFLOAT3 invVoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
-		float pad1 = 0.0f;
-
-	};
-
 	__declspec(align(16)) struct ConstantBufferCompactBuffer
 	{
 		UINT32 CurrentPhase = 0;

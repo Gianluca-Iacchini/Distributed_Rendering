@@ -1,4 +1,6 @@
 #include "VoxelUtils.hlsli"
+#define HLSL
+#include "TechniquesCompat.h"
 
 struct PSInput
 {
@@ -14,10 +16,7 @@ struct GSInput
     uint VoxelIndex : VOXELINDEX;
 };
 
-cbuffer cbVoxelCommons : register(b0)
-{
-    VoxelCommons voxelCommons;
-}
+ConstantBuffer<ConstantBufferVoxelCommons> cbVoxelCommons : register(b0);
 
 cbuffer cbCamera : register(b1)
 {
@@ -25,8 +24,9 @@ cbuffer cbCamera : register(b1)
 }
 
 
-StructuredBuffer<FragmentData> gFragmentDataBuffer : register(t0);
-StructuredBuffer<uint> gNextIndexBuffer : register(t1);
+ByteAddressBuffer gVoxelOccupiedBuffer : register(t0);
+StructuredBuffer<FragmentData> gFragmentDataBuffer : register(t1);
+StructuredBuffer<uint> gNextIndexBuffer : register(t2);
 
 StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space1);
 StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
@@ -41,18 +41,8 @@ StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
 ByteAddressBuffer gVoxelShadowBuffer : register(t0, space4);
-ByteAddressBuffer gTaaShadowBUffer : register(t1, space4);
+ByteAddressBuffer gClusterShadowBuffer : register(t1, space4);
 //StructuredBuffer<uint> gVoxelShadowBuffer : register(t0, space4);
-
-
-uint3 GetVoxelPosition(uint voxelLinearCoord)
-{
-    uint3 voxelPosition;
-    voxelPosition.x = voxelLinearCoord % voxelCommons.gridDimension.x;
-    voxelPosition.y = (voxelLinearCoord / voxelCommons.gridDimension.x) % voxelCommons.gridDimension.y;
-    voxelPosition.z = voxelLinearCoord / (voxelCommons.gridDimension.x * voxelCommons.gridDimension.y);
-    return voxelPosition;
-}
 
 
 uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
@@ -212,90 +202,32 @@ void GS(
     
     float4 avgColor = float4(0.0f, 0, 0, 1.0f);
     
-    uint3 voxelCoord = GetVoxelPosition(voxelLinearCoord);
+    uint3 voxelCoord = GetVoxelPosition(voxelLinearCoord, cbVoxelCommons.voxelTextureDimensions);
     int3 iVoxelCoord = int3(voxelCoord);
     
-    
-    bool isLit = IsVoxelLit(faceData.x, gVoxelShadowBuffer);
-    bool isTaaLit = IsVoxelLit(faceData.x, gTaaShadowBUffer);
-    uint nLit = 0;
-    
-    if (!isLit)
-    {
-        for (int ix = -1; ix <= 1; ++ix)
-        {
-            for (int jy = -1; jy <= 1; ++jy)
-            {
-                for (int kz = -1; kz <= 1; ++kz)
-                {
-
-                    int3 neighborCoord = iVoxelCoord + int3(ix, jy, kz);
-                
-                    if (any(neighborCoord < 0) || any(neighborCoord >= voxelCommons.gridDimension))
-                        continue;
-                
-                    uint2 neighborIndex = FindHashedCompactedPositionIndex(neighborCoord, voxelCommons.gridDimension);
-                
-                    if (neighborIndex.y != 0)
-                    {
-                        if (IsVoxelLit(neighborIndex.x, gVoxelShadowBuffer) || IsVoxelLit(neighborIndex.x, gTaaShadowBUffer))
-                        {
-                            nLit++;
-                        }
-                    }
-                }
-            }
-        }
-        
-        isLit = nLit > 4;
-    }
-
-    
-    if (isLit)
-    {
-        avgColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    }
-    else
-    {
-        avgColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
-    }
-    //avgColor = avgColor / fragmentCount;
-    //avgColor.xyz = float3(0.0f, 0.0f, 0.0f);
     
     //uint clusterIndex = gClusterAssignmentBuffer[faceData.x];
     //avgColor.xyz = LinearIndexToColor(clusterIndex);
     
+    bool isLit = IsVoxelPresent(faceData.x, gVoxelShadowBuffer);
     
+    if (isLit)
+        avgColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    else
+        avgColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
     
-    
-    //avgColor.xyz = gVoxelNormalBuffer[index];
-    //avgColor.xyz = avgColor.xyz;
-    
-    //avgColor.x = avgColor.x == -1 ? 0.15f : avgColor.x;
-    //avgColor.y = avgColor.y == -1 ? 0.15f : avgColor.y;
-    //avgColor.z = avgColor.z == -1 ? 0.15f : avgColor.z;
-    
-        float scale = 0.5f; // Scale of the cube
-    
-
-   
-
-        
-    
-    float3 position = float3(voxelCoord);
-    position = position * scale + float3(0.5f, 0.5f, 0.5f);
-    
-    // Move voxel scene to position 0,0,0
-    position -= voxelCommons.gridDimension * (scale / 2.f);
     
     [unroll]
     for (int i = 0; i < 6; i += 3)
     {
         PSInput output;
         
-        float3 v1 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i)]] + position;
-        float3 v2 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]] + position;
-        float3 v3 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]] + position;
+        //float3 v1 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i)]] + position;
+        float3 v1 = VoxelToWorld(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i)]], cbVoxelCommons);
+        //float3 v2 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]] + position;
+        float3 v2 = VoxelToWorld(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]], cbVoxelCommons);
+        float3 v3 = VoxelToWorld(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]], cbVoxelCommons);
+        //float3 v3 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]] + position;
         
         float3 normal = normalize(cross(v2 - v1, v3 - v1));
         output.normal = normal;
@@ -313,32 +245,6 @@ void GS(
         
         triOutput.RestartStrip();
     }
-    
-
-    //for (int i = 0; i < 36; i += 3)
-    //{
-    //    PSInput output;
-
-    //    float3 v1 = scale * cubeVertices[cubeIndices[i]] + position;
-    //    float3 v2 = scale * cubeVertices[cubeIndices[i + 1]] + position;
-    //    float3 v3 = scale * cubeVertices[cubeIndices[i + 2]] + position;
-
-    //    float3 normal = normalize(cross(v2 - v1, v3 - v1));
-    //    output.normal = normal;
-    //    output.color = avgColor.xyz;
-    //    output.ClusterIndex = 1; //clusterIndex;
-        
-    //    output.position = mul(float4(v1, 1.0f), camera.ViewProj);
-    //    triOutput.Append(output);
-        
-    //    output.position = mul(float4(v2, 1.0f), camera.ViewProj);
-    //    triOutput.Append(output);
-        
-    //    output.position = mul(float4(v3, 1.0f), camera.ViewProj);
-    //    triOutput.Append(output);
-
-    //    triOutput.RestartStrip();
-    //}
     
 
 }

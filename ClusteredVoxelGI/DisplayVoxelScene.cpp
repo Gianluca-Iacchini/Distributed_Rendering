@@ -28,13 +28,6 @@ void CVGI::DisplayVoxelScene::PerformTechnique(DX12Lib::GraphicsContext& context
 {
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 128), L"Voxel Display Pass");
 
-	m_cbVoxelCommons.deltaTime = GameTime::GetDeltaTime();
-	m_cbVoxelCommons.totalTime = GameTime::GetTotalTime();
-	m_cbVoxelCommons.voxelTextureDimensions = m_data->VoxelGridSize;
-	m_cbVoxelCommons.invVoxelTextureDimensions = XMFLOAT3(1.0f / m_data->VoxelGridSize.x, 1.0f / m_data->VoxelGridSize.y, 1.0f / m_data->VoxelGridSize.z);
-	m_cbVoxelCommons.voxelCellSize = XMFLOAT3(1.0f, 1.0f, 1.0f);
-	m_cbVoxelCommons.invVoxelCellSize = XMFLOAT3(1.0f, 1.0f, 1.0f);
-
 	TechniquePass(context);
 
 	PIXEndEvent(context.m_commandList->Get());
@@ -100,7 +93,7 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV,
-		Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
+		m_data->GetVoxelCommonsResource().GpuAddress());
 
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)DisplayVoxelRootParameterSlot::CameraCBV,
 		m_camera->GetCameraBuffer().GpuAddress());
@@ -138,7 +131,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::DisplayVoxelScene::BuildRootSignat
 	displayVoxelRootSignature->InitStaticSampler(0, defaultSamplerDesc);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CameraCBV].InitAsConstantBuffer(1);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CompactSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ClusterSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);

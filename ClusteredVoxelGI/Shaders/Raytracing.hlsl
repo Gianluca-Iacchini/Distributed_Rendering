@@ -191,10 +191,11 @@ void MyRaygenShader()
         
     uint3 pixelCoord = DispatchRaysIndex();
     
-    if (pixelCoord.x * pixelCoord.y * pixelCoord.z >= g_sceneCB.NumberOfFaces)
-        return;
     
     uint faceIndex = pixelCoord.x + pixelCoord.y * g_sceneCB.DispatchSize.x + pixelCoord.z * g_sceneCB.DispatchSize.x * g_sceneCB.DispatchSize.y;
+    
+    if (faceIndex >= g_sceneCB.NumberOfFaces)
+        return;
     
     uint2 faceData = gVoxelFaceDataBuffer[faceIndex];
     

@@ -12,7 +12,7 @@ using namespace Graphics;
 
 void CVGI::VoxelizeScene::InitializeBuffers()
 {
-	auto voxelGridSize = m_data->VoxelGridSize;
+	auto voxelGridSize = m_data->GetVoxelGridSize();
 
 	UINT32 voxelSceneLinearSize = voxelGridSize.x * voxelGridSize.y * voxelGridSize.z;
 
@@ -22,18 +22,18 @@ void CVGI::VoxelizeScene::InitializeBuffers()
 	UINT32 voxelOccupiedSize = (voxelSceneLinearSize + 31) / 32;
 
 	// Dummy buffers which will be resized once we know the number of fragments and voxels.
-	// Fragment data Buffer (u0)
+	// Voxel Occupied Buffer (u0)
+	m_bufferManager->AddByteAddressBuffer(voxelOccupiedSize);
+	// Fragment data Buffer (u1)
 	m_bufferManager->AddStructuredBuffer(1, sizeof(FragmentData));
-	// Next fragment index Buffer (u1)
+	// Next fragment index Buffer (u2)
 	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
-	// Voxel Index Buffer (u2)
+	// Voxel Index Buffer (u3)
 	m_bufferManager->AddStructuredBuffer(voxelSceneLinearSize, sizeof(UINT32));
-	// Fragment Counter Buffer (u3)
+	// Fragment Counter Buffer (u4)
 	m_bufferManager->AddByteAddressBuffer();
-	// Voxel Counter Buffer (u4)
+	// Voxel Counter Buffer (u5)
 	m_bufferManager->AddByteAddressBuffer();
-	// Voxel Occupied Buffer (u5)
-	m_bufferManager->AddStructuredBuffer(voxelOccupiedSize, sizeof(UINT32));
 	// Voxel Hash Buffer (u6)
 	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
 
@@ -42,7 +42,7 @@ void CVGI::VoxelizeScene::InitializeBuffers()
 
 void CVGI::VoxelizeScene::UpdateBuffers(DX12Lib::CommandContext& context)
 {
-	auto voxelGridSize = m_data->VoxelGridSize;
+	auto voxelGridSize = m_data->GetVoxelGridSize();
 
 	UINT32 fragmentCount = *m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)VoxelBufferType::FragmentCounter);
 
@@ -73,8 +73,6 @@ void CVGI::VoxelizeScene::UpdateBuffers(DX12Lib::CommandContext& context)
 
 	// We can unmap the buffer now because ZeroBuffer will flush the command queue
 	voxelIndexUploader.Unmap();
-
-	m_cbVoxelCommons.StoreData = 1;
 }
 
 
@@ -89,21 +87,16 @@ void CVGI::VoxelizeScene::PerformTechnique(DX12Lib::GraphicsContext& context)
 	assert(m_voxelCamera != nullptr && m_voxelCamera->IsEnabled);
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(0, 0, 128), Name.c_str());
 
-	auto voxelSceneSize = m_data->VoxelGridSize;
+	auto voxelSceneSize = m_data->GetVoxelGridSize();
 
 	m_voxelScreenViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)voxelSceneSize.x, (float)voxelSceneSize.y, 0.0f, 1.0f);
 	m_voxelScissorRect = CD3DX12_RECT(0, 0, (LONG)voxelSceneSize.x, (LONG)voxelSceneSize.y);
-
-	m_cbVoxelCommons.voxelTextureDimensions = voxelSceneSize;
-	m_cbVoxelCommons.invVoxelTextureDimensions = DirectX::XMFLOAT3(1.0f / voxelSceneSize.x, 1.0f / voxelSceneSize.y, 1.0f / voxelSceneSize.z);
-	m_cbVoxelCommons.voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
-	m_cbVoxelCommons.invVoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 
 	TechniquePass(context);
 
 	UpdateBuffers(context);
 
-	m_cbVoxelCommons.StoreData = 1;
+	m_currentPass = 1;
 	TechniquePass(context);
 
 
@@ -134,11 +127,8 @@ void CVGI::VoxelizeScene::TechniquePass(DX12Lib::GraphicsContext& context)
 
 	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
-	m_cbVoxelCommons.totalTime = GameTime::GetTotalTime();
-	m_cbVoxelCommons.deltaTime = GameTime::GetDeltaTime();
-
 	context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
-		(UINT)VoxelizeSceneRootParameterSlot::VoxelCommonCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
+		(UINT)VoxelizeSceneRootParameterSlot::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());
 
 	assert(m_voxelCamera != nullptr && m_voxelCamera->IsEnabled);
 
@@ -146,6 +136,7 @@ void CVGI::VoxelizeScene::TechniquePass(DX12Lib::GraphicsContext& context)
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 		(UINT)VoxelizeSceneRootParameterSlot::VoxelCameraCBV, m_voxelCamera->GetCameraBuffer().GpuAddress());
 	
+	context.m_commandList->Get()->SetGraphicsRoot32BitConstant((UINT)VoxelizeSceneRootParameterSlot::VoxelConstantCBV, m_currentPass, 0);
 
 	context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
 		(UINT)VoxelizeSceneRootParameterSlot::MaterialSRV, Renderer::s_materialManager->GetMaterialStructuredBuffer().GpuAddress()
@@ -180,7 +171,6 @@ void CVGI::VoxelizeScene::DeleteTemporaryBuffers()
 
 	bufferManager.RemoveBuffer((UINT)VoxelBufferType::FragmentCounter);
 	bufferManager.RemoveBuffer((UINT)VoxelBufferType::VoxelCounter);
-	bufferManager.RemoveBuffer((UINT)VoxelBufferType::VoxelOccupied);
 	bufferManager.RemoveBuffer((UINT)VoxelBufferType::VoxelIndex);
 	bufferManager.RemoveBuffer((UINT)VoxelBufferType::HashedBuffer);
 }
@@ -194,6 +184,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelizeScene::BuildRootSignature(
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelCameraCBV].InitAsConstantBuffer(1);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::ObjectCBV].InitAsConstantBuffer(2);
+	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelConstantCBV].InitAsConstants(3, 1);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::MaterialSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
 	(*voxelizeSceneRootSignature)[(UINT)VoxelizeSceneRootParameterSlot::VoxelDataUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 7);

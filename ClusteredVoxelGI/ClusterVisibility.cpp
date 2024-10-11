@@ -42,7 +42,7 @@ void CVGI::ClusterVisibility::PerformTechnique(DX12Lib::ComputeContext& computeC
 	m_cbRayTracing.CurrentPhase = 0;
 	m_cbRayTracing.DispatchSize = dispatchSize;
 	m_cbRayTracing.NumberOfFaces = m_data->FaceCount;
-	m_cbRayTracing.GridDimension = m_data->VoxelGridSize;
+	m_cbRayTracing.GridDimension = m_data->GetVoxelGridSize();
 	m_cbRayTracing.Rand1 = MathHelper::RandF();
 	m_cbRayTracing.Rand2 = MathHelper::RandF();
 

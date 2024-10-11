@@ -14,7 +14,7 @@ namespace DX12Lib {
 	class Model
 	{
 	public:
-		Model() {}
+		Model() : m_minBounds(FLT_MAX, FLT_MAX, FLT_MAX), m_maxBounds(-FLT_MAX, -FLT_MAX, -FLT_MAX) {}
 		~Model() {}
 
 		void LoadFromFile(const aiScene* scene);
@@ -35,6 +35,8 @@ namespace DX12Lib {
 
 		void UseBuffers(CommandContext& context);
 
+		DX12Lib::AABB GetBounds() const { return AABB{ m_minBounds, m_maxBounds }; }
+
 	private:
 		void BuildVertexBuffer(UINT stride, UINT numVertices);
 		void BuildIndexBuffer(DXGI_FORMAT format, UINT numIndices);
@@ -49,6 +51,9 @@ namespace DX12Lib {
 
 		D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+
+		DirectX::XMFLOAT3 m_minBounds;
+		DirectX::XMFLOAT3 m_maxBounds;
 	};
 }
 

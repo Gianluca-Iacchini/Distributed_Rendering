@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include "RayTracingHelpers.h"
 #include "WinPixEventRuntime/pix3.h"
+#include "DX12Lib/Commons/MathHelper.h"
+#include "GraphicsMemory.h"
 
 namespace DX12Lib
 {
@@ -27,12 +29,7 @@ namespace CVGI
 		TechniqueData() { };
 		~TechniqueData() {};
 
-		BufferManager& GetBufferManager(std::wstring name)
-		{
-			auto it = m_bufferManagers.find(name);
-			assert(it != m_bufferManagers.end() && "Buffer Manager not found");
-			return *(it->second);
-		}
+		BufferManager& GetBufferManager(std::wstring name);
 
 		void AddBufferManager(std::wstring name, std::shared_ptr<BufferManager> bufferManager)
 		{
@@ -42,8 +39,21 @@ namespace CVGI
 		void SetTlas(std::unique_ptr<TopLevelAccelerationStructure>&& tlas) { m_tlas = std::move(tlas); }
 		const TopLevelAccelerationStructure* GetTlas() { return m_tlas.get(); }
 
+		DirectX::XMUINT3 GetVoxelGridSize() { return VoxelGridSize; }
+		DirectX::XMFLOAT3 GetVoxelCellSize() { return VoxelCellSize; }
+
+		void SetVoxelGridSize(DirectX::XMUINT3 size);
+
+		void SetVoxelCellSize(DirectX::XMFLOAT3 size);
+
+
+		void SetSceneAABB(DX12Lib::AABB aabb);
+
+		DX12Lib::AABB GetSceneAABB() { return SceneAABB; }
+
+		DirectX::GraphicsResource& GetVoxelCommonsResource();
+
 	public:
-		DirectX::XMUINT3 VoxelGridSize = DirectX::XMUINT3(128, 128, 128);
 		UINT32 VoxelCount = 0;
 		UINT32 FragmentCount = 0;
 		UINT32 ClusterCount = 0;
@@ -53,6 +63,11 @@ namespace CVGI
 	private:
 		std::unique_ptr<TopLevelAccelerationStructure> m_tlas;
 		std::unordered_map<std::wstring, std::shared_ptr<BufferManager>> m_bufferManagers;
+		DirectX::XMUINT3 VoxelGridSize = DirectX::XMUINT3(128, 128, 128);
+		DirectX::XMFLOAT3 VoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
+		DX12Lib::AABB SceneAABB;
+		ConstantBufferVoxelCommons m_cbVoxelCommons;
+		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 	};
 
 

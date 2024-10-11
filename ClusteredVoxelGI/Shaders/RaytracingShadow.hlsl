@@ -4,44 +4,19 @@
 #define HLSL
 #include "TechniquesCompat.h"
 #include "RaytracingUtils.hlsli"
+#include "VoxelUtils.hlsli"
 
-SamplerComparisonState gShadowSampler : register(s0);
-
-ConstantBuffer<ConstantBufferRTShadows> cbRaytracingShadows : register(b0);
-
-cbuffer cbCameraBuffer : register(b1)
-{
-    float4x4 view;
-    float4x4 invView;
-    float4x4 projection;
-    float4x4 invProjection;
-    float4x4 viewProjection;
-    float4x4 invViewProjection;
-    
-    float3 eyePosition;
-    float nearPlane;
-    
-    float farPlane;
-    float _pad0;
-    float _pad1;
-    float _pad2;
-};
+ConstantBuffer<ConstantBufferVoxelCommons> cbVoxelCommons : register(b0);
+ConstantBuffer<ConstantBufferRTShadows> cbRaytracingShadows : register(b1);
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
-
-Texture2D<float> gShadowMap : register(t1, space0);
 
 StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space1);
 StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
 StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 
-StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space2);
-StructuredBuffer<AABBInfo> gClusterAABBInfoBuffer : register(t1, space2);
-StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space2);
-
-StructuredBuffer<uint> gGeometryStartOffset : register(t0, space3);
-StructuredBuffer<uint> gAABBStartOffset : register(t1, space3);
+StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space2);
 
 RWByteAddressBuffer gVoxelShadowBuffer : register(u0, space0);
 RWByteAddressBuffer gTaaVoxelShadowBuffer : register(u1, space0);
@@ -58,140 +33,123 @@ struct Attributes
     uint voxelIdx;
 };
 
-float Random(float2 seed)
+float4x3 GetFaceEdgeMidpoints(float3 voxelCenter, float3 faceDirection)
 {
-    return frac(sin(dot(seed.xy, float2(12.9898, 78.233))) * 43758.5453);
-}
+    // Define the half-size offsets.
+    float3 right = float3(0.5f, 0.0f, 0.0f);
+    float3 up = float3(0.0f, 0.5f, 0.0f);
+    float3 forward = float3(0.0f, 0.0f, 0.5f);
 
-static const float JITTER_AMOUNT = 0.01f;
+    // Initialize a float3x4 to store the edge midpoints.
+    float4x3 edgeMidpoints;
 
-inline void GenerateOrthoCameraRay(float2 ndc, out float3 origin, out float3 direction)
-{
-    float4 screenPos = float4(ndc * float2(240.0f, 240.0f), 0.0f, 1.0f);
-    
-    // Orthobounds are 120, 120, but the voxel scene is bigger than the raster scene by a factor of 2
-    float3 worldPos = mul(screenPos, invView).xyz;
-    
-    // Jittering factor (scales the amount of jitter, adjust this value as needed)
+    // Determine midpoints based on face direction.
+    if (faceDirection.x != 0.0f)
+    {
+        // Left or right face.
+        edgeMidpoints[0] = faceDirection - up;
+        edgeMidpoints[1] = faceDirection + up;
+        edgeMidpoints[2] = faceDirection - forward;
+        edgeMidpoints[3] = faceDirection + forward;
+    }
+    else if (faceDirection.y != 0.0f)
+    {
+        // Top or bottom face.
+        edgeMidpoints[0] = faceDirection - right;
+        edgeMidpoints[1] = faceDirection + right;
+        edgeMidpoints[2] = faceDirection - forward;
+        edgeMidpoints[3] = faceDirection + forward;
+    }
+    else if (faceDirection.z != 0.0f)
+    {
+        // Front or back face.
+        edgeMidpoints[0] = faceDirection - right;
+        edgeMidpoints[1] = faceDirection + right;
+        edgeMidpoints[2] = faceDirection - up;
+        edgeMidpoints[3] = faceDirection + up;
+    }
 
-    float jitterDir = Random(float2(ndc.y, ndc.x) + 2.0f) * 2.0f - 1;
-    jitterDir *= 0.1f;
-    
-    origin = worldPos + eyePosition + cbRaytracingShadows.GridDimension / 2;
-    
-    direction = normalize(mul(float3(0.0f, 0.0f, 1.0f), (float3x3) invView));
-}
-
-
-void SetShadowVoxel(uint i)
-{
-    uint index = i / 32; // Calculate the 32-bit word index
-    uint bitPosition = i % 32; // Calculate the bit position within the word
-    
-    // Use InterlockedOr to set the bit
-    uint offset = index * 4; // Each 32-bit word is 4 bytes
-    
-    uint outValue = 0;
-    uint taaOut = 0;
-    
-    gVoxelShadowBuffer.InterlockedOr(offset, (1u << bitPosition), outValue);
-
+    return edgeMidpoints;
 }
 
 [shader("raygeneration")]
 void ShadowRaygen()
 {
-    float2 rayOffset = float2(cbRaytracingShadows.ShadowTexDimensions.xy) / float2(DispatchRaysDimensions().xy);
-    float2 rayStart = float2(DispatchRaysIndex().xy) * rayOffset;
-
-    // Generate a 2D random offset
-    float2 jitterOffset = float2(Random(rayStart), Random(rayStart + 1.0f));
-    jitterOffset = jitterOffset * 2.0f - 1.0f;
-    // Scale the jitter to make it a small offset
-    jitterOffset = (jitterOffset) * JITTER_AMOUNT; // Center it around 0 and scale
-        
-    float2 ndc = rayStart / cbRaytracingShadows.ShadowTexDimensions; // normalized [0, 1]
-    ndc = ndc * 2.0f - 1.0f; // normalized [-1, 1]
-    ndc.y *= -1.0f; // flip y-axis
+    float3 faceDirection[6] =
+    {
+        float3(0.0f, 0.0f, -0.5f),
+        float3(0.0f, 0.0f, 0.5f),
+        float3(-0.5f, 0.0f, 0.0f),
+        float3(0.5f, 0.0f, 0.0f),
+        float3(0.0f, -0.5f, 0.0f),
+        float3(0.0f, 0.5f, 0.0f),
+    };
+    
+    uint3 dispatchIdx = DispatchRaysIndex();
+    uint3 dispatchDim = DispatchRaysDimensions();
+    
+    uint faceIdx = GetLinearCoord(dispatchIdx, dispatchDim);
+    
+    if (faceIdx >= cbRaytracingShadows.FaceCount)
+        return;
+    
+    uint2 faceData = gVoxelFaceDataBuffer[faceIdx];
+    
+    float3 voxelCenter = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[faceData.x], cbVoxelCommons.voxelTextureDimensions));
     
     
-    float3 origin, direction;
-    GenerateOrthoCameraRay(ndc, origin, direction);
-        
-        // Define ray starting position and other parameters
+    // Define ray starting position and other parameters
     RayDesc ray;
-    ray.Origin = origin;
-    ray.Direction = direction;
+    // A face is half a voxel distant from the center, so we divide the face direction by 2. We also multiply by 1.1 to add
+    // a small offset to avoid self intersection
+    ray.Direction = -cbRaytracingShadows.LightDirection;
     ray.TMin = 0.001; // Start the ray slightly away from the origin
     ray.TMax = 1.#INF; // Max distance for the ray
-    Payload rayPayload = { -1 }; // Payload to store the index
-        
-    TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, rayPayload);
-        
-    uint idx = rayPayload.voxelIdx;
-        
-    if (idx == -1)
-        return;
-        
-    SetShadowVoxel(idx);
-       
-    GenerateOrthoCameraRay(ndc, origin, direction);
+    Payload rayPayload = { 1 }; // Payload to store the index
     
-    ray.Origin = origin;
-    ray.Direction = direction + jitterOffset.x + jitterOffset.y;
-    
-    rayPayload.voxelIdx = -1;
-    TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, rayPayload);
-    
-    idx = rayPayload.voxelIdx;
-        
-    if (idx == -1)
-        return;
-        
-    SetShadowVoxel(idx);
+    float3 points[5];
+    float3 faceDir = faceDirection[faceData.y] * 1.05f;
+    points[0] = voxelCenter + faceDir;
+    {
+        float4x3 edgeMidPoints = GetFaceEdgeMidpoints(voxelCenter, faceDir);
+        points[1] = voxelCenter + edgeMidPoints[0];
+        points[2] = voxelCenter + edgeMidPoints[1];
+        points[3] = voxelCenter + edgeMidPoints[2];
+        points[4] = voxelCenter + edgeMidPoints[3];
+    }
 
-}
-
-[shader("closesthit")]
-void ShadowClosestHit(inout Payload rayPayload, in Attributes attribs)
-{
-    uint idx = gAABBVoxelIndices[attribs.voxelIdx];
-    
-    rayPayload.voxelIdx = idx;
+    // Not much difference when tracing a ray from only the center of the face
+    // Or also from the edges midpoints.
+    for (uint i = 0; i < 1; i++)
+    {
+        ray.Origin = points[i];
+        if (!IsVoxelPresent(faceData.x, gVoxelShadowBuffer))
+        {
+            TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 0, 0, ray, rayPayload);
+            if (rayPayload.voxelIdx == 0)
+            {
+                SetVoxelPresence(faceData.x, gVoxelShadowBuffer);
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
 }
 
 [shader("miss")]
 void ShadowMiss(inout Payload rayPayload)
 {
-    rayPayload.voxelIdx = -1;
+    rayPayload.voxelIdx = 0;
 }
 
 [shader("intersection")]
 void ShadowIntersection()
 {
-    uint idx = gGeometryStartOffset[InstanceIndex()];
-    idx += GeometryIndex();
-    
-    idx = gAABBStartOffset[idx] + PrimitiveIndex();
-    
-    AABB aabb = gVoxelAABBBuffer[idx];
-
-    float3 aabbs[2] = { aabb.Min, aabb.Max };
-
-
-    float tMin;
-    float tMax;
-    
-    // Perform AABB intersection test
-    
-    if (RayAABBIntersectionTest(WorldRayOrigin(), WorldRayDirection(), aabbs, tMin, tMax))
-    {
-
-        Attributes attr;
-        attr.voxelIdx = idx;
-        
-        ReportHit(tMin, 0, attr); // Report the hit with hitT as tMin
-    }
+    Attributes attr = { 1 };
+    ReportHit(1.0f, 0, attr); // Report the hit with hitT as tMin
 }
 
 #endif // RAYTRACING_SHADOW_HLSL

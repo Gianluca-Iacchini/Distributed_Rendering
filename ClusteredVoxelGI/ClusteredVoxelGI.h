@@ -60,8 +60,6 @@ namespace CVGI
 		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
 		std::unique_ptr<LightVoxel> m_lightVoxel;
 
-
-		ConstantBufferVoxelCommons m_cbVoxelCommons;
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 
 		DX12Lib::TypedBuffer m_vertexBuffer;

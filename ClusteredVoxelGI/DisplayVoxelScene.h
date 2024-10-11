@@ -25,7 +25,6 @@ namespace CVGI
 		static const std::wstring Name;
 
 	private:
-		ConstantBufferVoxelCommons m_cbVoxelCommons;
 		DX12Lib::TypedBuffer m_vertexBuffer;
 		UINT64 m_vertexCount = 0;
 		DX12Lib::SceneCamera* m_camera = nullptr;
