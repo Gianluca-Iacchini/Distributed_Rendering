@@ -67,6 +67,8 @@ namespace CVGI
 			ClusterSRVBufferTable,
 			FaceVisibilitySRVBufferTable,
 			ShadowSRVBufferTable,
+			LightTransportSRVBufferTable,
+			IndirectSRVBufferTable,
 			Count
 		};
 	};

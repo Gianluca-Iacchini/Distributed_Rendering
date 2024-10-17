@@ -43,6 +43,8 @@ namespace DX12Lib {
 		void BindDescriptorHeaps();
 
 		void FlushResourceBarriers();
+		void InsertUAVBarrier(Resource& resource, bool flushImmediate = false);
+		void AddUAVIfNoBarriers(Resource& resource, bool flushImmediate = false);
 		UINT64 Flush(bool waitForCompletion = false);
 		UINT64 Finish(bool waitForCompletion = false);
 

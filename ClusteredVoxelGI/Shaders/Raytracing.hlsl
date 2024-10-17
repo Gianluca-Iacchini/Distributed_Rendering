@@ -40,20 +40,19 @@ StructuredBuffer<uint> gVoxelAssignmentBuffer : register(t2, space2);
 StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
 StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space4);
-StructuredBuffer<AABBInfo> gClusterAABBInfoBuffer : register(t1, space4);
+StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space4);
 StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space4);
 
-// Offset buffers used to map the raytracing primitive index to the voxel index
-RWStructuredBuffer<uint> gGeometryStartOffset : register(u0);
-RWStructuredBuffer<uint> gAABBStartOffset : register(u1);
+RWStructuredBuffer<uint2> gFaceClusterVisibility : register(u0);
+// Stores all the visible clusters for all the faces. Clusters visible from the same faced are stored in sequence.
+RWStructuredBuffer<uint> gVisibleClustersBuffer : register(u1);
 
+// Offset buffers used to map the raytracing primitive index to the voxel index
+RWStructuredBuffer<uint> gGeometryStartOffset : register(u2);
+RWStructuredBuffer<uint> gAABBStartOffset : register(u3);
 // For face at index i store in the x coordinate the start index in gVisibleClusterBuffer and in the y coordinate the number of visible
 // Clusters
-RWStructuredBuffer<uint2> gFaceClusterVisibility : register(u2);
-// Stores all the visible clusters for all the faces. Clusters visible from the same faced are stored in sequence.
-RWStructuredBuffer<uint> gVisibleClustersBuffer : register(u3);
-RWTexture2D<float4> RenderTarget : register(u4);
-RWStructuredBuffer<uint> gDebug : register(u5);
+RWStructuredBuffer<uint> gClusterCount : register(u4);
 
 static const float PI = 3.14159265359f;
 static const float EPSILON = 0.00001;
@@ -214,8 +213,6 @@ void MyRaygenShader()
     
     uint visibleClusterCount = 0;
     
-    uint2 faceClusterVisibility = gFaceClusterVisibility[faceIndex];
-    
     // Trace the ray
     for (uint i = 0; i < 128; i++)
     {
@@ -242,6 +239,7 @@ void MyRaygenShader()
         
         if (g_sceneCB.CurrentPhase == 1 && isNewCluster == 1)
         {
+            uint2 faceClusterVisibility = gFaceClusterVisibility[faceIndex];
             gVisibleClustersBuffer[faceClusterVisibility.x + visibleClusterCount] = clusterIndex;
         }
         
@@ -251,7 +249,7 @@ void MyRaygenShader()
     if (g_sceneCB.CurrentPhase == 0)
     {
         uint startIndex = 0;
-        InterlockedAdd(gDebug[0], visibleClusterCount, startIndex);
+        InterlockedAdd(gClusterCount[0], visibleClusterCount, startIndex);
         gFaceClusterVisibility[faceIndex] = uint2(startIndex, visibleClusterCount);
     }
 }

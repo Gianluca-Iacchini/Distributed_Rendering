@@ -141,64 +141,12 @@ bool SetVoxelPresence(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBu
     return (outVal & (1u << bit)) != 0;
 }
 
+
 bool SetVoxelPresence(uint3 voxelCoord, uint3 gridDimension, RWByteAddressBuffer voxelPresenceBuffer)
 {
     uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);
     return SetVoxelPresence(voxelLinearCoord, voxelPresenceBuffer);
 }
 
-float3 VoxelToWorld(float3 voxelCoord, float3 voxelCellSize, uint3 voxelGridDimension)
-{
-    float scale = max(voxelCellSize.x, voxelCellSize.y);
-    scale = max(scale, voxelCellSize.z);
-    
-    float3 voxelGridCenter = (float3(voxelGridDimension) * scale) * 0.5f;
-    
-    float3 position = (voxelCoord * scale) - voxelGridCenter;
-    
-    return position;
-}
-
-float3 VoxelToWorld(uint3 vCoord, float3 sceneAABBMin, float3 sceneAABBMax, uint3 voxelGridSize)
-{
-    float3 wsCoord = float3(vCoord);
-    wsCoord /= float3(voxelGridSize);
-    wsCoord *= (sceneAABBMax - sceneAABBMin);
-    wsCoord += sceneAABBMin;
-    wsCoord += (sceneAABBMax - sceneAABBMin) / float3(voxelGridSize) * 0.5;
-    return wsCoord;
-}
-
-float3 VoxelToWorld(uint3 vCoord, ConstantBufferVoxelCommons voxelCommons)
-{
-    float3 wsCoord = float3(vCoord);
-    wsCoord /= float3(voxelCommons.voxelTextureDimensions);
-    wsCoord *= (voxelCommons.SceneAABBMax - voxelCommons.SceneAABBMin);
-    wsCoord += voxelCommons.SceneAABBMin;
-    wsCoord += (voxelCommons.SceneAABBMax - voxelCommons.SceneAABBMin) / float3(voxelCommons.voxelTextureDimensions) * 0.5;
-    return wsCoord;
-}
-
-uint3 WorldToVoxel(float3 position, ConstantBufferVoxelCommons voxelCommons)
-{
-    float3 result = position;
-    result -= voxelCommons.SceneAABBMin;
-    result /= (voxelCommons.SceneAABBMax - voxelCommons.SceneAABBMin);    
-    result *= voxelCommons.voxelTextureDimensions;
-    
-
-    return uint3(uint(result.x), uint(result.y), uint(result.z));
-}
-
-uint3 WorldToVoxel(float3 position, float3 sceneAABBMin, float3 sceneAABBMax, uint3 voxelGridSize)
-{
-    float3 result = position;
-    result -= sceneAABBMin;
-    result /= (sceneAABBMax - sceneAABBMin);
-    result *= voxelGridSize;
-    
-
-    return uint3(uint(result.x), uint(result.y), uint(result.z));
-}
 
 #endif // VOXEL_UTILS

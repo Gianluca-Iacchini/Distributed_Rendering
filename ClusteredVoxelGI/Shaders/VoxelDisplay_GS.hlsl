@@ -42,7 +42,10 @@ StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
 ByteAddressBuffer gVoxelShadowBuffer : register(t0, space4);
 ByteAddressBuffer gClusterShadowBuffer : register(t1, space4);
-//StructuredBuffer<uint> gVoxelShadowBuffer : register(t0, space4);
+
+ByteAddressBuffer gVoxelVisibleBuffer : register(t0, space5);
+
+StructuredBuffer<float> gVoxelRadianceBuffer : register(t0, space6);
 
 
 uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
@@ -209,12 +212,18 @@ void GS(
     //uint clusterIndex = gClusterAssignmentBuffer[faceData.x];
     //avgColor.xyz = LinearIndexToColor(clusterIndex);
     
+    avgColor.xyz = gVoxelRadianceBuffer[faceData.x];
     bool isLit = IsVoxelPresent(faceData.x, gVoxelShadowBuffer);
     
     if (isLit)
-        avgColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    else
-        avgColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        avgColor.xyz = 1.0f;
+    
+    //bool isLit = IsVoxelPresent(faceData.x, gVoxelVisibleBuffer);
+    
+    //if (isLit)
+    //    avgColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    //else
+    //    avgColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
     
     
     [unroll]
@@ -222,25 +231,22 @@ void GS(
     {
         PSInput output;
         
-        //float3 v1 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i)]] + position;
-        float3 v1 = VoxelToWorld(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i)]], cbVoxelCommons);
-        //float3 v2 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]] + position;
-        float3 v2 = VoxelToWorld(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]], cbVoxelCommons);
-        float3 v3 = VoxelToWorld(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]], cbVoxelCommons);
-        //float3 v3 = scale * cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]] + position;
+        float4 v1 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i)]], 1.0f), cbVoxelCommons.VoxelToWorld);
+        float4 v2 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]], 1.0f), cbVoxelCommons.VoxelToWorld);
+        float4 v3 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]], 1.0f), cbVoxelCommons.VoxelToWorld);
         
-        float3 normal = normalize(cross(v2 - v1, v3 - v1));
+        float3 normal = normalize(cross(v2.xyz - v1.xyz, v3.xyz - v1.xyz));
         output.normal = normal;
         output.color = avgColor.xyz;
         output.ClusterIndex = 1;
         
-        output.position = mul(float4(v1, 1.0f), camera.ViewProj);
+        output.position = mul(v1, camera.ViewProj);
         triOutput.Append(output);
         
-        output.position = mul(float4(v2, 1.0f), camera.ViewProj);
+        output.position = mul(v2, camera.ViewProj);
         triOutput.Append(output);
         
-        output.position = mul(float4(v3, 1.0f), camera.ViewProj);
+        output.position = mul(v3, camera.ViewProj);
         triOutput.Append(output);
         
         triOutput.RestartStrip();

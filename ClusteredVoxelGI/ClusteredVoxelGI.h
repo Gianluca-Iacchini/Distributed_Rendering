@@ -18,6 +18,7 @@
 #include "BuildAABBsTechnique.h"
 #include "DX12Lib/Scene/LightComponent.h"
 #include "Technique.h"
+#include "LightTransportTechnique.h"
 
 #include "LightVoxel.h"
 
@@ -59,6 +60,7 @@ namespace CVGI
 		std::unique_ptr<FaceCountTechnique> m_faceCountTechnique;
 		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
 		std::unique_ptr<LightVoxel> m_lightVoxel;
+		std::unique_ptr<LightTransportTechnique> m_lightTransportTechnique;
 
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 

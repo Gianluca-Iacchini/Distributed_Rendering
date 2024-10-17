@@ -40,6 +40,8 @@ namespace CVGI
 		DX12Lib::DescriptorHandle& GetUAVHandle() { return m_uavHandle; }
 		DX12Lib::DescriptorHandle& GetSRVHandle() { return m_srvHandle; }
 
+		UINT GetBufferCount() { return m_buffers.size(); }
+
 		template<typename T>
 		inline T ReadFromBuffer(DX12Lib::CommandContext& context, UINT bufferIndex, UINT32 bufferSize = 0);
 

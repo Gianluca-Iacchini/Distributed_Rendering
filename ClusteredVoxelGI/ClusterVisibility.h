@@ -58,6 +58,17 @@ namespace CVGI
 			RayTraceUAVTable,
 			Count
 		};
+
+		enum class BufferType
+		{
+			FaceClusterVisibility = 0,
+			VisibleCluster = 1,
+			GeometryOffset,
+			AABBOffset,
+			ClusterCount,
+			Count
+		};
+		
 	};
 
 }

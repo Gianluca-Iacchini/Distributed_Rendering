@@ -46,6 +46,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_faceCountTechnique = std::make_unique<FaceCountTechnique>(m_data);
 	m_buildAABBsTechnique = std::make_unique<BuildAABBsTechnique>(m_data);
 	m_lightVoxel = std::make_unique<LightVoxel>(m_data);
+	m_lightTransportTechnique = std::make_unique<LightTransportTechnique>(m_data);
 
 
 
@@ -69,6 +70,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	auto lightVoxelPso = m_lightVoxel->BuildPipelineState();
 
+	auto lightTransportPso = m_lightTransportTechnique->BuildPipelineState();
+
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
@@ -78,6 +81,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	Renderer::s_PSOs[aabbGenerationPso->Name] = aabbGenerationPso;
 	Renderer::s_PSOs[raytracePso->Name] = raytracePso;
 	Renderer::s_PSOs[lightVoxelPso->Name] = lightVoxelPso;
+	Renderer::s_PSOs[lightTransportPso->Name] = lightTransportPso;
 
 
 	m_voxelizeScene->InitializeBuffers();
@@ -122,7 +126,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_data->SetVoxelCellSize(voxelCellSize);
 	m_data->SetSceneAABB(sceneBounds);
+	m_data->SetCamera(m_Scene->GetMainCamera());
 
+	m_data->BuildMatrices();
 
 	DXLIB_CORE_INFO("Scene bounds found at: Min: {0} {1} {2}; Max: {3} {4} {5}",
 				sceneBounds.Min.x, sceneBounds.Min.y, sceneBounds.Min.z,
@@ -166,6 +172,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_clusterVisibility->PerformTechnique(computeContext);
 
+	m_lightTransportTechnique->InitializeBuffers();
 
 	m_lightVoxel->InitializeBuffers();
 
@@ -206,6 +213,8 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 	RayTracingContext& context = RayTracingContext::Begin();
 	m_lightVoxel->PerformTechnique(context);
+
+	m_lightTransportTechnique->PerformTechnique(context);
 
 	context.Finish();
 

@@ -119,6 +119,7 @@ namespace DX12Lib {
 		virtual void Use(CommandList& commandList) const override;
 
 		void SetComputeShader(std::shared_ptr<Shader> computeShader);
+		void SetComputeShader(const D3D12_SHADER_BYTECODE& computeShader);
 
 		void Finalize();
 

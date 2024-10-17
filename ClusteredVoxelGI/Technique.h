@@ -36,6 +36,9 @@ namespace CVGI
 			m_bufferManagers[name] = bufferManager;
 		}
 
+		void SetCamera(DX12Lib::SceneCamera* camera) { m_sceneCamera = camera; }
+		DX12Lib::SceneCamera* GetCamera() const { return m_sceneCamera; }
+
 		void SetTlas(std::unique_ptr<TopLevelAccelerationStructure>&& tlas) { m_tlas = std::move(tlas); }
 		const TopLevelAccelerationStructure* GetTlas() { return m_tlas.get(); }
 
@@ -43,21 +46,31 @@ namespace CVGI
 		DirectX::XMFLOAT3 GetVoxelCellSize() { return VoxelCellSize; }
 
 		void SetVoxelGridSize(DirectX::XMUINT3 size);
-
 		void SetVoxelCellSize(DirectX::XMFLOAT3 size);
 
-
 		void SetSceneAABB(DX12Lib::AABB aabb);
-
 		DX12Lib::AABB GetSceneAABB() { return SceneAABB; }
 
+		const DirectX::XMFLOAT4X4& GetVoxelToWorldMatrix() const { return m_cbVoxelCommons.VoxelToWorld; }
+		const DirectX::XMFLOAT4X4& GetWorldToVoxelMatrix() const { return m_cbVoxelCommons.WorldToVoxel; }
+
 		DirectX::GraphicsResource& GetVoxelCommonsResource();
+
+		void BuildMatrices();
+
+	private:
+		DirectX::XMMATRIX BuildVoxelToWorldMatrix();
 
 	public:
 		UINT32 VoxelCount = 0;
 		UINT32 FragmentCount = 0;
+
 		UINT32 ClusterCount = 0;
 		UINT32 MergedClusterCount = 0;
+		
+		// Number of AABB groups that compose a single geometry
+		UINT32 AABBGeometryGroupCount = 0;
+
 		UINT32 FaceCount = 0;
 
 	private:
@@ -68,6 +81,7 @@ namespace CVGI
 		DX12Lib::AABB SceneAABB;
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
+		DX12Lib::SceneCamera* m_sceneCamera = nullptr;
 	};
 
 

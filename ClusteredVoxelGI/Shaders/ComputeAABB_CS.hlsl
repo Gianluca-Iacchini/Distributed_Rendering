@@ -16,7 +16,7 @@ StructuredBuffer<uint> gNextVoxelInClusterBuffer : register(t1, space1);
 StructuredBuffer<uint> gVoxelAssignmentBuffer : register(t2, space1);
 
 RWStructuredBuffer<AABB> gVoxelAABBBuffer : register(u0, space0);
-RWStructuredBuffer<AABBInfo> gClusterAABBInfoBuffer : register(u1, space0);
+RWStructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(u1, space0);
 // Map from aabbVoxelIndices to gVoxelIndicesCompactBuffer.
 RWStructuredBuffer<uint> gAABBVoxelIndices : register(u2, space0);
 // Buffer used to create offsets for aabb indices.
@@ -35,6 +35,8 @@ groupshared uint voxelCount[2] = { 0, 0 };
 // Store the start index of the aabb group.
 groupshared uint aabbStart = 0;
 
+groupshared uint3 minAABB;
+groupshared uint3 maxAABB;
 
 uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 {
@@ -92,6 +94,8 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint GroupThreadIndex : SV_GroupIndex
     
     if (GroupThreadIndex == 0)
     {
+        minAABB = uint3(cbAABB.GridDimension) + 2;
+        maxAABB = uint3(0, 0, 0);
         InterlockedAdd(gAABBCounter[0], voxelCount[0], aabbStart);
     }
     
@@ -103,14 +107,23 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint GroupThreadIndex : SV_GroupIndex
     if (result.y  == 1)
     {
         uint3 voxelCoord = DTid;
-        voxelCoord.y = voxelCoord.y;
-    
+
+        InterlockedMin(minAABB.x, voxelCoord.x);
+        InterlockedMin(minAABB.y, voxelCoord.y);
+        InterlockedMin(minAABB.z, voxelCoord.z);
+        
+        InterlockedMax(maxAABB.x, voxelCoord.x);
+        InterlockedMax(maxAABB.y, voxelCoord.y);
+        InterlockedMax(maxAABB.z, voxelCoord.z);
+        
         AABB voxelAABB;
         voxelAABB.Min = voxelCoord - float3(0.5f, 0.5f, 0.5f);
         voxelAABB.Max = voxelCoord + float3(0.5f, 0.5f, 0.5f);
         gVoxelAABBBuffer[aabbStart + originalValue] = voxelAABB;
         gAABBVoxelIndices[aabbStart + originalValue] = result.x;
     }
+    
+    GroupMemoryBarrierWithGroupSync();
     
     if (GroupThreadIndex == 0)
     {
@@ -119,7 +132,13 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint GroupThreadIndex : SV_GroupIndex
             uint aabbGroupIdx = 0;
             InterlockedAdd(gAABBGridCount[0], 1, aabbGroupIdx);
         
-            AABBInfo info = { aabbStart, voxelCount[0], 0.0f, 0.0f };
+            ClusterAABBInfo info;
+            info.Min = float3(minAABB) - float3(0.5f, 0.5f, 0.5f);
+            info.ClusterStartIndex = aabbStart;
+            info.Max = float3(maxAABB) + float3(0.5f, 0.5f, 0.5f);
+            info.ClusterElementCount = voxelCount[0];
+            
+            
             gClusterAABBInfoBuffer[aabbGroupIdx] = info;
         }
     }

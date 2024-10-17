@@ -51,31 +51,34 @@ void CVGI::AccelerationStructure::CreateDerivedViews()
 
 }
 
-void CVGI::BottomLevelAccelerationStructure::AddGeometry(UINT count, D3D12_GPU_VIRTUAL_ADDRESS startAddress, size_t stride)
+void CVGI::BottomLevelAccelerationStructure::AddGeometry(UINT count, D3D12_GPU_VIRTUAL_ADDRESS startAddress, size_t stride, AABB aabb)
 {
+	m_geometries.push_back(BLASGeometry(count, startAddress, stride, aabb));
+}
 
-	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
-
-	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
-	geometryDesc.AABBs.AABBCount = count;
-	geometryDesc.AABBs.AABBs.StartAddress = startAddress;
-	geometryDesc.AABBs.AABBs.StrideInBytes = stride;
-	geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-
-	m_geometryDescs.push_back(geometryDesc);
+void CVGI::BottomLevelAccelerationStructure::AddGeometry(BLASGeometry& geometry)
+{
+	m_geometries.push_back(geometry);
 }
 
 void CVGI::BottomLevelAccelerationStructure::Build(DX12Lib::CommandContext& context)
 {
-	assert(m_geometryDescs.size() > 0 && "Error building BLAS with no geometry");
+	assert(m_geometries.size() > 0 && "Error building BLAS with no geometry");
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS blasInputs = {};
 
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs(m_geometries.size());
+
+	for (unsigned int i = 0; i < m_geometries.size(); i++)
+	{
+		geometryDescs[i] = m_geometries[i].GetGeometryDesc();
+	}
+
 	blasInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	blasInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-	blasInputs.NumDescs = static_cast<UINT>(m_geometryDescs.size());
+	blasInputs.NumDescs = static_cast<UINT>(geometryDescs.size());
 	blasInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-	blasInputs.pGeometryDescs = m_geometryDescs.data();
+	blasInputs.pGeometryDescs = geometryDescs.data();
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 	Graphics::s_device->GetDXR()->GetRaytracingAccelerationStructurePrebuildInfo(&blasInputs, &prebuildInfo);
@@ -198,4 +201,51 @@ void CVGI::RayTracingContext::DispatchRays3D(UINT width, UINT height, UINT depth
 
 		m_commandList->GetDXR()->DispatchRays(&dispatchDesc);
 	}
+}
+
+CVGI::BLASGeometry::BLASGeometry(UINT count, D3D12_GPU_VIRTUAL_ADDRESS startAddress, size_t stride) 
+	: m_geometryAABB{ DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), DirectX::XMFLOAT3(0.5f, 0.5f, 0.5f) }
+{
+	m_geometryDesc = {};
+
+	m_geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+	m_geometryDesc.AABBs.AABBCount = count;
+	m_geometryDesc.AABBs.AABBs.StartAddress = startAddress;
+	m_geometryDesc.AABBs.AABBs.StrideInBytes = stride;
+	m_geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+}
+
+CVGI::BLASGeometry::BLASGeometry(UINT count, D3D12_GPU_VIRTUAL_ADDRESS startAddress, size_t stride, AABB& aabb)
+	: m_geometryAABB(aabb)
+{
+	m_geometryDesc = {};
+
+	m_geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+	m_geometryDesc.AABBs.AABBCount = count;
+	m_geometryDesc.AABBs.AABBs.StartAddress = startAddress;
+	m_geometryDesc.AABBs.AABBs.StrideInBytes = stride;
+	m_geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+}
+
+CVGI::BLASGeometry::BLASGeometry(UINT count, D3D12_GPU_VIRTUAL_ADDRESS startAddress, size_t stride, DirectX::XMFLOAT3 min, DirectX::XMFLOAT3 max)
+	: m_geometryAABB{ min, max }
+{
+	m_geometryDesc = {};
+
+	m_geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+	m_geometryDesc.AABBs.AABBCount = count;
+	m_geometryDesc.AABBs.AABBs.StartAddress = startAddress;
+	m_geometryDesc.AABBs.AABBs.StrideInBytes = stride;
+	m_geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+}
+
+void CVGI::BLASGeometry::SetGeometryDesc(UINT count, D3D12_GPU_VIRTUAL_ADDRESS startAddress, size_t stride)
+{
+	m_geometryDesc = {};
+
+	m_geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+	m_geometryDesc.AABBs.AABBCount = count;
+	m_geometryDesc.AABBs.AABBs.StartAddress = startAddress;
+	m_geometryDesc.AABBs.AABBs.StrideInBytes = stride;
+	m_geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 }

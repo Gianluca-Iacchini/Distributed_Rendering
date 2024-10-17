@@ -25,6 +25,7 @@ namespace CVGI
 		ShadowCommonCBV = 1,
 		AccelerationStructureSRV = 2,
 		PrefixSumBufferSRV,
+		ClusterVoxelBufferSRV,
 		FaceBufferSRV,
 		RayTraceShadowTableUAV,
 		Count

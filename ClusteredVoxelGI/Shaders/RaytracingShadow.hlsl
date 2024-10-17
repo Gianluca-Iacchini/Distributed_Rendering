@@ -16,10 +16,14 @@ StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
 StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space2);
+StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
+StructuredBuffer<uint> gNextVoxelLinkedList : register(t1, space2);
+StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space2);
 
-RWByteAddressBuffer gVoxelShadowBuffer : register(u0, space0);
-RWByteAddressBuffer gTaaVoxelShadowBuffer : register(u1, space0);
+StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
+
+RWByteAddressBuffer gVoxelLitBuffer : register(u0, space0);
+RWByteAddressBuffer gClusterLitBuffer : register(u1, space0);
 
 
 
@@ -103,12 +107,17 @@ void ShadowRaygen()
     // A face is half a voxel distant from the center, so we divide the face direction by 2. We also multiply by 1.1 to add
     // a small offset to avoid self intersection
     ray.Direction = -cbRaytracingShadows.LightDirection;
-    ray.TMin = 0.001; // Start the ray slightly away from the origin
-    ray.TMax = 1.#INF; // Max distance for the ray
+    // Start the ray slightly away from the origin 
+    // TODO: check if this value is okay or can be improved
+    ray.TMin = 0.5f; 
+    // Chebyshev Distance (1.74 is an approximation of sqrt(3));
+    // This is an approximation of the scene diagonal, which is the maximum distance a ray can travel for a hit.
+    ray.TMax = max(max(cbVoxelCommons.voxelTextureDimensions.x, cbVoxelCommons.voxelTextureDimensions.y), cbVoxelCommons.voxelTextureDimensions.z);
+    ray.TMax *= 1.74f; 
     Payload rayPayload = { 1 }; // Payload to store the index
     
     float3 points[5];
-    float3 faceDir = faceDirection[faceData.y] * 1.05f;
+    float3 faceDir = faceDirection[faceData.y];
     points[0] = voxelCenter + faceDir;
     {
         float4x3 edgeMidPoints = GetFaceEdgeMidpoints(voxelCenter, faceDir);
@@ -123,12 +132,13 @@ void ShadowRaygen()
     for (uint i = 0; i < 1; i++)
     {
         ray.Origin = points[i];
-        if (!IsVoxelPresent(faceData.x, gVoxelShadowBuffer))
+        if (!IsVoxelPresent(faceData.x, gVoxelLitBuffer))
         {
             TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 0, 0, ray, rayPayload);
             if (rayPayload.voxelIdx == 0)
             {
-                SetVoxelPresence(faceData.x, gVoxelShadowBuffer);
+                SetVoxelPresence(faceData.x, gVoxelLitBuffer);
+                SetVoxelPresence(gVoxelAssignmentMap[faceData.x], gClusterLitBuffer);
                 break;
             }
         }
@@ -137,6 +147,7 @@ void ShadowRaygen()
             break;
         }
     }
+    
 }
 
 [shader("miss")]

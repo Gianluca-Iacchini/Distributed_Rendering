@@ -136,6 +136,11 @@ void DX12Lib::ComputePipelineState::SetComputeShader(std::shared_ptr<Shader> com
 	m_psoDesc.CS = CD3DX12_SHADER_BYTECODE(m_computeShader->GetShaderByteBlob().Get());
 }
 
+void DX12Lib::ComputePipelineState::SetComputeShader(const D3D12_SHADER_BYTECODE& computeShader)
+{
+	m_psoDesc.CS = computeShader;
+}
+
 void DX12Lib::ComputePipelineState::Finalize()
 {
 	m_psoDesc.pRootSignature = m_rootSignature->Get();

@@ -6,6 +6,15 @@
 #define XMFLOAT4X4 float4x4
 #define XMUINT2 uint2
 #define XMUINT3 uint3 /* I don't know why, but this won't work if i define it in the HlslCompat.h file */
+
+// AABB is already defined in MathHelper.h so we don't need to redefine it for the c++ side;
+// However we need to define it for the hlsl files.
+struct AABB
+{
+	float3 Min;
+	float3 Max;
+};
+
 #else
 
 #include <directx/d3d12.h>
@@ -16,7 +25,6 @@ using namespace DirectX;
 
 struct ConstantBufferVoxelCommons
 {
-
 	XMUINT3 voxelTextureDimensions;
 	float totalTime;
 
@@ -34,6 +42,9 @@ struct ConstantBufferVoxelCommons
 
 	XMFLOAT3 SceneAABBMax;
 	float pad3;
+
+	XMFLOAT4X4 VoxelToWorld;
+	XMFLOAT4X4 WorldToVoxel;
 };
 
 struct ConstantBufferCompactBuffer
@@ -110,21 +121,36 @@ struct ConstantBufferAABBGeneration
 	UINT ClusterCount;
 };
 
-
-
-struct AABBInfo
+struct ConstantBufferFrustumCulling
 {
-	UINT ClusterStartIndex;
-	UINT ClusterElementCount;
+	XMFLOAT4 FrustumPlanes[6];
+
+	XMFLOAT3 CameraPosition;
+	UINT AABBGroupCount;
+
+	UINT CurrentStep;
+	UINT VoxelCount;
 	float pad0;
 	float pad1;
 };
 
-struct AABB
+struct ConstantBufferIndirectLightTransport
+{
+	UINT VoxelCount;
+	float pad0;
+	float pad1;
+	float pad2;
+};
+
+struct ClusterAABBInfo
 {
 	XMFLOAT3 Min;
+	UINT ClusterStartIndex;
 	XMFLOAT3 Max;
+	UINT ClusterElementCount;
 };
+
+
 
 
 

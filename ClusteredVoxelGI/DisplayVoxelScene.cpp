@@ -7,6 +7,7 @@
 #include "ClusterVoxels.h"
 #include "FaceCountTechnique.h"
 #include "LightVoxel.h"
+#include "LightTransportTechnique.h"
 
 using namespace CVGI;
 using namespace DX12Lib;
@@ -69,16 +70,21 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 {
 	auto& currentBackBuffer = Graphics::Renderer::GetCurrentBackBuffer();
 
-	auto voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
-	auto compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
-	auto clusterBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
-	auto faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
-	auto shadowBufferManager = m_data->GetBufferManager(LightVoxel::Name);
+	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
+	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
+	auto& clusterBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
+	auto& faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
+	auto& shadowBufferManager = m_data->GetBufferManager(LightVoxel::Name);
+	auto& lightTransportBufferManager = m_data->GetBufferManager(LightTransportTechnique::Name);
+	auto& indirectBufferManager = m_data->GetBufferManager(LightTransportTechnique::IndirectName);
 
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	faceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	shadowBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	lightTransportBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	indirectBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	
 
 	context.TransitionResource(m_vertexBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 	context.TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
@@ -111,8 +117,14 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 		(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable, faceBufferManager.GetSRVHandle());
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable, shadowBufferManager.GetSRVHandle());
+		(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable, shadowBufferManager.GetSRVHandle());	
 	
+	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+		(UINT)DisplayVoxelRootParameterSlot::LightTransportSRVBufferTable, lightTransportBufferManager.GetSRVHandle());
+	
+	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+		(UINT)DisplayVoxelRootParameterSlot::IndirectSRVBufferTable, indirectBufferManager.GetSRVHandle());
+
 
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = m_vertexBuffer.VertexBufferView();
 
@@ -136,6 +148,8 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::DisplayVoxelScene::BuildRootSignat
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ClusterSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 4);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::LightTransportSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::IndirectSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 6);
 	displayVoxelRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return displayVoxelRootSignature;

@@ -19,12 +19,12 @@ using namespace Graphics;
 
 void CVGI::ClusterVisibility::InitializeBuffers()
 {
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
 
 	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
 	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
-	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
-	m_bufferManager->AddStructuredBuffer(1, sizeof(UINT32));
-	m_bufferManager->Add2DTextureBuffer(Renderer::s_clientWidth, Renderer::s_clientHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
 	m_bufferManager->AddByteAddressBuffer();
 
 	m_bufferManager->AllocateBuffers();
@@ -50,10 +50,10 @@ void CVGI::ClusterVisibility::PerformTechnique(DX12Lib::ComputeContext& computeC
 
 	TechniquePass(context, dispatchSize);
 
-	UINT32 visibleClusterCount = *m_bufferManager->ReadFromBuffer<UINT32*>(context, 5);
+	UINT32 visibleClusterCount = *m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)BufferType::ClusterCount);
 
 
-	m_bufferManager->ResizeBuffer(3, visibleClusterCount);
+	m_bufferManager->ResizeBuffer((UINT)BufferType::VisibleCluster, visibleClusterCount);
 
 
 	m_cbRayTracing.CurrentPhase = 1;
@@ -100,7 +100,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusterVisibility::BuildRootSignat
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::ClusterSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::FaceSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::AABBSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 4);
-	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::RayTraceUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 6);
+	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::RayTraceUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 
 
 	rayTracingRootSignature->Finalize();
@@ -144,17 +144,17 @@ std::unique_ptr<TopLevelAccelerationStructure> CVGI::ClusterVisibility::BuildAcc
 	auto& aabbBufferManager = m_data->GetBufferManager(BuildAABBsTechnique::Name);
 	UINT32 gridOccupiedCount = *aabbBufferManager.ReadFromBuffer<UINT32*>(context, 4);
 
-	std::vector<AABBInfo> clusterAABBInfo(gridOccupiedCount);
+	std::vector<ClusterAABBInfo> clusterAABBInfo(gridOccupiedCount);
 
 	GPUBuffer& aabbBuffer = aabbBufferManager.GetBuffer(0);
 	// Not flushing because ReadFromBuffer will do it
 	context.TransitionResource(aabbBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	UINT32 buffSize = gridOccupiedCount * sizeof(AABBInfo);
+	UINT32 buffSize = gridOccupiedCount * sizeof(ClusterAABBInfo);
 
-	memcpy(clusterAABBInfo.data(), aabbBufferManager.ReadFromBuffer<AABBInfo*>(context, 1, buffSize), buffSize);
+	memcpy(clusterAABBInfo.data(), aabbBufferManager.ReadFromBuffer<ClusterAABBInfo*>(context, 1, buffSize), buffSize);
 
-	std::erase_if(clusterAABBInfo, [](const AABBInfo& element) {
+	std::erase_if(clusterAABBInfo, [](const ClusterAABBInfo& element) {
 		return element.ClusterElementCount == 0;
 		});
 
@@ -177,10 +177,13 @@ std::unique_ptr<TopLevelAccelerationStructure> CVGI::ClusterVisibility::BuildAcc
 
 		for (UINT i = 0; i < numGeometries; i++)
 		{
-			geometryDataBuffer[idx + i] = clusterAABBInfo[idx + i].ClusterStartIndex;
-			blas->AddGeometry(clusterAABBInfo[idx + i].ClusterElementCount,
-				aabbBuffer.GetGpuVirtualAddress() + clusterAABBInfo[idx + i].ClusterStartIndex * sizeof(AABB),
-				sizeof(AABB));
+			auto& clusterInfo = clusterAABBInfo[idx + i];
+
+			geometryDataBuffer[idx + i] = clusterInfo.ClusterStartIndex;
+
+			blas->AddGeometry(clusterInfo.ClusterElementCount,
+				aabbBuffer.GetGpuVirtualAddress() + clusterInfo.ClusterStartIndex * sizeof(AABB),
+				sizeof(AABB), AABB(clusterInfo.Min, clusterInfo.Max));
 		}
 
 		blas->Build(context);
@@ -201,8 +204,8 @@ std::unique_ptr<TopLevelAccelerationStructure> CVGI::ClusterVisibility::BuildAcc
 
 	UINT blasCount = tlas->GetBLASCount();
 
-	m_bufferManager->ResizeBuffer(0, blasDataBuffer.size());
-	m_bufferManager->ResizeBuffer(1, clusterAABBInfo.size());
+	m_bufferManager->ResizeBuffer((UINT)BufferType::GeometryOffset, blasDataBuffer.size());
+	m_bufferManager->ResizeBuffer((UINT)BufferType::AABBOffset, clusterAABBInfo.size());
 
 	UploadBuffer geometryDataBufferUpload;
 	geometryDataBufferUpload.Create(geometryDataBuffer.size() * sizeof(UINT32));
@@ -214,8 +217,8 @@ std::unique_ptr<TopLevelAccelerationStructure> CVGI::ClusterVisibility::BuildAcc
 	memcpy(geometryDataBufferUpload.Map(), geometryDataBuffer.data(), geometryDataBuffer.size() * sizeof(UINT32));
 
 
-	context.CopyBuffer(m_bufferManager->GetBuffer(0), blasDataBufferUpload);
-	context.CopyBuffer(m_bufferManager->GetBuffer(1), geometryDataBufferUpload);
+	context.CopyBuffer(m_bufferManager->GetBuffer((UINT)BufferType::GeometryOffset), blasDataBufferUpload);
+	context.CopyBuffer(m_bufferManager->GetBuffer((UINT)BufferType::AABBOffset), geometryDataBufferUpload);
 	context.Flush(true);
 
 	geometryDataBufferUpload.Unmap();

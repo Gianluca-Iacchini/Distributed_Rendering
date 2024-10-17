@@ -134,6 +134,26 @@ void CommandContext::FlushResourceBarriers()
 	}
 }
 
+void DX12Lib::CommandContext::InsertUAVBarrier(Resource& resource, bool flushImmediate)
+{
+	D3D12_RESOURCE_BARRIER barrierDesc = {};
+	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrierDesc.UAV.pResource = resource.Get();
+	m_commandList->Get()->ResourceBarrier(1, &barrierDesc);
+	if (flushImmediate)
+	{
+		FlushResourceBarriers();
+	}
+}
+
+void DX12Lib::CommandContext::AddUAVIfNoBarriers(Resource& resource, bool flushImmediate)
+{
+	if (m_numBarriersToFlush == 0)
+	{
+		InsertUAVBarrier(resource, flushImmediate);
+	}
+}
+
 void CommandContext::InitializeTexture(Resource& dest, UINT numSubresources, D3D12_SUBRESOURCE_DATA subresources[])
 {
 	UINT64 uploadBufferSize = GetRequiredIntermediateSize(dest.Get(), 0, numSubresources);
