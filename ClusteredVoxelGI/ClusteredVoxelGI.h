@@ -13,12 +13,15 @@
 #include "PrefixSumVoxels.h"
 #include "ClusterVoxels.h"
 #include "MergeClusters.h"
+#include "ComputeNeighboursTechnique.h"
 #include "ClusterVisibility.h"
 #include "FaceCountTechnique.h"
 #include "BuildAABBsTechnique.h"
+#include "FacePenaltyTechnique.h"
 #include "DX12Lib/Scene/LightComponent.h"
 #include "Technique.h"
 #include "LightTransportTechnique.h"
+#include "GaussianFilterTechnique.h"
 
 #include "LightVoxel.h"
 
@@ -56,11 +59,15 @@ namespace CVGI
 		std::unique_ptr<PrefixSumVoxels> m_prefixSumVoxels;
 		std::unique_ptr<ClusterVoxels> m_clusterVoxels;
 		std::unique_ptr<MergeClusters> m_mergeClusters;
+		std::unique_ptr<ComputeNeighboursTechnique> m_computeNeighboursTechnique;
 		std::unique_ptr<ClusterVisibility> m_clusterVisibility;
 		std::unique_ptr<FaceCountTechnique> m_faceCountTechnique;
 		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
+		std::unique_ptr<FacePenaltyTechnique> m_facePenaltyTechnique;
 		std::unique_ptr<LightVoxel> m_lightVoxel;
 		std::unique_ptr<LightTransportTechnique> m_lightTransportTechnique;
+		std::unique_ptr<GaussianFilterTechnique> m_gaussianFilterTechnique;
+
 
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 

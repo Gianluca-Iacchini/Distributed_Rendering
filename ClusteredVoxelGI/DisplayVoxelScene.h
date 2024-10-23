@@ -69,6 +69,7 @@ namespace CVGI
 			ShadowSRVBufferTable,
 			LightTransportSRVBufferTable,
 			IndirectSRVBufferTable,
+			FacePenaltySRVBufferTable,
 			Count
 		};
 	};

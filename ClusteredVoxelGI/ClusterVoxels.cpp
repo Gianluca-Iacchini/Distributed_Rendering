@@ -23,28 +23,34 @@ void CVGI::ClusterVoxels::InitializeBuffers()
 	// ClusterData (u0)
 	m_bufferManager->AddStructuredBuffer(m_numberOfClusters, sizeof(ClusterData));
 
-	// To Remove
-	// NextVoxelInCluster (u1)
+
+	// VoxelsInCluster (u1)
 	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
 
 	// Assignment Map (u2)
 	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
 
-	// 3D Tile Map (u3)
-	m_bufferManager->Add3DTextureBuffer(m_tileGridDimension, DXGI_FORMAT_R32_UINT);
+	// Voxel color (u3)
+	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, 3 * sizeof(float));
 
-	// Next Cluster in tile (u4)
-	m_bufferManager->AddStructuredBuffer(m_numberOfClusters, sizeof(UINT32));
-
-	// Cluster Counter Buffer (u5)
-	m_bufferManager->AddByteAddressBuffer();
-
-	// Voxel Normal Direction (u6)
+	// Voxel Normal Direction (u4)
 	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(DirectX::XMFLOAT3));
 
+	// 3D Tile Map (u5)
+	m_bufferManager->Add3DTextureBuffer(m_tileGridDimension, DXGI_FORMAT_R32_UINT);
+
+	// Next Cluster in tile (u6)
+	m_bufferManager->AddStructuredBuffer(m_numberOfClusters, sizeof(UINT32));
+
+	// Cluster Counter Buffer (u7)
+	m_bufferManager->AddStructuredBuffer(2, sizeof(UINT32));
+
 	// Buffer used to store the data for cluster merging.
-	// Sub Cluster Data (u7)
+	// Sub Cluster Data (u8)
 	m_bufferManager->AddStructuredBuffer(m_numberOfClusters, sizeof(ClusterData));
+
+	// Next voxel in cluster linked list (u9)
+	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
 
 	m_bufferManager->AllocateBuffers();
 
@@ -140,7 +146,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusterVoxels::BuildRootSignature(
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeCBV].InitAsConstantBuffer(0);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::VoxelBuffersSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
 	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::StreamCompactionSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
-	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 8, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*clusterRootSignature)[(UINT)ClusterizeRootSignature::ClusterizeUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 10, D3D12_SHADER_VISIBILITY_ALL, 0);
 
 	clusterRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 

@@ -30,7 +30,13 @@ namespace DX12Lib {
 		float totalTime = 0.0f;
 		float deltaTime = 0.0f;
 		int numLights = 0;
-		float _pad0 = 0.0f;
+		UINT32 useRTGI = 0;
+	};
+
+	__declspec(align(16)) struct ConstantBufferVoxelTransform
+	{
+		DirectX::XMFLOAT4X4 voxelToWorld = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 worldToVoxel = MathHelper::Identity4x4();
 	};
 
 	__declspec(align(16)) struct ConstantBufferCamera

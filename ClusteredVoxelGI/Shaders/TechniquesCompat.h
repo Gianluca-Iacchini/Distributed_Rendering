@@ -89,6 +89,11 @@ struct ConstantBufferRTShadows
 {
 	XMFLOAT3 LightDirection;
 	UINT FaceCount;
+
+	UINT CurrentStep;
+	UINT VoxelCount;
+	UINT ClusterCount;
+	UINT FrameCount;
 };
 
 struct RTSceneVisibility
@@ -121,6 +126,14 @@ struct ConstantBufferAABBGeneration
 	UINT ClusterCount;
 };
 
+struct ConstantBufferFacePenalty
+{
+	UINT FaceCount;
+	UINT VoxelCount;
+	float pad0;
+	float pad1;
+};
+
 struct ConstantBufferFrustumCulling
 {
 	XMFLOAT4 FrustumPlanes[6];
@@ -130,16 +143,25 @@ struct ConstantBufferFrustumCulling
 
 	UINT CurrentStep;
 	UINT VoxelCount;
-	float pad0;
+	UINT FaceCount;
 	float pad1;
 };
 
 struct ConstantBufferIndirectLightTransport
 {
+	XMFLOAT3 LightDirection;
 	UINT VoxelCount;
-	float pad0;
-	float pad1;
-	float pad2;
+
+	XMFLOAT3 LightPosition;
+	float LightIntensity;
+};
+
+struct ConstantBufferClearBuffers
+{
+	UINT ValueCount0;
+	UINT ValueCount1;
+	UINT ValueCount2;
+	UINT ValueCount3;
 };
 
 struct ClusterAABBInfo
@@ -151,7 +173,40 @@ struct ClusterAABBInfo
 };
 
 
+struct ClusterData
+{
+	XMUINT3 Center;
+	UINT VoxelCount;
 
+	XMFLOAT3 Normal;
+	UINT FirstDataIndex;
 
+	XMFLOAT3 Color;
+	UINT FragmentCount;
+
+	XMFLOAT3 MinAABB;
+	UINT NeighbourCount;
+
+	XMFLOAT3 MaxAABB;
+	float pad0;
+
+	UINT ClusterNeighbours[64];
+};
+
+struct ConstantBufferComputeNeighbour
+{
+	UINT ClusterCount;
+	UINT ElementsPerThread;
+	UINT TotalComputationCount;
+	float pad1;
+};
+
+struct ConstantBufferGaussianFilter
+{
+	UINT CurrentPhase;
+	UINT KernelSize;
+	UINT VoxelCount;
+	UINT FaceCount;
+};
 
 #endif // TECHNIQUEHLSLCOMPAT_H

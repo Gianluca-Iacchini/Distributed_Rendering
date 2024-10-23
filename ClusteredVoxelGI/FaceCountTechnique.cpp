@@ -33,9 +33,9 @@ void CVGI::FaceCountTechnique::PerformTechnique(DX12Lib::ComputeContext& context
 
 	m_cbFaceCount.CurrentPhase = 1;
 
-	m_faceCount = *m_bufferManager->ReadFromBuffer<UINT32*>(context, 2);
-	m_bufferManager->ResizeBuffer(0, m_faceCount);
-	m_bufferManager->ZeroBuffer(context, 2);
+	m_faceCount = *m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)FaceBufferType::FaceCounterBuffer);
+	m_bufferManager->ResizeBuffer((UINT)FaceBufferType::FaceDataBuffer, m_faceCount);
+	m_bufferManager->ZeroBuffer(context, (UINT)FaceBufferType::FaceCounterBuffer); 
 
 	TechniquePass(context, DirectX::XMUINT3(ceil(m_data->VoxelCount / 256), 1, 1));
 
@@ -95,7 +95,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::FaceCountTechnique::BuildRootSigna
 	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::FaceCountCBV].InitAsConstantBuffer(0);
 	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::VoxelSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
 	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::CompactSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
-	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::FaceCountUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 0);
+	(*faceCountRootSignature)[(UINT)FaceCountRootSignature::FaceCountUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 0);
 
 	faceCountRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 

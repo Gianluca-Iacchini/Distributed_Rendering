@@ -39,6 +39,9 @@ namespace CVGI
 		void SetCamera(DX12Lib::SceneCamera* camera) { m_sceneCamera = camera; }
 		DX12Lib::SceneCamera* GetCamera() const { return m_sceneCamera; }
 
+		void SetLightComponent(DX12Lib::LightComponent* lightComponent) { m_lightComponent = lightComponent; }
+		DX12Lib::LightComponent* GetLightComponent() const { return m_lightComponent; }
+
 		void SetTlas(std::unique_ptr<TopLevelAccelerationStructure>&& tlas) { m_tlas = std::move(tlas); }
 		const TopLevelAccelerationStructure* GetTlas() { return m_tlas.get(); }
 
@@ -81,7 +84,9 @@ namespace CVGI
 		DX12Lib::AABB SceneAABB;
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
+
 		DX12Lib::SceneCamera* m_sceneCamera = nullptr;
+		DX12Lib::LightComponent* m_lightComponent = nullptr;
 	};
 
 

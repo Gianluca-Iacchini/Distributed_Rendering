@@ -40,12 +40,16 @@ StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
 StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
-ByteAddressBuffer gVoxelShadowBuffer : register(t0, space4);
-ByteAddressBuffer gClusterShadowBuffer : register(t1, space4);
+StructuredBuffer<float3> gVoxelLitBuffer : register(t0, space4);
+StructuredBuffer<uint4> gClusterLitBuffer: register(t1, space4);
 
 ByteAddressBuffer gVoxelVisibleBuffer : register(t0, space5);
 
-StructuredBuffer<float> gVoxelRadianceBuffer : register(t0, space6);
+StructuredBuffer<uint2> gFaceRadianceBuffer : register(t0, space6);
+
+StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space7);
+StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space7);
+
 
 
 uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
@@ -209,22 +213,19 @@ void GS(
     int3 iVoxelCoord = int3(voxelCoord);
     
     
-    //uint clusterIndex = gClusterAssignmentBuffer[faceData.x];
-    //avgColor.xyz = LinearIndexToColor(clusterIndex);
+    float3 litColor = gVoxelLitBuffer[faceData.x];
     
-    avgColor.xyz = gVoxelRadianceBuffer[faceData.x];
-    bool isLit = IsVoxelPresent(faceData.x, gVoxelShadowBuffer);
+    if (any(litColor > 0.0f))
+        avgColor.xyz = litColor;
+    else
+    {
+        uint2 packedRadiance = gFaceRadianceBuffer[index];
+        avgColor.xy = UnpackFloats16(packedRadiance.x);
+        avgColor.z = UnpackFloats16(packedRadiance.y).x;
+    }
+
     
-    if (isLit)
-        avgColor.xyz = 1.0f;
-    
-    //bool isLit = IsVoxelPresent(faceData.x, gVoxelVisibleBuffer);
-    
-    //if (isLit)
-    //    avgColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    //else
-    //    avgColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
-    
+    //avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[faceData.x]);
     
     [unroll]
     for (int i = 0; i < 6; i += 3)

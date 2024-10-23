@@ -32,13 +32,9 @@ StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 // Dim: K
 RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u0, space0);
 
-// Buffer representing the final voxel assignment for each cluster, as a linked list
-// The first element is stored in the field FirstDataIndex in the ClusterData struct, and
-// each element is the index of the next element in the list 
-// e.g. gClusterDataBuffer[1002].FirstDataIndex = 2, gNextVoxelLinkedList[2] = 2013 gNextVoxelLinkedList[2013] = UINT_MAX
-// means that cluster 1002 has voxels 2 and 2013 assigned to it.
-// Dim: VoxelCount
-RWStructuredBuffer<uint> gNextVoxelLinkedList: register(u1, space0);
+// Buffer containing voxels that are assigned to a cluster in a contiguous way.
+// Voxels belonging to the same clusters are stored in a sequence between FirstDataIndex and FirstDataIndex + VoxelCount.
+RWStructuredBuffer<uint> gVoxelInClusterBuffer : register(u1, space0);
 
 // Buffer representing a mapping for voxels assigned to a cluster. This represents the same voxel assignment as the previous buffer,
 // But while the previous one is a linked list, this one is a direct mapping. The previous one is useful for retrieving all the voxels
@@ -47,31 +43,41 @@ RWStructuredBuffer<uint> gNextVoxelLinkedList: register(u1, space0);
 // Dim: VoxelCount
 RWStructuredBuffer<uint> gVoxelAssignmentMap : register(u2, space0);
 
+// Buffer containing the color of each voxel, obtained as the average of the color of the fragments in the voxel
+RWStructuredBuffer<float3> gVoxelColorBuffer : register(u3, space0);
+
+// Buffer containing the normal direction of each voxel. All the normal directions are set to one of the axis positive or negative directions
+// Depending on the nearby empty voxels and the normal direction of the fragments in the voxel
+// Dim: VoxelCount
+RWStructuredBuffer<float3> gVoxelNormalDirectionBuffer : register(u4, space0);
+
 // 3D texture representing the subdivision of the space. Each element (Tile) represents a size of the space equal to (2S x 2S x 2S)
 // Dim: (GridDimension.x / 2S) x (GridDimension.y / 2S) x (GridDimension.z / 2S)
-RWTexture3D<uint> gTileBuffer : register(u3, space0);
+RWTexture3D<uint> gTileBuffer : register(u5, space0);
 
 // Buffer representing the linked list of clusters in each tile. Each element is the index of the next cluster in the same tile.
 // The first cluster is stored in the TileBuffer.
 // e.g. gTileBuffer[0,0,0] = 10, gNextClusterInTileLinkedList[10] = 21, gNextClusterInTileLinkedList[21] = UINT_MAX
 // means that at the tile (0,0,0) we have clusters 10 and 21.
 // Dim: K
-RWStructuredBuffer<uint> gNextClusterInTileLinkedList : register(u4, space0);
+RWStructuredBuffer<uint> gNextClusterInTileLinkedList : register(u6, space0);
+
 
 // Generic counter buffer
 // Dim: 1
-RWStructuredBuffer<uint> gCounter : register(u5, space0);
-
-// Buffer containing the normal direction of each voxel. All the normal directions are set to one of the axis positive or negative directions
-// Depending on the nearby empty voxels and the normal direction of the fragments in the voxel
-// Dim: VoxelCount
-RWStructuredBuffer<float3> gVoxelNormalDirectionBuffer : register(u6, space0);
+RWStructuredBuffer<uint> gCounter : register(u7, space0);
 
 // Buffer used to store cluster data, used as a temporary buffer for multi threaded operations
 // Will also be used on the next step for cluster merging
-RWStructuredBuffer<ClusterData> gSubclusterDataBuffer : register(u7, space0);
+RWStructuredBuffer<ClusterData> gSubclusterDataBuffer : register(u8, space0);
 
-
+// Buffer representing the final voxel assignment for each cluster, as a linked list
+// The first element is stored in the field FirstDataIndex in the ClusterData struct, and
+// each element is the index of the next element in the list 
+// e.g. gClusterDataBuffer[1002].FirstDataIndex = 2, gNextVoxelLinkedList[2] = 2013 gNextVoxelLinkedList[2013] = UINT_MAX
+// means that cluster 1002 has voxels 2 and 2013 assigned to it.
+// Dim: VoxelCount
+RWStructuredBuffer<uint> gNextVoxelLinkedList : register(u9, space0);
 
 uint2 FindHash(uint index, uint rank, uint hashedPosition)
 {
@@ -325,6 +331,24 @@ void SetUpVoxelNormal(uint hashIndex)
     
 }
 
+float3 GetVoxelAverageColor(uint voxelIdx)
+{
+    float3 sum = 0.0f;
+    uint fragmentIndex = gVoxelIndicesCompactBuffer[voxelIdx];
+    uint nFragments = 0;
+    
+    while (fragmentIndex != UINT_MAX)
+    {
+        sum += gFragmentBuffer[fragmentIndex].color.xyz;
+        fragmentIndex = gNextIndexBuffer[fragmentIndex];
+        nFragments += 1;    
+    }
+    
+    sum = sum / nFragments;
+    
+    return sum;
+}
+
 void ComputeDistance(ClusterData cData, float3 voxelCoord, float3 voxelNormal, out float3 distance, out float dotProduct)
 {
     float3 d = float3(abs(cData.Center.x - voxelCoord.x),
@@ -368,6 +392,8 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         
         // Precompute normal direction
         SetUpVoxelNormal(threadLinearIndex);
+        gVoxelColorBuffer[threadLinearIndex] = GetVoxelAverageColor(threadLinearIndex);
+        
         // Set the cluster assignment to UINT_MAX, which means no assignment
         gNextVoxelLinkedList[threadLinearIndex] = UINT_MAX;
         gVoxelAssignmentMap[threadLinearIndex] = UINT_MAX;
@@ -397,10 +423,24 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         {
             ClusterData cData;
             cData.Center = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], GridDimension);
+            cData.MinAABB = cData.Center - 0.5f;
+            cData.MaxAABB = cData.Center + 0.5f;
+            cData.NeighbourCount = 0;
+            cData.pad0 = 0.0f;
             cData.Normal = gVoxelNormalDirectionBuffer[voxelIdx];
             cData.VoxelCount = 1;
             cData.FirstDataIndex = voxelIdx;
+            
+            // Will be set later, there is no need to access the color buffer here.
+            cData.Color = float3(0.0f, 0.0f, 0.0f);
+            cData.FragmentCount = 0;
 
+            [unroll]
+            for (uint i = 0; i < 64; i++)
+            {
+                cData.ClusterNeighbours[i] = UINT_MAX;
+            }
+            
             gClusterDataBuffer[threadLinearIndex] = cData;
         }
     }
@@ -432,12 +472,22 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         uint nVoxels = 0;
         float3 posAverage = float3(0.0f, 0.0f, 0.0f);
         float3 normalAverage = float3(0.0f, 0.0f, 0.0f);
+        float3 colorAverage = float3(0.0f, 0.0f, 0.0f);
+        uint3 minAABB = GridDimension + 10;
+        uint3 maxAABB = uint3(0, 0, 0);
+        float nFragments = 0;
                     
             
         while (voxelDataIndex != UINT_MAX)
         {
-            posAverage += GetVoxelPosition(gVoxelHashedCompactBuffer[voxelDataIndex], GridDimension);
+            uint3 voxelPos = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelDataIndex], GridDimension);
+            posAverage += float3(voxelPos);
             normalAverage += gVoxelNormalDirectionBuffer[voxelDataIndex];
+            colorAverage += gVoxelColorBuffer[voxelDataIndex];
+            
+            minAABB = min(minAABB, voxelPos);
+            maxAABB = max(maxAABB, voxelPos);
+            
             nVoxels++;
                 
             uint nextIdx = gNextVoxelLinkedList[voxelDataIndex];
@@ -451,6 +501,9 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
             posAverage = floor(posAverage / nVoxels);
             posAverage = clamp(posAverage, 0.0f, (float) GridDimension);
             cData.Center = uint3(posAverage);
+            cData.Color = colorAverage / nVoxels;
+            cData.MinAABB = float3(minAABB);
+            cData.MaxAABB = float3(maxAABB);
             
             if (any(normalAverage > EPSILON) || any(normalAverage < -EPSILON))
             {
@@ -596,26 +649,58 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
         
         if (cData.VoxelCount > 0)
         {
-            uint originalValue = 0;
-            InterlockedAdd(gCounter[0], 1, originalValue);
-            gSubclusterDataBuffer[originalValue] = cData;
-            
             uint voxDataIdx = cData.FirstDataIndex;
             
+            uint voxelStartIdx;
+            InterlockedAdd(gCounter[1], cData.VoxelCount, voxelStartIdx);
+            
+            cData.FirstDataIndex = voxelStartIdx;
+            
+            uint subClusterIdx = 0;
+            InterlockedAdd(gCounter[0], 1, subClusterIdx);
+            gSubclusterDataBuffer[subClusterIdx] = cData;
+            
+            uint nVoxel = 0;
             while (voxDataIdx != UINT_MAX)
             {
-                gVoxelAssignmentMap[voxDataIdx] = originalValue;
+                gVoxelInClusterBuffer[voxelStartIdx + nVoxel] = voxDataIdx;
+                gVoxelAssignmentMap[voxDataIdx] = subClusterIdx;
+                
                 voxDataIdx = gNextVoxelLinkedList[voxDataIdx];
+                nVoxel++;
             }
+            
+
+            
         }
+        
+        //if (cData.VoxelCount > 0)
+        //{
+        //    uint originalValue = 0;
+        //    InterlockedAdd(gCounter[0], 1, originalValue);
+        //    gSubclusterDataBuffer[originalValue] = cData;
+            
+        //    uint voxDataIdx = cData.FirstDataIndex;
+            
+        //    while (voxDataIdx != UINT_MAX)
+        //    {
+        //        gVoxelAssignmentMap[voxDataIdx] = originalValue;
+        //        voxDataIdx = gNextVoxelLinkedList[voxDataIdx];
+        //    }
+        //}
         
         cData.Center = uint3(0, 0, 0);
         cData.Normal = float3(0.0f, 0.0f, 0.0f);
         cData.FirstDataIndex = UINT_MAX;
         cData.VoxelCount = 0;
+        cData.Color = float3(0.0f, 0.0f, 0.0f);
+        cData.FragmentCount = 0;
+        cData.MinAABB = uint3(0, 0, 0);
+        cData.MaxAABB = uint3(0, 0, 0);
+        cData.NeighbourCount = 0;
         
         gClusterDataBuffer[threadLinearIndex] = cData;
-        
+
     }
 
 }

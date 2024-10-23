@@ -150,7 +150,12 @@ void DX12Lib::CommandContext::AddUAVIfNoBarriers(Resource& resource, bool flushI
 {
 	if (m_numBarriersToFlush == 0)
 	{
-		InsertUAVBarrier(resource, flushImmediate);
+		InsertUAVBarrier(resource, false);
+	}
+
+	if (flushImmediate)
+	{
+		FlushResourceBarriers();
 	}
 }
 

@@ -42,7 +42,7 @@ namespace Graphics
 			LightSRV = 3,
 			MaterialSRV = 4,
 			MaterialTextureSRV = 5,
-			VoxelTextureUAV = 6,
+			VoxelRTGIBufferSRV = 6,
 			Count
 		};
 
@@ -92,6 +92,9 @@ namespace Graphics
 		void Present(UINT64 fenceVal);
 		void SetScissorAndViewportSize(int width, int height);
 
+		void UseRTGI(bool useRTGI);
+		void SetRTGIBuffer(DX12Lib::DescriptorHandle& radianceBuffer);
+		void SetRTGISceneMatricesTransform(DirectX::XMFLOAT4X4& voxelToWorld, DirectX::XMFLOAT4X4 worldToVoxel);
 	};
 }
 

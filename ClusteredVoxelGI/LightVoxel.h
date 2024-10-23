@@ -6,6 +6,7 @@
 #include "RayTracingHelpers.h"
 #include "RaytracingStateObject.h"
 #include "RaytracingShadow.h"
+#include "ClearBufferShader_CS.h"
 #include "DX12Lib/Commons/CommonConstants.h"
 #include "DX12Lib/DXWrapper/SamplerDesc.h"
 #include "Technique.h"
@@ -54,11 +55,12 @@ namespace CVGI
 		//virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 		virtual void PerformTechnique(RayTracingContext& context) override;
 		virtual void TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
-	
+		void ClearBufferPass(RayTracingContext& context, DirectX::XMUINT3 groupSize);
 	
 
 
 		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		void BuildClearBufferPso();
 
 		void SetLightComponent(DX12Lib::LightComponent* lightComponent) { m_lightComponent = lightComponent; }
 		
@@ -67,9 +69,11 @@ namespace CVGI
 
 	public:
 		static const std::wstring Name;
+		static const std::wstring ClearBufferName;
 
 	private:
 		ConstantBufferRTShadows m_cbShadowRaytrace;
+		ConstantBufferClearBuffers m_cbClearBuffers;
 		DX12Lib::LightComponent* m_lightComponent;
 	};
 }

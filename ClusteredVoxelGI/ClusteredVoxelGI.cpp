@@ -42,11 +42,14 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_prefixSumVoxels = std::make_unique<PrefixSumVoxels>(m_data);
 	m_clusterVoxels = std::make_unique<ClusterVoxels>(m_data);
 	m_mergeClusters = std::make_unique<MergeClusters>(voxelTexDimensions);
+	m_computeNeighboursTechnique = std::make_unique<ComputeNeighboursTechnique>(m_data);
 	m_clusterVisibility = std::make_unique<ClusterVisibility>(m_data);
 	m_faceCountTechnique = std::make_unique<FaceCountTechnique>(m_data);
 	m_buildAABBsTechnique = std::make_unique<BuildAABBsTechnique>(m_data);
+	m_facePenaltyTechnique = std::make_unique<FacePenaltyTechnique>(m_data);
 	m_lightVoxel = std::make_unique<LightVoxel>(m_data);
 	m_lightTransportTechnique = std::make_unique<LightTransportTechnique>(m_data);
+	m_gaussianFilterTechnique = std::make_unique<GaussianFilterTechnique>(m_data);
 
 
 
@@ -59,12 +62,16 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	auto clusterizeVoxelPso = m_clusterVoxels->BuildPipelineState(); 
 
 	auto clusterReduceRootSignature = m_mergeClusters->BuildMergeClustersRootSignature(); 
+	
 	auto clusterReducePso = m_mergeClusters->BuildMergeClustersPipelineState(clusterReduceRootSignature); 
-
+	
+	auto computeNeighboursPso = m_computeNeighboursTechnique->BuildPipelineState();
 
 	auto faceCountPso = m_faceCountTechnique->BuildPipelineState();
 
 	auto aabbGenerationPso = m_buildAABBsTechnique->BuildPipelineState();
+
+	auto facePenaltyPso = m_facePenaltyTechnique->BuildPipelineState();
 
 	auto raytracePso = m_clusterVisibility->BuildPipelineState();
 
@@ -72,16 +79,21 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	auto lightTransportPso = m_lightTransportTechnique->BuildPipelineState();
 
+	auto gaussianFilterPso = m_gaussianFilterTechnique->BuildPipelineState();
+
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
 	Renderer::s_PSOs[clusterizeVoxelPso->Name] = clusterizeVoxelPso;
 	Renderer::s_PSOs[clusterReducePso->Name] = clusterReducePso;
+	Renderer::s_PSOs[computeNeighboursPso->Name] = computeNeighboursPso;
 	Renderer::s_PSOs[faceCountPso->Name] = faceCountPso;
 	Renderer::s_PSOs[aabbGenerationPso->Name] = aabbGenerationPso;
+	Renderer::s_PSOs[facePenaltyPso->Name] = facePenaltyPso;
 	Renderer::s_PSOs[raytracePso->Name] = raytracePso;
 	Renderer::s_PSOs[lightVoxelPso->Name] = lightVoxelPso;
 	Renderer::s_PSOs[lightTransportPso->Name] = lightTransportPso;
+	Renderer::s_PSOs[gaussianFilterPso->Name] = gaussianFilterPso;
 
 
 	m_voxelizeScene->InitializeBuffers();
@@ -141,6 +153,22 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_voxelizeScene->SetVoxelCamera(voxelCamera);
 	m_voxelizeScene->PerformTechnique(commandContext);
 
+	bool foundLightComponent = false;
+	for (UINT i = 0; i < childCount; i++)
+	{
+		auto* child = rootNode->GetChildAt(i);
+
+		auto lightComponent = child->GetComponent<LightComponent>();
+
+		if (lightComponent != nullptr)
+		{
+			m_lightVoxel->SetLightComponent(lightComponent);
+			m_data->SetLightComponent(lightComponent);
+			foundLightComponent = true;
+			break;
+		}
+	}
+
 	commandContext.Flush(true);
 
 	ComputeContext& computeContext = ComputeContext::Begin();
@@ -161,6 +189,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	//m_mergeClusters->InitializeBuffers(commandContext, *m_clusterVoxels);
 	//m_mergeClusters->StartMerging(computeContext, *m_prefixSumVoxels->GetBufferManager());
 	
+	m_computeNeighboursTechnique->InitializeBuffers();
+	m_computeNeighboursTechnique->PerformTechnique(computeContext);
+
 	m_faceCountTechnique->InitializeBuffers();
 	m_faceCountTechnique->PerformTechnique(computeContext);
 
@@ -172,24 +203,15 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_clusterVisibility->PerformTechnique(computeContext);
 
+	m_facePenaltyTechnique->InitializeBuffers();
+	m_facePenaltyTechnique->PerformTechnique(computeContext);
+
 	m_lightTransportTechnique->InitializeBuffers();
 
 	m_lightVoxel->InitializeBuffers();
 
-	bool foundLightComponent = false;
-	for (UINT i = 0; i < childCount; i++)
-	{
-		auto* child = rootNode->GetChildAt(i);
-
-		auto lightComponent = child->GetComponent<LightComponent>();
-
-		if (lightComponent != nullptr)
-		{
-			m_lightVoxel->SetLightComponent(lightComponent);
-			foundLightComponent = true;
-			break;
-		}
-	}
+	m_gaussianFilterTechnique->InitializeBuffers();
+	m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
 
 	assert(foundLightComponent && "Failed to find light component with shadows enabled.");
 
@@ -216,9 +238,14 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 	m_lightTransportTechnique->PerformTechnique(context);
 
+	m_gaussianFilterTechnique->PerformTechnique(context);
+
 	context.Finish();
 
-	m_displayVoxelScene->PerformTechnique(commandContext);
+	m_Scene->Render(commandContext);
+
+	Renderer::RenderLayers(commandContext);
+
 
 	Renderer::PostDrawCleanup(commandContext);
 }

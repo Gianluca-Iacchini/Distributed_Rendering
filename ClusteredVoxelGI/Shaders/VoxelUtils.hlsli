@@ -5,6 +5,13 @@
 #define HLSL
 #include "TechniquesCompat.h"
 
+#define IRRADIANCE_FIELD_MULTIPLIER 100000.0f
+#define MAX_DISTANCE_VOXEL_OFFSET 2.5f
+#define MINIMUM_ANGLE_VOXEL_OFFSET 0.342f
+
+#define CLUSTER_TO_VOXEL_FORM_FACTOR_ADD 14860
+#define VOXEL_TO_VOXEL_FORM_FACTOR_ADD 3
+
 static const unsigned int UINT_MAX = 0xffffffff;
 static const float cos30 = 0.81915204428f;
 static const float cos25 = 0.9f;
@@ -62,14 +69,7 @@ struct FragmentData
     uint voxelLinearCoord;
 };
 
-struct ClusterData
-{
-    uint3 Center;
-    uint VoxelCount;
-    
-    float3 Normal;
-    uint FirstDataIndex;
-};
+
 
 uint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)
 {
@@ -146,6 +146,39 @@ bool SetVoxelPresence(uint3 voxelCoord, uint3 gridDimension, RWByteAddressBuffer
 {
     uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);
     return SetVoxelPresence(voxelLinearCoord, voxelPresenceBuffer);
+}
+
+
+float differentialAreaFormFactor(float3 normalDA, float3 positionDA, float3 normalDB, float3 positionDB, float nSamples)
+{
+    float3 dAtoDiskDirection = positionDB - positionDA;
+    float distanceSq = dot(dAtoDiskDirection, dAtoDiskDirection);
+    dAtoDiskDirection = normalize(dAtoDiskDirection);
+    
+    float cosTheta1 = dot(normalDA, dAtoDiskDirection);
+    cosTheta1 = clamp(cosTheta1, 0.0, 1.0);
+    
+    float cosTheta2 = dot(normalDB, -dAtoDiskDirection);
+    cosTheta2 = clamp(cosTheta2, 0.0, 1.0);
+
+    return (cosTheta1 * cosTheta2) / (PI * distanceSq + nSamples);
+}
+
+float differentialAreaFormFactor(float3 normalDA, float3 normalDB)
+{
+    float cosTheta1 = dot(normalDA, -normalDB);
+    cosTheta1 = clamp(cosTheta1, 0.0, 1.0);
+
+    float cosTheta2 = dot(normalDB, normalDB);
+    cosTheta2 = clamp(cosTheta2, 0.0, 1.0);
+
+    // Avoid using distanceSq for directional lights as it is theoretically infinite
+    return (cosTheta1 * cosTheta2) / (PI * 1.0f);
+}
+
+float distanceSq(float3 a, float3 b)
+{
+    return dot(a - b, a - b);
 }
 
 

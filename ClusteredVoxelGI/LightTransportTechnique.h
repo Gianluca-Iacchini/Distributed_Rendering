@@ -17,7 +17,7 @@ namespace CVGI
 		void PerformTechnique(DX12Lib::ComputeContext& context) override;
 		std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 		
-
+		inline Microsoft::WRL::ComPtr<ID3D12CommandSignature> GetIndirectCommandSignature() const { return m_commandSignature; }
 
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 groupSize) override;
@@ -39,9 +39,20 @@ namespace CVGI
 
 	private:
 		ConstantBufferFrustumCulling m_cbFrustumCulling;
+		ConstantBufferIndirectLightTransport m_cbLightIndirect;
 		
 		// Used for indirect dispatch
 		Microsoft::WRL::ComPtr<ID3D12CommandSignature> m_commandSignature;
+
+	public:
+		enum class LightTransportBufferType
+		{
+			VisibleFaceCounter = 0,
+			VisibleFaceIndices = 1,
+			IndirectDispatchBuffer,
+			Count
+		};
+
 	private:
 		enum class LightTransportTechniqueRootParameters
 		{
@@ -49,6 +60,7 @@ namespace CVGI
 			LightTransportCBV = 1,
 			CameraCBV,
 			PrefixSumBuffersSRV,
+			FaceBufferSRV,
 			AABBBuffersSRV,
 			AccelerationStructureSRV,
 			LightTransportBuffersUAV,
@@ -61,9 +73,11 @@ namespace CVGI
 			VoxelCommonsCBV = 0,
 			IndirectCBV = 1,
 			PrefixSumBuffersSRV,
+			ClusterVoxelBufferSRV,
 			FaceBufferSRV,
 			AABBBuffersSRV,
 			ClusterVisibilitySRV,
+			FacePenaltyBufferSRV,
 			LitVoxelsSRV,
 			LightTransportBuffersSRV,
 			IndirectBuffersUAV,

@@ -9,6 +9,14 @@ cbuffer cbCamera : register(b1)
 {
     Camera camera;
 }
+
+
+cbuffer cbVoxelTransform : register(b2)
+{
+    float4x4 voxelToWorld;
+    float4x4 worldToVoxel;
+}
+
 Texture2D gShadowMap : register(t0);
 Texture2D gVoxelSrv : register(t1);
 
@@ -20,7 +28,7 @@ Texture2D gBufferMetallicRoughnessAO : register(t5);
 StructuredBuffer<Light> gLights : register(t0, space1);
 StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
 
-RWTexture3D<float4> gVoxelGrid : register(u0);
+StructuredBuffer<uint2> gPackedRadiance : register(t0, space2);
 
 float4 PS(VertexOutPosTex pIn) : SV_Target
 {
@@ -78,9 +86,14 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         lRes += PBRDirectionalLight(light, surfData, roughness);
     }
     
+    if (commons.UseRTGI == 0)
+    {
+        lRes += surfData.c_diff * 0.13f;
+    }
+    else
+    {
 
-    lRes += surfData.c_diff * 0.13f;
-
+    }
     
     return float4(lRes, diffuse.a);
 

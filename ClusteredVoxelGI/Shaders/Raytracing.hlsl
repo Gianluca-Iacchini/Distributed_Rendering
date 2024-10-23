@@ -207,7 +207,7 @@ void MyRaygenShader()
     // Define ray starting position and other parameters
     RayDesc ray;
     ray.Origin = voxelCoord + faceDirection[faceData.y] / 2.0f; /* define ray origin (e.g., surface point) */;
-    ray.TMin = 0.001; // Start the ray slightly away from the origin
+    ray.TMin = 0.5f; // Start the ray slightly away from the origin
     ray.TMax = FLT_MAX; // Max distance for the ray
     RayPayload payload = { -1 }; // Payload to store the color
     

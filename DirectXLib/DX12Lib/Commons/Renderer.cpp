@@ -21,11 +21,12 @@ namespace Graphics::Renderer
 	{
 		CommonCBV = 0,
 		CameraCBV = 1,
-		LightSRV = 2,
-		MaterialSRV = 3,
-		CommonTextureSRV = 4,
-		GBufferSRV = 5,
-		VoxelTextureUAV = 6,
+		VoxelMatrixTransformCBV,
+		LightSRV,
+		MaterialSRV,
+		CommonTextureSRV,
+		GBufferSRV,
+		VoxelBufferSRV,
 		Count
 	};
 
@@ -78,12 +79,18 @@ namespace Graphics::Renderer
 
 	DescriptorHandle m_gbufferStartHandle;
 	CostantBufferCommons m_costantBufferCommons;
+	ConstantBufferVoxelTransform m_constantBufferVoxelTransform;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
 
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+
+	bool m_useRTGI = false;
+	DescriptorHandle m_rtgiBufferHandle;
+	DirectX::XMFLOAT4X4 m_voxelToWorldMatrix;
+	DirectX::XMFLOAT4X4 m_worldToVoxelMatrix;
 
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
@@ -145,6 +152,13 @@ namespace Graphics::Renderer
 		CreateDefaultPSOs();
 		BuildRenderQuadGeometry();
 		s_materialManager->LoadDefaultMaterials(*s_textureManager);
+
+		m_voxelToWorldMatrix = MathHelper::Identity4x4();
+		m_worldToVoxelMatrix = MathHelper::Identity4x4();
+
+		m_constantBufferVoxelTransform = {};
+		m_constantBufferVoxelTransform.voxelToWorld = m_voxelToWorldMatrix;
+		m_constantBufferVoxelTransform.worldToVoxel = m_worldToVoxelMatrix;
 	}
 
 	void BuildRenderQuadGeometry()
@@ -313,15 +327,14 @@ namespace Graphics::Renderer
 		context.SetPipelineState(s_PSOs[PSO_PBR_OPAQUE].get());
 
 
-		if (s_voxel3DTexture)
+		if (m_useRTGI)
 		{
-
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				(UINT)RootSignatureSlot::VoxelTextureUAV, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
+				(UINT)RootSignatureSlot::VoxelRTGIBufferSRV, m_rtgiBufferHandle);
 		}
 
 
-
+		
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
 
@@ -395,7 +408,15 @@ namespace Graphics::Renderer
 
 		context.SetPipelineState(s_PSOs[L"deferredPso"].get());
 
+		if (m_useRTGI)
+		{
+			m_costantBufferCommons.useRTGI = 1;
+			context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
+				(UINT)Renderer::DeferredRootSignatureSlot::VoxelMatrixTransformCBV, s_graphicsMemory->AllocateConstant(m_constantBufferVoxelTransform).GpuAddress());
 
+			context.m_commandList->GetComPtr()->SetGraphicsRootDescriptorTable(
+				(UINT)DeferredRootSignatureSlot::VoxelBufferSRV, m_rtgiBufferHandle);
+		}
 
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 			(UINT)Renderer::DeferredRootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
@@ -420,12 +441,6 @@ namespace Graphics::Renderer
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 			(UINT)DeferredRootSignatureSlot::GBufferSRV, m_gbufferStartHandle);
 
-		if (s_voxel3DTexture)
-		{
-
-			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				(UINT)DeferredRootSignatureSlot::VoxelTextureUAV, m_commonTextureHandle + s_textureHeap->GetDescriptorSize());
-		}
 
 		DrawScreenQuad(context);
 
@@ -559,6 +574,25 @@ namespace Graphics::Renderer
 		Renderer::s_scissorRect = { 0, 0, width, height};
 	}
 
+	void SetRTGIBuffer(DX12Lib::DescriptorHandle& radianceBuffer)
+	{
+		m_rtgiBufferHandle = radianceBuffer;
+	}
+
+	void SetRTGISceneMatricesTransform(DirectX::XMFLOAT4X4& voxelToWorld, DirectX::XMFLOAT4X4 worldToVoxel)
+	{
+		m_voxelToWorldMatrix = voxelToWorld;
+		m_worldToVoxelMatrix = worldToVoxel;
+
+		m_constantBufferVoxelTransform.voxelToWorld = m_voxelToWorldMatrix;
+		m_constantBufferVoxelTransform.worldToVoxel = m_worldToVoxelMatrix;
+	}
+
+	void UseRTGI(bool useRTGI)
+	{
+		m_useRTGI = useRTGI;
+	}
+
 	void CreateDefaultShaders()
 	{
 		std::wstring srcDir = Utils::ToWstring(SOURCE_DIR);
@@ -630,7 +664,7 @@ namespace Graphics::Renderer
 		(*baseRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
-		(*baseRootSignature)[(UINT)RootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::VoxelRTGIBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
 		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>((UINT)RootSignatureSlot::Count, 2);
@@ -642,7 +676,7 @@ namespace Graphics::Renderer
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
-		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelRTGIBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
@@ -651,11 +685,12 @@ namespace Graphics::Renderer
 		deferredRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);										
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);										
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::VoxelMatrixTransformCBV].InitAsConstantBuffer(2);										
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);				
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);				
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);	
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, (UINT)RenderTargetType::Count);	
-		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::VoxelTextureUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);	
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::VoxelBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL, 2);
 		deferredRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<GraphicsPipelineState> phongPso = std::make_shared<GraphicsPipelineState>();

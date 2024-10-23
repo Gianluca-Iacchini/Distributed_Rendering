@@ -245,6 +245,13 @@ void CVGI::BufferManager::TransitionAll(DX12Lib::CommandContext& context, D3D12_
 	}
 }
 
+void CVGI::BufferManager::TransitionBuffer(UINT buffIndex, DX12Lib::CommandContext& context, D3D12_RESOURCE_STATES newState, bool flushBarriers)
+{
+	assert(buffIndex < m_buffers.size());
+
+	context.TransitionResource(*m_buffers[buffIndex], newState, flushBarriers);
+}
+
 DX12Lib::GPUBuffer& CVGI::BufferManager::GetBuffer(UINT index)
 {
 	assert(index < m_buffers.size());

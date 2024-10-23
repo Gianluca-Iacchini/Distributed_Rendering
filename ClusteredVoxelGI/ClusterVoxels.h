@@ -13,15 +13,6 @@ namespace CVGI
 {
 	class ClusterVoxels : public Technique
 	{
-		struct ClusterData
-		{
-			XMUINT3 Center;
-			UINT32 VoxelCount;
-
-			XMFLOAT3 Normal;
-			UINT32 FirstVoxelDataIndex;
-		};
-
 	private:
 		enum class ClusterizeRootSignature
 		{
@@ -36,13 +27,15 @@ namespace CVGI
 		enum class ClusterBufferType
 		{
 			ClusterData = 0,
-			NextVoxelLinkedList = 1,
+			VoxelsInCluster = 1,
 			AssignmentMap,
+			VoxelColor,
+			VoxelNormalDirection,
 			TileBuffer,
 			NextClusterInTileLinkedList,
 			Counter,
-			VoxelNormalDirection,
 			SubClusterData,
+			NextVoxelLinkedList
 		};
 
 	public:

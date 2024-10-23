@@ -4,12 +4,15 @@
 #include "LightTransport_CS.h"
 #include "LightTransportIndirect_CS.h"
 #include "VoxelizeScene.h"
+#include "ClusterVoxels.h"
 #include "PrefixSumVoxels.h"
 #include "FaceCountTechnique.h"
 #include "BuildAABBsTechnique.h"
 #include "ClusterVisibility.h"
 #include "LightVoxel.h"
 #include "RaytracingStateObject.h"
+#include "DX12Lib/Scene/LightComponent.h"
+#include "FacePenaltyTechnique.h"
 
 using namespace CVGI;
 using namespace DX12Lib;
@@ -30,13 +33,15 @@ void CVGI::LightTransportTechnique::InitializeBuffers()
 
 	UINT32 voxelBitCount = (m_data->VoxelCount + 31) / 32;
 
-    m_bufferManager->AddByteAddressBuffer(voxelBitCount);
     m_bufferManager->AddByteAddressBuffer();
-    m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
-    m_bufferManager->AddStructuredBuffer(1, sizeof(D3D12_DISPATCH_ARGUMENTS));
-    m_bufferManager->AddByteAddressBuffer();
+    m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
+    m_bufferManager->AddStructuredBuffer(2, sizeof(D3D12_DISPATCH_ARGUMENTS));
 
-    m_indirectBufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(float));
+	// packing 16bit floats into 32bit floats
+    // Voxel face radiance packed
+    m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+	// Voxel face FILTERED radiance packed (used by the gaussian filter)
+    m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 
     this->CreateExecuteIndirectCommandBuffer();
 
@@ -54,13 +59,22 @@ void CVGI::LightTransportTechnique::PerformTechnique(DX12Lib::ComputeContext& co
     m_cbFrustumCulling.CameraPosition = m_data->GetCamera()->Node->GetPosition();
     m_cbFrustumCulling.CurrentStep = 0;
 	m_cbFrustumCulling.VoxelCount = m_data->VoxelCount;
+	m_cbFrustumCulling.FaceCount = m_data->FaceCount;
+
 
     // Reset buffers
-	TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->VoxelCount / 128.0f), 1, 1));
+	TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->FaceCount / 128.0f), 1, 1));
 
     m_cbFrustumCulling.CurrentStep = 1;
 
     TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->AABBGeometryGroupCount), 1, 1));
+
+	auto* lightComponent = m_data->GetLightComponent();
+
+    m_cbLightIndirect.LightDirection = lightComponent->Node->GetForward();
+	m_cbLightIndirect.LightPosition = lightComponent->Node->GetPosition();
+    m_cbLightIndirect.LightIntensity = 15.0f;
+
 
     TechniquePassIndirect(context);
 
@@ -74,9 +88,11 @@ void CVGI::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& conte
     context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
 	auto& prefixSumBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
+	auto& faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
 	auto& aabbBufferManager = m_data->GetBufferManager(BuildAABBsTechnique::Name);
 
 	prefixSumBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	faceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	aabbBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     m_indirectBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -86,6 +102,7 @@ void CVGI::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportTechniqueRootParameters::LightTransportCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbFrustumCulling).GpuAddress());
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportTechniqueRootParameters::CameraCBV, m_data->GetCamera()->GetCameraBuffer().GpuAddress());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::PrefixSumBuffersSRV, prefixSumBufferManager.GetSRVHandle());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::FaceBufferSRV, faceBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::AABBBuffersSRV, aabbBufferManager.GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootShaderResourceView((UINT)LightTransportTechniqueRootParameters::AccelerationStructureSRV, m_data->GetTlas()->GetGpuVirtualAddress());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV, m_bufferManager->GetUAVHandle());
@@ -100,42 +117,45 @@ void CVGI::LightTransportTechnique::TechniquePassIndirect(DX12Lib::ComputeContex
     context.SetPipelineState(Renderer::s_PSOs[IndirectName].get());
 
     auto& prefixSumBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
+	auto& clusterVoxelBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
 	auto& faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
     auto& aabbBufferManager = m_data->GetBufferManager(BuildAABBsTechnique::Name);
 	auto& visibilityBufferManager = m_data->GetBufferManager(ClusterVisibility::Name);
 	auto& litVoxelsBufferManager = m_data->GetBufferManager(LightVoxel::Name);
+	auto& facePenaltyBufferManager = m_data->GetBufferManager(FacePenaltyTechnique::Name);
 
     prefixSumBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    clusterVoxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	faceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     aabbBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	visibilityBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	litVoxelsBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	facePenaltyBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_indirectBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-    for (UINT i = 0; i < m_bufferManager->GetBufferCount(); i++)
-    {
-        // Dispatch buffer
-        if (i != 3)
-        {
-            auto& buffer = m_bufferManager->GetBuffer(i);
-            context.TransitionResource(buffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-        }
-    }
+    m_bufferManager->TransitionBuffer((UINT)LightTransportBufferType::VisibleFaceCounter,
+        context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    m_bufferManager->TransitionBuffer((UINT)LightTransportBufferType::VisibleFaceIndices,
+        context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    m_bufferManager->TransitionBuffer((UINT)LightTransportBufferType::IndirectDispatchBuffer,
+        context, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
-	auto& indirectCommandBuffer = m_bufferManager->GetBuffer(3);
-	context.TransitionResource(indirectCommandBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
     context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0));
-
     context.FlushResourceBarriers();
 
     context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportIndirectRootParameters::VoxelCommonsCBV, m_data->GetVoxelCommonsResource().GpuAddress());
-    context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportIndirectRootParameters::IndirectCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbFrustumCulling).GpuAddress());
+    context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportIndirectRootParameters::IndirectCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbLightIndirect).GpuAddress());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::PrefixSumBuffersSRV, prefixSumBufferManager.GetSRVHandle());
+    context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::ClusterVoxelBufferSRV, clusterVoxelBufferManager.GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::FaceBufferSRV, faceBufferManager.GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::AABBBuffersSRV, aabbBufferManager.GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::ClusterVisibilitySRV, visibilityBufferManager.GetSRVHandle());
+    context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::FacePenaltyBufferSRV, facePenaltyBufferManager.GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::LitVoxelsSRV, litVoxelsBufferManager.GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::LightTransportBuffersSRV, m_bufferManager->GetSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportIndirectRootParameters::IndirectBuffersUAV, m_indirectBufferManager->GetUAVHandle());
 
-
+	auto& indirectCommandBuffer = m_bufferManager->GetBuffer((UINT)LightTransportBufferType::IndirectDispatchBuffer);
 	context.m_commandList->Get()->ExecuteIndirect(m_commandSignature.Get(), 1, indirectCommandBuffer.Get(), 0, nullptr, 0);
 }
 
@@ -204,12 +224,14 @@ std::shared_ptr<DX12Lib::RootSignature>  CVGI::LightTransportTechnique::BuildInd
     (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::VoxelCommonsCBV].InitAsConstantBuffer(0);
     (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::IndirectCBV].InitAsConstantBuffer(1);
     (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::PrefixSumBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::FaceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 1);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::AABBBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::ClusterVisibilitySRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 3);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::LitVoxelsSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 4);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::LightTransportBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 5);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::IndirectBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::ClusterVoxelBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 1);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::FaceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 2);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::AABBBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 3);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::ClusterVisibilitySRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 4);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::FacePenaltyBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 5);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::LitVoxelsSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 6);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::LightTransportBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 7);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::IndirectBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
 
     LightTransportRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
@@ -258,10 +280,11 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::LightTransportTechnique::BuildRoot
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::LightTransportCBV].InitAsConstantBuffer(1);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::CameraCBV].InitAsConstantBuffer(2);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::PrefixSumBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
-    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::AABBBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 1);
-    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::AccelerationStructureSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 2);
-    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 0);
-    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::IndirectBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 1);
+    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::FaceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 1);
+    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::AABBBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
+    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::AccelerationStructureSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 3);
+    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 0);
+    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::IndirectBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 1);
 
     LightTransportRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 

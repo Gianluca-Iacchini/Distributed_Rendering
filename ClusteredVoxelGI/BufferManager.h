@@ -34,6 +34,7 @@ namespace CVGI
 		void ZeroBuffer(DX12Lib::CommandContext& context, UINT index);
 
 		void TransitionAll(DX12Lib::CommandContext& context, D3D12_RESOURCE_STATES newState, bool flusBarriers = false);
+		void TransitionBuffer(UINT buffIndex, DX12Lib::CommandContext& context, D3D12_RESOURCE_STATES newState, bool flusBarriers = false);
 
 		DX12Lib::GPUBuffer& GetBuffer(UINT index);
 

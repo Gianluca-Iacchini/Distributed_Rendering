@@ -8,9 +8,7 @@ struct Commons
     float TotalTime;
     float DeltaTime;
     int NumLights;
-    float _pad0;
-    float _pad1;
-    float _pad2;
+    uint UseRTGI;
 };
 
 struct Camera
@@ -114,4 +112,22 @@ float CalcShadowFactor(Texture2D shadowMap, float4 shadowPosH)
     }
 
     return percentLit / 9.0f;
+}
+
+float2 UnpackFloats16(uint packedUint)
+{
+    uint packedX = packedUint.x & 0xFFFF;
+    uint packedY = ((packedUint.x >> 16) & 0xFFFF);
+    
+    return float2(f16tof32(packedX), f16tof32(packedY));
+}
+
+uint PackFloats16(float2 floatsToPack)
+{
+    uint radX16 = f32tof16(floatsToPack.x);
+    uint radY16 = f32tof16(floatsToPack.y);
+        
+    uint packedRadX = (radY16 << 16) | radX16;
+    
+    return packedRadX;
 }

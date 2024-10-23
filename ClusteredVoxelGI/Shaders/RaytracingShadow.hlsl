@@ -19,11 +19,12 @@ StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
 StructuredBuffer<uint> gNextVoxelLinkedList : register(t1, space2);
 StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space2);
+StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space2);
 
 StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
-RWByteAddressBuffer gVoxelLitBuffer : register(u0, space0);
-RWByteAddressBuffer gClusterLitBuffer : register(u1, space0);
+RWStructuredBuffer<float3> gVoxelLitBuffer : register(u0, space0);
+RWStructuredBuffer<uint4> gClusterLitBuffer : register(u1, space0);
 
 
 
@@ -40,9 +41,9 @@ struct Attributes
 float4x3 GetFaceEdgeMidpoints(float3 voxelCenter, float3 faceDirection)
 {
     // Define the half-size offsets.
-    float3 right = float3(0.5f, 0.0f, 0.0f);
-    float3 up = float3(0.0f, 0.5f, 0.0f);
-    float3 forward = float3(0.0f, 0.0f, 0.5f);
+    float3 right = float3(1.0f, 0.0f, 0.0f);
+    float3 up = float3(0.0f, 1.0f, 0.0f);
+    float3 forward = float3(0.0f, 0.0f, 1.0f);
 
     // Initialize a float3x4 to store the edge midpoints.
     float4x3 edgeMidpoints;
@@ -79,6 +80,10 @@ float4x3 GetFaceEdgeMidpoints(float3 voxelCenter, float3 faceDirection)
 [shader("raygeneration")]
 void ShadowRaygen()
 {
+
+    uint3 dispatchIdx = DispatchRaysIndex();
+    uint3 dispatchDim = DispatchRaysDimensions();
+
     float3 faceDirection[6] =
     {
         float3(0.0f, 0.0f, -0.5f),
@@ -88,9 +93,6 @@ void ShadowRaygen()
         float3(0.0f, -0.5f, 0.0f),
         float3(0.0f, 0.5f, 0.0f),
     };
-    
-    uint3 dispatchIdx = DispatchRaysIndex();
-    uint3 dispatchDim = DispatchRaysDimensions();
     
     uint faceIdx = GetLinearCoord(dispatchIdx, dispatchDim);
     
@@ -127,27 +129,49 @@ void ShadowRaygen()
         points[4] = voxelCenter + edgeMidPoints[3];
     }
 
+    uint nSampleVisible = 0;
+    
     // Not much difference when tracing a ray from only the center of the face
     // Or also from the edges midpoints.
-    for (uint i = 0; i < 1; i++)
+    for (uint i = 0; i < 5; i++)
     {
+
+        
         ray.Origin = points[i];
-        if (!IsVoxelPresent(faceData.x, gVoxelLitBuffer))
+
+        TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 0, 0, ray, rayPayload);
+        if (rayPayload.voxelIdx == 0)
         {
-            TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 0, 0, ray, rayPayload);
-            if (rayPayload.voxelIdx == 0)
-            {
-                SetVoxelPresence(faceData.x, gVoxelLitBuffer);
-                SetVoxelPresence(gVoxelAssignmentMap[faceData.x], gClusterLitBuffer);
-                break;
-            }
+            nSampleVisible += 1;
         }
-        else
-        {
+        
+        if (nSampleVisible > 4)
             break;
-        }
+        
+        rayPayload.voxelIdx = 1;
     }
     
+    if (nSampleVisible > 4)
+    {
+        uint clusterIdx = gVoxelAssignmentMap[faceData.x];
+        
+        ClusterData clusterData = gClusterDataBuffer[clusterIdx];
+        
+        float formFactor = differentialAreaFormFactor(clusterData.Normal, cbRaytracingShadows.LightDirection);
+
+        float3 voxelRadiance = formFactor * clusterData.Color * 25.0f;
+        uint3 irradianceUint = uint3(voxelRadiance * IRRADIANCE_FIELD_MULTIPLIER);
+        
+        gVoxelLitBuffer[faceData.x] = voxelRadiance;
+        
+        if (clusterIdx != UINT_MAX)
+        {
+            InterlockedAdd(gClusterLitBuffer[clusterIdx].x, irradianceUint.x);
+            InterlockedAdd(gClusterLitBuffer[clusterIdx].y, irradianceUint.y);
+            InterlockedAdd(gClusterLitBuffer[clusterIdx].z, irradianceUint.z);
+            InterlockedAdd(gClusterLitBuffer[clusterIdx].w, 1);
+        }
+    }
 }
 
 [shader("miss")]

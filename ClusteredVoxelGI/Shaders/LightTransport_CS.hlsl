@@ -29,25 +29,31 @@ StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space0);
 StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space0);
 StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space0);
 
-StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space1);
-StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space1);
+StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space1);
+// The element i contains the start index in gVoxelFaceDataBuffer and the number of the faces for the voxel with index i
+StructuredBuffer<uint2> gVoxelFaceStartCountBuffer : register(t1, space1);
+
+StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space2);
+StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space2);
 // Map from aabbVoxelIndices to gVoxelIndicesCompactBuffer.
-StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space1);
+StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space2);
 
-RaytracingAccelerationStructure Scene : register(t0, space2);
+RaytracingAccelerationStructure Scene : register(t0, space3);
 
-RWByteAddressBuffer gVisibleVoxels : register(u0);
-RWByteAddressBuffer gVisibleVoxelCounter : register(u1);
-RWStructuredBuffer<uint> gVisibleVoxelIndices : register(u2);
-RWStructuredBuffer<uint3> gDispatchIndirectBuffer : register(u3);
+RWByteAddressBuffer gVisibleFaceCounter : register(u0);
+RWStructuredBuffer<uint> gVisibleFaceIndices : register(u1);
+RWStructuredBuffer<uint3> gDispatchIndirectBuffer : register(u2);
 
-RWStructuredBuffer<float> gVoxelRadiance : register(u0, space1);
+RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0, space1);
+RWStructuredBuffer<uint2> gFaceFilteredRadianceBuffer : register(u1, space1);
 
 static const float SQRT_2 = 1.41421356237f;
 
 groupshared uint gsIsOutsideFrustum;
 groupshared uint gsIsOccluded;
 groupshared uint gsStartAddress;
+
+groupshared uint gsFaceCount;
 
 [numthreads(128, 1, 1)]
 void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 threadIdx : SV_GroupThreadID)
@@ -56,29 +62,26 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
     
     if (cbFrustumCulling.CurrentStep == 0)
     {
+        
+        if (threadLinearIndex >= cbFrustumCulling.FaceCount)
+            return;
+        
+        gVisibleFaceIndices[threadLinearIndex] = UINT_MAX;
+        gFaceRadianceBuffer[threadLinearIndex] = uint2(0, 0);
+        gFaceFilteredRadianceBuffer[threadLinearIndex] = uint2(0, 0);
+
+
+        
         if (threadLinearIndex >= cbFrustumCulling.VoxelCount)
             return;
         
         if (threadLinearIndex == 0)
         {
-            gVisibleVoxelCounter.Store(0, 0);
+            gVisibleFaceCounter.Store(0, 0);
             gDispatchIndirectBuffer[0] = uint3(0, 1, 1);
+            gDispatchIndirectBuffer[1] = uint3(0, 1, 1);
         }
-        
-        gVoxelRadiance[threadLinearIndex] = 0.0f;
-        
-        uint bit = threadLinearIndex & 31u;
-        
-        //if (bit == 0)
-        //{
-        uint index = threadLinearIndex >> 5u;
-        index = index * 4;
-        uint outval;
-        gVisibleVoxels.InterlockedAnd(index, (1u << bit), outval);
-        //}
 
-        
-        gVisibleVoxelIndices[threadLinearIndex] = UINT_MAX;
     }
 
     else if (cbFrustumCulling.CurrentStep == 1)
@@ -99,6 +102,8 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
             gsIsOutsideFrustum = 0;
             gsIsOccluded = 1;
             gsStartAddress = 0;
+            
+            gsFaceCount = 0;
         }
         
         GroupMemoryBarrierWithGroupSync();
@@ -209,28 +214,47 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
             
         if (gsIsOccluded == 0)
         {
+            uint nFaces = 0;
+            for (uint i = aabbStart; i < aabbEnd; i++)
+            {
+                uint voxIdx = gAABBVoxelIndices[i];
+                nFaces += gVoxelFaceStartCountBuffer[voxIdx].y;
+            }
+            
+            uint startFace = 0;
+            InterlockedAdd(gsFaceCount, nFaces, startFace);
+            
+            GroupMemoryBarrierWithGroupSync();
+            
             if (threadIdx.x == 0)
             {
-                gVisibleVoxelCounter.InterlockedAdd(0, aabbInfo.ClusterElementCount, gsStartAddress);
+                gVisibleFaceCounter.InterlockedAdd(0, gsFaceCount, gsStartAddress);
             }
 
             GroupMemoryBarrierWithGroupSync();
     
             uint startAddr = gsStartAddress;
-                
-            for (uint i = aabbStart; i < aabbEnd; i++)
+            uint faceI = 0;
+            for (i = aabbStart; i < aabbEnd; i++)
             {
-                gVisibleVoxelIndices[startAddr + i - aabbInfo.ClusterStartIndex] = gAABBVoxelIndices[i];
+                uint voxIdx = gAABBVoxelIndices[i];
+                uint2 faceStartCount = gVoxelFaceStartCountBuffer[voxIdx];
+                
+                for (uint j = 0; j < faceStartCount.y; j++)
+                {
+                    gVisibleFaceIndices[startAddr + startFace + faceI] = faceStartCount.x + j;
+                    faceI += 1;
+                }
             }
         
             // We will use this buffer to dispatch the indirect draw call with a number of thread groups equal to
-            // visibileVoxels / 128.
+            // visibileVoxels / 8.
                
             if (threadIdx.x == 0)
             {
-                InterlockedMax(gDispatchIndirectBuffer[0].x, ceil((startAddr + aabbInfo.ClusterElementCount) / 128.0f));
+                InterlockedMax(gDispatchIndirectBuffer[0].x, (startAddr + gsFaceCount));
+                InterlockedMax(gDispatchIndirectBuffer[1].x, (uint) ceil((startAddr + gsFaceCount) / 128.0f));
             }
-
         }
     }
 }

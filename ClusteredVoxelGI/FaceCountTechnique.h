@@ -39,5 +39,12 @@ namespace CVGI
 			FaceCountUAVTable,
 			Count
 		};
+
+		enum class FaceBufferType
+		{
+			FaceDataBuffer = 0,
+			FaceStartCountBuffer = 1,
+			FaceCounterBuffer
+		};
 	};
 }
