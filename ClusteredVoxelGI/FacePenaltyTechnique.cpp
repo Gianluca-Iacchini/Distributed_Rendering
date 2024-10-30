@@ -32,7 +32,7 @@ void CVGI::FacePenaltyTechnique::InitializeBuffers()
 
 void CVGI::FacePenaltyTechnique::PerformTechnique(DX12Lib::ComputeContext& context)
 {
-	m_cbFacePenalty.VoxelCount = m_data->FaceCount;
+	m_cbFacePenalty.VoxelCount = m_data->VoxelCount * 6;
 	m_cbFacePenalty.LightDirection = m_data->GetLightComponent()->Node->GetForward();
 	m_cbFacePenalty.LightPosition = m_data->GetLightComponent()->Node->GetPosition();
 	m_cbFacePenalty.LightIntensity = 15.0f;
@@ -60,7 +60,6 @@ void CVGI::FacePenaltyTechnique::TechniquePass(DX12Lib::ComputeContext& context,
 	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
 	auto& clusterVoxelBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
-	auto& faceCountBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
 	auto& clusterVisiblityBufferManager = m_data->GetBufferManager(ClusterVisibility::Name);
 
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
@@ -69,7 +68,6 @@ void CVGI::FacePenaltyTechnique::TechniquePass(DX12Lib::ComputeContext& context,
 	voxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterVoxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	faceCountBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterVisiblityBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	context.FlushResourceBarriers();
@@ -79,7 +77,6 @@ void CVGI::FacePenaltyTechnique::TechniquePass(DX12Lib::ComputeContext& context,
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FacePenaltyRootSignature::VoxelSRVTable, voxelBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FacePenaltyRootSignature::CompactSRVTable, compactBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FacePenaltyRootSignature::ClusterVoxelSRVTable, clusterVoxelBufferManager.GetSRVHandle());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FacePenaltyRootSignature::FaceCountSRVTable, faceCountBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FacePenaltyRootSignature::ClusterVisibilitySRVTable, clusterVisiblityBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)FacePenaltyRootSignature::FacePenaltyUAVTable, m_bufferManager->GetUAVHandle());
 
@@ -94,8 +91,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::FacePenaltyTechnique::BuildRootSig
 	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::VoxelSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
 	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::CompactSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::ClusterVoxelSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 2);
-	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::FaceCountSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 3);
-	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::ClusterVisibilitySRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 4);
+	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::ClusterVisibilitySRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 3);
 	(*facePenaltyRootSig)[(UINT)FacePenaltyRootSignature::FacePenaltyUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
 
 	facePenaltyRootSig->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);

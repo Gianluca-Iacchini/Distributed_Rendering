@@ -27,7 +27,6 @@ namespace CVGI
 		AccelerationStructureSRV = 2,
 		PrefixSumBufferSRV,
 		ClusterVoxelBufferSRV,
-		FaceBufferSRV,
 		RayTraceShadowTableUAV,
 		Count
 	};

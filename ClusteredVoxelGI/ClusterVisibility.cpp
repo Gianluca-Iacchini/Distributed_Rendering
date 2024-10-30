@@ -5,9 +5,9 @@
 #include "dxcapi.h"
 #include "Raytracing.h"
 #include "BuildAABBsTechnique.h"
+#include "VoxelizeScene.h"
 #include "PrefixSumVoxels.h"
 #include "ClusterVoxels.h"
-#include "FaceCountTechnique.h"
 #include "VoxelizeScene.h"
 
 #define MAX_BLAS_COUNT 250
@@ -36,17 +36,14 @@ void CVGI::ClusterVisibility::PerformTechnique(DX12Lib::ComputeContext& computeC
 	RayTracingContext& context = RayTracingContext::Begin();
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"RayTracing");
 
-	UINT side = floor(std::cbrt(m_data->FaceCount));
-	DirectX::XMUINT3 dispatchSize = DirectX::XMUINT3(side + 1, side + 1, side);
-
 	m_cbRayTracing.CurrentPhase = 0;
-	m_cbRayTracing.DispatchSize = dispatchSize;
-	m_cbRayTracing.NumberOfFaces = m_data->FaceCount;
+	m_cbRayTracing.FaceCount = m_data->FaceCount;
 	m_cbRayTracing.GridDimension = m_data->GetVoxelGridSize();
 	m_cbRayTracing.Rand1 = MathHelper::RandF();
 	m_cbRayTracing.Rand2 = MathHelper::RandF();
 
-	assert(dispatchSize.x * dispatchSize.y * dispatchSize.z >= m_data->FaceCount);
+	UINT side = floor(std::cbrt(m_data->FaceCount));
+	DirectX::XMUINT3 dispatchSize = DirectX::XMUINT3(side + 1, side + 1, side);
 
 	TechniquePass(context, dispatchSize);
 
@@ -68,22 +65,22 @@ void CVGI::ClusterVisibility::TechniquePass(RayTracingContext& context, DirectX:
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
+	auto& voxelizeSceneBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 	auto& aabbBufferManager = m_data->GetBufferManager(BuildAABBsTechnique::Name);
 	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
 	auto& clusterBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
-	auto& faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
 
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	voxelizeSceneBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	aabbBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	faceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)RayTraceRootSignature::RayTraceCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbRayTracing).GpuAddress());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceRootSignature::VoxelSRVTable, voxelizeSceneBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceRootSignature::CompactSRVTable, compactBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceRootSignature::ClusterSRVTable, clusterBufferManager.GetSRVHandle());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceRootSignature::FaceSRVTable, faceBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceRootSignature::AABBSRVTable, aabbBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootShaderResourceView((UINT)RayTraceRootSignature::AccelerationStructureSRV, m_data->GetTlas()->GetGpuVirtualAddress());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceRootSignature::RayTraceUAVTable, m_bufferManager->GetUAVHandle());
@@ -96,9 +93,9 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusterVisibility::BuildRootSignat
 
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::RayTraceCBV].InitAsConstantBuffer(0);
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::AccelerationStructureSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 0);
-	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::CompactSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
-	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::ClusterSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
-	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::FaceSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
+	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::VoxelSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 1);
+	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::CompactSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 2);
+	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::ClusterSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 3);
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::AABBSRVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 4);
 	(*rayTracingRootSignature)[(UINT)RayTraceRootSignature::RayTraceUAVTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 

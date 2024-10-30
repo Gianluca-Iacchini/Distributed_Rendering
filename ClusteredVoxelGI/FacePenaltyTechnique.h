@@ -32,7 +32,6 @@ namespace CVGI
 			VoxelSRVTable,
 			CompactSRVTable,
 			ClusterVoxelSRVTable,
-			FaceCountSRVTable,
 			ClusterVisibilitySRVTable,
 			FacePenaltyUAVTable,
 			Count

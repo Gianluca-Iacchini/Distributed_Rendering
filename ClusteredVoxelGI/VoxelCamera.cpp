@@ -7,7 +7,7 @@ using namespace CVGI;
 void CVGI::VoxelCamera::Init(DX12Lib::CommandContext& context)
 {
 	// SetOrthogonal takes the bounding box width, height, near value and far values, which equals to 2 * half the size of the scene
-	this->SetOrthogonal({m_sceneExtents.x * 2.f, m_sceneExtents.y * 2.f, 0.1f, m_sceneExtents.z * 2.f});
+	this->SetOrthogonal({ m_sceneHalfExtents.x * 2.f, m_sceneHalfExtents.y * 2.f, 0.1f, m_sceneHalfExtents.z * 2.f});
 }
 
 DirectX::GraphicsResource VoxelCamera::GetCameraBuffer()
@@ -44,7 +44,7 @@ DirectX::GraphicsResource VoxelCamera::GetCameraBuffer()
 DirectX::XMMATRIX VoxelCamera::BuildViewMatrix(DirectX::XMFLOAT3 axisDirection)
 {
 	// In our case the scene is centered at the origin, so the camera is offset at a distance equal to the scene's half size
-	DirectX::XMFLOAT3 cameraDistance = m_sceneExtents;
+	DirectX::XMFLOAT3 cameraDistance = m_sceneHalfExtents;
 
 	DirectX::XMFLOAT4X4 view;
 

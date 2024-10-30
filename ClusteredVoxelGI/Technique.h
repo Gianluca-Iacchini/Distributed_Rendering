@@ -59,10 +59,13 @@ namespace CVGI
 
 		DirectX::GraphicsResource& GetVoxelCommonsResource();
 
+		ConstantBufferVoxelCommons& GetVoxelCommons() { return m_cbVoxelCommons; }
+
 		void BuildMatrices();
 
 	private:
 		DirectX::XMMATRIX BuildVoxelToWorldMatrix();
+		DirectX::XMMATRIX BuildWorldToVoxelMatrix();
 
 	public:
 		UINT32 VoxelCount = 0;

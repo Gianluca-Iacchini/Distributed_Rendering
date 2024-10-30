@@ -28,6 +28,10 @@ namespace DX12Lib
 	class TextureManager;
 }
 
+namespace CVGI
+{
+	class TechniqueData;
+}
 
 
 namespace Graphics
@@ -39,10 +43,14 @@ namespace Graphics
 			CommonCBV = 0,
 			CameraCBV = 1,
 			ObjectCBV = 2,
-			LightSRV = 3,
-			MaterialSRV = 4,
-			MaterialTextureSRV = 5,
-			VoxelRTGIBufferSRV = 6,
+			VoxelRTGICBV,
+			LightSRV,
+			MaterialSRV,
+			MaterialTextureSRV,
+			VoxelBufferSRV,
+			CompactBufferSRV,
+			ClusterBufferSRV,
+			RadianceBufferSRV,
 			Count
 		};
 
@@ -93,8 +101,7 @@ namespace Graphics
 		void SetScissorAndViewportSize(int width, int height);
 
 		void UseRTGI(bool useRTGI);
-		void SetRTGIBuffer(DX12Lib::DescriptorHandle& radianceBuffer);
-		void SetRTGISceneMatricesTransform(DirectX::XMFLOAT4X4& voxelToWorld, DirectX::XMFLOAT4X4 worldToVoxel);
+		void SetRTGIData(std::shared_ptr<CVGI::TechniqueData> techniqueData, DirectX::XMFLOAT3 originalSceneMin, DirectX::XMFLOAT3 originalSceneMax);
 	};
 }
 

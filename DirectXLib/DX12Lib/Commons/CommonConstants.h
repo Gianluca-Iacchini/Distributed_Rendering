@@ -37,6 +37,9 @@ namespace DX12Lib {
 	{
 		DirectX::XMFLOAT4X4 voxelToWorld = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 worldToVoxel = MathHelper::Identity4x4();
+
+		DirectX::XMUINT3 voxelGridSize = { 128, 128, 128 };
+		float pad0;
 	};
 
 	__declspec(align(16)) struct ConstantBufferCamera

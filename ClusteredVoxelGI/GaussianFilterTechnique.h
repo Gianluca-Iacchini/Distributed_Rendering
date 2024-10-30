@@ -31,10 +31,10 @@ namespace CVGI
 			GaussianFilterCBV = 1,
 			VoxelDataSRV,
 			PrefixSumSRV,
-			FaceDataSRV,
 			FacePenaltySRV,
 			VoxelVisibleFaceSRV,
 			VoxelRadianceUAV,
+			GaussianBufferUAV,
 			Count
 		};
 	};

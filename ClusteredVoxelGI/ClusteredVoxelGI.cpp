@@ -119,6 +119,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		}
 	}
 
+	DirectX::XMFLOAT3 originalMin = sceneBounds.Min;
+	DirectX::XMFLOAT3 originalMax = sceneBounds.Max;
+
 	float minComponent = std::min(sceneBounds.Min.x, std::min(sceneBounds.Min.y, sceneBounds.Min.z));
 	float maxComponent = std::max(sceneBounds.Max.x, std::max(sceneBounds.Max.y, sceneBounds.Max.z));
 
@@ -132,9 +135,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	sceneBounds.Max.y = maxComponent;
 	sceneBounds.Max.z = maxComponent;
 
-	voxelCellSize.x = extent / voxelTexDimensions.x;
-	voxelCellSize.y = extent / voxelTexDimensions.y;
-	voxelCellSize.z = extent / voxelTexDimensions.z;
+	voxelCellSize.x = (sceneBounds.Max.x - sceneBounds.Min.x) / voxelTexDimensions.x;
+	voxelCellSize.y = (sceneBounds.Max.y - sceneBounds.Min.y) / voxelTexDimensions.y;
+	voxelCellSize.z = (sceneBounds.Max.z - sceneBounds.Min.z) / voxelTexDimensions.z;
 
 	m_data->SetVoxelCellSize(voxelCellSize);
 	m_data->SetSceneAABB(sceneBounds);
@@ -149,6 +152,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	voxelScene->Render(commandContext);
 
 	VoxelCamera* voxelCamera = voxelScene->GetVoxelCamera();
+	voxelCamera->SetOrthogonalHalfExtents(DirectX::XMFLOAT3(extent / 2.0f, extent / 2.0f, extent / 2.0f));
 
 	m_voxelizeScene->SetVoxelCamera(voxelCamera);
 	m_voxelizeScene->PerformTechnique(commandContext);
@@ -192,8 +196,10 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_computeNeighboursTechnique->InitializeBuffers();
 	m_computeNeighboursTechnique->PerformTechnique(computeContext);
 
-	m_faceCountTechnique->InitializeBuffers();
-	m_faceCountTechnique->PerformTechnique(computeContext);
+	//m_faceCountTechnique->InitializeBuffers();
+	//m_faceCountTechnique->PerformTechnique(computeContext);
+
+	m_data->FaceCount = m_data->VoxelCount * 6;
 
 	m_buildAABBsTechnique->InitializeBuffers();
 	m_buildAABBsTechnique->PerformTechnique(computeContext);
@@ -206,9 +212,10 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_facePenaltyTechnique->InitializeBuffers();
 	m_facePenaltyTechnique->PerformTechnique(computeContext);
 
+	m_lightVoxel->InitializeBuffers();
+
 	m_lightTransportTechnique->InitializeBuffers();
 
-	m_lightVoxel->InitializeBuffers();
 
 	m_gaussianFilterTechnique->InitializeBuffers();
 	m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
@@ -220,6 +227,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_displayVoxelScene->SetCamera(m_Scene->GetMainCamera());
 	m_displayVoxelScene->SetVertexData(commandContext);
+
+	Renderer::SetRTGIData(m_data, originalMin, originalMax);
+	Renderer::UseRTGI(true);
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -243,9 +253,9 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	context.Finish();
 
 	m_Scene->Render(commandContext);
-
 	Renderer::RenderLayers(commandContext);
 
+	//m_displayVoxelScene->PerformTechnique(commandContext);
 
 	Renderer::PostDrawCleanup(commandContext);
 }

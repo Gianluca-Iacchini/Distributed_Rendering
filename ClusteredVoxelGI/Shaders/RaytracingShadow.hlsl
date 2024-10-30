@@ -21,7 +21,6 @@ StructuredBuffer<uint> gNextVoxelLinkedList : register(t1, space2);
 StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space2);
 StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space2);
 
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
 
 RWStructuredBuffer<float3> gVoxelLitBuffer : register(u0, space0);
 RWStructuredBuffer<uint4> gClusterLitBuffer : register(u1, space0);
@@ -84,24 +83,26 @@ void ShadowRaygen()
     uint3 dispatchIdx = DispatchRaysIndex();
     uint3 dispatchDim = DispatchRaysDimensions();
 
-    float3 faceDirection[6] =
+    float3 faceDirectionPos[3] =
     {
-        float3(0.0f, 0.0f, -0.5f),
         float3(0.0f, 0.0f, 0.5f),
-        float3(-0.5f, 0.0f, 0.0f),
         float3(0.5f, 0.0f, 0.0f),
-        float3(0.0f, -0.5f, 0.0f),
         float3(0.0f, 0.5f, 0.0f),
     };
     
-    uint faceIdx = GetLinearCoord(dispatchIdx, dispatchDim);
+    uint linearIdx = GetLinearCoord(dispatchIdx, dispatchDim);
     
-    if (faceIdx >= cbRaytracingShadows.FaceCount)
+    if (linearIdx >= cbRaytracingShadows.FaceCount)
         return;
     
-    uint2 faceData = gVoxelFaceDataBuffer[faceIdx];
+    // At most, only 3 faces can be lit by the light source
+    uint voxelIdx = (uint) floor(linearIdx / 3.0f);
+    uint faceIdx = linearIdx % 3;
     
-    float3 voxelCenter = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[faceData.x], cbVoxelCommons.voxelTextureDimensions));
+    float3 faceDir = faceDirectionPos[faceIdx];
+    faceDir *= sign(dot(-cbRaytracingShadows.LightDirection, faceDir));
+    
+    float3 voxelCenter = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions));
     
     
     // Define ray starting position and other parameters
@@ -119,7 +120,7 @@ void ShadowRaygen()
     Payload rayPayload = { 1 }; // Payload to store the index
     
     float3 points[5];
-    float3 faceDir = faceDirection[faceData.y];
+
     points[0] = voxelCenter + faceDir;
     {
         float4x3 edgeMidPoints = GetFaceEdgeMidpoints(voxelCenter, faceDir);
@@ -153,16 +154,16 @@ void ShadowRaygen()
     
     if (nSampleVisible > 4)
     {
-        uint clusterIdx = gVoxelAssignmentMap[faceData.x];
+        uint clusterIdx = gVoxelAssignmentMap[voxelIdx];
         
         ClusterData clusterData = gClusterDataBuffer[clusterIdx];
         
         float formFactor = differentialAreaFormFactor(clusterData.Normal, cbRaytracingShadows.LightDirection);
 
-        float3 voxelRadiance = formFactor * clusterData.Color * 25.0f;
+        float3 voxelRadiance = formFactor * clusterData.Color * 150.0f;
         uint3 irradianceUint = uint3(voxelRadiance * IRRADIANCE_FIELD_MULTIPLIER);
         
-        gVoxelLitBuffer[faceData.x] = voxelRadiance;
+        gVoxelLitBuffer[voxelIdx] = voxelRadiance;
         
         if (clusterIdx != UINT_MAX)
         {

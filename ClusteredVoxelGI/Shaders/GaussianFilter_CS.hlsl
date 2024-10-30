@@ -10,21 +10,21 @@ StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
 StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space2);
-// The element i contains the start index in gVoxelFaceDataBuffer and the number of the faces for the voxel with index i
-StructuredBuffer<uint2> gVoxelFaceStartCountBuffer : register(t1, space2);
 
-StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space3);
-StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space3);
+StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space2);
+StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space2);
 
-ByteAddressBuffer gVisibleFaceCounter : register(t0, space4);
-StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space4);
+ByteAddressBuffer gVisibleFaceCounter : register(t0, space3);
+StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space3);
 
 RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0, space0);
 RWStructuredBuffer<uint2> gFaceFilteredRadianceBuffer : register(u1, space0);
 
+RWStructuredBuffer<float> gGaussianPrecomputedDataBuffer : register(u0, space1);
+
 #define SIDE 2
 #define KERNEL_SIZE 2 * SIDE + 1
+#define SIGMA 25.0
 
 uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 {
@@ -76,11 +76,10 @@ float gaussianDistribution(float x, float y, float z, float sigma)
 }
 
 
-float3 filterFace(int faceIndex, RWStructuredBuffer<uint2> gRadianceBuffer, bool isFirstPass)
+float3 filterFace(uint voxelIdx, uint faceIdx, RWStructuredBuffer<uint2> gRadianceBuffer, bool isFirstPass)
 {
-    uint2 faceData = gVoxelFaceDataBuffer[faceIndex];
-    uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[faceData.x], cbVoxelCommons.voxelTextureDimensions);
-    
+
+    uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions);
 
     float gaussianValue;
 
@@ -89,11 +88,8 @@ float3 filterFace(int faceIndex, RWStructuredBuffer<uint2> gRadianceBuffer, bool
     float lKernel[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
     float3 lVoxelRadiance[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
 
-    float sigma = 25.0f;
+
     float sum = 0.0f; // used for normalization, one sum value for each rgb channel
-    
-    uint2 currentFaceData = uint2(UINT_MAX, 0);
-    uint currentFaceIdx = UINT_MAX;
     
     // Generate 3x3 kernel 
     for (int x = -SIDE; x <= SIDE; ++x)
@@ -112,30 +108,22 @@ float3 filterFace(int faceIndex, RWStructuredBuffer<uint2> gRadianceBuffer, bool
                     if (IsVoxelPresent(neighbourCoord, cbVoxelCommons.voxelTextureDimensions, gVoxelOccupiedBuffer))
                     {
                         uint neighbourIdx = FindHashedCompactedPositionIndex(neighbourCoord, cbVoxelCommons.voxelTextureDimensions).x;
-                        uint2 faceStartCount = gVoxelFaceStartCountBuffer[neighbourIdx];
-                        
-                        voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
-                        for (uint f = faceStartCount.x; f < faceStartCount.x + faceStartCount.y; ++f)
-                        {
-                            currentFaceIdx = f;
-                            currentFaceData = gVoxelFaceDataBuffer[f];
-                            if (currentFaceData.y == faceData.y)
-                            {
-                                uint2 packedRadiance = gRadianceBuffer[f];
-                                voxelFaceIrradiance.xy = UnpackFloats16(packedRadiance.x);
-                                voxelFaceIrradiance.z = UnpackFloats16(packedRadiance.y).x;
-                                break;
-                            }
-                        }
 
-                        if (faceData.x == currentFaceData.x)
+                        voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
+                        
+                        uint2 packedRadiance = gRadianceBuffer[neighbourIdx * 6 + faceIdx];
+                        voxelFaceIrradiance.xy = UnpackFloats16(packedRadiance.x);
+                        voxelFaceIrradiance.z = UnpackFloats16(packedRadiance.y).x;
+
+                        if (voxelIdx == neighbourIdx)
                         {
-                            voxelFaceIrradiance *= gFaceCloseVoxelsPenaltyBuffer[currentFaceIdx];
+                            voxelFaceIrradiance *= gFaceCloseVoxelsPenaltyBuffer[neighbourIdx * 6 + faceIdx];
                         }
 
                         if (isFirstPass || (any(voxelFaceIrradiance > 0.0f)))
                         {
-                            gaussianValue = gaussianDistribution(x, y, z, sigma);
+                            uint linearCoord = GetLinearCoord(uint3(x + SIDE, y + SIDE, z + SIDE), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
+                            gaussianValue = gGaussianPrecomputedDataBuffer[linearCoord];
                             lKernel[x + SIDE][y + SIDE][z + SIDE] = gaussianValue;
                             lVoxelRadiance[x + SIDE][y + SIDE][z + SIDE] = voxelFaceIrradiance;
                             sum += gaussianValue;
@@ -172,7 +160,7 @@ float3 filterFace(int faceIndex, RWStructuredBuffer<uint2> gRadianceBuffer, bool
 
 
 [numthreads(128, 1, 1)]
-void CS( uint3 DTid : SV_DispatchThreadID )
+void CS( uint3 DTid : SV_DispatchThreadID)
 {
     uint threadGlobalIndex = DTid.x;
     
@@ -181,25 +169,28 @@ void CS( uint3 DTid : SV_DispatchThreadID )
     if (threadGlobalIndex >= visibleFaces)
         return;
     
-    uint faceIdx = gVisibleFaceIndices[threadGlobalIndex];
+    uint idx = gVisibleFaceIndices[threadGlobalIndex];
     
+    uint voxIdx = (uint) floor(idx / 6.0f);
+    uint faceIndex = idx % 6;
+
     if (cbGaussianFilter.CurrentPhase == 0)
     {
-        uint2 packedRadiance = gFaceRadianceBuffer[faceIdx];
+        uint2 packedRadiance = gFaceRadianceBuffer[idx];
         float3 radiance = float3(0.0f, 0.0f, 0.0f);
     
         radiance.xy = UnpackFloats16(packedRadiance.x);
         radiance.z = UnpackFloats16(packedRadiance.y).x;
     
-        float3 filteredRadiance = filterFace(faceIdx, gFaceRadianceBuffer, true);
+        float3 filteredRadiance = filterFace(voxIdx, faceIndex, gFaceRadianceBuffer, true);
     
         uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
     
-        gFaceFilteredRadianceBuffer[faceIdx] = packedData;
+        gFaceFilteredRadianceBuffer[idx] = packedData;
     }
     else if (cbGaussianFilter.CurrentPhase == 1)
     {
-        uint2 packedRadiance = gFaceFilteredRadianceBuffer[faceIdx];
+        uint2 packedRadiance = gFaceFilteredRadianceBuffer[idx];
         float3 radiance = float3(0.0f, 0.0f, 0.0f);
     
         radiance.xy = UnpackFloats16(packedRadiance.x);
@@ -207,7 +198,7 @@ void CS( uint3 DTid : SV_DispatchThreadID )
         
         if (any(radiance > 0.0f))
         {
-            radiance = filterFace(faceIdx, gFaceFilteredRadianceBuffer, false);
+            radiance = filterFace(voxIdx, faceIndex, gFaceFilteredRadianceBuffer, false);
             packedRadiance = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
         }
         else
@@ -215,6 +206,21 @@ void CS( uint3 DTid : SV_DispatchThreadID )
             packedRadiance = uint2(0, 0);
         }
         
-        gFaceRadianceBuffer[faceIdx] = packedRadiance;
+        gFaceRadianceBuffer[idx] = packedRadiance;
+    }
+    else if (cbGaussianFilter.CurrentPhase == 2)
+    {
+        for (uint x = 0; x < KERNEL_SIZE; x++)
+        {
+            for (uint y = 0; y < KERNEL_SIZE; y++)
+            {
+                for (uint z = 0; z < KERNEL_SIZE; z++)
+                {
+                    int3 values = int3(int(x) - SIDE, int(y) - SIDE, int(z) - SIDE);
+                    uint linearCoord = GetLinearCoord(uint3(x, y, z), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
+                    gGaussianPrecomputedDataBuffer[linearCoord] = gaussianDistribution(values.x, values.y, values.z, SIGMA);
+                }
+            }
+        }
     }
 }

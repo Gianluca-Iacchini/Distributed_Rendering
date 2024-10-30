@@ -41,7 +41,7 @@ void CVGI::LightVoxel::PerformTechnique(RayTracingContext& context)
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), Name.c_str());
 
 	m_cbShadowRaytrace.LightDirection = m_lightComponent->Node->GetForward();
-	m_cbShadowRaytrace.FaceCount = m_data->FaceCount;
+	m_cbShadowRaytrace.FaceCount = m_data->FaceCount / 2; // Face count is always even, so we can divide by 2
 	m_cbShadowRaytrace.VoxelCount = m_data->VoxelCount;
 	m_cbShadowRaytrace.ClusterCount = m_data->ClusterCount;
 	m_cbShadowRaytrace.CurrentStep = 0;
@@ -54,9 +54,13 @@ void CVGI::LightVoxel::PerformTechnique(RayTracingContext& context)
 
 	ClearBufferPass(context, DirectX::XMUINT3(ceilf(m_data->VoxelCount / 128.0f), 1, 1));
 
-	UINT side = floor(std::cbrt(m_data->FaceCount));
+	UINT side = floor(std::cbrt(m_data->FaceCount / 2));
 	DirectX::XMUINT3 dispatchSize = DirectX::XMUINT3(side + 1, side + 1, side);
-	assert(dispatchSize.x * dispatchSize.y * dispatchSize.z >= m_data->FaceCount);
+	
+	if (dispatchSize.x * dispatchSize.y * dispatchSize.z < m_data->FaceCount)
+	{
+		dispatchSize.z += 1;
+	}
 
 	TechniquePass(context, dispatchSize);
 
@@ -71,10 +75,9 @@ void CVGI::LightVoxel::TechniquePass(RayTracingContext& context, DirectX::XMUINT
 	context.SetPipelineState(Renderer::s_PSOs[Name.c_str()].get());
 
 	auto& prefixSumBuffer = m_data->GetBufferManager(PrefixSumVoxels::Name);
-	auto& faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
 	auto& clusterVoxelBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
 
-	faceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	prefixSumBuffer.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterVoxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0), true);
@@ -85,7 +88,6 @@ void CVGI::LightVoxel::TechniquePass(RayTracingContext& context, DirectX::XMUINT
 	context.m_commandList->Get()->SetComputeRootShaderResourceView((UINT)RayTraceShadowRootSignature::AccelerationStructureSRV, m_data->GetTlas()->GetGpuVirtualAddress());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceShadowRootSignature::PrefixSumBufferSRV, prefixSumBuffer.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceShadowRootSignature::ClusterVoxelBufferSRV, clusterVoxelBufferManager.GetSRVHandle());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceShadowRootSignature::FaceBufferSRV, faceBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)RayTraceShadowRootSignature::RayTraceShadowTableUAV, m_bufferManager->GetUAVHandle());
 
 
@@ -125,7 +127,6 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::LightVoxel::BuildRootSignature()
 	(*rayTracingRootSignature)[(UINT)RayTraceShadowRootSignature::AccelerationStructureSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 0);
 	(*rayTracingRootSignature)[(UINT)RayTraceShadowRootSignature::PrefixSumBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*rayTracingRootSignature)[(UINT)RayTraceShadowRootSignature::ClusterVoxelBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 2);
-	(*rayTracingRootSignature)[(UINT)RayTraceShadowRootSignature::FaceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
 	(*rayTracingRootSignature)[(UINT)RayTraceShadowRootSignature::RayTraceShadowTableUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
 
 	rayTracingRootSignature->Finalize();

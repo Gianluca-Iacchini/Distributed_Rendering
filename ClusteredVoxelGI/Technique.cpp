@@ -47,35 +47,30 @@ DirectX::GraphicsResource& CVGI::TechniqueData::GetVoxelCommonsResource()
 
 void CVGI::TechniqueData::BuildMatrices()
 {
-	DirectX:XMMATRIX voxelToWorld = BuildVoxelToWorldMatrix();
-	DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.VoxelToWorld, DirectX::XMMatrixTranspose(voxelToWorld));
-	DirectX::XMMATRIX invMatrix = DirectX::XMMatrixInverse(nullptr, voxelToWorld);
-	DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.WorldToVoxel, DirectX::XMMatrixTranspose(invMatrix));
+	DirectX:XMMATRIX worldToVoxel = BuildWorldToVoxelMatrix();
+	DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.WorldToVoxel, DirectX::XMMatrixTranspose(worldToVoxel));
+	DirectX::XMMATRIX invMatrix = DirectX::XMMatrixInverse(nullptr, worldToVoxel);
+	DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.VoxelToWorld, DirectX::XMMatrixTranspose(invMatrix));
 }
 
-DirectX::XMMATRIX CVGI::TechniqueData::BuildVoxelToWorldMatrix()
+DirectX::XMMATRIX CVGI::TechniqueData::BuildWorldToVoxelMatrix()
 {
-	DirectX::XMMATRIX normalizeMatrix = DirectX::XMMatrixScaling(1.0f / VoxelGridSize.x,
-																 1.0f / VoxelGridSize.y, 
-																 1.0f / VoxelGridSize.z);
+	DirectX::XMFLOAT3 sceneExtents = DirectX::XMFLOAT3(SceneAABB.Max.x - SceneAABB.Min.x,
+													   SceneAABB.Max.y - SceneAABB.Min.y,
+													   SceneAABB.Max.z - SceneAABB.Min.z);
 
-	DirectX::XMFLOAT3 extents = DirectX::XMFLOAT3(SceneAABB.Max.x - SceneAABB.Min.x,
-												  SceneAABB.Max.y - SceneAABB.Min.y,
-												  SceneAABB.Max.z - SceneAABB.Min.z);
 
-	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(extents.x,
-															 extents.y,
-															 extents.z);
+	DirectX::XMMATRIX transformOrigin = DirectX::XMMatrixTranslation(sceneExtents.x / 2.0f,
+																	 sceneExtents.y / 2.0f,
+																	 sceneExtents.z / 2.0f);
 
-	DirectX::XMMATRIX translateMatrix = DirectX::XMMatrixTranslation(extents.x / VoxelGridSize.x * 0.5f,
-																	 extents.y / VoxelGridSize.y * 0.5f,
-																	 extents.z / VoxelGridSize.z * 0.5f);
+	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(
+													1.0f / VoxelCellSize.x , 
+													1.0f / VoxelCellSize.y , 
+													1.0f / VoxelCellSize.z );
 
-	DirectX::XMMATRIX translateToOrigin = DirectX::XMMatrixTranslation(SceneAABB.Min.x,
-		SceneAABB.Min.y,
-		SceneAABB.Min.z);
-
-	DirectX::XMMATRIX voxelToWorld = normalizeMatrix * scaleMatrix * translateMatrix * translateToOrigin;
-
-	return voxelToWorld;
+	// Technically we would need to apply another transformation first which reverses the transformations caused by the orthographic
+	// Camera during the voxelization step. However since the orthographic camera uses the same extents as the scene and the camera
+	// Is placed at the center of the scene the resulting transformation is the identity matrix.
+	return transformOrigin * scaleMatrix;
 }

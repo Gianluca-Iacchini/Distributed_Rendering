@@ -12,8 +12,7 @@
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 
-#define HLSL
-#include "TechniquesCompat.h"
+#include "VoxelUtils.hlsli"
 #include "RaytracingUtils.hlsli"
 
 struct Vertex
@@ -28,16 +27,16 @@ ConstantBuffer<RTSceneVisibility> g_sceneCB : register(b0);
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 
-StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space1);
-StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space1);
-StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space1);
-StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
+ByteAddressBuffer gVoxelOccupiedBuffer : register(t0, space1);
+
+StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space2);
+StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space2);
+StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space2);
+StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space2);
 
 
-StructuredBuffer<uint> gNextVoxelInClusterBuffer : register(t1, space2);
-StructuredBuffer<uint> gVoxelAssignmentBuffer : register(t2, space2);
-
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
+StructuredBuffer<uint> gNextVoxelInClusterBuffer : register(t1, space3);
+StructuredBuffer<uint> gVoxelAssignmentBuffer : register(t2, space3);
 
 StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space4);
 StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space4);
@@ -54,8 +53,6 @@ RWStructuredBuffer<uint> gAABBStartOffset : register(u3);
 // Clusters
 RWStructuredBuffer<uint> gClusterCount : register(u4);
 
-static const float PI = 3.14159265359f;
-static const float EPSILON = 0.00001;
 
 struct AABBAttributes
 {
@@ -141,14 +138,6 @@ float3 UniformHemisphereSample(float u1, float u2)
     return float3(x, y, z); // Hemisphere direction
 }
 
-uint3 Get3DPosition(uint linearCoord, uint3 gridDimension)
-{
-    uint3 voxelPosition;
-    voxelPosition.x = linearCoord % gridDimension.x;
-    voxelPosition.y = (linearCoord / gridDimension.x) % gridDimension.y;
-    voxelPosition.z = linearCoord / (gridDimension.x * gridDimension.y);
-    return voxelPosition;
-}
 
 static uint clusterFound[800];
 
@@ -188,69 +177,81 @@ void MyRaygenShader()
         float3(0.0f, 1.0f, 0.0f),
     };
         
-    uint3 pixelCoord = DispatchRaysIndex();
+    uint3 dispatchId = DispatchRaysIndex();
+    uint3 dispatchDim = DispatchRaysDimensions();
     
+    uint linearIndex = dispatchId.x + dispatchId.y * dispatchDim.x + dispatchId.z * dispatchDim.x * dispatchDim.y;
     
-    uint faceIndex = pixelCoord.x + pixelCoord.y * g_sceneCB.DispatchSize.x + pixelCoord.z * g_sceneCB.DispatchSize.x * g_sceneCB.DispatchSize.y;
-    
-    if (faceIndex >= g_sceneCB.NumberOfFaces)
+    if (linearIndex >= g_sceneCB.FaceCount)
         return;
     
-    uint2 faceData = gVoxelFaceDataBuffer[faceIndex];
+    uint voxelIndex = (uint) floor(linearIndex / 6.0f);
+    uint faceIdx = linearIndex % 6;
+    
+    float3 voxelCoord = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIndex], g_sceneCB.GridDimension));
+    
+    float3 neighbourCoord = voxelCoord + faceDirection[faceIdx];
     
     
-    float3 voxelCoord = float3(Get3DPosition(gVoxelHashedCompactBuffer[faceData.x], g_sceneCB.GridDimension));
     
-    // Compute the orthonormal basis
-    float3x3 basis = ComputeOrthoBasis(faceDirection[faceData.y]);
-    
-    // Define ray starting position and other parameters
-    RayDesc ray;
-    ray.Origin = voxelCoord + faceDirection[faceData.y] / 2.0f; /* define ray origin (e.g., surface point) */;
-    ray.TMin = 0.5f; // Start the ray slightly away from the origin
-    ray.TMax = FLT_MAX; // Max distance for the ray
-    RayPayload payload = { -1 }; // Payload to store the color
+    bool isOutOfBounds = any(neighbourCoord < 0.0f) || any(neighbourCoord >= g_sceneCB.GridDimension);
+    bool isOccupied = IsVoxelPresent(uint3(neighbourCoord), g_sceneCB.GridDimension, gVoxelOccupiedBuffer);
     
     uint visibleClusterCount = 0;
     
-    // Trace the ray
-    for (uint i = 0; i < 128; i++)
+    if (!isOutOfBounds && !isOccupied)
     {
-        float div = i / 128.0f;
-        float u1 = rand2(float2(g_sceneCB.Rand1, div));
-        float u2 = rand2(float2(div, g_sceneCB.Rand2));
-        float3 localHemisphereRay = UniformHemisphereSample(u1, u2);
-        // Transform the ray direction to world space
-        float3 worldHemisphereRay = mul(localHemisphereRay, basis);
-        ray.Direction = normalize(worldHemisphereRay);
-        TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+        // Compute the orthonormal basis
+        float3x3 basis = ComputeOrthoBasis(faceDirection[faceIdx]);
+    
+        // Define ray starting position and other parameters
+        RayDesc ray;
+        ray.Origin = voxelCoord + faceDirection[faceIdx] / 2.0f; /* define ray origin (e.g., surface point) */;
+        ray.TMin = 0.001; // Start the ray slightly away from the origin
+        ray.TMax = FLT_MAX; // Max distance for the ray
+        RayPayload payload = { -1 }; // Payload to store the color
+    
+
+    
+        // Trace the ray
+        for (uint i = 0; i < 128; i++)
+        {
+            float div = i / 128.0f;
+            float u1 = rand2(float2(g_sceneCB.Rand1, div));
+            float u2 = rand2(float2(div, g_sceneCB.Rand2));
+            float3 localHemisphereRay = UniformHemisphereSample(u1, u2);
+            // Transform the ray direction to world space
+            float3 worldHemisphereRay = mul(localHemisphereRay, basis);
+            ray.Direction = normalize(worldHemisphereRay);
+            TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
         
-        if (payload.primitiveIndex == -1)
-            continue;
+            if (payload.primitiveIndex == -1)
+                continue;
         
-        uint clusterIndex = gVoxelAssignmentBuffer[payload.primitiveIndex];
+            uint clusterIndex = gVoxelAssignmentBuffer[payload.primitiveIndex];
         
-        if (clusterIndex == -1)
-            continue;
+            if (clusterIndex == -1)
+                continue;
         
-        // Add the cluster only if it is not already in the list
-        uint isNewCluster = 1 - (uint) alreadyOccupiedVoxel(clusterIndex);
+            // Add the cluster only if it is not already in the list
+            uint isNewCluster = 1 - (uint) alreadyOccupiedVoxel(clusterIndex);
 
         
-        if (g_sceneCB.CurrentPhase == 1 && isNewCluster == 1)
-        {
-            uint2 faceClusterVisibility = gFaceClusterVisibility[faceIndex];
-            gVisibleClustersBuffer[faceClusterVisibility.x + visibleClusterCount] = clusterIndex;
-        }
+            if (g_sceneCB.CurrentPhase == 1 && isNewCluster == 1)
+            {
+                uint2 faceClusterVisibility = gFaceClusterVisibility[voxelIndex * 6 + faceIdx];
+                gVisibleClustersBuffer[faceClusterVisibility.x + visibleClusterCount] = clusterIndex;
+            }
         
-        visibleClusterCount += isNewCluster;
+            visibleClusterCount += isNewCluster;
+        }
     }
-    
+
     if (g_sceneCB.CurrentPhase == 0)
     {
         uint startIndex = 0;
         InterlockedAdd(gClusterCount[0], visibleClusterCount, startIndex);
-        gFaceClusterVisibility[faceIndex] = uint2(startIndex, visibleClusterCount);
+        gFaceClusterVisibility[voxelIndex * 6 + faceIdx] = uint2(startIndex, visibleClusterCount);
     }
 }
 

@@ -10,13 +10,6 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
-
-cbuffer cbVoxelTransform : register(b2)
-{
-    float4x4 voxelToWorld;
-    float4x4 worldToVoxel;
-}
-
 Texture2D gShadowMap : register(t0);
 Texture2D gVoxelSrv : register(t1);
 
@@ -24,11 +17,10 @@ Texture2D gBufferaWorld : register(t2);
 Texture2D gBufferNormal : register(t3);
 Texture2D gBufferDiffuse : register(t4);
 Texture2D gBufferMetallicRoughnessAO : register(t5);
+Texture2D gBufferRadianceRTGI : register(t6);
 
 StructuredBuffer<Light> gLights : register(t0, space1);
 StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
-
-StructuredBuffer<uint2> gPackedRadiance : register(t0, space2);
 
 float4 PS(VertexOutPosTex pIn) : SV_Target
 {
@@ -92,8 +84,45 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
     }
     else
     {
-
+        lRes += surfData.c_diff * gBufferRadianceRTGI.Sample(gSampler, pIn.Tex).rgb;
     }
+    
+    //else
+    //{
+    //    uint faceDir = FindMostAlignedDirection(normal);
+        
+    //    float3 worldV = worldPos.xyz;
+
+        
+    //    //float3 voxelCoord = mul(float4(worldV, 1.0f), WorldToVoxel).xyz;
+    //    uint3 uVoxelCoord = worldToVoxelSpace(worldV);
+    //    uint linearCoord = uVoxelCoord.x + uVoxelCoord.y * voxelTextureDimensions.x + uVoxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
+        
+    //    bool found = IsVoxelPresent(linearCoord);
+        
+    //    if (!found)
+    //    {
+    //        uint3 newCoords;
+    //        found = FindClosestOccupiedVoxel(worldV, uVoxelCoord, newCoords);
+    //        uVoxelCoord = newCoords;
+    //    }
+    //    if (found)
+    //    {
+    //        uint2 result = FindHashedCompactedPositionIndex(uVoxelCoord);
+    //        uint2 packedRadiance = gPackedRadiance[result.x * 6 + faceDir];
+    //        float3 radiance = float3(0.0f, 0.0f, 0.0f);
+    //        radiance.xy = UnpackFloats16(packedRadiance.x);
+    //        radiance.z = UnpackFloats16(packedRadiance.y).x;
+    //        lRes = float3(1.0f, 1.0f, 1.0f);
+
+    //    }
+    //    else
+    //    {
+
+    //        lRes.xyz = float3(0.0f, 0.0f, 0.0f);
+            
+    //    }
+    //}
     
     return float4(lRes, diffuse.a);
 

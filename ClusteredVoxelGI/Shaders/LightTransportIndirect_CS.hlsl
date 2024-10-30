@@ -14,32 +14,28 @@ StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space1);
 StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space1);
 StructuredBuffer<float3> gVoxelNormalBuffer: register(t4, space1);
 
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space2);
-// The element i contains the start index in gVoxelFaceDataBuffer and the number of the faces for the voxel with index i
-StructuredBuffer<uint2> gVoxelFaceStartCountBuffer : register(t1, space2);
-
-StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space3);
-StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space3);
+StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space2);
+StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space2);
 // Map from aabbVoxelIndices to gVoxelIndicesCompactBuffer.
-StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space3);
+StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space2);
 
-StructuredBuffer<uint2> gFaceClusterVisibility : register(t0, space4);
+StructuredBuffer<uint2> gFaceClusterVisibility : register(t0, space3);
 // Stores all the visible clusters for all the faces. Clusters visible from the same faced are stored in sequence.
-StructuredBuffer<uint> gVisibleClustersBuffer : register(t1, space4);
+StructuredBuffer<uint> gVisibleClustersBuffer : register(t1, space3);
 
-StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space5);
-StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space5);
+StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space4);
+StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space4);
 
-StructuredBuffer<float3> gLitVoxels : register(t0, space6);
-StructuredBuffer<uint4> gLitClusters : register(t1, space6);
+StructuredBuffer<float3> gLitVoxels : register(t0, space5);
+StructuredBuffer<uint4> gLitClusters : register(t1, space5);
 
-ByteAddressBuffer gVisibleFaceCounter : register(t0, space7);
-StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space7);
+ByteAddressBuffer gVisibleFaceCounter : register(t0, space6);
+StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space6);
 
 RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0);
 RWStructuredBuffer<uint2> gFaceFilteredRadianceBuffer : register(u1, space1);
 
-groupshared uint3 gsRadiance;
+groupshared float3 gsRadiancePerWave[2];
 
 float3 clusterToVoxelIrradiancePerVoxelArrayVoxel(ClusterData cData, uint voxelIndex, float3 voxelWorldCoords, float3 voxelNormal)
 {
@@ -138,15 +134,12 @@ float3 clusterToVoxelIrradiancePerVoxelArrayVoxel(ClusterData cData, uint voxelI
 }
 
 
-float3 gatherIrradianceFromNeighbour(uint clusterIdx)
+float3 gatherIrradianceFromNeighbour(uint clusterIdx, float3 voxelWorldCoord)
 {
     ClusterData cData = gClusterDataBuffer[clusterIdx];
     
-    float3 clusterWorldPos = mul(float4(cData.Center.x, cData.Center.y, cData.Center.z, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
-    
     int numberNeighbour = cData.NeighbourCount;
     float3 accumulatedIrradiance = float3(0.0f, 0.0f, 0.0f);
-
 
     for (int i = 0; i < numberNeighbour; ++i)
     {
@@ -154,18 +147,18 @@ float3 gatherIrradianceFromNeighbour(uint clusterIdx)
         float3 mainDirectionNeighbour = gClusterDataBuffer[neighbourIndex].Normal;
         uint3 centerAABB = gClusterDataBuffer[neighbourIndex].Center;
         float3 neighbourWorldCoords = mul(float4(float3(centerAABB), 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
-        float3 neighbourToVoxel = normalize(neighbourWorldCoords - clusterWorldPos);
+        float3 neighbourToVoxel = normalize(neighbourWorldCoords - voxelWorldCoord);
 
 		// Only consider same main direction clusters.
         if ((dot(cData.Normal, neighbourToVoxel) > 0.0) && (gLitClusters[neighbourIndex].w > 0))
         {
-            float distanceFromVoxelSq = distanceSq(neighbourWorldCoords, clusterWorldPos);
+            float distanceFromVoxelSq = distanceSq(neighbourWorldCoords, voxelWorldCoord);
 
             if (distanceFromVoxelSq > 25.0f)
             {
                 uint3 neighIrradiance = gLitClusters[neighbourIndex].xyz;
                 float3 neighbourIrradiance = float3(neighIrradiance) / IRRADIANCE_FIELD_MULTIPLIER;
-                float formFactor = differentialAreaFormFactor(neighbourToVoxel, clusterWorldPos, mainDirectionNeighbour, neighbourWorldCoords, 14860);
+                float formFactor = differentialAreaFormFactor(neighbourToVoxel, voxelWorldCoord, mainDirectionNeighbour, neighbourWorldCoords, 14860);
                 accumulatedIrradiance += formFactor * neighbourIrradiance;
             }
         }
@@ -174,42 +167,33 @@ float3 gatherIrradianceFromNeighbour(uint clusterIdx)
     return accumulatedIrradiance;
 }
 
-[numthreads(1, 128, 1)]
+[numthreads(1, 64, 1)]
 void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadID)
 {
     uint threadID = DTid.x;
     
     uint nVisibleVoxels = gVisibleFaceCounter.Load(0);
     
-    if (threadGroupId.y == 0)
-    {
-        gsRadiance = uint3(0, 0, 0);
-    }
-    
-    GroupMemoryBarrierWithGroupSync();
-    
     if (threadID > nVisibleVoxels)
         return;
     
-    uint faceIdx = gVisibleFaceIndices[threadID];
-    
-    uint2 faceData = gVoxelFaceDataBuffer[faceIdx];
-    
-    uint voxelIndex = faceData.x;
-    
+    // At most 3 faces are visible at a time
+    uint idx = gVisibleFaceIndices[threadID];
+    uint voxIdx = (uint) floor(idx / 6.0f);
+    uint faceIndex = idx % 6;
 
-    float3 voxelWorldPos = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIndex], cbVoxelCommons.voxelTextureDimensions));
+    float3 voxelWorldPos = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[voxIdx], cbVoxelCommons.voxelTextureDimensions));
     voxelWorldPos = mul(float4(voxelWorldPos, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
-    
+
+  
     float3 radiance = 0.0f;
     
-    float3 voxelNormal = gVoxelNormalBuffer[voxelIndex];
+    float3 voxelNormal = gVoxelNormalBuffer[voxIdx];
     
-
-    uint2 clusterStartCount = gFaceClusterVisibility[faceIdx];
+    uint2 clusterStartCount = gFaceClusterVisibility[idx];
 
     
-    uint clusterPerThread = ceil((float) clusterStartCount.y / 128.0f);
+    uint clusterPerThread = ceil((float) clusterStartCount.y / 64.0f);
     uint clusterStart = clusterStartCount.x + threadGroupId.y * clusterPerThread;
     uint clusterEnd = min(clusterStart + clusterPerThread, clusterStartCount.x + clusterStartCount.y);
     
@@ -242,8 +226,8 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
             }
             else
             {
-                float penaltyFactor = gFaceClusterPenaltyBuffer[faceIdx];
-                currRadiance[nIteration] = clusterToVoxelIrradiancePerVoxelArrayVoxel(clusterData, voxelIndex, voxelWorldPos, voxelNormal);
+                float penaltyFactor = gFaceClusterPenaltyBuffer[idx];
+                currRadiance[nIteration] = clusterToVoxelIrradiancePerVoxelArrayVoxel(clusterData, voxIdx, voxelWorldPos, voxelNormal);
                 
                 radiance += currRadiance[nIteration];
                 radiance /= penaltyFactor;
@@ -253,54 +237,63 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
         }
     }
 
-    uint3 uintRadiance = uint3(radiance * IRRADIANCE_FIELD_MULTIPLIER);
-    InterlockedAdd(gsRadiance.x, uintRadiance.x);
-    InterlockedAdd(gsRadiance.y, uintRadiance.y);
-    InterlockedAdd(gsRadiance.z, uintRadiance.z);
+    
+    float3 radianceSum = WaveActiveSum(radiance);
+    
+    uint laneCount = WaveGetLaneCount();
+    uint waveId = threadGroupId.y / laneCount;
+    
+    if (WaveIsFirstLane())
+    {
+        gsRadiancePerWave[waveId] = radianceSum;
+        
+        if (laneCount >= 64)
+        {
+            gsRadiancePerWave[1] = float3(0.0f, 0.0f, 0.0f);
+        }
+    }
     
     GroupMemoryBarrierWithGroupSync();
-    
 
-    //nIteration = 0;
-    //float3 neighbourRadiance = float3(0.0f, 0.0f, 0.0f);
-    //radiance = float3(gsRadiance) / IRRADIANCE_FIELD_MULTIPLIER;
+    nIteration = 0;
+    float3 neighbourRadiance = float3(0.0f, 0.0f, 0.0f);
+    radiance = gsRadiancePerWave[0] + gsRadiancePerWave[1];
     
-    //GroupMemoryBarrierWithGroupSync();
+    float3 addExtraIrradiaceMultiplier = float3(0.0f, 0.0f, 0.0f);
     
-    //bool addExtraIrradiace = false;
-    
-    //for (visibleClusterIdx = clusterStart; visibleClusterIdx < clusterEnd; visibleClusterIdx++)
-    //{
-    //    uint clusterIdx = gVisibleClustersBuffer[visibleClusterIdx];
-    //    float3 weight = currRadiance[nIteration] / radiance;
+    for (visibleClusterIdx = clusterStart; visibleClusterIdx < clusterEnd; visibleClusterIdx++)
+    {
+        uint clusterIdx = gVisibleClustersBuffer[visibleClusterIdx];
+        float3 weight = currRadiance[nIteration] / radiance;
         
-    //    if (any(weight >= 0.5f))
-    //    {
-    //        neighbourRadiance += gatherIrradianceFromNeighbour(clusterIdx);
-    //        addExtraIrradiace = true;
-    //    }
+        if (any(weight >= 0.5f))
+        {
+            neighbourRadiance += gatherIrradianceFromNeighbour(clusterIdx, voxelWorldPos);
+            addExtraIrradiaceMultiplier = float3(1.0f, 1.0f, 1.0f);
+        }
         
-    //    nIteration++;
-    //}
+        nIteration++;
+    }
     
+    if (WaveIsFirstLane())
+    {
+        gsRadiancePerWave[waveId] += neighbourRadiance * addExtraIrradiaceMultiplier;
+        
+        if (laneCount >= 64)
+        {
+            gsRadiancePerWave[1] = float3(0.0f, 0.0f, 0.0f);
+        }
+    }
 
-    //if (addExtraIrradiace)
-    //{
-    //    uintRadiance = uint3(neighbourRadiance * IRRADIANCE_FIELD_MULTIPLIER);
-    //    InterlockedAdd(gsRadiance.x, uintRadiance.x);
-    //    InterlockedAdd(gsRadiance.y, uintRadiance.y);
-    //    InterlockedAdd(gsRadiance.z, uintRadiance.z);
-    //}
-
-    //GroupMemoryBarrierWithGroupSync();
+    GroupMemoryBarrierWithGroupSync();
     
     if (threadGroupId.y == 0)
     {
-        float3 finalRadiance = float3(gsRadiance) / IRRADIANCE_FIELD_MULTIPLIER;
+        float3 finalRadiance = gsRadiancePerWave[0] + gsRadiancePerWave[1];
         
         uint packedXY = PackFloats16(float2(finalRadiance.x, finalRadiance.y));
         uint packedZ = PackFloats16(float2(finalRadiance.z, 0.0f));
         
-        gFaceRadianceBuffer[faceIdx] = uint2(packedXY, packedZ);
+        gFaceRadianceBuffer[idx] = uint2(packedXY, packedZ);
     }
 }

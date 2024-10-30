@@ -20,7 +20,7 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	lightNode->SetPosition(0, 150, 0);
 	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
-	light->SetLightColor({ 0.6f, 0.52f, 0.16f });
+	light->SetLightColor({ 0.45f, 0.45f, 0.45f });
 	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
 
 	m_camera->Node->AddComponent<CameraController>();

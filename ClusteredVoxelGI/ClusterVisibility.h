@@ -51,9 +51,9 @@ namespace CVGI
 		{
 			RayTraceCBV = 0,
 			AccelerationStructureSRV = 1,
-			CompactSRVTable = 2,
-			ClusterSRVTable = 3,
-			FaceSRVTable,
+			VoxelSRVTable,
+			CompactSRVTable,
+			ClusterSRVTable,
 			AABBSRVTable,
 			RayTraceUAVTable,
 			Count

@@ -32,6 +32,12 @@ namespace CVGI
 		virtual void Init(DX12Lib::CommandContext& context) override;
 		virtual DirectX::GraphicsResource GetCameraBuffer() override;
 
+		void SetOrthogonalHalfExtents(DirectX::XMFLOAT3 extents) 
+		{ 
+			m_sceneHalfExtents = extents;
+			this->SetOrthogonal({ m_sceneHalfExtents.x * 2.f, m_sceneHalfExtents.y * 2.f, 0.1f, m_sceneHalfExtents.z * 2.f });
+		}
+
 	private:
 		DirectX::XMMATRIX BuildViewMatrix(DirectX::XMFLOAT3 axisDirection);
 
@@ -40,7 +46,7 @@ namespace CVGI
 		DirectX::XMFLOAT3 m_voxelTexSize = DirectX::XMFLOAT3(128.0f, 128.0f, 128.0f);
 
 		// Half sizes of the scene
-		DirectX::XMFLOAT3 m_sceneExtents = DirectX::XMFLOAT3(16.0f, 16.0f, 16.0f);
+		DirectX::XMFLOAT3 m_sceneHalfExtents = DirectX::XMFLOAT3(32.0f, 32.0f, 32.0f);
 	};
 
 }

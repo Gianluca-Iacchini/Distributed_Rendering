@@ -38,17 +38,15 @@ StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
 StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
 StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
+StructuredBuffer<float3> gVoxelLitBuffer : register(t0, space3);
+StructuredBuffer<uint4> gClusterLitBuffer: register(t1, space3);
 
-StructuredBuffer<float3> gVoxelLitBuffer : register(t0, space4);
-StructuredBuffer<uint4> gClusterLitBuffer: register(t1, space4);
+ByteAddressBuffer gVoxelVisibleBuffer : register(t0, space4);
 
-ByteAddressBuffer gVoxelVisibleBuffer : register(t0, space5);
+StructuredBuffer<uint2> gFaceRadianceBuffer : register(t0, space5);
 
-StructuredBuffer<uint2> gFaceRadianceBuffer : register(t0, space6);
-
-StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space7);
-StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space7);
+StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space6);
+StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space6);
 
 
 
@@ -127,6 +125,25 @@ float3 LinearIndexToColor(uint index)
     return float3(r, g, b);
 }
 
+// Helper function to check if a vertex is outside the frustum
+bool IsTriangleOutFrustum(float4 p1, float4 p2, float4 p3)
+{
+    bool isP1Out = (p1.x < -p1.w || p1.x > p1.w || p1.y < -p1.w || p1.y > p1.w || p1.z < 0 || p1.z > p1.w);
+    bool isP2Out = (p2.x < -p2.w || p2.x > p2.w || p2.y < -p2.w || p2.y > p2.w || p2.z < 0 || p2.z > p2.w);
+    bool isP3Out = (p3.x < -p3.w || p3.x > p3.w || p3.y < -p3.w || p3.y > p3.w || p3.z < 0 || p3.z > p3.w);
+    
+    return isP1Out && isP2Out && isP3Out;
+}
+
+bool IsTriangleBehindVoxel(float3 p1World, float3 p2World, float3 p3World, float3 faceDir)
+{
+    float3 triangleCenter = (p1World + p2World + p3World) / 3.0f;
+    
+    float3 cameraToTriangle = triangleCenter - camera.EyePos;
+    
+    return dot(cameraToTriangle, faceDir) >= 0.0f;
+}
+
 bool IsVoxelLit(uint voxelIndex, ByteAddressBuffer shadowBuffer)
 {
     uint offset = (voxelIndex / 32) * 4;
@@ -154,6 +171,16 @@ void GS(
         float3(-0.5f, 0.5f, 0.5f), // 5
         float3(0.5f, 0.5f, 0.5f), // 6
         float3(0.5f, -0.5f, 0.5f) // 7
+    };
+    
+    float3 faceDirections[6] =
+    {
+        float3(0.0f, 0.0f, -1.0f), // Front face
+        float3(0.0f, 0.0f, 1.0f), // Back face
+        float3(-1.0f, 0.0f, 0.0f), // Left face
+        float3(1.0f, 0.0f, 0.0f), // Right face
+        float3(0.0f, -1.0f, 0.0f), // Bottom face
+        float3(0.0f, 1.0f, 0.0f) // Top face
     };
     
     int cubeIndices[36] =
@@ -199,11 +226,12 @@ void GS(
     
     
     uint index = input[0].VoxelIndex;
-    uint2 faceData = gVoxelFaceDataBuffer[index];
     
+    uint voxelIdx = (uint)floor(index / 6.0f);
+    uint faceIdx = index % 6;
     
-    uint voxelLinearCoord = gVoxelHashesCompacted[faceData.x];
-    uint fragmentIndex = gVoxelIndicesCompacted[faceData.x];
+    uint voxelLinearCoord = gVoxelHashesCompacted[voxelIdx];
+    uint fragmentIndex = gVoxelIndicesCompacted[voxelIdx];
     
 
     
@@ -213,45 +241,57 @@ void GS(
     int3 iVoxelCoord = int3(voxelCoord);
     
     
-    float3 litColor = gVoxelLitBuffer[faceData.x];
+    //avgColor.xyz = gClusterDataBuffer[gClusterAssignmentBuffer[voxelIdx]].Color;
+    
+    float3 litColor = gVoxelLitBuffer[voxelIdx];
     
     if (any(litColor > 0.0f))
         avgColor.xyz = litColor;
-    else
-    {
-        uint2 packedRadiance = gFaceRadianceBuffer[index];
-        avgColor.xy = UnpackFloats16(packedRadiance.x);
-        avgColor.z = UnpackFloats16(packedRadiance.y).x;
-    }
+    //else
+    //{
+    //    uint2 packedRadiance = gFaceRadianceBuffer[index];
+    //    avgColor.xy = UnpackFloats16(packedRadiance.x);
+    //    avgColor.z = UnpackFloats16(packedRadiance.y).x;
+    //}
 
     
     //avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[faceData.x]);
+    
     
     [unroll]
     for (int i = 0; i < 6; i += 3)
     {
         PSInput output;
         
-        float4 v1 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i)]], 1.0f), cbVoxelCommons.VoxelToWorld);
-        float4 v2 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 1]], 1.0f), cbVoxelCommons.VoxelToWorld);
-        float4 v3 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceData.y * 6) + i) + 2]], 1.0f), cbVoxelCommons.VoxelToWorld);
+        float4 v1 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceIdx * 6) + i)]], 1.0f), cbVoxelCommons.VoxelToWorld);
+        float4 v2 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceIdx * 6) + i) + 1]], 1.0f), cbVoxelCommons.VoxelToWorld);
+        float4 v3 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceIdx * 6) + i) + 2]], 1.0f), cbVoxelCommons.VoxelToWorld);
+        
+        float4 v1Pos = mul(v1, camera.ViewProj);
+        float4 v2Pos = mul(v2, camera.ViewProj);
+        float4 v3Pos = mul(v3, camera.ViewProj);
+        
+        if (IsTriangleOutFrustum(v1Pos, v2Pos, v3Pos))
+            continue;
+        
+        if (IsTriangleBehindVoxel(v1.xyz, v2.xyz, v3.xyz, faceDirections[faceIdx]))
+            continue;
         
         float3 normal = normalize(cross(v2.xyz - v1.xyz, v3.xyz - v1.xyz));
         output.normal = normal;
         output.color = avgColor.xyz;
         output.ClusterIndex = 1;
         
-        output.position = mul(v1, camera.ViewProj);
+        output.position = v1Pos;
         triOutput.Append(output);
         
-        output.position = mul(v2, camera.ViewProj);
+        output.position = v2Pos;
         triOutput.Append(output);
         
-        output.position = mul(v3, camera.ViewProj);
+        output.position = v3Pos;
         triOutput.Append(output);
         
         triOutput.RestartStrip();
     }
-    
-
 }
+

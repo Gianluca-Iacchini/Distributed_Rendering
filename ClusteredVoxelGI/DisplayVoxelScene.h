@@ -65,7 +65,6 @@ namespace CVGI
 			VoxelSRVBufferTable = 2,
 			CompactSRVBufferTable,
 			ClusterSRVBufferTable,
-			FaceVisibilitySRVBufferTable,
 			ShadowSRVBufferTable,
 			LightTransportSRVBufferTable,
 			IndirectSRVBufferTable,

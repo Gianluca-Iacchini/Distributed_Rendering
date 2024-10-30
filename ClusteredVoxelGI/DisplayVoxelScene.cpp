@@ -74,7 +74,6 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
 	auto& clusterBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
-	auto& faceBufferManager = m_data->GetBufferManager(FaceCountTechnique::Name);
 	auto& shadowBufferManager = m_data->GetBufferManager(LightVoxel::Name);
 	auto& lightTransportBufferManager = m_data->GetBufferManager(LightTransportTechnique::Name);
 	auto& indirectBufferManager = m_data->GetBufferManager(LightTransportTechnique::IndirectName);
@@ -82,7 +81,6 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	faceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	shadowBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	lightTransportBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	indirectBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -117,9 +115,6 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 		(UINT)DisplayVoxelRootParameterSlot::ClusterSRVBufferTable, clusterBufferManager.GetSRVHandle());
 
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable, faceBufferManager.GetSRVHandle());
-
-	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 		(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable, shadowBufferManager.GetSRVHandle());	
 	
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
@@ -152,11 +147,10 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::DisplayVoxelScene::BuildRootSignat
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::VoxelSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::CompactSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ClusterSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 2);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FaceVisibilitySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 4);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::LightTransportSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::IndirectSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 6);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FacePenaltySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 7);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 3);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::LightTransportSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 4);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::IndirectSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
+	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FacePenaltySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 6);
 	displayVoxelRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return displayVoxelRootSignature;

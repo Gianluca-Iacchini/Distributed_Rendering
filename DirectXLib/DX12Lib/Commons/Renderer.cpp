@@ -7,6 +7,10 @@
 #include "DX12Lib/Scene/SceneCamera.h"
 #include <WinPixEventRuntime/pix3.h>
 
+#define USE_RTGI 1
+
+#include "../ClusteredVoxelGI/Technique.h"
+
 #define PSO_SHADOW_OPAQUE L"ShadowOpaquePso"
 #define PSO_SHADOW_ALPHA_TEST L"ShadowAlphaTestPso"
 
@@ -21,12 +25,10 @@ namespace Graphics::Renderer
 	{
 		CommonCBV = 0,
 		CameraCBV = 1,
-		VoxelMatrixTransformCBV,
 		LightSRV,
 		MaterialSRV,
 		CommonTextureSRV,
 		GBufferSRV,
-		VoxelBufferSRV,
 		Count
 	};
 
@@ -39,6 +41,7 @@ namespace Graphics::Renderer
 		Normal,					// Normal in xy, third component computed in shader
 		Diffuse,				// Diffuse albedo
 		MetallicRoughnessAO,	// AO in the R channel, Roughness in the G channel and Metallic in the B channel
+		Radiance,				// Radiance from RTGI
 		Count
 	};
 
@@ -79,7 +82,6 @@ namespace Graphics::Renderer
 
 	DescriptorHandle m_gbufferStartHandle;
 	CostantBufferCommons m_costantBufferCommons;
-	ConstantBufferVoxelTransform m_constantBufferVoxelTransform;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBufferResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBufferResource;
@@ -88,9 +90,10 @@ namespace Graphics::Renderer
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	bool m_useRTGI = false;
-	DescriptorHandle m_rtgiBufferHandle;
-	DirectX::XMFLOAT4X4 m_voxelToWorldMatrix;
-	DirectX::XMFLOAT4X4 m_worldToVoxelMatrix;
+	std::weak_ptr<CVGI::TechniqueData> m_rtgiData;
+
+	// For debug only
+	ConstantBufferVoxelCommons m_cbVoxelCommons;
 
 	void CreateDefaultPSOs();
 	void CreateDefaultShaders();
@@ -123,6 +126,8 @@ namespace Graphics::Renderer
 		s_renderTargets[(UINT)RenderTargetType::MetallicRoughnessAO] = std::make_unique<ColorBuffer>(Color::Red());
 		s_renderTargets[(UINT)RenderTargetType::MetallicRoughnessAO]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
+		s_renderTargets[(UINT)RenderTargetType::Radiance] = std::make_unique<ColorBuffer>(Color::Black());
+		s_renderTargets[(UINT)RenderTargetType::Radiance]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
 
 		s_shadowBuffer = std::make_unique<ShadowBuffer>();
@@ -153,12 +158,6 @@ namespace Graphics::Renderer
 		BuildRenderQuadGeometry();
 		s_materialManager->LoadDefaultMaterials(*s_textureManager);
 
-		m_voxelToWorldMatrix = MathHelper::Identity4x4();
-		m_worldToVoxelMatrix = MathHelper::Identity4x4();
-
-		m_constantBufferVoxelTransform = {};
-		m_constantBufferVoxelTransform.voxelToWorld = m_voxelToWorldMatrix;
-		m_constantBufferVoxelTransform.worldToVoxel = m_worldToVoxelMatrix;
 	}
 
 	void BuildRenderQuadGeometry()
@@ -227,6 +226,37 @@ namespace Graphics::Renderer
 	std::vector<DX12Lib::ModelRenderer*> GetRenderers()
 	{
 		return m_renderers;
+	}
+
+	void BindRTGIResources(CommandContext& context)
+	{
+		if (auto techPtr = m_rtgiData.lock())
+		{
+			auto& voxelSceneBufferManager = techPtr->GetBufferManager(L"VoxelizeScene");
+			auto& prefixBufferManager = techPtr->GetBufferManager(L"PrefixSumVoxels");
+			auto& clusterBufferManager = techPtr->GetBufferManager(L"ClusterVoxels");
+			auto& radianceBufferManager = techPtr->GetBufferManager(L"LightTransportIndirectTechnique");
+
+			voxelSceneBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			prefixBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			radianceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+				(UINT)RootSignatureSlot::VoxelRTGICBV, s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
+
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				(UINT)RootSignatureSlot::VoxelBufferSRV, voxelSceneBufferManager.GetSRVHandle());
+
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				(UINT)RootSignatureSlot::CompactBufferSRV, prefixBufferManager.GetSRVHandle());			
+			
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				(UINT)RootSignatureSlot::ClusterBufferSRV, clusterBufferManager.GetSRVHandle());
+
+			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+				(UINT)RootSignatureSlot::RadianceBufferSRV, radianceBufferManager.GetSRVHandle());
+		}
 	}
 
 	void SetUpRenderFrame(DX12Lib::CommandContext& context)
@@ -305,6 +335,10 @@ namespace Graphics::Renderer
 	{
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(255, 255, 255), L"MainRenderPass");
 
+		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
+
+		context.SetPipelineState(s_PSOs[PSO_PBR_OPAQUE].get());
+
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[(UINT)RenderTargetType::Count];
 		for (UINT i = 0; i < (UINT)RenderTargetType::Count; i++)
 		{
@@ -315,38 +349,39 @@ namespace Graphics::Renderer
 
 		context.ClearDepthAndStencil(*s_depthStencilBuffer);
 
-		context.FlushResourceBarriers();
+
 
 		context.SetRenderTargets(
 			(UINT)RenderTargetType::Count,
 			rtvs,
 			s_depthStencilBuffer->GetDSV());
 
-		context.SetViewportAndScissor(s_screenViewport, s_scissorRect);
 
-		context.SetPipelineState(s_PSOs[PSO_PBR_OPAQUE].get());
-
-
-		if (m_useRTGI)
-		{
-			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				(UINT)RootSignatureSlot::VoxelRTGIBufferSRV, m_rtgiBufferHandle);
-		}
-
-
-		
-		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
-			(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
-
-
-		if (m_mainCamera != nullptr && m_mainCamera->IsEnabled)
-			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
-				(UINT)Renderer::RootSignatureSlot::CameraCBV, m_mainCamera->GetCameraBuffer().GpuAddress());
 
 		// Main pass opaque
 		for (auto& pso : s_PSOs)
 		{
 			context.SetPipelineState(pso.second.get());
+
+			if (pso.first == PSO_PHONG_OPAQUE || pso.first == PSO_PBR_OPAQUE)
+			{
+				context.SetPipelineState(pso.second.get());
+
+				context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
+					(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
+
+
+				if (m_mainCamera != nullptr && m_mainCamera->IsEnabled)
+					context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+						(UINT)Renderer::RootSignatureSlot::CameraCBV, m_mainCamera->GetCameraBuffer().GpuAddress());
+
+				if (m_useRTGI)
+				{
+					BindRTGIResources(context);
+				}
+
+				context.FlushResourceBarriers();
+			}
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -367,6 +402,25 @@ namespace Graphics::Renderer
 		for (auto& pso : s_PSOs)
 		{
 			context.SetPipelineState(pso.second.get());
+
+			if (pso.first == PSO_PHONG_ALPHA_TEST || pso.first == PSO_PBR_ALPHA_TEST)
+			{
+
+				context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
+					(UINT)Renderer::RootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
+
+
+				if (m_mainCamera != nullptr && m_mainCamera->IsEnabled)
+					context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+						(UINT)Renderer::RootSignatureSlot::CameraCBV, m_mainCamera->GetCameraBuffer().GpuAddress());
+
+				if (m_useRTGI)
+				{
+					BindRTGIResources(context);
+				}
+
+				context.FlushResourceBarriers();
+			}
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -408,15 +462,12 @@ namespace Graphics::Renderer
 
 		context.SetPipelineState(s_PSOs[L"deferredPso"].get());
 
-		if (m_useRTGI)
-		{
-			m_costantBufferCommons.useRTGI = 1;
-			context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
-				(UINT)Renderer::DeferredRootSignatureSlot::VoxelMatrixTransformCBV, s_graphicsMemory->AllocateConstant(m_constantBufferVoxelTransform).GpuAddress());
 
-			context.m_commandList->GetComPtr()->SetGraphicsRootDescriptorTable(
-				(UINT)DeferredRootSignatureSlot::VoxelBufferSRV, m_rtgiBufferHandle);
-		}
+		m_costantBufferCommons.useRTGI = (UINT)m_useRTGI;
+
+		
+
+
 
 		context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 			(UINT)Renderer::DeferredRootSignatureSlot::CommonCBV, s_graphicsMemory->AllocateConstant(m_costantBufferCommons).GpuAddress());
@@ -574,23 +625,65 @@ namespace Graphics::Renderer
 		Renderer::s_scissorRect = { 0, 0, width, height};
 	}
 
-	void SetRTGIBuffer(DX12Lib::DescriptorHandle& radianceBuffer)
-	{
-		m_rtgiBufferHandle = radianceBuffer;
-	}
-
-	void SetRTGISceneMatricesTransform(DirectX::XMFLOAT4X4& voxelToWorld, DirectX::XMFLOAT4X4 worldToVoxel)
-	{
-		m_voxelToWorldMatrix = voxelToWorld;
-		m_worldToVoxelMatrix = worldToVoxel;
-
-		m_constantBufferVoxelTransform.voxelToWorld = m_voxelToWorldMatrix;
-		m_constantBufferVoxelTransform.worldToVoxel = m_worldToVoxelMatrix;
-	}
-
 	void UseRTGI(bool useRTGI)
 	{
 		m_useRTGI = useRTGI;
+	}
+
+	DirectX::XMMATRIX DebugVoxelToWorldMatrix(ConstantBufferVoxelCommons cb, DirectX::XMFLOAT3 originalSceneMin, DirectX::XMFLOAT3 originalSceneMax)
+	{
+		DirectX::XMFLOAT3 SceneAABBMax = cb.SceneAABBMax;
+		DirectX::XMFLOAT3 SceneAABBMin = cb.SceneAABBMin;
+		DirectX::XMUINT3 VoxelGridSize = cb.voxelTextureDimensions;
+
+		DirectX::XMFLOAT3 extents = DirectX::XMFLOAT3(SceneAABBMax.x - SceneAABBMin.x,
+			SceneAABBMax.y - SceneAABBMin.y,
+			SceneAABBMax.z - SceneAABBMin.z);
+
+		DirectX::XMFLOAT3 originalExtents = DirectX::XMFLOAT3(originalSceneMax.x - originalSceneMin.x,
+			originalSceneMax.y - originalSceneMin.y,
+			originalSceneMax.z - originalSceneMin.z);
+
+		DirectX::XMMATRIX normalizeMatrix = DirectX::XMMatrixScaling(1.0f / VoxelGridSize.x,
+			1.0f / VoxelGridSize.y,
+			1.0f / VoxelGridSize.z);
+
+
+
+		DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(extents.x,
+			extents.y,
+			extents.z);
+
+		DirectX::XMMATRIX scaleOriginalSceneBounds = DirectX::XMMatrixScaling(originalExtents.x / extents.x,
+			originalExtents.y / extents.y,
+			originalExtents.z / extents.z);
+
+		DirectX::XMMATRIX translateMatrix = DirectX::XMMatrixTranslation(extents.x / VoxelGridSize.x * 0.5f,
+			extents.y / VoxelGridSize.y * 0.5f,
+			extents.z / VoxelGridSize.z * 0.5f);
+
+
+		DirectX::XMMATRIX translateToOrigin = DirectX::XMMatrixTranslation(
+			SceneAABBMin.x,
+			SceneAABBMin.y,
+			SceneAABBMin.z);
+
+		//DirectX::XMMATRIX voxelToWorld = normalizeMatrix * scaleMatrix * translateMatrix * translateToOrigin;
+
+		DirectX::XMMATRIX voxelToWorld = normalizeMatrix * scaleMatrix * translateMatrix * translateToOrigin;
+
+		return voxelToWorld;
+	}
+
+	void SetRTGIData(std::shared_ptr<CVGI::TechniqueData> techniqueData, DirectX::XMFLOAT3 originalSceneMin, DirectX::XMFLOAT3 originalSceneMax)
+	{
+		m_rtgiData = techniqueData;
+		m_cbVoxelCommons = techniqueData->GetVoxelCommons();
+		//DirectX::XMMATRIX newVoxelToWorld = DebugVoxelToWorldMatrix(m_cbVoxelCommons, originalSceneMin, originalSceneMax);
+		//DirectX::XMMATRIX newWorldToVoxel = DirectX::XMMatrixInverse(nullptr, newVoxelToWorld);
+
+		//DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.VoxelToWorld, DirectX::XMMatrixTranspose(newVoxelToWorld));
+		//DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.WorldToVoxel, DirectX::XMMatrixTranspose(newWorldToVoxel));
 	}
 
 	void CreateDefaultShaders()
@@ -661,10 +754,14 @@ namespace Graphics::Renderer
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(2);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::VoxelRTGICBV].InitAsConstantBuffer(3);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*baseRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PHONG_TEXTURES);
-		(*baseRootSignature)[(UINT)RootSignatureSlot::VoxelRTGIBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::VoxelBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::CompactBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 3);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::ClusterBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 4);
+		(*baseRootSignature)[(UINT)RootSignatureSlot::RadianceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
 		baseRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<RootSignature> pbrRootSignature = std::make_shared<RootSignature>((UINT)RootSignatureSlot::Count, 2);
@@ -673,10 +770,15 @@ namespace Graphics::Renderer
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::ObjectCBV].InitAsConstantBuffer(2);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelRTGICBV].InitAsConstantBuffer(3);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 		(*pbrRootSignature)[(UINT)RootSignatureSlot::MaterialTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, NUM_PBR_TEXTURES);
-		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelRTGIBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::VoxelBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::CompactBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 3);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::ClusterBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 4);
+		(*pbrRootSignature)[(UINT)RootSignatureSlot::RadianceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
+
 		pbrRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
@@ -685,12 +787,10 @@ namespace Graphics::Renderer
 		deferredRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);										
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);										
-		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::VoxelMatrixTransformCBV].InitAsConstantBuffer(2);										
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::LightSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 1);				
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);				
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);	
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, (UINT)RenderTargetType::Count);	
-		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::VoxelBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL, 2);
 		deferredRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<GraphicsPipelineState> phongPso = std::make_shared<GraphicsPipelineState>();

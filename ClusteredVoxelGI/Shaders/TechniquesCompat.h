@@ -98,8 +98,10 @@ struct ConstantBufferRTShadows
 
 struct RTSceneVisibility
 {
-	XMUINT3 DispatchSize;
-	UINT NumberOfFaces;
+	float pad0;
+	float pad1;
+	float pad2;
+	UINT FaceCount;
 
 	XMUINT3 GridDimension;
 	UINT CurrentPhase;
@@ -154,6 +156,9 @@ struct ConstantBufferIndirectLightTransport
 
 	XMFLOAT3 LightPosition;
 	float LightIntensity;
+
+	XMFLOAT3 EyePosition;
+	float pad0;
 };
 
 struct ConstantBufferClearBuffers
@@ -203,6 +208,9 @@ struct ConstantBufferComputeNeighbour
 
 struct ConstantBufferGaussianFilter
 {
+	XMFLOAT3 EyePosition;
+	float pos0;
+
 	UINT CurrentPhase;
 	UINT KernelSize;
 	UINT VoxelCount;

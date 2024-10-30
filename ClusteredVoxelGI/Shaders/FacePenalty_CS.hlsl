@@ -16,11 +16,8 @@ StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space2);
 StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space2);
 StructuredBuffer<float3> gVoxelNormalBuffer : register(t4, space2);
 
-StructuredBuffer<uint2> gVoxelFaceDataBuffer : register(t0, space3);
-StructuredBuffer<uint2> gVoxelFaceStartCountBuffer : register(t1, space3);
-
-StructuredBuffer<uint2> gFaceClusterVisibility : register(t0, space4);
-StructuredBuffer<uint> gVisibleClustersBuffer : register(t1, space4);
+StructuredBuffer<uint2> gFaceClusterVisibility : register(t0, space3);
+StructuredBuffer<uint> gVisibleClustersBuffer : register(t1, space3);
 
 RWStructuredBuffer<float> gFaceClusterPenaltyBuffer : register(u0, space0);
 RWStructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(u1, space0);
@@ -196,18 +193,21 @@ float emulateIrradiance(uint2 visibleClustersStartCount, uint voxelIndex)
     return tempIrradiance;
 }
 
-float computeNeighbourIrradiancePenalty(uint faceIdx, uint2 faceData)
+float computeNeighbourIrradiancePenalty(uint faceIdx)
 {
+    uint voxelIdx = faceIdx / 6;
+    uint faceDirectionIdx = faceIdx % 6;
+    
     uint2 visibleClustersStartCount = gFaceClusterVisibility[faceIdx];
     
-    float currentIrradiance = emulateIrradiance(visibleClustersStartCount, faceData.x);
+    float currentIrradiance = emulateIrradiance(visibleClustersStartCount, voxelIdx);
     
     int3 crossDir0;
     int3 crossDir1;
     int3 faceDir;
     
     // 0: -z, 1: +z, 2: -x, 3: +x, 4: -y, 5: +y
-    switch (faceData.y)
+    switch (faceDirectionIdx)
     {
         case 0:
             crossDir0 = int3(1, 0, 0);
@@ -241,7 +241,7 @@ float computeNeighbourIrradiancePenalty(uint faceIdx, uint2 faceData)
             break;
     }
     
-    int3 iVoxelCoord = int3(GetVoxelPosition(gVoxelHashedCompactBuffer[faceData.x], cbVoxelCommons.voxelTextureDimensions));
+    int3 iVoxelCoord = int3(GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions));
     int3 neighbourCoords[17];
     int3 texCoordOffset = iVoxelCoord + faceDir;
     
@@ -272,21 +272,15 @@ float computeNeighbourIrradiancePenalty(uint faceIdx, uint2 faceData)
         if (any(nCoord < 0)|| any(nCoord > cbVoxelCommons.voxelTextureDimensions))
             continue;
 
-        uint2 result = FindHashedCompactedPositionIndex(uint3(nCoord), cbVoxelCommons.voxelTextureDimensions);
+        uint3 uNCoords = uint3(nCoord);
         
-        if (result.y != 0)
+        if (IsVoxelPresent(GetLinearCoord(uNCoords, cbVoxelCommons.voxelTextureDimensions), gVoxelOccupiedBuffer))
         {
-            uint2 voxelFaceCount = gVoxelFaceStartCountBuffer[result.x];
-            for (uint f = voxelFaceCount.x; f < voxelFaceCount.x + voxelFaceCount.y; f++)
-            {
-                if (gVoxelFaceDataBuffer[f].y == faceData.y)
-                {
-                    visibleClustersStartCount = gFaceClusterVisibility[f];
-                    meanIrradiance += emulateIrradiance(visibleClustersStartCount, result.x);
-                    counterNumIrradiance += 1.0f;
-                    break;
-                }
-            }
+            uint2 result = FindHashedCompactedPositionIndex(uint3(nCoord), cbVoxelCommons.voxelTextureDimensions);
+            
+            visibleClustersStartCount = gFaceClusterVisibility[result.x * 6 + faceDirectionIdx];
+            meanIrradiance += emulateIrradiance(visibleClustersStartCount, result.x);
+            counterNumIrradiance += 1.0f;
         }
     }
     
@@ -313,11 +307,14 @@ float computeNeighbourIrradiancePenalty(uint faceIdx, uint2 faceData)
     return 1.0f;
 }
 
-float computeCloserVoxelVisibilityFacePenalty(uint faceIdx, uint2 faceData)
+float computeCloserVoxelVisibilityFacePenalty(uint faceIdx)
 {
+    uint voxelIdx = faceIdx / 6;
+    uint faceDirectionIdx = faceIdx % 6;
+    
     uint2 visibleClustersStartCount = gFaceClusterVisibility[faceIdx];
     
-    float3 voxelWorldCoords = mul(float4(GetVoxelPosition(gVoxelHashedCompactBuffer[faceData.x], cbVoxelCommons.voxelTextureDimensions), 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
+    float3 voxelWorldCoords = mul(float4(GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions), 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
 
     float penaltyValue = 0.0f;
     
@@ -328,9 +325,9 @@ float computeCloserVoxelVisibilityFacePenalty(uint faceIdx, uint2 faceData)
         
         for (uint vIdx = cData.FirstDataIndex; vIdx < cData.FirstDataIndex + cData.VoxelCount; vIdx++)
         {
-            uint voxelIdx = gVoxelsInCluster[vIdx];
+            uint currentVoxelIdx = gVoxelsInCluster[vIdx];
             
-            if (voxelIdx == faceData.x)
+            if (currentVoxelIdx == voxelIdx)
                 continue;
             
             float3 currentVoxelWorldCoords = mul(float4(GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions), 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
@@ -351,11 +348,11 @@ float computeCloserVoxelVisibilityFacePenalty(uint faceIdx, uint2 faceData)
 [numthreads(128, 1, 1)]
 void CS( uint3 DTid : SV_DispatchThreadID )
 {
-    if (DTid.x >= cbLightTransport.VoxelCount)
+    if (DTid.x >= cbLightTransport.VoxelCount * 6)
         return;
     
-    uint2 faceData = gVoxelFaceDataBuffer[DTid.x];
     
-    gFaceClusterPenaltyBuffer[DTid.x] = 1.0f;//computeNeighbourIrradiancePenalty(DTid.x, faceData);
-    gFaceCloseVoxelsPenaltyBuffer[DTid.x] = 1.0f;//computeCloserVoxelVisibilityFacePenalty(DTid.x, faceData);
+    
+    gFaceClusterPenaltyBuffer[DTid.x] = 1.0f; //computeNeighbourIrradiancePenalty(DTid.x);
+    gFaceCloseVoxelsPenaltyBuffer[DTid.x] = 1.0f; //computeCloserVoxelVisibilityFacePenalty(DTid.x);
 }
