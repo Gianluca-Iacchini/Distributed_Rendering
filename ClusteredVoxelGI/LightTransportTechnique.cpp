@@ -22,8 +22,9 @@ CVGI::LightTransportTechnique::LightTransportTechnique(std::shared_ptr<Technique
 {
 	m_bufferManager = std::make_shared<BufferManager>();
 	m_indirectBufferManager = std::make_shared<BufferManager>();
-	data->AddBufferManager(Name, m_bufferManager);
-	data->AddBufferManager(IndirectName, m_indirectBufferManager);
+	m_readIndirectBufferManager = std::make_shared<BufferManager>();
+	data->SetBufferManager(Name, m_bufferManager);
+	data->SetBufferManager(IndirectName, m_readIndirectBufferManager);
 	m_data = data;
 }
 
@@ -31,7 +32,7 @@ void CVGI::LightTransportTechnique::InitializeBuffers()
 {
     this->CreateFrustumPlanes();
 
-	UINT32 voxelBitCount = (m_data->VoxelCount + 31) / 32;
+	UINT32 voxelBitCount = (m_data->GetVoxelCount() + 31) / 32;
 
     m_bufferManager->AddByteAddressBuffer();
     // At most 3 faces per voxel will be visible
@@ -44,10 +45,14 @@ void CVGI::LightTransportTechnique::InitializeBuffers()
 	// Voxel face FILTERED radiance packed (used by the gaussian filter)
     m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 
+	m_readIndirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+	m_readIndirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+
     this->CreateExecuteIndirectCommandBuffer();
 
     m_bufferManager->AllocateBuffers();
 	m_indirectBufferManager->AllocateBuffers();
+	m_readIndirectBufferManager->AllocateBuffers();
 }
 
 void CVGI::LightTransportTechnique::PerformTechnique(DX12Lib::ComputeContext& context)
@@ -59,7 +64,7 @@ void CVGI::LightTransportTechnique::PerformTechnique(DX12Lib::ComputeContext& co
 	m_cbFrustumCulling.AABBGroupCount = m_data->AABBGeometryGroupCount;
     m_cbFrustumCulling.CameraPosition = m_data->GetCamera()->Node->GetPosition();
     m_cbFrustumCulling.CurrentStep = 0;
-	m_cbFrustumCulling.VoxelCount = m_data->VoxelCount;
+	m_cbFrustumCulling.VoxelCount = m_data->GetVoxelCount();
 	m_cbFrustumCulling.FaceCount = m_data->FaceCount;
 
 
@@ -244,6 +249,12 @@ void CVGI::LightTransportTechnique::BuildIndirectCommandPSO()
     lightTransportComputePso->Name = IndirectName;
 
 	Renderer::s_PSOs[IndirectName] = lightTransportComputePso;
+}
+
+void CVGI::LightTransportTechnique::SwapRadianceBuffers()
+{
+    std::swap(m_indirectBufferManager, m_readIndirectBufferManager);
+	m_data->SetBufferManager(IndirectName, m_readIndirectBufferManager);
 }
 
 std::shared_ptr<DX12Lib::PipelineState> CVGI::LightTransportTechnique::BuildPipelineState()

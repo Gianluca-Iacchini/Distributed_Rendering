@@ -9,14 +9,16 @@ using namespace Graphics;
 
 void CVGI::BuildAABBsTechnique::InitializeBuffers()
 {
+	UINT32 voxelCount = m_data->GetVoxelCount();
+
 	// Buffers for acceleration structures
 	// Voxel AABB data (u0);
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(AABB));
+	m_bufferManager->AddStructuredBuffer(voxelCount, sizeof(AABB));
 	// Cluster Start Index and Count (u1);
 	DirectX::XMUINT3 groupSize = MathHelper::Ceil(m_data->GetVoxelGridSize(), 8);
 	m_bufferManager->AddStructuredBuffer(groupSize.x * groupSize.y * groupSize.z, sizeof(ClusterAABBInfo));
 	// AABB voxel indices (u2);
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(voxelCount, sizeof(UINT32));
 	// Cluster AABB Counter (u3);
 	m_bufferManager->AddByteAddressBuffer();
 	// Debug AABB Coutner (u4);
@@ -30,7 +32,7 @@ void CVGI::BuildAABBsTechnique::PerformTechnique(DX12Lib::ComputeContext& contex
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"AABBGeneration");
 
 	m_cbAABBGeneration.GridDimension = m_data->GetVoxelGridSize();
-	m_cbAABBGeneration.ClusterCount = m_data->ClusterCount;
+	m_cbAABBGeneration.ClusterCount = m_data->GetClusterCount();
 
 	TechniquePass(context, MathHelper::Ceil(m_data->GetVoxelGridSize(), 8));
 

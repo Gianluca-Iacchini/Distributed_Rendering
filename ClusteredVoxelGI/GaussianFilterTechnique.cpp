@@ -18,7 +18,7 @@ using namespace DirectX;
 CVGI::GaussianFilterTechnique::GaussianFilterTechnique(std::shared_ptr<TechniqueData> data)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
-	data->AddBufferManager(Name, m_bufferManager);
+	data->SetBufferManager(Name, m_bufferManager);
 	m_data = data;
 }
 
@@ -44,7 +44,7 @@ void CVGI::GaussianFilterTechnique::PerformTechnique(DX12Lib::ComputeContext& co
 	m_cbGaussianFilter.CurrentPhase = 0;
     m_cbGaussianFilter.KernelSize = 5;
 	m_cbGaussianFilter.FaceCount = m_data->FaceCount;
-	m_cbGaussianFilter.VoxelCount = m_data->VoxelCount;
+	m_cbGaussianFilter.VoxelCount = m_data->GetVoxelCount();
 	m_cbGaussianFilter.EyePosition = m_data->GetCamera()->Node->GetPosition();
 
 	// Called with execute indirect, group size is determined by previous pass.

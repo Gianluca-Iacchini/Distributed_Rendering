@@ -17,7 +17,7 @@ using namespace Graphics;
 CVGI::DisplayVoxelScene::DisplayVoxelScene(std::shared_ptr<TechniqueData> data) : m_vertexBuffer(DXGI_FORMAT_R32_UINT)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
-	data->AddBufferManager(Name, m_bufferManager);
+	data->SetBufferManager(Name, m_bufferManager);
 	m_data = data;
 }
 

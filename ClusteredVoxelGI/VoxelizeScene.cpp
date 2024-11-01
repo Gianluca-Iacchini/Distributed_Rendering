@@ -100,8 +100,8 @@ void CVGI::VoxelizeScene::PerformTechnique(DX12Lib::GraphicsContext& context)
 	TechniquePass(context);
 
 
-	m_data->VoxelCount = *m_data->GetBufferManager(Name).ReadFromBuffer<UINT32*>(context, (UINT)VoxelBufferType::VoxelCounter);
-	
+	UINT32 voxelCount = *m_data->GetBufferManager(Name).ReadFromBuffer<UINT32*>(context, (UINT)VoxelBufferType::VoxelCounter);
+	m_data->SetVoxelCount(voxelCount);
 
 	PIXEndEvent(context.m_commandList->Get());
 }

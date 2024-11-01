@@ -14,6 +14,7 @@
 
 #include "DX12Lib/Scene/LightComponent.h"
 
+#include "LitVoxels_CS.h"
 
 using namespace CVGI;
 using namespace DX12Lib;
@@ -22,19 +23,64 @@ using namespace Graphics;
 CVGI::LightVoxel::LightVoxel(std::shared_ptr<TechniqueData> data)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
-	data->AddBufferManager(Name, m_bufferManager);
+	data->SetBufferManager(Name, m_bufferManager);
 	m_data = data;
 	m_cbShadowRaytrace.FrameCount = 0;
 }
 
 void CVGI::LightVoxel::InitializeBuffers()
 {
+	UINT32 voxelBitSize = (m_data->GetVoxelCount() + 31) / 32;
 
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(XMFLOAT3));
-	m_bufferManager->AddStructuredBuffer(m_data->ClusterCount, sizeof(XMUINT4));
+	m_bufferManager->AddByteAddressBuffer(voxelBitSize);
+	m_bufferManager->AddStructuredBuffer(m_data->GetClusterCount(), sizeof(XMUINT4));
 
 	m_bufferManager->AllocateBuffers();
 }
+
+//void CVGI::LightVoxel::PerformTechnique(DX12Lib::ComputeContext& context)
+//{
+//	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), Name.c_str());
+//
+//	UINT32 voxelBitSize = (m_data->GetVoxelCount() +31) / 32;
+//
+//	m_cbClearBuffers.ValueCount0 = voxelBitSize;
+//	m_cbClearBuffers.ValueCount1 = m_data->GetClusterCount();
+//
+//	ClearBufferPass(context, DirectX::XMUINT3(ceilf(voxelBitSize / 128.0f), 1, 1));
+//
+//	DirectX::XMUINT3 dispatchSize = DirectX::XMUINT3(ceilf(m_data->GetVoxelCount() / 128.0f), 1, 1);
+//
+//	TechniquePass(context, dispatchSize);
+//
+//	PIXEndEvent(context.m_commandList->Get());
+//}
+//
+//void CVGI::LightVoxel::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
+//{
+//	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
+//	context.SetPipelineState(Renderer::s_PSOs[Name.c_str()].get());
+//
+//	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
+//	auto& prefixSumBuffer = m_data->GetBufferManager(PrefixSumVoxels::Name);
+//	auto& clusterVoxelBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
+//
+//	voxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//	prefixSumBuffer.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//	clusterVoxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+//	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+//	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0), true);
+//
+//	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());
+//	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::LightCommonCBV, Renderer::s_graphicsMemory->AllocateConstant(m_data->GetLightComponent()->GetLightCB()).GpuAddress());
+//	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::ShadowTextureSRV, Renderer::GetShadowMapSrv());
+//	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::VoxelSRV, voxelBufferManager.GetSRVHandle());
+//	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::CompactSRV, prefixSumBuffer.GetSRVHandle());
+//	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::ClusterSRV, clusterVoxelBufferManager.GetSRVHandle());
+//	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::LightVoxelUAV, m_bufferManager->GetUAVHandle());
+//	
+//	context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
+//}
 
 void CVGI::LightVoxel::PerformTechnique(RayTracingContext& context)
 {
@@ -42,17 +88,17 @@ void CVGI::LightVoxel::PerformTechnique(RayTracingContext& context)
 
 	m_cbShadowRaytrace.LightDirection = m_lightComponent->Node->GetForward();
 	m_cbShadowRaytrace.FaceCount = m_data->FaceCount / 2; // Face count is always even, so we can divide by 2
-	m_cbShadowRaytrace.VoxelCount = m_data->VoxelCount;
-	m_cbShadowRaytrace.ClusterCount = m_data->ClusterCount;
+	m_cbShadowRaytrace.VoxelCount = m_data->GetVoxelCount();
+	m_cbShadowRaytrace.ClusterCount = m_data->GetClusterCount();
 	m_cbShadowRaytrace.CurrentStep = 0;
 	m_cbShadowRaytrace.FrameCount++;
 	
-	m_cbClearBuffers.ValueCount0 = m_data->VoxelCount;
-	m_cbClearBuffers.ValueCount1 = m_data->ClusterCount;
-
-
-
-	ClearBufferPass(context, DirectX::XMUINT3(ceilf(m_data->VoxelCount / 128.0f), 1, 1));
+	UINT32 voxelBitSize = (m_data->GetVoxelCount() +31) / 32;
+	
+	m_cbClearBuffers.ValueCount0 = voxelBitSize;
+	m_cbClearBuffers.ValueCount1 = m_data->GetClusterCount();
+	
+	ClearBufferPass(context, DirectX::XMUINT3(ceilf(voxelBitSize / 128.0f), 1, 1));
 
 	UINT side = floor(std::cbrt(m_data->FaceCount / 2));
 	DirectX::XMUINT3 dispatchSize = DirectX::XMUINT3(side + 1, side + 1, side);
@@ -95,7 +141,7 @@ void CVGI::LightVoxel::TechniquePass(RayTracingContext& context, DirectX::XMUINT
 	context.DispatchRays3D(groupSize.x, groupSize.y, groupSize.z);
 }
 
-void CVGI::LightVoxel::ClearBufferPass(RayTracingContext& context, DirectX::XMUINT3 groupSize)
+void CVGI::LightVoxel::ClearBufferPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 	context.SetPipelineState(Renderer::s_PSOs[ClearBufferName.c_str()].get());
@@ -108,6 +154,59 @@ void CVGI::LightVoxel::ClearBufferPass(RayTracingContext& context, DirectX::XMUI
 	
 	context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
 }
+
+//std::shared_ptr<DX12Lib::RootSignature> CVGI::LightVoxel::BuildRootSignature()
+//{
+//	SamplerDesc DefaultSamplerDesc;
+//	DefaultSamplerDesc.MaxAnisotropy = 8;
+//
+//	SamplerDesc ShadowSamplerDesc;
+//	ShadowSamplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+//	ShadowSamplerDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+//	ShadowSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+//	ShadowSamplerDesc.MipLODBias = 0.0f;
+//	ShadowSamplerDesc.MaxAnisotropy = 1;
+//	ShadowSamplerDesc.SetBorderColor(Color::Black());
+//
+//	std::shared_ptr<DX12Lib::RootSignature> shadowRootSignature = std::make_shared<DX12Lib::RootSignature>((UINT)ShadowRootSignature::Count, 2);
+//
+//	shadowRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
+//	shadowRootSignature->InitStaticSampler(1, ShadowSamplerDesc);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::VoxelCommonCBV].InitAsConstantBuffer(0);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::LightCommonCBV].InitAsConstantBuffer(1);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::ShadowTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::VoxelSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 1);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::CompactSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 2);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::ClusterSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 3);
+//	(*shadowRootSignature)[(UINT)ShadowRootSignature::LightVoxelUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
+//
+//	shadowRootSignature->Finalize();
+//
+//	return shadowRootSignature;
+//}
+//
+//
+//std::shared_ptr<DX12Lib::PipelineState> CVGI::LightVoxel::BuildPipelineState()
+//{
+//	std::shared_ptr<DX12Lib::RootSignature> rootSig = BuildRootSignature();
+//
+//	std::shared_ptr<DX12Lib::ComputePipelineState> shadowPso = std::make_shared<DX12Lib::ComputePipelineState>();
+//
+//	auto shaderBlob = CD3DX12_SHADER_BYTECODE((void*)g_pLitVoxels_CS, ARRAYSIZE(g_pLitVoxels_CS));
+//
+//	shadowPso->SetRootSignature(rootSig);
+//	shadowPso->SetComputeShader(shaderBlob);
+//	shadowPso->Finalize();
+//	shadowPso->Name = Name;
+//
+//	////////////
+//	BuildClearBufferPso();
+//	/////////////
+//
+//
+//	return shadowPso;
+//}
+
 
 std::shared_ptr<DX12Lib::RootSignature> CVGI::LightVoxel::BuildRootSignature()
 {

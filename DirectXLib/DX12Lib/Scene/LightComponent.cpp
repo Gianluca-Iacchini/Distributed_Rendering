@@ -108,31 +108,6 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	m_lightCB.Position = this->Node->GetPosition();
 	m_lightCB.CastsShadows = (int)this->m_doesCastShadows;
 
-
-	auto state = Graphics::s_kbTracker->GetLastState();
-
-	auto rotation = DirectX::XMConvertToDegrees(this->Node->GetRotationEulerAngles().x);
-	float time = GameTime::GetTotalTime();
-
-	float maxRot = 112.0f;
-	float minRot = 68.0f;
-	
-	static float modifier = 1.f;
-
-	if (rotation <= minRot)
-	{
-		modifier = 1.f;
-	}
-	else if (rotation >= maxRot)
-	{
-		modifier = -1.f;
-	}
-
-	float rotVelocity = modifier * 0.1f;
-	this->Node->Rotate(this->Node->GetRight(), rotVelocity * GameTime::GetDeltaTime());
-	 
-
-
 	memcpy(s_lightBufferData + m_lightIndex, &m_lightCB, sizeof(m_lightCB));
 
 	if (this->m_doesCastShadows)
@@ -141,6 +116,7 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 		{
 			m_shadowCamera->UpdateShadowMatrix(*this->Node);
 			m_lightCB.shadowTransform = m_shadowCamera->GetShadowTransform();
+			m_lightCB.invShadowTransform = m_shadowCamera->GetInvShadowTransform();
 		}
 	}
 }

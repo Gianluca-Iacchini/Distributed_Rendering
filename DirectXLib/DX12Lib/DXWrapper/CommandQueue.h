@@ -35,6 +35,7 @@ namespace DX12Lib {
 		CommandAllocator* RequestAllocator();
 		void DiscardAllocator(UINT64 fenceValue, CommandAllocator* allocator);
 
+		void Signal(Fence& fence);
 	private:
 		UINT64 ExecuteAndSignal(std::vector<CommandList*> cmdLists);
 

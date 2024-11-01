@@ -15,6 +15,7 @@ namespace DX12Lib {
 		DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f }; // Point, spot
 		float SpotPower = 64.0f; // Spot
 		DirectX::XMFLOAT4X4 shadowTransform = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 invShadowTransform = MathHelper::Identity4x4();
 		int CastsShadows = 0;
 		float _pad1 = 0.0f;
 		float _pad2 = 0.0f;

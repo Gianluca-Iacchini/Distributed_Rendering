@@ -12,6 +12,22 @@ CVGI::BufferManager& CVGI::TechniqueData::GetBufferManager(std::wstring name)
 	return *(it->second);
 }
 
+void CVGI::TechniqueData::SetVoxelCount(UINT32 count)
+{
+	m_cbVoxelCommons.VoxelCount = count;
+	m_voxelCount = count;
+
+	this->m_cbVoxelCommonsResource = Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons);
+}
+
+void CVGI::TechniqueData::SetClusterCount(UINT32 count)
+{
+	m_cbVoxelCommons.ClusterCount = count;
+	m_clusterCount = count;
+
+	this->m_cbVoxelCommonsResource = Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons);
+}
+
 void CVGI::TechniqueData::SetVoxelGridSize(DirectX::XMUINT3 size)
 {
 	m_cbVoxelCommons.voxelTextureDimensions = size;

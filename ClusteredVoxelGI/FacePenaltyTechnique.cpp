@@ -16,7 +16,7 @@ using namespace Graphics;
 CVGI::FacePenaltyTechnique::FacePenaltyTechnique(std::shared_ptr<TechniqueData> data)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
-	data->AddBufferManager(Name, m_bufferManager);
+	data->SetBufferManager(Name, m_bufferManager);
 	m_data = data;
 }
 
@@ -32,7 +32,7 @@ void CVGI::FacePenaltyTechnique::InitializeBuffers()
 
 void CVGI::FacePenaltyTechnique::PerformTechnique(DX12Lib::ComputeContext& context)
 {
-	m_cbFacePenalty.VoxelCount = m_data->VoxelCount * 6;
+	m_cbFacePenalty.VoxelCount = m_data->GetVoxelCount() * 6;
 	m_cbFacePenalty.LightDirection = m_data->GetLightComponent()->Node->GetForward();
 	m_cbFacePenalty.LightPosition = m_data->GetLightComponent()->Node->GetPosition();
 	m_cbFacePenalty.LightIntensity = 15.0f;

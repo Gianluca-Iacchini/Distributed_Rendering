@@ -42,7 +42,7 @@ namespace CVGI
 		ClusterVoxels(std::shared_ptr<TechniqueData> data)
 		{
 			m_bufferManager = std::make_shared<BufferManager>();
-			data->AddBufferManager(Name, m_bufferManager);
+			data->SetBufferManager(Name, m_bufferManager);
 			m_data = data;	
 		}
 		~ClusterVoxels() {}

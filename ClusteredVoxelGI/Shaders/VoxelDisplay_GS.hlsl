@@ -38,7 +38,7 @@ StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space2);
 StructuredBuffer<uint> gNextVoxelBuffer : register(t1, space2);
 StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 
-StructuredBuffer<float3> gVoxelLitBuffer : register(t0, space3);
+ByteAddressBuffer gVoxelLitBuffer : register(t0, space3);
 StructuredBuffer<uint4> gClusterLitBuffer: register(t1, space3);
 
 ByteAddressBuffer gVoxelVisibleBuffer : register(t0, space4);
@@ -243,10 +243,12 @@ void GS(
     
     //avgColor.xyz = gClusterDataBuffer[gClusterAssignmentBuffer[voxelIdx]].Color;
     
-    float3 litColor = gVoxelLitBuffer[voxelIdx];
+    bool isVoxelLit = IsVoxelPresent(voxelIdx, gVoxelLitBuffer);
     
-    if (any(litColor > 0.0f))
-        avgColor.xyz = litColor;
+    avgColor.xyz = gClusterDataBuffer[gClusterAssignmentBuffer[voxelIdx]].Color;
+    
+    //if (isVoxelLit)
+    //    avgColor.xyz = float3(1.0f, 1.0f, 1.0f);
     //else
     //{
     //    uint2 packedRadiance = gFaceRadianceBuffer[index];

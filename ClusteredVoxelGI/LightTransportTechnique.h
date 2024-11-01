@@ -17,6 +17,8 @@ namespace CVGI
 		void PerformTechnique(DX12Lib::ComputeContext& context) override;
 		std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 		
+		void SwapRadianceBuffers();
+
 		inline Microsoft::WRL::ComPtr<ID3D12CommandSignature> GetIndirectCommandSignature() const { return m_commandSignature; }
 
 	protected:
@@ -30,11 +32,13 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::RootSignature> BuildIndirectRootSignature();
 		void BuildIndirectCommandPSO();
 
+
 	public:
 		static const std::wstring Name;
 		static const std::wstring IndirectName;
 	private:
 		std::shared_ptr<BufferManager> m_indirectBufferManager;
+		std::shared_ptr<BufferManager> m_readIndirectBufferManager;
 
 
 	private:

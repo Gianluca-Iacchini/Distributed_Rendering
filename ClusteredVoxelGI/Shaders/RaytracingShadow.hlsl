@@ -22,7 +22,7 @@ StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space2);
 StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space2);
 
 
-RWStructuredBuffer<float3> gVoxelLitBuffer : register(u0, space0);
+RWByteAddressBuffer gVoxelLitBuffer : register(u0, space0);
 RWStructuredBuffer<uint4> gClusterLitBuffer : register(u1, space0);
 
 
@@ -154,23 +154,26 @@ void ShadowRaygen()
     
     if (nSampleVisible > 4)
     {
-        uint clusterIdx = gVoxelAssignmentMap[voxelIdx];
+        bool wasAlreadyLit = SetVoxelPresence(voxelIdx, gVoxelLitBuffer);
         
-        ClusterData clusterData = gClusterDataBuffer[clusterIdx];
-        
-        float formFactor = differentialAreaFormFactor(clusterData.Normal, cbRaytracingShadows.LightDirection);
-
-        float3 voxelRadiance = formFactor * clusterData.Color * 150.0f;
-        uint3 irradianceUint = uint3(voxelRadiance * IRRADIANCE_FIELD_MULTIPLIER);
-        
-        gVoxelLitBuffer[voxelIdx] = voxelRadiance;
-        
-        if (clusterIdx != UINT_MAX)
+        if (!wasAlreadyLit)
         {
-            InterlockedAdd(gClusterLitBuffer[clusterIdx].x, irradianceUint.x);
-            InterlockedAdd(gClusterLitBuffer[clusterIdx].y, irradianceUint.y);
-            InterlockedAdd(gClusterLitBuffer[clusterIdx].z, irradianceUint.z);
-            InterlockedAdd(gClusterLitBuffer[clusterIdx].w, 1);
+            uint clusterIdx = gVoxelAssignmentMap[voxelIdx];
+            
+            if (clusterIdx != UINT_MAX)
+            {
+                ClusterData clusterData = gClusterDataBuffer[clusterIdx];
+        
+                float formFactor = differentialAreaFormFactor(clusterData.Normal, cbRaytracingShadows.LightDirection);
+
+                float3 voxelRadiance = formFactor * clusterData.Color * 150.0f;
+                uint3 irradianceUint = uint3(voxelRadiance * IRRADIANCE_FIELD_MULTIPLIER);
+                
+                InterlockedAdd(gClusterLitBuffer[clusterIdx].x, irradianceUint.x);
+                InterlockedAdd(gClusterLitBuffer[clusterIdx].y, irradianceUint.y);
+                InterlockedAdd(gClusterLitBuffer[clusterIdx].z, irradianceUint.z);
+                InterlockedAdd(gClusterLitBuffer[clusterIdx].w, 1);
+            }
         }
     }
 }

@@ -32,10 +32,12 @@ namespace DX12Lib
 		void UpdateShadowMatrix(SceneNode& node);
 		DirectX::GraphicsResource GetShadowCB();
 		DirectX::XMFLOAT4X4 GetShadowTransform() const { return m_shadowTransform; }
+		DirectX::XMFLOAT4X4 GetInvShadowTransform() const { return m_invShadowTransform; }
 	private:
 		DirectX::XMFLOAT3 m_shadowCenter = { 0.0f, 0.0f, 0.0f };
 		DirectX::XMFLOAT3 m_shadowBounds = { 250.f, 250.f, 250.f };
 		DirectX::XMFLOAT4X4 m_shadowTransform = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 m_invShadowTransform = MathHelper::Identity4x4();
 		ConstantBufferCamera m_shadowCB;
 		
 	};

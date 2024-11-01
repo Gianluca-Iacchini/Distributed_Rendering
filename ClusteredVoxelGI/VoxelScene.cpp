@@ -4,6 +4,7 @@
 #include "CameraController.h"
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "VoxelMaterial.h"
+#include "DX12Lib/Scene/LightController.h"
 
 
 using namespace DX12Lib;
@@ -17,11 +18,13 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	m_voxelTexture.Create3D(VoxelTextureDimensions.x, VoxelTextureDimensions.y, VoxelTextureDimensions.z, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
 	auto lightNode = this->AddNode();
-	lightNode->SetPosition(0, 150, 0);
+	lightNode->SetPosition(-1, 38, 0);
 	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
 	light->SetLightColor({ 0.45f, 0.45f, 0.45f });
 	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
+
+	lightNode->AddComponent<LightController>();
 
 	m_camera->Node->AddComponent<CameraController>();
 

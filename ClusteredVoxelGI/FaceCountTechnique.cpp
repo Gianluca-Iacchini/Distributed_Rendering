@@ -12,7 +12,7 @@ void CVGI::FaceCountTechnique::InitializeBuffers()
 	// Faces buffer (u0)
 	m_bufferManager->AddStructuredBuffer(1, sizeof(DirectX::XMUINT2));
 	// Face start count buffer (u1)
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(DirectX::XMUINT2));
+	m_bufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(DirectX::XMUINT2));
 	// Number of faces (u2);
 	m_bufferManager->AddByteAddressBuffer();
 
@@ -23,12 +23,14 @@ void CVGI::FaceCountTechnique::PerformTechnique(DX12Lib::ComputeContext& context
 {
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 0, 0), L"FaceCount");
 
+	UINT32 voxelCount = m_data->GetVoxelCount();
+
 	m_cbFaceCount.GridDimension = m_data->GetVoxelGridSize();
 	m_cbFaceCount.CurrentPhase = 0;
-	m_cbFaceCount.VoxelCount = m_data->VoxelCount;
+	m_cbFaceCount.VoxelCount = voxelCount;
 
 
-	TechniquePass(context, DirectX::XMUINT3(ceil(m_data->VoxelCount / 256), 1, 1));
+	TechniquePass(context, DirectX::XMUINT3(ceil(voxelCount / 256), 1, 1));
 	context.Flush();
 
 	m_cbFaceCount.CurrentPhase = 1;
@@ -37,7 +39,7 @@ void CVGI::FaceCountTechnique::PerformTechnique(DX12Lib::ComputeContext& context
 	m_bufferManager->ResizeBuffer((UINT)FaceBufferType::FaceDataBuffer, m_faceCount);
 	m_bufferManager->ZeroBuffer(context, (UINT)FaceBufferType::FaceCounterBuffer); 
 
-	TechniquePass(context, DirectX::XMUINT3(ceil(m_data->VoxelCount / 256), 1, 1));
+	TechniquePass(context, DirectX::XMUINT3(ceil(voxelCount / 256), 1, 1));
 
 	PIXEndEvent(context.m_commandList->Get());
 

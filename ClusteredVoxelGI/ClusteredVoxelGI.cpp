@@ -25,6 +25,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		throw std::exception("DirectX Raytracing is not supported by your GPU.");
 	}
 
+	m_rtgiFence = std::make_unique<Fence>(*Graphics::s_device, 0, 1);
+
 	DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 
 	VoxelScene* voxelScene = static_cast<VoxelScene*>(this->m_Scene.get());
@@ -50,6 +52,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_lightVoxel = std::make_unique<LightVoxel>(m_data);
 	m_lightTransportTechnique = std::make_unique<LightTransportTechnique>(m_data);
 	m_gaussianFilterTechnique = std::make_unique<GaussianFilterTechnique>(m_data);
+	m_lerpRadianceTechnique = std::make_unique<LerpRadianceTechnique>(m_data);
 
 
 
@@ -81,6 +84,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	auto gaussianFilterPso = m_gaussianFilterTechnique->BuildPipelineState();
 
+	auto lerpRadiancePso = m_lerpRadianceTechnique->BuildPipelineState();
+
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
@@ -94,6 +99,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	Renderer::s_PSOs[lightVoxelPso->Name] = lightVoxelPso;
 	Renderer::s_PSOs[lightTransportPso->Name] = lightTransportPso;
 	Renderer::s_PSOs[gaussianFilterPso->Name] = gaussianFilterPso;
+	Renderer::s_PSOs[lerpRadiancePso->Name] = lerpRadiancePso;
 
 
 	m_voxelizeScene->InitializeBuffers();
@@ -199,7 +205,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	//m_faceCountTechnique->InitializeBuffers();
 	//m_faceCountTechnique->PerformTechnique(computeContext);
 
-	m_data->FaceCount = m_data->VoxelCount * 6;
+	m_data->FaceCount = m_data->GetVoxelCount() * 6;
 
 	m_buildAABBsTechnique->InitializeBuffers();
 	m_buildAABBsTechnique->PerformTechnique(computeContext);
@@ -220,6 +226,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_gaussianFilterTechnique->InitializeBuffers();
 	m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
 
+	m_lerpRadianceTechnique->InitializeBuffers();
+
 	assert(foundLightComponent && "Failed to find light component with shadows enabled.");
 
 
@@ -230,6 +238,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	Renderer::SetRTGIData(m_data, originalMin, originalMax);
 	Renderer::UseRTGI(true);
+
+	s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -243,19 +253,43 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	RayTracingContext& context = RayTracingContext::Begin();
-	m_lightVoxel->PerformTechnique(context);
+	//UINT lerpPhase = 0;
+	//RTGIUpdateDelta += GameTime::GetDeltaTime();
+	//RayTracingContext& context = RayTracingContext::Begin();
+	//if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
+	//{
+	//	if (RTGIUpdateDelta > 0.1f)
+	//	{
 
-	m_lightTransportTechnique->PerformTechnique(context);
+	//		m_lightVoxel->PerformTechnique(context);
 
-	m_gaussianFilterTechnique->PerformTechnique(context);
+	//		m_lightTransportTechnique->PerformTechnique(context);
 
-	context.Finish();
+	//		m_lightTransportTechnique->SwapRadianceBuffers();
+	//		m_gaussianFilterTechnique->PerformTechnique(context);
 
-	m_Scene->Render(commandContext);
-	Renderer::RenderLayers(commandContext);
+	//		s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
 
-	//m_displayVoxelScene->PerformTechnique(commandContext);
+	//		lerpPhase = 1;
+	//		RTGIUpdateDelta = 0.0f;
+	//	}
+	//}
+
+	//m_lerpRadianceTechnique->SetMaxTime(0.1f);
+	//m_lerpRadianceTechnique->SetAccumulatedTime(RTGIUpdateDelta);
+	//m_lerpRadianceTechnique->SetPhase(lerpPhase);
+	//m_lerpRadianceTechnique->PerformTechnique(context);
+	//
+	//context.Finish();
+
+
+	//m_Scene->Render(commandContext);
+	//Renderer::ShadowPass(commandContext);
+	//Renderer::MainRenderPass(commandContext);
+	//Renderer::DeferredPass(commandContext);
+
+	m_displayVoxelScene->PerformTechnique(commandContext);
+
 
 	Renderer::PostDrawCleanup(commandContext);
 }

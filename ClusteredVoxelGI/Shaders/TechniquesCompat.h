@@ -35,10 +35,10 @@ struct ConstantBufferVoxelCommons
 	UINT StoreData;
 
 	XMFLOAT3 invVoxelCellSize;
-	float pad1;
+	UINT VoxelCount;
 
 	XMFLOAT3 SceneAABBMin;
-	float pad2;
+	UINT ClusterCount;
 
 	XMFLOAT3 SceneAABBMax;
 	float pad3;
@@ -169,6 +169,11 @@ struct ConstantBufferClearBuffers
 	UINT ValueCount3;
 };
 
+struct ConstantBufferLitVoxels
+{
+
+};
+
 struct ClusterAABBInfo
 {
 	XMFLOAT3 Min;
@@ -177,6 +182,13 @@ struct ClusterAABBInfo
 	UINT ClusterElementCount;
 };
 
+struct ConstantBufferLerpRadiance
+{
+	UINT CurrentPhase;
+	float accumulatedTime;
+	float maxTime;
+	UINT FaceCount;
+};
 
 struct ClusterData
 {

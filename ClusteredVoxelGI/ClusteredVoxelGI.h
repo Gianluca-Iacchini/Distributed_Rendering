@@ -22,6 +22,7 @@
 #include "Technique.h"
 #include "LightTransportTechnique.h"
 #include "GaussianFilterTechnique.h"
+#include "LerpRadianceTechnique.h"
 
 #include "LightVoxel.h"
 
@@ -67,7 +68,9 @@ namespace CVGI
 		std::unique_ptr<LightVoxel> m_lightVoxel;
 		std::unique_ptr<LightTransportTechnique> m_lightTransportTechnique;
 		std::unique_ptr<GaussianFilterTechnique> m_gaussianFilterTechnique;
+		std::unique_ptr<LerpRadianceTechnique> m_lerpRadianceTechnique;
 
+		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
 
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 
@@ -83,5 +86,7 @@ namespace CVGI
 		DX12Lib::ShadowCamera* m_shadowCamera = nullptr;
 
 		std::shared_ptr<TechniqueData> m_data = nullptr;
+
+		float RTGIUpdateDelta = 0.0f;
 	};
 }

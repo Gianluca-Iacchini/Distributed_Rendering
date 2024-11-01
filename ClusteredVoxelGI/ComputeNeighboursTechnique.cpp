@@ -11,7 +11,7 @@ using namespace CVGI;
 CVGI::ComputeNeighboursTechnique::ComputeNeighboursTechnique(std::shared_ptr<TechniqueData> data)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
-	data->AddBufferManager(Name, m_bufferManager);
+	data->SetBufferManager(Name, m_bufferManager);
 	m_data = data;
 }
 
@@ -19,7 +19,7 @@ void CVGI::ComputeNeighboursTechnique::InitializeBuffers()
 {
 	
 
-	m_bufferManager->AddStructuredBuffer(m_data->ClusterCount, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(m_data->GetClusterCount(), sizeof(UINT32));
 	m_bufferManager->AddByteAddressBuffer(2);
 
 	m_bufferManager->AllocateBuffers();
@@ -32,7 +32,7 @@ void CVGI::ComputeNeighboursTechnique::PerformTechnique(DX12Lib::ComputeContext&
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 	context.SetPipelineState(Renderer::s_PSOs[Name].get());
 
-	UINT32 clusterCount = m_data->ClusterCount;
+	UINT32 clusterCount = m_data->GetClusterCount();
 	UINT32 totalComputation = clusterCount * (clusterCount + 1) / 2;
 
 	UINT elementsPerThread = 50;

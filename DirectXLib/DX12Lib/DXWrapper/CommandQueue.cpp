@@ -96,6 +96,12 @@ void CommandQueue::DiscardAllocator(UINT64 fenceValue, CommandAllocator* allocat
 	m_allocatorPool.DiscardAllocator(fenceValue, allocator);
 }
 
+void DX12Lib::CommandQueue::Signal(Fence& fence)
+{
+	fence.CurrentFenceValue += 1;
+	ThrowIfFailed(m_commandQueue->Signal(fence.Get(), fence.CurrentFenceValue));
+}
+
 CommandQueueManager::CommandQueueManager(Device& device)
 	: m_device(device),
 	m_graphicsQueue(D3D12_COMMAND_LIST_TYPE_DIRECT),

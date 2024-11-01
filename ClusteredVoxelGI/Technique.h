@@ -31,10 +31,16 @@ namespace CVGI
 
 		BufferManager& GetBufferManager(std::wstring name);
 
-		void AddBufferManager(std::wstring name, std::shared_ptr<BufferManager> bufferManager)
+		void SetBufferManager(std::wstring name, std::shared_ptr<BufferManager> bufferManager)
 		{
 			m_bufferManagers[name] = bufferManager;
 		}
+
+		UINT32 GetVoxelCount() { return m_voxelCount; }
+		UINT32 GetClusterCount() { return m_clusterCount; }
+
+		void SetVoxelCount(UINT32 count);
+		void SetClusterCount(UINT32 count);
 
 		void SetCamera(DX12Lib::SceneCamera* camera) { m_sceneCamera = camera; }
 		DX12Lib::SceneCamera* GetCamera() const { return m_sceneCamera; }
@@ -64,14 +70,11 @@ namespace CVGI
 		void BuildMatrices();
 
 	private:
-		DirectX::XMMATRIX BuildVoxelToWorldMatrix();
 		DirectX::XMMATRIX BuildWorldToVoxelMatrix();
 
 	public:
-		UINT32 VoxelCount = 0;
 		UINT32 FragmentCount = 0;
 
-		UINT32 ClusterCount = 0;
 		UINT32 MergedClusterCount = 0;
 		
 		// Number of AABB groups that compose a single geometry
@@ -80,6 +83,9 @@ namespace CVGI
 		UINT32 FaceCount = 0;
 
 	private:
+		UINT32 m_voxelCount;
+		UINT32 m_clusterCount;
+
 		std::unique_ptr<TopLevelAccelerationStructure> m_tlas;
 		std::unordered_map<std::wstring, std::shared_ptr<BufferManager>> m_bufferManagers;
 		DirectX::XMUINT3 VoxelGridSize = DirectX::XMUINT3(128, 128, 128);

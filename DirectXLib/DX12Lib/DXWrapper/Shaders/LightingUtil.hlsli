@@ -9,6 +9,7 @@ struct Light
     float3 position;
     float spotPower;
     float4x4 shadowMatrix;
+    float4x4 invShadowMatrix;
     int castShadows;
     float _pad0;
     float _pad1;

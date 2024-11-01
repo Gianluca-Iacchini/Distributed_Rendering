@@ -34,12 +34,12 @@ namespace CVGI
 	enum class ShadowRootSignature
 	{
 		VoxelCommonCBV = 0,
-		ShadowCommonCBV = 1,
-		ShadowMapSRV,
+		LightCommonCBV = 1,
+		ShadowTextureSRV,
 		VoxelSRV,
 		CompactSRV,
 		ClusterSRV,
-		ShadowBuffersUAV,
+		LightVoxelUAV,
 		Count
 	};
 
@@ -52,11 +52,10 @@ namespace CVGI
 		virtual void InitializeBuffers() override;
 		//virtual void PerformTechnique(DX12Lib::ComputeContext& context) override;
 		//virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
+
 		virtual void PerformTechnique(RayTracingContext& context) override;
 		virtual void TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
-		void ClearBufferPass(RayTracingContext& context, DirectX::XMUINT3 groupSize);
-	
-
+		void ClearBufferPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize);
 
 		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 		void BuildClearBufferPso();

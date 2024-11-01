@@ -179,7 +179,7 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
                     RayDesc ray;
                     ray.Origin = origin;
                     ray.Direction = direction / distance;
-                    ray.TMin = 0.1f;
+                    ray.TMin = 0.01f;
                     ray.TMax = distance;
                 
                     q.TraceRayInline(Scene, RAY_FLAG_NONE, ~0, ray);

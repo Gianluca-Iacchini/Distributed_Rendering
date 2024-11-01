@@ -35,6 +35,8 @@ namespace DX12Lib
 		bool CastsShadows() const { return m_doesCastShadows; }
 		void SetCastsShadows(bool value);
 		ShadowCamera* GetShadowCamera();
+
+		ConstantBufferLight GetLightCB() const { return m_lightCB; }
 	public:
 		static int GetLightCount() { return m_activeLights.size(); }
 		static void UpdateLights(CommandContext& context);

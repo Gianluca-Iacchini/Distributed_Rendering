@@ -36,6 +36,7 @@ namespace CVGI
 		{ 
 			m_sceneHalfExtents = extents;
 			this->SetOrthogonal({ m_sceneHalfExtents.x * 2.f, m_sceneHalfExtents.y * 2.f, 0.1f, m_sceneHalfExtents.z * 2.f });
+			m_farZ = m_sceneHalfExtents.z * 2.f;
 		}
 
 	private:

@@ -43,14 +43,9 @@ namespace Graphics
 			CommonCBV = 0,
 			CameraCBV = 1,
 			ObjectCBV = 2,
-			VoxelRTGICBV,
 			LightSRV,
 			MaterialSRV,
 			MaterialTextureSRV,
-			VoxelBufferSRV,
-			CompactBufferSRV,
-			ClusterBufferSRV,
-			RadianceBufferSRV,
 			Count
 		};
 
@@ -102,6 +97,7 @@ namespace Graphics
 
 		void UseRTGI(bool useRTGI);
 		void SetRTGIData(std::shared_ptr<CVGI::TechniqueData> techniqueData, DirectX::XMFLOAT3 originalSceneMin, DirectX::XMFLOAT3 originalSceneMax);
+		void SwapShadowBuffers();
 	};
 }
 

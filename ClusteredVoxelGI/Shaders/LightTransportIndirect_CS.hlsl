@@ -26,7 +26,7 @@ StructuredBuffer<uint> gVisibleClustersBuffer : register(t1, space3);
 StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space4);
 StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space4);
 
-StructuredBuffer<float3> gLitVoxels : register(t0, space5);
+ByteAddressBuffer gLitVoxels : register(t0, space5);
 StructuredBuffer<uint4> gLitClusters : register(t1, space5);
 
 ByteAddressBuffer gVisibleFaceCounter : register(t0, space6);
@@ -69,7 +69,7 @@ float3 clusterToVoxelIrradiancePerVoxelArrayVoxel(ClusterData cData, uint voxelI
         }
         
         // Only lit voxels are considered
-        if (any(gLitVoxels[voxelIdx] > 0.0f))
+        if (IsVoxelPresent(voxelIdx, gLitVoxels))
         {
             litVoxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions);
             litVoxelWorldCoords = mul(float4(float3(litVoxelTexCoords), 1.0f), cbVoxelCommons.VoxelToWorld).xyz;

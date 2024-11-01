@@ -10,11 +10,12 @@ using namespace Graphics;
 
 void CVGI::ClusterVoxels::InitializeBuffers()
 {
+	UINT32 voxelCount = m_data->GetVoxelCount();
 
 	DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
 
 	UINT32 voxelLinearSize = voxelGridSize.x * voxelGridSize.y * voxelGridSize.z;
-	m_numberOfClusters = MathHelper::Min(250000u, (UINT32)(m_data->VoxelCount / 10));
+	m_numberOfClusters = MathHelper::Min(250000u, (UINT32)(voxelCount / 10));
 	m_superPixelWidth = cbrtf((float)voxelLinearSize / m_numberOfClusters);
 
 	float denominator = 2.0f * m_superPixelWidth;
@@ -25,16 +26,16 @@ void CVGI::ClusterVoxels::InitializeBuffers()
 
 
 	// VoxelsInCluster (u1)
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(voxelCount, sizeof(UINT32));
 
 	// Assignment Map (u2)
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(voxelCount, sizeof(UINT32));
 
 	// Voxel color (u3)
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, 3 * sizeof(float));
+	m_bufferManager->AddStructuredBuffer(voxelCount, 3 * sizeof(float));
 
 	// Voxel Normal Direction (u4)
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(DirectX::XMFLOAT3));
+	m_bufferManager->AddStructuredBuffer(voxelCount, sizeof(DirectX::XMFLOAT3));
 
 	// 3D Tile Map (u5)
 	m_bufferManager->Add3DTextureBuffer(m_tileGridDimension, DXGI_FORMAT_R32_UINT);
@@ -50,12 +51,12 @@ void CVGI::ClusterVoxels::InitializeBuffers()
 	m_bufferManager->AddStructuredBuffer(m_numberOfClusters, sizeof(ClusterData));
 
 	// Next voxel in cluster linked list (u9)
-	m_bufferManager->AddStructuredBuffer(m_data->VoxelCount, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(voxelCount, sizeof(UINT32));
 
 	m_bufferManager->AllocateBuffers();
 
 	m_cbClusterizeBuffer.CurrentPhase = 0;
-	m_cbClusterizeBuffer.VoxelCount = m_data->VoxelCount;
+	m_cbClusterizeBuffer.VoxelCount = voxelCount;
 	m_cbClusterizeBuffer.S = ceil(m_superPixelWidth);
 	m_cbClusterizeBuffer.m = m_compactness;
 	m_cbClusterizeBuffer.K = m_numberOfClusters;
@@ -70,7 +71,7 @@ void CVGI::ClusterVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 
 
 	m_cbClusterizeBuffer.CurrentPhase = 0;
-	TechniquePass(context, DirectX::XMUINT3(ceil(m_data->VoxelCount / 512.0f), 1, 1));
+	TechniquePass(context, DirectX::XMUINT3(ceil(m_data->GetVoxelCount() / 512.0f), 1, 1));
 	context.Flush();
 
 	m_cbClusterizeBuffer.CurrentPhase = 1;
@@ -85,7 +86,7 @@ void CVGI::ClusterVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 		context.Flush();
 
 		m_cbClusterizeBuffer.CurrentPhase = 3;
-		TechniquePass(context, DirectX::XMUINT3(ceil(m_data->VoxelCount / 512.0f), 1, 1));
+		TechniquePass(context, DirectX::XMUINT3(ceil(m_data->GetVoxelCount() / 512.0f), 1, 1));
 		context.Flush();
 
 		m_cbClusterizeBuffer.CurrentPhase = 4;
@@ -110,7 +111,7 @@ void CVGI::ClusterVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 
 	PIXEndEvent(context.m_commandList->Get());
 
-	m_data->ClusterCount = m_numberOfNonEmptyClusters;
+	m_data->SetClusterCount(m_numberOfNonEmptyClusters);
 
 	context.Flush();
 }
