@@ -134,6 +134,8 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
         
         float3 eyePos = mul(float4(cbCamera.eyePosition, 1.0f), cbVoxelCommons.WorldToVoxel).xyz;
         
+        
+        
         if (gsIsOutsideFrustum == 0)
         {
             float3 facesAndCorners[14] =
@@ -179,7 +181,7 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
                     RayDesc ray;
                     ray.Origin = origin;
                     ray.Direction = direction / distance;
-                    ray.TMin = 0.01f;
+                    ray.TMin = 0.1f;
                     ray.TMax = distance;
                 
                     q.TraceRayInline(Scene, RAY_FLAG_NONE, ~0, ray);
@@ -215,6 +217,16 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
 
             uint3 faceIdx = uint3(2, 4, 0);
             
+            float3 faceDirections[6] =
+            {
+                float3(0.0f, 0.0f, -1.0f),
+                float3(0.0f, 0.0f, 1.0f),
+                float3(-1.0f, 0.0f, 0.0f),
+                float3(1.0f, 0.0f, 0.0f),
+                float3(0.0f, -1.0f, 0.0f),
+                float3(0.0f, 1.0f, 0.0f)
+            };
+            
             for (uint i = aabbStart; i < aabbEnd; i++)
             {
                 uint voxIdx = gAABBVoxelIndices[i];
@@ -222,14 +234,23 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
                 AABB voxAABB = gVoxelAABBBuffer[i];
                 float3 center = (voxAABB.Min + voxAABB.Max) * 0.5f;
                 
-                faceIdx.x += step(center.x, eyePos.x);
-                faceIdx.y += step(center.y, eyePos.y);
-                faceIdx.z += step(center.z, eyePos.z);
+                float3 toCamera = normalize(eyePos - center);
+                uint visibleFaces[3];
+                int faceCount = 0;
+
+                for (uint faceIdx = 0; faceIdx < 6; ++faceIdx)
+                {
+                    float3 normal = faceDirections[faceIdx]; // Get face normal for faceIdx
+                    if (dot(toCamera, normal) > 0)
+                    {
+                        visibleFaces[faceCount++] = faceIdx;
+                    }
+                }         
                 
                 // Up to 3 faces are visible at a time
-                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 0] = voxIdx * 6 + faceIdx.x;
-                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 1] = voxIdx * 6 + faceIdx.y;
-                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 2] = voxIdx * 6 + faceIdx.z;
+                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 0] = voxIdx * 6 + visibleFaces[0];
+                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 1] = voxIdx * 6 + visibleFaces[1];
+                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 2] = voxIdx * 6 + visibleFaces[2];
             }
 
 

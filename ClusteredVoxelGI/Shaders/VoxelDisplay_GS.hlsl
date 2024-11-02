@@ -245,16 +245,14 @@ void GS(
     
     bool isVoxelLit = IsVoxelPresent(voxelIdx, gVoxelLitBuffer);
     
-    avgColor.xyz = gClusterDataBuffer[gClusterAssignmentBuffer[voxelIdx]].Color;
-    
-    //if (isVoxelLit)
-    //    avgColor.xyz = float3(1.0f, 1.0f, 1.0f);
-    //else
-    //{
-    //    uint2 packedRadiance = gFaceRadianceBuffer[index];
-    //    avgColor.xy = UnpackFloats16(packedRadiance.x);
-    //    avgColor.z = UnpackFloats16(packedRadiance.y).x;
-    //}
+    if (isVoxelLit)
+        avgColor.xyz = float3(1.0f, 1.0f, 1.0f);
+    else
+    {
+        uint2 packedRadiance = gFaceRadianceBuffer[index];
+        avgColor.xy = UnpackFloats16(packedRadiance.x);
+        avgColor.z = UnpackFloats16(packedRadiance.y).x;
+    }
 
     
     //avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[faceData.x]);

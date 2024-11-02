@@ -375,7 +375,7 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     }
     
     if (IndexOfMax == -1)
-        return float3(0.0f, 0.0f, 0.0f);
+        return radiance;
     
     uint index0 = arrayCombinationIndex[IndexOfMax].x;
     uint index1 = arrayCombinationIndex[IndexOfMax].y;
@@ -604,16 +604,17 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         {
             
             radiance = float4(1.0f, 1.0f, 1.0f, 1.0f);
-            linearCoord = voxelCoord.x + voxelCoord.y * voxelTextureDimensions.x + voxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
-            uint2 result = FindHashedCompactedPositionIndex(voxelCoord);
-            uint2 packedRadiance = gPackedRadiance[result.x * 6 + faceDir];
-            radiance.xy = UnpackFloats16(packedRadiance.x);
-            radiance.zw = UnpackFloats16(packedRadiance.y);
-            //radiance = float4(InterpolateIrradiance(voxelCoord, worldCoord, normal), 1.0f);
+            //linearCoord = voxelCoord.x + voxelCoord.y * voxelTextureDimensions.x + voxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
+            //uint2 result = FindHashedCompactedPositionIndex(voxelCoord);
+            //uint2 packedRadiance = gPackedRadiance[result.x * 6 + faceDir];
+            //radiance.xy = UnpackFloats16(packedRadiance.x);
+            //radiance.zw = UnpackFloats16(packedRadiance.y);
+            radiance = float4(InterpolateIrradiance(voxelCoord, worldCoord, normal), 1.0f);
+            
         }
         
-        //lRes += surfData.c_diff * radiance.rgb * 0.8f;
-        lRes = radiance.rgb;
+        lRes += surfData.c_diff * radiance.rgb * 0.8f;
+        //lRes = radiance.rgb;
     }
    
     

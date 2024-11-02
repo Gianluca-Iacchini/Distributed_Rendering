@@ -253,42 +253,42 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	//UINT lerpPhase = 0;
-	//RTGIUpdateDelta += GameTime::GetDeltaTime();
-	//RayTracingContext& context = RayTracingContext::Begin();
-	//if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
-	//{
-	//	if (RTGIUpdateDelta > 0.1f)
-	//	{
+	UINT lerpPhase = 0;
+	RTGIUpdateDelta += GameTime::GetDeltaTime();
+	RayTracingContext& context = RayTracingContext::Begin();
+	if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
+	{
+		if (RTGIUpdateDelta > 0.1f)
+		{
 
-	//		m_lightVoxel->PerformTechnique(context);
+			m_lightVoxel->PerformTechnique(context);
 
-	//		m_lightTransportTechnique->PerformTechnique(context);
+			m_lightTransportTechnique->PerformTechnique(context);
 
-	//		m_lightTransportTechnique->SwapRadianceBuffers();
-	//		m_gaussianFilterTechnique->PerformTechnique(context);
+			m_lightTransportTechnique->SwapRadianceBuffers();
+			m_gaussianFilterTechnique->PerformTechnique(context);
 
-	//		s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
+			s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
 
-	//		lerpPhase = 1;
-	//		RTGIUpdateDelta = 0.0f;
-	//	}
-	//}
+			lerpPhase = 1;
+			RTGIUpdateDelta = 0.0f;
+		}
+	}
 
-	//m_lerpRadianceTechnique->SetMaxTime(0.1f);
-	//m_lerpRadianceTechnique->SetAccumulatedTime(RTGIUpdateDelta);
-	//m_lerpRadianceTechnique->SetPhase(lerpPhase);
-	//m_lerpRadianceTechnique->PerformTechnique(context);
-	//
-	//context.Finish();
+	m_lerpRadianceTechnique->SetMaxTime(0.1f);
+	m_lerpRadianceTechnique->SetAccumulatedTime(RTGIUpdateDelta);
+	m_lerpRadianceTechnique->SetPhase(lerpPhase);
+	m_lerpRadianceTechnique->PerformTechnique(context);
+	
+	context.Finish();
 
 
-	//m_Scene->Render(commandContext);
-	//Renderer::ShadowPass(commandContext);
-	//Renderer::MainRenderPass(commandContext);
-	//Renderer::DeferredPass(commandContext);
+	m_Scene->Render(commandContext);
+	Renderer::ShadowPass(commandContext);
+	Renderer::MainRenderPass(commandContext);
+	Renderer::DeferredPass(commandContext);
 
-	m_displayVoxelScene->PerformTechnique(commandContext);
+	//m_displayVoxelScene->PerformTechnique(commandContext);
 
 
 	Renderer::PostDrawCleanup(commandContext);

@@ -186,7 +186,7 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
     voxelWorldPos = mul(float4(voxelWorldPos, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
 
   
-    float3 radiance = 0.0f;
+    float3 radiance = float3(0.0f, 0.0f, 0.0f);
     
     float3 voxelNormal = gVoxelNormalBuffer[voxIdx];
     
