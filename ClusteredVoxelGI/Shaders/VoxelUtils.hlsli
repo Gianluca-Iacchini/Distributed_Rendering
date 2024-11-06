@@ -141,7 +141,6 @@ bool SetVoxelPresence(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBu
     return (outVal & (1u << bit)) != 0;
 }
 
-
 bool SetVoxelPresence(uint3 voxelCoord, uint3 gridDimension, RWByteAddressBuffer voxelPresenceBuffer)
 {
     uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);

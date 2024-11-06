@@ -26,6 +26,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	}
 
 	m_rtgiFence = std::make_unique<Fence>(*Graphics::s_device, 0, 1);
+	m_accumulatedBufferFence = std::make_unique<Fence>(*Graphics::s_device, 0, 1);
+	m_blockFence = std::make_unique<Fence>(*Graphics::s_device, 0, 1);
 
 	DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 
@@ -239,7 +241,13 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	Renderer::SetRTGIData(m_data, originalMin, originalMax);
 	Renderer::UseRTGI(true);
 
-	s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
+	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
+	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_accumulatedBufferFence);
+	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_blockFence);
+
+	m_rtgiFence->Get()->SetName(L"RTGI Fence");
+	m_accumulatedBufferFence->Get()->SetName(L"Acc Fence");
+	m_blockFence->Get()->SetName(L"Block Fence");
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -253,43 +261,84 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	UINT lerpPhase = 0;
-	RTGIUpdateDelta += GameTime::GetDeltaTime();
-	RayTracingContext& context = RayTracingContext::Begin();
-	if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
-	{
-		if (RTGIUpdateDelta > 0.1f)
-		{
+	auto kbState = Graphics::s_keyboard->GetState();
 
-			m_lightVoxel->PerformTechnique(context);
+	bool didLightChange =  RTGIUpdateDelta > 0.1f;
+	bool didCameraMove = m_data->GetCamera()->IsDirty();
+	//bool didCameraMove = kbState.IsKeyDown(DirectX::Keyboard::Space); //m_data->GetCamera()->IsDirty();
+
+	UINT lerpPhase = 0;
+
+	if (LightDispatched && 
+		m_blockFence->IsFenceComplete(m_blockFence->CurrentFenceValue) && 
+		m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
+	{
+		RayTracingContext& context = RayTracingContext::Begin();
+
+		m_lightTransportTechnique->LaunchIndirectLightBlock(context, IndirectBlockCount);
+		m_gaussianFilterTechnique->SetGaussianBlock(IndirectBlockCount);
+		m_gaussianFilterTechnique->PerformTechnique(context);
+
+		IndirectBlockCount += 1;
+		IndirectBlockCount = IndirectBlockCount % 16;
+
+		if (IndirectBlockCount == 0)
+		{
+			LightDispatched = false;
+		}
+
+		context.Finish();
+
+		m_blockFence->CurrentFenceValue++;
+		Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_blockFence);
+	}
+	
+	if (didLightChange || didCameraMove)
+	{
+		if (!LightDispatched && 
+			m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue) &&
+			m_blockFence->IsFenceComplete(m_blockFence->CurrentFenceValue))
+		{
+			RayTracingContext& context = RayTracingContext::Begin();
+
+			if (didLightChange)
+			{
+				m_lightVoxel->PerformTechnique(context);
+				m_lightTransportTechnique->ResetRadianceBuffers(true);
+				m_gaussianFilterTechnique->ResetGaussianBuffers(context);
+				RTGIUpdateDelta = 0.0f;
+			}
 
 			m_lightTransportTechnique->PerformTechnique(context);
+			LightDispatched = true;
 
-			m_lightTransportTechnique->SwapRadianceBuffers();
-			m_gaussianFilterTechnique->PerformTechnique(context);
+			m_accumulatedBufferFence->WaitForCurrentFence();
+			m_gaussianFilterTechnique->SwapBuffers();
 
-			s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
-
-			lerpPhase = 1;
-			RTGIUpdateDelta = 0.0f;
+			context.Finish();
+			m_rtgiFence->CurrentFenceValue++;
+			Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
 		}
 	}
 
-	m_lerpRadianceTechnique->SetMaxTime(0.1f);
-	m_lerpRadianceTechnique->SetAccumulatedTime(RTGIUpdateDelta);
-	m_lerpRadianceTechnique->SetPhase(lerpPhase);
-	m_lerpRadianceTechnique->PerformTechnique(context);
-	
-	context.Finish();
 
+	
+	RTGIUpdateDelta += GameTime::GetDeltaTime();
 
 	m_Scene->Render(commandContext);
 	Renderer::ShadowPass(commandContext);
 	Renderer::MainRenderPass(commandContext);
+
 	Renderer::DeferredPass(commandContext);
 
-	//m_displayVoxelScene->PerformTechnique(commandContext);
+	commandContext.Flush();
 
+	m_accumulatedBufferFence->CurrentFenceValue++;
+	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_accumulatedBufferFence);
+
+
+
+	//m_displayVoxelScene->PerformTechnique(commandContext);
 
 	Renderer::PostDrawCleanup(commandContext);
 }

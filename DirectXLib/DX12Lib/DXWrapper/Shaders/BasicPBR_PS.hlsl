@@ -248,24 +248,13 @@ float3 pointSegmentProjectionFixEdges(float3 s0, float3 s1, float3 p)
     float3 b = s1 - s0;
     float3 aProjectedOverB = (dot(a, b) / dot(b, b)) * b;
     float3 projectedPoint = s0 + aProjectedOverB;
-    float3 p0Projection = projectedPoint - s0;
-    float3 p1Projection = projectedPoint - s1;
-    float distanceProjection = distance(projectedPoint, s0) + distance(projectedPoint, s1);
-    float segmentLength = distance(s0, s1);
-
-    if ((abs(distanceProjection - segmentLength)) > 0.001)
-    {
-        // Clamp to segment ends
-        if (dot(projectedPoint - s0, projectedPoint - s0) < dot(projectedPoint - s1, projectedPoint - s1))
-        {
-            return s0;
-        }
-        else
-        {
-            return s1;
-        }
-    }
-
+    
+    float t = dot(a, b) / dot(b, b);
+    if (t < 0.0)
+        return s0;
+    if (t > 1.0)
+        return s1;
+    
     return projectedPoint;
 }
 
@@ -273,7 +262,7 @@ float3 approximateIrradianceTwoPoint(float3 p0, float3 p1, float3 i0, float3 i1,
 {
     float3 projection = pointSegmentProjectionFixEdges(p0, p1, pnt);
     float3 irradianceP0P1 = i1 - i0;
-    float segmentLength = distance(p0, p1);
+    float segmentLength = distance(p0, p1) + 0.001f;
     float p0ProjectionDistance = distance(p0, projection);
     float3 finalIrradiance = i0 + irradianceP0P1 * (p0ProjectionDistance / segmentLength);
 
@@ -396,20 +385,19 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     
     // Possible problem with those cases in which only one voxel is displaced: find out since the computed plane could be wrong
 
-    float3 planeNormal = normalize(cross(normalize(arraySquareInterpolation[1] - voxelWorldCoords),
-                                                      normalize(arraySquareInterpolation[2] - voxelWorldCoords)));
+    float3 planeNormal = normalize(cross(arraySquareInterpolation[1] - voxelWorldCoords, arraySquareInterpolation[2] - voxelWorldCoords));
     float3 projectedFragment = pointPlaneProjection(fragmentWorldPos, planeNormal, voxelWorldCoords);
 
     // Now, find out how points in arraySquareInterpolation form a square in 3D, take arraySquareInterpolation[0] as reference
-    float distanceMaximized = 0.0;
-    float distanceSqTemp;
-    float3 farthest;
-    float3 neighbour0;
-    float3 neighbour1;
+    float distanceMaximized = 0.0f;
+    float distanceSqTemp = 0.0f;
+    float3 farthest = float3(0.0f, 0.0f, 0.0f);
+    float3 neighbour0 = float3(0.0f, 0.0f, 0.0f);
+    float3 neighbour1 = float3(0.0f, 0.0f, 0.0f);
 
-    float3 irradianceNeighbour0;
-    float3 irradianceNeighbour1;
-    float3 irradianceFarthest;
+    float3 irradianceNeighbour0 = float3(0.0f, 0.0f, 0.0f);
+    float3 irradianceNeighbour1 = float3(0.0f, 0.0f, 0.0f);
+    float3 irradianceFarthest = float3(0.0f, 0.0f, 0.0f);
 
     int farthestIndex = 0;
 
@@ -472,7 +460,7 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     
     for (i = 0; i < 4; ++i)
     {
-        if (dot(arrayIrradianceInterpolation[i], vecOne) > 0.0)
+        if (dot(arrayIrradianceInterpolation[i], vecOne) > 0.0f)
         {
             arrayNonZeroIrradiancePoint[numZeroIrradiance] = arraySquareInterpolation[i];
             arrayNonZeroIrradianceValue[numZeroIrradiance] = arrayIrradianceInterpolation[i];
@@ -491,21 +479,21 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     else if (numZeroIrradiance == 3)
     {
         // In case one of the four points has zero irradiance value, interpolate through a triangle
-        float3 meanIrradiance = (arrayNonZeroIrradianceValue[0] + arrayNonZeroIrradianceValue[1] + arrayNonZeroIrradianceValue[2]) * 0.3333;
+        float3 meanIrradiance = (arrayNonZeroIrradianceValue[0] + arrayNonZeroIrradianceValue[1] + arrayNonZeroIrradianceValue[2]) * 0.3333f;
 
-        if (all(radiance <= 0.001f))
+        if (all(radiance == 0.0f))
         {
             radiance = meanIrradiance;
         }
-        else if (all(irradianceNeighbour0 <= 0.001f))
+        else if (all(irradianceNeighbour0 == 0.0f))
         {
             irradianceNeighbour0 = meanIrradiance;
         }
-        else if (all(irradianceNeighbour1 <= 0.001f))
+        else if (all(irradianceNeighbour1 == 0.0f))
         {
             irradianceNeighbour1 = meanIrradiance;
         }
-        else if (all(irradianceFarthest <= 0.001f))
+        else if (all(irradianceFarthest == 0.0f))
         {
             irradianceFarthest = meanIrradiance;
         }
@@ -516,10 +504,11 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     float normalizedCoordinatesX = distance(voxelWorldCoords, projectionNeighbour0) / distance(voxelWorldCoords, neighbour0);
     float normalizedCoordinatesY = distance(voxelWorldCoords, projectionNeighbour1) / distance(voxelWorldCoords, neighbour1);
 
-    float3 result = radiance * (1.0 - normalizedCoordinatesX) * (1.0 - normalizedCoordinatesY) +
-                                   irradianceNeighbour0 * normalizedCoordinatesX * (1.0 - normalizedCoordinatesY) +
-                                   irradianceNeighbour1 * (1.0 - normalizedCoordinatesX) * normalizedCoordinatesY +
-                                   irradianceFarthest * normalizedCoordinatesX * normalizedCoordinatesY;
+    
+    
+    float3 lerpX1 = lerp(radiance, irradianceNeighbour0, normalizedCoordinatesX);
+    float3 lerpX2 = lerp(irradianceNeighbour1, irradianceFarthest, normalizedCoordinatesX);
+    float3 result = lerp(lerpX1, lerpX2, normalizedCoordinatesY);
     
     return result;
 }
@@ -604,12 +593,12 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         {
             
             radiance = float4(1.0f, 1.0f, 1.0f, 1.0f);
-            //linearCoord = voxelCoord.x + voxelCoord.y * voxelTextureDimensions.x + voxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
-            //uint2 result = FindHashedCompactedPositionIndex(voxelCoord);
-            //uint2 packedRadiance = gPackedRadiance[result.x * 6 + faceDir];
-            //radiance.xy = UnpackFloats16(packedRadiance.x);
-            //radiance.zw = UnpackFloats16(packedRadiance.y);
-            radiance = float4(InterpolateIrradiance(voxelCoord, worldCoord, normal), 1.0f);
+            linearCoord = voxelCoord.x + voxelCoord.y * voxelTextureDimensions.x + voxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
+            uint2 result = FindHashedCompactedPositionIndex(voxelCoord);
+            uint2 packedRadiance = gPackedRadiance[result.x * 6 + faceDir];
+            radiance.xy = UnpackFloats16(packedRadiance.x);
+            radiance.zw = UnpackFloats16(packedRadiance.y);
+            //radiance = float4(InterpolateIrradiance(voxelCoord, worldCoord, normal), 1.0f);
             
         }
         

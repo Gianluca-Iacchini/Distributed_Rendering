@@ -432,12 +432,12 @@ namespace Graphics::Renderer
 			auto& voxelSceneBufferManager = techPtr->GetBufferManager(L"VoxelizeScene");
 			auto& prefixBufferManager = techPtr->GetBufferManager(L"PrefixSumVoxels");
 			auto& clusterBufferManager = techPtr->GetBufferManager(L"ClusterVoxels");
-			auto& radianceBufferManager = techPtr->GetBufferManager(L"LightTransportIndirectTechnique");
+			auto& gaussianBufferManager = techPtr->GetBufferManager(L"GaussianFilterRead");
 
 			voxelSceneBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			prefixBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-			radianceBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			gaussianBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)DeferredRootSignatureSlot::VoxelRTGICBV, s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
@@ -452,7 +452,7 @@ namespace Graphics::Renderer
 				(UINT)DeferredRootSignatureSlot::ClusterBufferSRV, clusterBufferManager.GetSRVHandle());
 
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				(UINT)DeferredRootSignatureSlot::RadianceBufferSRV, radianceBufferManager.GetSRVHandle());
+				(UINT)DeferredRootSignatureSlot::RadianceBufferSRV, gaussianBufferManager.GetSRVHandle());
 		}
 
 		context.FlushResourceBarriers();

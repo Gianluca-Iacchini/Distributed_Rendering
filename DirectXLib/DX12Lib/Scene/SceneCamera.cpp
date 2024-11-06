@@ -95,4 +95,9 @@ void DX12Lib::SceneCamera::SetPerspective(float fov, float aspectRatio, float ne
 	Camera::SetLens(fov, aspectRatio, nearZ, farZ);
 }
 
+bool DX12Lib::SceneCamera::IsDirty()
+{
+	return this->Node->IsTransformDirty();
+}
+
 

@@ -16,10 +16,11 @@ namespace CVGI
 		void InitializeBuffers() override;
 		void PerformTechnique(DX12Lib::ComputeContext& context) override;
 		std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
-		
-		void SwapRadianceBuffers();
-
+	
+		void ResetRadianceBuffers(bool reset);
 		inline Microsoft::WRL::ComPtr<ID3D12CommandSignature> GetIndirectCommandSignature() const { return m_commandSignature; }
+
+		void LaunchIndirectLightBlock(DX12Lib::ComputeContext& context, UINT blockCount);
 
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 groupSize) override;
@@ -38,7 +39,6 @@ namespace CVGI
 		static const std::wstring IndirectName;
 	private:
 		std::shared_ptr<BufferManager> m_indirectBufferManager;
-		std::shared_ptr<BufferManager> m_readIndirectBufferManager;
 
 
 	private:
@@ -52,8 +52,11 @@ namespace CVGI
 		enum class LightTransportBufferType
 		{
 			VisibleFaceCounter = 0,
-			VisibleFaceIndices = 1,
+			IndirectLightVisibleFacesIndices = 1,
+			GaussianVisibleFacesIndices,
 			IndirectDispatchBuffer,
+			IndirectLightUpdatedBitmap,
+			GaussianUpdatedBitmap,
 			Count
 		};
 
@@ -66,8 +69,10 @@ namespace CVGI
 			PrefixSumBuffersSRV,
 			AABBBuffersSRV,
 			AccelerationStructureSRV,
+			RadianceBufferUAV,
 			LightTransportBuffersUAV,
-			IndirectBuffersUAV,
+			GaussianFilterBufferUAV,
+			GaussianFinalWriteBufferUAV,
 			Count
 		};
 
@@ -82,7 +87,7 @@ namespace CVGI
 			FacePenaltyBufferSRV,
 			LitVoxelsSRV,
 			LightTransportBuffersSRV,
-			IndirectBuffersUAV,
+			RadianceBufferUAV,
 			Count
 		};
 	};

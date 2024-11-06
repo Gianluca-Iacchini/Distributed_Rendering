@@ -25,6 +25,8 @@ namespace DX12Lib
 		virtual bool IsOrtohgraphic() { return m_isOrthographic; }
 		virtual bool IsPerspective() { return !m_isOrthographic; }
 
+		bool IsDirty();
+
 	public:
 		bool IsEnabled = true;
 

@@ -12,17 +12,25 @@ namespace CVGI
 
 		std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 		void SetIndirectCommandSignature(Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature) { m_commandSignature = commandSignature; }
+		void ResetGaussianBuffers(DX12Lib::ComputeContext& context);
+		void SwapBuffers();
+		void SetGaussianBlock(UINT32 block);
 
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize);
 		std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
 
 	private:
+		std::shared_ptr<BufferManager> m_writeBufferManager;
+		std::shared_ptr<BufferManager> m_readBufferManager;
+
 		ConstantBufferGaussianFilter m_cbGaussianFilter;
 		Microsoft::WRL::ComPtr<ID3D12CommandSignature> m_commandSignature;
 
 	public:
 		static const std::wstring Name;
+		static const std::wstring ReadName;
+		static const std::wstring WriteName;
 
 	private:
 		enum class GaussianFilterRootParameters
@@ -33,8 +41,10 @@ namespace CVGI
 			PrefixSumSRV,
 			FacePenaltySRV,
 			VoxelVisibleFaceSRV,
-			VoxelRadianceUAV,
+			RadianceBufferSRV,
+			ReadBufferSRV,
 			GaussianBufferUAV,
+			WriteBufferUAV,
 			Count
 		};
 	};

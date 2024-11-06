@@ -93,12 +93,12 @@ void CVGI::LightVoxel::PerformTechnique(RayTracingContext& context)
 	m_cbShadowRaytrace.CurrentStep = 0;
 	m_cbShadowRaytrace.FrameCount++;
 	
-	UINT32 voxelBitSize = (m_data->GetVoxelCount() +31) / 32;
+	UINT32 voxelCount = m_data->GetVoxelCount();
 	
-	m_cbClearBuffers.ValueCount0 = voxelBitSize;
+	m_cbClearBuffers.ValueCount0 = voxelCount;
 	m_cbClearBuffers.ValueCount1 = m_data->GetClusterCount();
 	
-	ClearBufferPass(context, DirectX::XMUINT3(ceilf(voxelBitSize / 128.0f), 1, 1));
+	ClearBufferPass(context, DirectX::XMUINT3(ceilf(voxelCount / 128.0f), 1, 1));
 
 	UINT side = floor(std::cbrt(m_data->FaceCount / 2));
 	DirectX::XMUINT3 dispatchSize = DirectX::XMUINT3(side + 1, side + 1, side);

@@ -146,7 +146,7 @@ struct ConstantBufferFrustumCulling
 	UINT CurrentStep;
 	UINT VoxelCount;
 	UINT FaceCount;
-	float pad1;
+	UINT ResetRadianceBuffers;
 };
 
 struct ConstantBufferIndirectLightTransport
@@ -158,7 +158,7 @@ struct ConstantBufferIndirectLightTransport
 	float LightIntensity;
 
 	XMFLOAT3 EyePosition;
-	float pad0;
+	UINT DispatchNumber;
 };
 
 struct ConstantBufferClearBuffers
@@ -221,7 +221,7 @@ struct ConstantBufferComputeNeighbour
 struct ConstantBufferGaussianFilter
 {
 	XMFLOAT3 EyePosition;
-	float pos0;
+	UINT BlockNum;
 
 	UINT CurrentPhase;
 	UINT KernelSize;

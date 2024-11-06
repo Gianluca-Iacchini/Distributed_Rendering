@@ -30,10 +30,11 @@ ByteAddressBuffer gLitVoxels : register(t0, space5);
 StructuredBuffer<uint4> gLitClusters : register(t1, space5);
 
 ByteAddressBuffer gVisibleFaceCounter : register(t0, space6);
-StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space6);
+StructuredBuffer<uint> gIndirectLightVisibleFacesIndices : register(t1, space6);
+ByteAddressBuffer gGaussianVoxelBitmap : register(t5, space6);
+
 
 RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0);
-RWStructuredBuffer<uint2> gFaceFilteredRadianceBuffer : register(u1, space1);
 
 groupshared float3 gsRadiancePerWave[2];
 
@@ -174,13 +175,18 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
     
     uint nVisibleVoxels = gVisibleFaceCounter.Load(0);
     
+    uint voxelsPerDispatch = ceil(nVisibleVoxels / 16.0f);
+    
+    threadID = voxelsPerDispatch * cbIndirectLight.DispatchNumber + threadID;
+    
     if (threadID > nVisibleVoxels)
         return;
     
     // At most 3 faces are visible at a time
-    uint idx = gVisibleFaceIndices[threadID];
+    uint idx = gIndirectLightVisibleFacesIndices[threadID];
     uint voxIdx = (uint) floor(idx / 6.0f);
     uint faceIndex = idx % 6;
+
 
     float3 voxelWorldPos = float3(GetVoxelPosition(gVoxelHashedCompactBuffer[voxIdx], cbVoxelCommons.voxelTextureDimensions));
     voxelWorldPos = mul(float4(voxelWorldPos, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;

@@ -205,6 +205,60 @@ void CVGI::BufferManager::AllocateBuffers()
 	}
 }
 
+void CVGI::BufferManager::SwapBuffers(UINT buffIndex0, UINT buffIndex1)
+{
+	assert(buffIndex0 < m_buffers.size());
+	assert(buffIndex1 < m_buffers.size());
+
+	auto descriptorStart0 = Graphics::Renderer::s_textureHeap->GetDescriptorSize() * buffIndex0;
+	auto descriptorStart1 = Graphics::Renderer::s_textureHeap->GetDescriptorSize() * buffIndex1;
+	
+	Resource* resource0 = m_buffers[buffIndex0].get();
+	Resource* resource1 = m_buffers[buffIndex1].get();
+
+	if (resource0 == nullptr || resource1 == nullptr)
+		return;
+
+	bool isGpuBuffer = dynamic_cast<GPUBuffer*>(resource0) != nullptr;
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE& uavHandle0 = isGpuBuffer ? static_cast<GPUBuffer*>(resource0)->GetUAV() : static_cast<ColorBuffer*>(resource0)->GetUAV(0);
+	const D3D12_CPU_DESCRIPTOR_HANDLE& srvHandle0 = isGpuBuffer ? static_cast<GPUBuffer*>(resource0)->GetSRV() : static_cast<ColorBuffer*>(resource0)->GetSRV();
+
+	isGpuBuffer = dynamic_cast<GPUBuffer*>(resource1) != nullptr;
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE& uavHandle1 = isGpuBuffer ? static_cast<GPUBuffer*>(resource1)->GetUAV() : static_cast<ColorBuffer*>(resource1)->GetUAV(0);
+	const D3D12_CPU_DESCRIPTOR_HANDLE& srvHandle1 = isGpuBuffer ? static_cast<GPUBuffer*>(resource1)->GetSRV() : static_cast<ColorBuffer*>(resource1)->GetSRV();
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(
+		1,
+		m_uavHandle + descriptorStart0,
+		uavHandle1,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+	);
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(
+		1,
+		m_srvHandle + descriptorStart0,
+		srvHandle1,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+	);
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(
+		1,
+		m_uavHandle + descriptorStart1,
+		uavHandle0,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+	);
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(
+		1,
+		m_srvHandle + descriptorStart1,
+		srvHandle0,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+	);
+	
+}
+
 void CVGI::BufferManager::ZeroBuffer(DX12Lib::CommandContext& context, UINT index)
 {
 	assert(index < m_buffers.size());

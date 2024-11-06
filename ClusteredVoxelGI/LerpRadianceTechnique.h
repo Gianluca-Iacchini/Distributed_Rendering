@@ -33,7 +33,7 @@ namespace CVGI
 		{
 			VoxelCommonCBV = 0,
 			LerpRadianceCBV = 1,
-			RadianceBufferUAV,
+			GaussianFilterBufferUAV,
 			LerpBufferUAV,
 			Count
 		};

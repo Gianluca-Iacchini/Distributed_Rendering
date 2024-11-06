@@ -36,12 +36,19 @@ StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space1);
 
 RaytracingAccelerationStructure Scene : register(t0, space2);
 
-RWByteAddressBuffer gVisibleFaceCounter : register(u0);
-RWStructuredBuffer<uint> gVisibleFaceIndices : register(u1);
-RWStructuredBuffer<uint3> gDispatchIndirectBuffer : register(u2);
+RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0);
 
-RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0, space1);
-RWStructuredBuffer<uint2> gFaceFilteredRadianceBuffer : register(u1, space1);
+RWByteAddressBuffer gVisibleFacesCounter : register(u0, space1);
+RWStructuredBuffer<uint> gIndirectLightVisibleFacesIndices : register(u1, space1);
+RWStructuredBuffer<uint> gGaussianVisibleFacesIndices : register(u2, space1);
+RWStructuredBuffer<uint3> gDispatchIndirectBuffer : register(u3, space1);
+RWByteAddressBuffer gIndirectLightUpdatedVoxelsBitmap : register(u4, space1);
+RWByteAddressBuffer gGaussianUpdatedVoxelsBitmap : register(u5, space1);
+
+
+RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space2);
+
+RWStructuredBuffer<uint2> gGaussianFinalWriteBuffer : register(u0, space3);
 
 static const float SQRT_2 = 1.41421356237f;
 
@@ -49,6 +56,8 @@ groupshared uint gsIsOutsideFrustum;
 groupshared uint gsIsOccluded;
 
 groupshared uint gsMaxFaces;
+
+groupshared uint gsIsAtEdgeOfCamera;
 
 [numthreads(128, 1, 1)]
 void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 threadIdx : SV_GroupThreadID)
@@ -60,28 +69,42 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
         
         if (threadLinearIndex >= cbFrustumCulling.FaceCount)
             return;
-        
-        
-        gFaceRadianceBuffer[threadLinearIndex] = uint2(0, 0);
-        gFaceFilteredRadianceBuffer[threadLinearIndex] = uint2(0, 0);
 
-        if (threadLinearIndex < cbFrustumCulling.FaceCount / 2)
+        if (cbFrustumCulling.ResetRadianceBuffers == 1)
         {
-            gVisibleFaceIndices[threadLinearIndex] = UINT_MAX;
+
+            if (threadLinearIndex >= cbFrustumCulling.FaceCount)
+                return;
+        
+            gFaceRadianceBuffer[threadLinearIndex] = uint2(0, 0);
+            gGaussianFinalWriteBuffer[threadLinearIndex] = uint2(0, 0);
+            gGaussianFirstFilterBuffer[threadLinearIndex] = uint2(0, 0);
         }
+        
+        gIndirectLightVisibleFacesIndices[threadLinearIndex] = UINT_MAX;
+        gGaussianVisibleFacesIndices[threadLinearIndex] = UINT_MAX;
         
         if (threadLinearIndex >= cbFrustumCulling.VoxelCount)
             return;
         
+        if (cbFrustumCulling.ResetRadianceBuffers == 1)
+        {
+            uint idx = threadLinearIndex >> 5u;
+            idx = idx * 4;
+            gIndirectLightUpdatedVoxelsBitmap.Store(idx, 0);
+            gGaussianUpdatedVoxelsBitmap.Store(idx, 0);
+        }
+        
         if (threadLinearIndex == 0)
         {
-            gVisibleFaceCounter.Store(0, 0);
+            gVisibleFacesCounter.Store(0, 0);
+            gVisibleFacesCounter.Store(4, 0);
+            
             gDispatchIndirectBuffer[0] = uint3(0, 1, 1);
             gDispatchIndirectBuffer[1] = uint3(0, 1, 1);
         }
 
     }
-
     else if (cbFrustumCulling.CurrentStep == 1)
     {
         if (groupId.x >= cbFrustumCulling.AABBGroupCount)
@@ -94,12 +117,14 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
         uint aabbStart = aabbInfo.ClusterStartIndex + threadIdx.x * aabbsPerThread;
         uint aabbEnd = min(aabbStart + aabbsPerThread, aabbInfo.ClusterStartIndex + aabbInfo.ClusterElementCount);
         
+        float margin = 20.0f;
 
         if (threadIdx.x == 0)
         {
             gsIsOutsideFrustum = 0;
             gsIsOccluded = 1;
             gsMaxFaces = 0;
+            gsIsAtEdgeOfCamera = 0;
         }
         
         GroupMemoryBarrierWithGroupSync();
@@ -122,12 +147,15 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
             (normal.y > 0) ? aabbMax.y : aabbMin.y,
             (normal.z > 0) ? aabbMax.z : aabbMin.z);
         
-
+            float aabbDistance = dot(normal, positiveVertex) + d;
+            
             // If the positive vertex is outside the plane, the AABB is outside the frustum
-            if (dot(normal, positiveVertex) + d < 0)
+            if (aabbDistance + margin < 0)
             {
                 InterlockedOr(gsIsOutsideFrustum, 1);
             }
+            
+            InterlockedOr(gsIsAtEdgeOfCamera, (uint) (aabbDistance < 0));
         }
         
         GroupMemoryBarrierWithGroupSync();
@@ -210,57 +238,73 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
             
         if (gsIsOccluded == 0 && (aabbEnd > aabbStart))
         {
-            uint nFaces = (aabbEnd - aabbStart) * 3;
-
-            uint startAddress = 0;
-            gVisibleFaceCounter.InterlockedAdd(0, nFaces, startAddress);
-
-            uint3 faceIdx = uint3(2, 4, 0);
+            uint nIndirectLightFaces = 0;
+            uint nGaussianFaces = 0;
             
-            float3 faceDirections[6] =
-            {
-                float3(0.0f, 0.0f, -1.0f),
-                float3(0.0f, 0.0f, 1.0f),
-                float3(-1.0f, 0.0f, 0.0f),
-                float3(1.0f, 0.0f, 0.0f),
-                float3(0.0f, -1.0f, 0.0f),
-                float3(0.0f, 1.0f, 0.0f)
-            };
+            uint indirectLightStartAddress = 0;
+            uint gaussianStartAddress = 0;
             
             for (uint i = aabbStart; i < aabbEnd; i++)
             {
                 uint voxIdx = gAABBVoxelIndices[i];
-                
-                AABB voxAABB = gVoxelAABBBuffer[i];
-                float3 center = (voxAABB.Min + voxAABB.Max) * 0.5f;
-                
-                float3 toCamera = normalize(eyePos - center);
-                uint visibleFaces[3];
-                int faceCount = 0;
 
-                for (uint faceIdx = 0; faceIdx < 6; ++faceIdx)
+                if (!IsVoxelPresent(voxIdx, gGaussianUpdatedVoxelsBitmap))
                 {
-                    float3 normal = faceDirections[faceIdx]; // Get face normal for faceIdx
-                    if (dot(toCamera, normal) > 0)
-                    {
-                        visibleFaces[faceCount++] = faceIdx;
-                    }
-                }         
-                
-                // Up to 3 faces are visible at a time
-                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 0] = voxIdx * 6 + visibleFaces[0];
-                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 1] = voxIdx * 6 + visibleFaces[1];
-                gVisibleFaceIndices[startAddress + (i - aabbStart) * 3 + 2] = voxIdx * 6 + visibleFaces[2];
+                    nGaussianFaces += 6;
+                }
+                if (!IsVoxelPresent(voxIdx, gIndirectLightUpdatedVoxelsBitmap))
+                {
+                    nIndirectLightFaces += 6;
+                }
             }
 
+            gVisibleFacesCounter.InterlockedAdd(0, nIndirectLightFaces, indirectLightStartAddress);
+            gVisibleFacesCounter.InterlockedAdd(4, nGaussianFaces, gaussianStartAddress);
 
+            uint nIndirectLightVoxelAdded = 0;
+            uint nGaussianVoxelAdded = 0;
+            
+            for (i = aabbStart; i < aabbEnd; i++)
+            {
+                uint voxIdx = gAABBVoxelIndices[i];
 
-            uint buffer0Max = startAddress + nFaces;
-            uint buffer1Max = (uint) ceil((buffer0Max) / 128.0f);
+                bool wasSet = SetVoxelPresence(voxIdx, gIndirectLightUpdatedVoxelsBitmap);
+                if (!wasSet)
+                {
+                    gIndirectLightVisibleFacesIndices[indirectLightStartAddress + nIndirectLightVoxelAdded * 6 + 0] = voxIdx * 6 + 0;
+                    gIndirectLightVisibleFacesIndices[indirectLightStartAddress + nIndirectLightVoxelAdded * 6 + 1] = voxIdx * 6 + 1;
+                    gIndirectLightVisibleFacesIndices[indirectLightStartAddress + nIndirectLightVoxelAdded * 6 + 2] = voxIdx * 6 + 2;
+                    gIndirectLightVisibleFacesIndices[indirectLightStartAddress + nIndirectLightVoxelAdded * 6 + 3] = voxIdx * 6 + 3;
+                    gIndirectLightVisibleFacesIndices[indirectLightStartAddress + nIndirectLightVoxelAdded * 6 + 4] = voxIdx * 6 + 4;
+                    gIndirectLightVisibleFacesIndices[indirectLightStartAddress + nIndirectLightVoxelAdded * 6 + 5] = voxIdx * 6 + 5;
+                    
+                    nIndirectLightVoxelAdded++;
+                }
+                
+                wasSet = false;
+                if (gsIsAtEdgeOfCamera == 0)
+                {
+                    wasSet = SetVoxelPresence(voxIdx, gGaussianUpdatedVoxelsBitmap);
+                }
+                
+                if (!wasSet)
+                {
+                    gGaussianVisibleFacesIndices[gaussianStartAddress + nGaussianVoxelAdded * 6 + 0] = voxIdx * 6 + 0;
+                    gGaussianVisibleFacesIndices[gaussianStartAddress + nGaussianVoxelAdded * 6 + 1] = voxIdx * 6 + 1;
+                    gGaussianVisibleFacesIndices[gaussianStartAddress + nGaussianVoxelAdded * 6 + 2] = voxIdx * 6 + 2;
+                    gGaussianVisibleFacesIndices[gaussianStartAddress + nGaussianVoxelAdded * 6 + 3] = voxIdx * 6 + 3;
+                    gGaussianVisibleFacesIndices[gaussianStartAddress + nGaussianVoxelAdded * 6 + 4] = voxIdx * 6 + 4;
+                    gGaussianVisibleFacesIndices[gaussianStartAddress + nGaussianVoxelAdded * 6 + 5] = voxIdx * 6 + 5;
+                    
+                    nGaussianVoxelAdded++;
+                }
+                
+            }
+
+            uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces) / 16.0f);
+            uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (128.0f * 16.0f));
             InterlockedMax(gDispatchIndirectBuffer[0].x, buffer0Max);
             InterlockedMax(gDispatchIndirectBuffer[1].x, buffer1Max);
-
-
         }
     }
 }

@@ -15,12 +15,17 @@ StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space2);
 StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space2);
 
 ByteAddressBuffer gVisibleFaceCounter : register(t0, space3);
-StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space3);
+//StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space3);
+StructuredBuffer<uint> gGaussianFaceIndices : register(t2, space3);
 
-RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0, space0);
-RWStructuredBuffer<uint2> gFaceFilteredRadianceBuffer : register(u1, space0);
+StructuredBuffer<uint2> gFaceRadianceReadBuffer : register(t0, space4);
 
-RWStructuredBuffer<float> gGaussianPrecomputedDataBuffer : register(u0, space1);
+StructuredBuffer<uint2> gReadFinalRadianceBuffer : register(t0, space5);
+
+RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space0);
+RWStructuredBuffer<float> gGaussianPrecomputedDataBuffer : register(u1, space0);
+
+RWStructuredBuffer<uint2> gWriteFinalRadianceBuffer : register(u0, space1);
 
 #define SIDE 2
 #define KERNEL_SIZE 2 * SIDE + 1
@@ -76,7 +81,7 @@ float gaussianDistribution(float x, float y, float z, float sigma)
 }
 
 
-float3 filterFace(uint voxelIdx, uint faceIdx, RWStructuredBuffer<uint2> gRadianceBuffer, bool isFirstPass)
+float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass)
 {
 
     uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions);
@@ -111,7 +116,15 @@ float3 filterFace(uint voxelIdx, uint faceIdx, RWStructuredBuffer<uint2> gRadian
 
                         voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
                         
-                        uint2 packedRadiance = gRadianceBuffer[neighbourIdx * 6 + faceIdx];
+                        uint2 packedRadiance = uint2(0, 0);
+                        if (cbGaussianFilter.CurrentPhase == 1)
+                        {
+                            packedRadiance = gFaceRadianceReadBuffer[neighbourIdx * 6 + faceIdx];
+                        }
+                        else if (cbGaussianFilter.CurrentPhase == 2)
+                        {
+                            packedRadiance = gGaussianFirstFilterBuffer[neighbourIdx * 6 + faceIdx];
+                        }
                         voxelFaceIrradiance.xy = UnpackFloats16(packedRadiance.x);
                         voxelFaceIrradiance.z = UnpackFloats16(packedRadiance.y).x;
 
@@ -164,33 +177,46 @@ void CS( uint3 DTid : SV_DispatchThreadID)
 {
     uint threadGlobalIndex = DTid.x;
     
-    uint visibleFaces = gVisibleFaceCounter.Load(0);
+
+    if (cbGaussianFilter.CurrentPhase == 0)
+    {
+        gWriteFinalRadianceBuffer[threadGlobalIndex] = gReadFinalRadianceBuffer[threadGlobalIndex];
+        return;
+    }
+    
+    uint visibleFaces = gVisibleFaceCounter.Load(4);
+    
+
+    
+    uint facesPerDispatch = ceil(visibleFaces / 16.0f);
+    
+    threadGlobalIndex = cbGaussianFilter.BlockNum * facesPerDispatch + threadGlobalIndex;
     
     if (threadGlobalIndex >= visibleFaces)
         return;
     
-    uint idx = gVisibleFaceIndices[threadGlobalIndex];
+    uint idx = gGaussianFaceIndices[threadGlobalIndex];
     
     uint voxIdx = (uint) floor(idx / 6.0f);
     uint faceIndex = idx % 6;
-
-    if (cbGaussianFilter.CurrentPhase == 0)
+    
+    if (cbGaussianFilter.CurrentPhase == 1)
     {
-        uint2 packedRadiance = gFaceRadianceBuffer[idx];
+        uint2 packedRadiance = gFaceRadianceReadBuffer[idx];
         float3 radiance = float3(0.0f, 0.0f, 0.0f);
     
         radiance.xy = UnpackFloats16(packedRadiance.x);
         radiance.z = UnpackFloats16(packedRadiance.y).x;
     
-        float3 filteredRadiance = filterFace(voxIdx, faceIndex, gFaceRadianceBuffer, true);
+        float3 filteredRadiance = filterFace(voxIdx, faceIndex, true);
     
         uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
     
-        gFaceFilteredRadianceBuffer[idx] = packedData;
+        gGaussianFirstFilterBuffer[idx] = packedData;
     }
-    else if (cbGaussianFilter.CurrentPhase == 1)
+    else if (cbGaussianFilter.CurrentPhase == 2)
     {
-        uint2 packedRadiance = gFaceFilteredRadianceBuffer[idx];
+        uint2 packedRadiance = gGaussianFirstFilterBuffer[idx];
         float3 radiance = float3(0.0f, 0.0f, 0.0f);
     
         radiance.xy = UnpackFloats16(packedRadiance.x);
@@ -198,7 +224,7 @@ void CS( uint3 DTid : SV_DispatchThreadID)
         
         if (any(radiance > 0.0f))
         {
-            radiance = filterFace(voxIdx, faceIndex, gFaceFilteredRadianceBuffer, false);
+            radiance = filterFace(voxIdx, faceIndex, false);
             packedRadiance = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
         }
         else
@@ -206,9 +232,9 @@ void CS( uint3 DTid : SV_DispatchThreadID)
             packedRadiance = uint2(0, 0);
         }
         
-        gFaceRadianceBuffer[idx] = packedRadiance;
+        gWriteFinalRadianceBuffer[idx] = packedRadiance;
     }
-    else if (cbGaussianFilter.CurrentPhase == 2)
+    else if (cbGaussianFilter.CurrentPhase == 3)
     {
         for (uint x = 0; x < KERNEL_SIZE; x++)
         {

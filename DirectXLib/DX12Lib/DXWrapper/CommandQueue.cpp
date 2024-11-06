@@ -98,7 +98,6 @@ void CommandQueue::DiscardAllocator(UINT64 fenceValue, CommandAllocator* allocat
 
 void DX12Lib::CommandQueue::Signal(Fence& fence)
 {
-	fence.CurrentFenceValue += 1;
 	ThrowIfFailed(m_commandQueue->Signal(fence.Get(), fence.CurrentFenceValue));
 }
 
