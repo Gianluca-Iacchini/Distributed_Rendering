@@ -54,9 +54,10 @@ namespace CVGI
 			VisibleFaceCounter = 0,
 			IndirectLightVisibleFacesIndices = 1,
 			GaussianVisibleFacesIndices,
-			IndirectDispatchBuffer,
 			IndirectLightUpdatedBitmap,
 			GaussianUpdatedBitmap,
+			GaussianDispatchBuffer,
+			IndirectLightDispatchBuffer,
 			Count
 		};
 
@@ -68,7 +69,8 @@ namespace CVGI
 			CameraCBV,
 			PrefixSumBuffersSRV,
 			AABBBuffersSRV,
-			AccelerationStructureSRV,
+			DepthMapSRV,
+			//AccelerationStructureSRV,
 			RadianceBufferUAV,
 			LightTransportBuffersUAV,
 			GaussianFilterBufferUAV,

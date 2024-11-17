@@ -5,6 +5,7 @@
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "VoxelMaterial.h"
 #include "DX12Lib/Scene/LightController.h"
+#include "DX12Lib/Commons/ShadowMap.h"
 
 
 using namespace DX12Lib;
@@ -22,9 +23,13 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
 	light->SetLightColor({ 0.45f, 0.45f, 0.45f });
-	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
+	light->GetShadowCamera()->SetShadowBufferDimensions(2048, 2048);
 
+	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
+	
 	lightNode->AddComponent<LightController>();
+
+
 
 	m_camera->Node->AddComponent<CameraController>();
 

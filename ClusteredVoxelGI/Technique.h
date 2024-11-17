@@ -8,6 +8,7 @@
 #include "WinPixEventRuntime/pix3.h"
 #include "DX12Lib/Commons/MathHelper.h"
 #include "GraphicsMemory.h"
+#include "DX12Lib/Commons/ShadowMap.h"
 
 namespace DX12Lib
 {
@@ -42,7 +43,7 @@ namespace CVGI
 		void SetVoxelCount(UINT32 count);
 		void SetClusterCount(UINT32 count);
 
-		void SetCamera(DX12Lib::SceneCamera* camera) { m_sceneCamera = camera; }
+		void SetCamera(DX12Lib::SceneCamera* camera);
 		DX12Lib::SceneCamera* GetCamera() const { return m_sceneCamera; }
 
 		void SetLightComponent(DX12Lib::LightComponent* lightComponent) { m_lightComponent = lightComponent; }
@@ -69,6 +70,12 @@ namespace CVGI
 
 		void BuildMatrices();
 
+		DX12Lib::ShadowCamera* GetShadowCamera() { return m_shadowCamera.get(); }
+
+		void UpdateShadowCameraPosition();
+
+		DirectX::GraphicsResource& GetShadowCameraResource();
+
 	private:
 		DirectX::XMMATRIX BuildWorldToVoxelMatrix();
 
@@ -92,10 +99,13 @@ namespace CVGI
 		DirectX::XMFLOAT3 VoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 		DX12Lib::AABB SceneAABB;
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
+		DX12Lib::ConstantBufferLight m_shadowCameraCB;
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
+		DirectX::GraphicsResource m_shadowCameraResource;
 
 		DX12Lib::SceneCamera* m_sceneCamera = nullptr;
 		DX12Lib::LightComponent* m_lightComponent = nullptr;
+		std::unique_ptr<DX12Lib::ShadowCamera> m_shadowCamera = nullptr;
 	};
 
 

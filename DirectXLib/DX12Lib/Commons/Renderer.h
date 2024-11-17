@@ -20,6 +20,7 @@ namespace DX12Lib
 	class DX12Window;
 	class ColorBuffer;
 	class SceneCamera;
+	class ShadowCamera;
 	class ShadowBuffer;
 	class ColorBuffer;
 	class DescriptorHandle;
@@ -61,8 +62,6 @@ namespace Graphics
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::PipelineState>> s_PSOs;
 		extern std::unordered_map<std::wstring, std::shared_ptr<DX12Lib::Shader>> s_shaders;
 
-		extern std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer;
-
 		extern int s_clientWidth;
 		extern int s_clientHeight;
 
@@ -71,7 +70,7 @@ namespace Graphics
 
 		void InitializeApp();
 		void AddRendererToQueue(DX12Lib::ModelRenderer* renderer);
-		void AddLightToQueue(DX12Lib::LightComponent* light);
+		void AddShadowCamera(DX12Lib::ShadowCamera* shadowCamera);
 		void AddMainCamera(DX12Lib::SceneCamera* camera);
 
 		DX12Lib::ShadowBuffer* const GetShadowBuffer();

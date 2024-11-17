@@ -35,7 +35,7 @@ cbuffer cbVoxelCommons : register(b2)
 }
 
 Texture2D gShadowMap : register(t0);
-Texture2D gVoxelSrv : register(t1);
+Texture2D gCameraDepth : register(t1);
 
 Texture2D gBufferaWorld : register(t2);
 Texture2D gBufferNormal : register(t3);

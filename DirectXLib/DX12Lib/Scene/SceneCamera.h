@@ -18,7 +18,7 @@ namespace DX12Lib
 		virtual void Render(CommandContext& context) override;
 		virtual void OnResize(CommandContext& context, int newWidth, int newHeight) override;
 
-		virtual DirectX::GraphicsResource GetCameraBuffer();
+		virtual DirectX::GraphicsResource& GetCameraBuffer();
 
 		virtual void SetOrthogonal(DirectX::XMFLOAT4 bounds);
 		virtual void SetPerspective(float fov, float aspectRatio, float nearZ, float farZ);
@@ -30,10 +30,13 @@ namespace DX12Lib
 	public:
 		bool IsEnabled = true;
 
+	protected:
+		DirectX::GraphicsResource m_cameraResource;
 
 	private:
 		DirectX::XMFLOAT3 m_lastPosition = { 0.0f, 0.0f, 0.0f };
 		ConstantBufferCamera m_constantBufferCamera;
+
 
 		int m_cameraForward = 0;
 		int m_cameraStrafe = 0;

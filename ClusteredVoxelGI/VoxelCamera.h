@@ -30,7 +30,7 @@ namespace CVGI
 		virtual ~VoxelCamera() = default;
 
 		virtual void Init(DX12Lib::CommandContext& context) override;
-		virtual DirectX::GraphicsResource GetCameraBuffer() override;
+		virtual DirectX::GraphicsResource& GetCameraBuffer() override;
 
 		void SetOrthogonalHalfExtents(DirectX::XMFLOAT3 extents) 
 		{ 

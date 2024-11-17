@@ -50,7 +50,7 @@ RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space2);
 
 RWStructuredBuffer<uint2> gGaussianFinalWriteBuffer : register(u0, space3);
 
-static const float SQRT_2 = 1.41421356237f;
+static const float SQRT_2 = 3.0f; //1.41421356237f;
 
 groupshared uint gsIsOutsideFrustum;
 groupshared uint gsIsOccluded;
@@ -117,7 +117,7 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
         uint aabbStart = aabbInfo.ClusterStartIndex + threadIdx.x * aabbsPerThread;
         uint aabbEnd = min(aabbStart + aabbsPerThread, aabbInfo.ClusterStartIndex + aabbInfo.ClusterElementCount);
         
-        float margin = 20.0f;
+        float margin = 50.0f;
 
         if (threadIdx.x == 0)
         {
@@ -166,25 +166,31 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
         
         if (gsIsOutsideFrustum == 0)
         {
-            float3 facesAndCorners[14] =
+            float3 facesAndCorners[18] =
             {
                 // 4 edge midpoints
-                float3(0.0f, 0.0f, -2.0f),
-                float3(0.0f, 0.0f, 2.0f),
-                float3(0.0f, -2.0f, 0.0f),
-                float3(0.0f, 2.0f, 0.0f),
-                float3(-2.0f, 0.0f, 0.0f),
-                float3(2.0f, 0.0f, 0.0f),
+                float3(0.0f, 0.0f, -1.5f),
+                float3(0.0f, 0.0f, 1.5f),
+                float3(0.0f, -1.5f, 0.0f),
+                float3(0.0f, 1.5f, 0.0f),
+                float3(-1.5f, 0.0f, 0.0f),
+                float3(1.5f, 0.0f, 0.0f),
                 
-                float3(-SQRT_2, -SQRT_2, -SQRT_2),
-                float3(-SQRT_2, -SQRT_2, SQRT_2),
-                float3(-SQRT_2, SQRT_2, -SQRT_2),
-                float3(-SQRT_2, SQRT_2, SQRT_2),
-                float3(SQRT_2, -SQRT_2, -SQRT_2),
-                float3(SQRT_2, -SQRT_2, SQRT_2),
-                float3(SQRT_2, SQRT_2, -SQRT_2),
-                float3(SQRT_2, SQRT_2, SQRT_2)
-            };
+                // Edge mid points
+                float3(0.0, 1.5f, -1.5f),
+                float3(-1.5f, 0.0, -1.5f),
+                float3(1.5f, 0.0, -1.5f),
+                float3(0.0, -1.5f, -1.5f),
+                float3(-1.5f, 1.5f, 0.0),
+                float3(1.5f, 1.5f, 0.0),
+                float3(-1.5f, -1.5f, 0.0),
+                float3(1.5f, -1.5f, 0.0),
+                float3(0.0, 1.5f, 1.5f),
+                float3(1.5f, 0.0, 1.5f),
+                float3(0.0, -1.5f, 1.5f),
+                float3(-1.5f, 0.0, 1.5f)
+        
+        };
 
             RayQuery < RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_TRIANGLES > q;
             
@@ -197,7 +203,7 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
                 AABB voxelAABB = gVoxelAABBBuffer[v];
                 float3 aabbCenter = (voxelAABB.Min + voxelAABB.Max) * 0.5f;
                 
-                for (uint f = 0; f < 14 && isOccluded; f++)
+                for (uint f = 0; f < 18 && isOccluded; f++)
                 {
                     isOccluded = (gsIsOccluded == 1);
 
@@ -301,8 +307,8 @@ void CS(uint3 DTid : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 thre
                 
             }
 
-            uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces) / 16.0f);
-            uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (128.0f * 16.0f));
+            uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces));
+            uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (128.0f));
             InterlockedMax(gDispatchIndirectBuffer[0].x, buffer0Max);
             InterlockedMax(gDispatchIndirectBuffer[1].x, buffer1Max);
         }

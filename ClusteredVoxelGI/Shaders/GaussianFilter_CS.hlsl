@@ -14,10 +14,6 @@ StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space2);
 StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space2);
 
-ByteAddressBuffer gVisibleFaceCounter : register(t0, space3);
-//StructuredBuffer<uint> gVisibleFaceIndices : register(t1, space3);
-StructuredBuffer<uint> gGaussianFaceIndices : register(t2, space3);
-
 StructuredBuffer<uint2> gFaceRadianceReadBuffer : register(t0, space4);
 
 StructuredBuffer<uint2> gReadFinalRadianceBuffer : register(t0, space5);
@@ -26,6 +22,11 @@ RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space0);
 RWStructuredBuffer<float> gGaussianPrecomputedDataBuffer : register(u1, space0);
 
 RWStructuredBuffer<uint2> gWriteFinalRadianceBuffer : register(u0, space1);
+
+RWByteAddressBuffer gVisibleFacesCounter : register(u0, space2);
+RWStructuredBuffer<uint> gGaussianFaceIndices : register(u2, space2);
+RWByteAddressBuffer gIndirectLightUpdatedVoxelsBitmap : register(u3, space2);
+RWByteAddressBuffer gGaussianUpdatedVoxelsBitmap : register(u4, space2);
 
 #define SIDE 2
 #define KERNEL_SIZE 2 * SIDE + 1
@@ -120,6 +121,11 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass)
                         if (cbGaussianFilter.CurrentPhase == 1)
                         {
                             packedRadiance = gFaceRadianceReadBuffer[neighbourIdx * 6 + faceIdx];
+                            if (!IsVoxelPresent(neighbourIdx, gIndirectLightUpdatedVoxelsBitmap))
+                            {
+                                return float3(-1.0f, 0.0f, 0.0f);
+                            }
+
                         }
                         else if (cbGaussianFilter.CurrentPhase == 2)
                         {
@@ -177,20 +183,33 @@ void CS( uint3 DTid : SV_DispatchThreadID)
 {
     uint threadGlobalIndex = DTid.x;
     
-
     if (cbGaussianFilter.CurrentPhase == 0)
     {
-        gWriteFinalRadianceBuffer[threadGlobalIndex] = gReadFinalRadianceBuffer[threadGlobalIndex];
-        return;
+        if (threadGlobalIndex != 0)
+            return;
+        
+        for (uint x = 0; x < KERNEL_SIZE; x++)
+        {
+            for (uint y = 0; y < KERNEL_SIZE; y++)
+            {
+                for (uint z = 0; z < KERNEL_SIZE; z++)
+                {
+                    int3 values = int3(int(x) - SIDE, int(y) - SIDE, int(z) - SIDE);
+                    uint linearCoord = GetLinearCoord(uint3(x, y, z), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
+                    gGaussianPrecomputedDataBuffer[linearCoord] = gaussianDistribution(values.x, values.y, values.z, SIGMA);
+                }
+            }
+        }
     }
+
     
-    uint visibleFaces = gVisibleFaceCounter.Load(4);
+    uint visibleFaces = gVisibleFacesCounter.Load(4);
     
 
     
-    uint facesPerDispatch = ceil(visibleFaces / 16.0f);
+    //uint facesPerDispatch = ceil(visibleFaces / 16.0f);
     
-    threadGlobalIndex = cbGaussianFilter.BlockNum * facesPerDispatch + threadGlobalIndex;
+    //threadGlobalIndex = cbGaussianFilter.BlockNum * facesPerDispatch + threadGlobalIndex;
     
     if (threadGlobalIndex >= visibleFaces)
         return;
@@ -210,8 +229,16 @@ void CS( uint3 DTid : SV_DispatchThreadID)
     
         float3 filteredRadiance = filterFace(voxIdx, faceIndex, true);
     
+        if (filteredRadiance.x >= 0.0f)
+        {
+            SetVoxelPresence(voxIdx, gGaussianUpdatedVoxelsBitmap);
+        }
+        else
+        {
+            filteredRadiance.x = 0.0f;
+        }
+        
         uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
-    
         gGaussianFirstFilterBuffer[idx] = packedData;
     }
     else if (cbGaussianFilter.CurrentPhase == 2)
@@ -233,20 +260,5 @@ void CS( uint3 DTid : SV_DispatchThreadID)
         }
         
         gWriteFinalRadianceBuffer[idx] = packedRadiance;
-    }
-    else if (cbGaussianFilter.CurrentPhase == 3)
-    {
-        for (uint x = 0; x < KERNEL_SIZE; x++)
-        {
-            for (uint y = 0; y < KERNEL_SIZE; y++)
-            {
-                for (uint z = 0; z < KERNEL_SIZE; z++)
-                {
-                    int3 values = int3(int(x) - SIDE, int(y) - SIDE, int(z) - SIDE);
-                    uint linearCoord = GetLinearCoord(uint3(x, y, z), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
-                    gGaussianPrecomputedDataBuffer[linearCoord] = gaussianDistribution(values.x, values.y, values.z, SIGMA);
-                }
-            }
-        }
     }
 }

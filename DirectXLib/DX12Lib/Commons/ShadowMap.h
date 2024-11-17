@@ -15,19 +15,22 @@ namespace DX12Lib
 	{
 	public:
 		void Create(uint32_t width, uint32_t height);
-		void RenderShadowStart(GraphicsContext& context);
+		void RenderShadowStart(GraphicsContext& context, bool clearDsv = true);
 		void RenderShadowEnd(GraphicsContext& context);
 	private:
 		D3D12_VIEWPORT m_bufferViewport;
 		D3D12_RECT m_bufferScissorRect;
 	};
 
-	class ShadowCamera : private Camera
+	class ShadowCamera : public Camera
 	{
 	public:
 		ShadowCamera() : Camera() {}
+		~ShadowCamera() = default;
+		void SetShadowBufferDimensions(uint32_t width, uint32_t height);
 		void SetCenter(const DirectX::XMFLOAT3& center) { m_shadowCenter = center; }
 		void SetBounds(const DirectX::XMFLOAT3& bounds) { m_shadowBounds = bounds; }
+		ShadowBuffer& GetShadowBuffer() { return m_shadowBuffer; }
 		DirectX::XMFLOAT3 GetBounds() const { return m_shadowBounds; }
 		void UpdateShadowMatrix(SceneNode& node);
 		DirectX::GraphicsResource GetShadowCB();
@@ -39,7 +42,7 @@ namespace DX12Lib
 		DirectX::XMFLOAT4X4 m_shadowTransform = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 m_invShadowTransform = MathHelper::Identity4x4();
 		ConstantBufferCamera m_shadowCB;
-		
+		ShadowBuffer m_shadowBuffer;
 	};
 }
 

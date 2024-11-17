@@ -11,7 +11,7 @@ ConstantBufferLight* LightComponent::s_lightBufferData = nullptr;
 
 void DX12Lib::LightComponent::SetCastsShadows(bool value)
 {
-	// Only directional lights can cast shadows for now
+	// For now only shadow for directional lights are supported
 	if (m_lightType != LightType::Directional)
 	{
 		m_doesCastShadows = false;
@@ -23,6 +23,7 @@ void DX12Lib::LightComponent::SetCastsShadows(bool value)
 		if (m_shadowCamera == nullptr)
 		{
 			m_shadowCamera = std::make_unique<ShadowCamera>();
+			m_shadowCamera->SetOrthogonalBounds(38.0f, 38.0f, 1.0f, 38.0f);
 			m_shadowCamera->UpdateShadowMatrix(*this->Node);
 		}
 
@@ -70,7 +71,7 @@ void DX12Lib::LightComponent::RenderLights(CommandContext& context)
 
 	for (auto light : m_activeLights)
 		if (light->CastsShadows())
-			Graphics::Renderer::AddLightToQueue(light);
+			Graphics::Renderer::AddShadowCamera(light->GetShadowCamera());
 }
 
 void LightComponent::RemoveLight(int index)

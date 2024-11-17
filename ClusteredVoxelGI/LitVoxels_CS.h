@@ -939,26 +939,26 @@ define void @CS() {
   call void @llvm.dbg.value(metadata float %330, i64 0, metadata !613, metadata !306), !dbg !614 ; var:"normalDA" !DIExpression(DW_OP_bit_piece, 0, 32) func:"differentialAreaFormFactor"
   call void @llvm.dbg.value(metadata float %331, i64 0, metadata !613, metadata !328), !dbg !614 ; var:"normalDA" !DIExpression(DW_OP_bit_piece, 32, 32) func:"differentialAreaFormFactor"
   call void @llvm.dbg.value(metadata float %332, i64 0, metadata !613, metadata !342), !dbg !614 ; var:"normalDA" !DIExpression(DW_OP_bit_piece, 64, 32) func:"differentialAreaFormFactor"
-  %.i0221 = fsub fast float -0.000000e+00, %337, !dbg !615 ; line:168 col:37
-  %.i1223 = fsub fast float -0.000000e+00, %338, !dbg !615 ; line:168 col:37
-  %.i2225 = fsub fast float -0.000000e+00, %339, !dbg !615 ; line:168 col:37
-  %341 = call float @dx.op.dot3.f32(i32 55, float %330, float %331, float %332, float %.i0221, float %.i1223, float %.i2225), !dbg !616 ; line:168 col:23  ; Dot3(ax,ay,az,bx,by,bz)
-  %342 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !617 ; line:168 col:11
+  %.i0221 = fsub fast float -0.000000e+00, %337, !dbg !615 ; line:182 col:37
+  %.i1223 = fsub fast float -0.000000e+00, %338, !dbg !615 ; line:182 col:37
+  %.i2225 = fsub fast float -0.000000e+00, %339, !dbg !615 ; line:182 col:37
+  %341 = call float @dx.op.dot3.f32(i32 55, float %330, float %331, float %332, float %.i0221, float %.i1223, float %.i2225), !dbg !616 ; line:182 col:23  ; Dot3(ax,ay,az,bx,by,bz)
+  %342 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !617 ; line:182 col:11
   call void @llvm.dbg.value(metadata float %341, i64 0, metadata !618, metadata !312), !dbg !617 ; var:"cosTheta1" !DIExpression() func:"differentialAreaFormFactor"
-  %FMax138 = call float @dx.op.binary.f32(i32 35, float %341, float 0.000000e+00), !dbg !619 ; line:169 col:17  ; FMax(a,b)
-  %FMin139 = call float @dx.op.binary.f32(i32 36, float %FMax138, float 1.000000e+00), !dbg !619 ; line:169 col:17  ; FMin(a,b)
-  %343 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !620 ; line:169 col:15
+  %FMax138 = call float @dx.op.binary.f32(i32 35, float %341, float 0.000000e+00), !dbg !619 ; line:183 col:17  ; FMax(a,b)
+  %FMin139 = call float @dx.op.binary.f32(i32 36, float %FMax138, float 1.000000e+00), !dbg !619 ; line:183 col:17  ; FMin(a,b)
+  %343 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !620 ; line:183 col:15
   call void @llvm.dbg.value(metadata float %FMin139, i64 0, metadata !618, metadata !312), !dbg !617 ; var:"cosTheta1" !DIExpression() func:"differentialAreaFormFactor"
-  %344 = call float @dx.op.dot3.f32(i32 55, float %337, float %338, float %339, float %337, float %338, float %339), !dbg !621 ; line:171 col:23  ; Dot3(ax,ay,az,bx,by,bz)
-  %345 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !622 ; line:171 col:11
+  %344 = call float @dx.op.dot3.f32(i32 55, float %337, float %338, float %339, float %337, float %338, float %339), !dbg !621 ; line:185 col:23  ; Dot3(ax,ay,az,bx,by,bz)
+  %345 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !622 ; line:185 col:11
   call void @llvm.dbg.value(metadata float %344, i64 0, metadata !623, metadata !312), !dbg !622 ; var:"cosTheta2" !DIExpression() func:"differentialAreaFormFactor"
-  %FMax = call float @dx.op.binary.f32(i32 35, float %344, float 0.000000e+00), !dbg !624 ; line:172 col:17  ; FMax(a,b)
-  %FMin = call float @dx.op.binary.f32(i32 36, float %FMax, float 1.000000e+00), !dbg !624 ; line:172 col:17  ; FMin(a,b)
-  %346 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !625 ; line:172 col:15
+  %FMax = call float @dx.op.binary.f32(i32 35, float %344, float 0.000000e+00), !dbg !624 ; line:186 col:17  ; FMax(a,b)
+  %FMin = call float @dx.op.binary.f32(i32 36, float %FMax, float 1.000000e+00), !dbg !624 ; line:186 col:17  ; FMin(a,b)
+  %346 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !625 ; line:186 col:15
   call void @llvm.dbg.value(metadata float %FMin, i64 0, metadata !623, metadata !312), !dbg !622 ; var:"cosTheta2" !DIExpression() func:"differentialAreaFormFactor"
-  %347 = fmul fast float %FMin139, %FMin, !dbg !626 ; line:175 col:23
-  %348 = fdiv fast float %347, 0x400921FB60000000, !dbg !627 ; line:175 col:36
-  %349 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !628 ; line:175 col:5
+  %347 = fmul fast float %FMin139, %FMin, !dbg !626 ; line:189 col:23
+  %348 = fdiv fast float %347, 0x400921FB60000000, !dbg !627 ; line:189 col:36
+  %349 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !628 ; line:189 col:5
   %350 = load i32, i32* getelementptr inbounds ([1 x i32], [1 x i32]* @dx.nothing.a, i32 0, i32 0), !dbg !629 ; line:164 col:23
   call void @llvm.dbg.value(metadata float %348, i64 0, metadata !630, metadata !312), !dbg !629 ; var:"formFactor" !DIExpression() func:"CS"
   %.i0226 = fmul fast float %348, %333, !dbg !631 ; line:166 col:51
@@ -1115,7 +1115,7 @@ attributes #2 = { nounwind }
 !57 = !{!58, !48, !59}
 !58 = !DIBasicType(name: "bool", size: 32, align: 32, encoding: DW_ATE_boolean)
 !59 = !DICompositeType(tag: DW_TAG_structure_type, name: "RWByteAddressBuffer", file: !1, line: 21, size: 32, align: 32, elements: !2)
-!60 = !DISubprogram(name: "differentialAreaFormFactor", linkageName: "\01?differentialAreaFormFactor@@YAMV?$vector@M$02@@0@Z", scope: !45, file: !45, line: 166, type: !61, isLocal: false, isDefinition: true, scopeLine: 167, flags: DIFlagPrototyped, isOptimized: false)
+!60 = !DISubprogram(name: "differentialAreaFormFactor", linkageName: "\01?differentialAreaFormFactor@@YAMV?$vector@M$02@@0@Z", scope: !45, file: !45, line: 180, type: !61, isLocal: false, isDefinition: true, scopeLine: 181, flags: DIFlagPrototyped, isOptimized: false)
 !61 = !DISubroutineType(types: !62)
 !62 = !{!8, !16, !16}
 !63 = !{!64, !66, !69, !71, !72, !73, !76, !78, !79, !80, !81, !127, !145, !149, !151, !154, !155, !156, !157, !177, !178, !179, !183, !184, !195, !197, !199}
@@ -1264,7 +1264,7 @@ attributes #2 = { nounwind }
 !206 = !{!"..\5C..\5CClusteredVoxelGI\5CShaders\5C..\5C..\5CDirectXLib\5CDX12Lib\5CDXWrapper\5CShaders\5CLightingUtil.hlsli", !"#define MAX_LIGHTS 16\0D\0A\0D\0Astruct Light\0D\0A{\0D\0A    float3 color;\0D\0A    float fallOffStart;\0D\0A    float3 direction;\0D\0A    float fallOffEnd;\0D\0A    float3 position;\0D\0A    float spotPower;\0D\0A    float4x4 shadowMatrix;\0D\0A    float4x4 invShadowMatrix;\0D\0A    int castShadows;\0D\0A    float _pad0;\0D\0A    float _pad1;\0D\0A    float _pad2;\0D\0A};\0D\0A\0D\0Astruct GenericMaterial\0D\0A{\0D\0A    float4 float4_0;\0D\0A    float4 float4_1;\0D\0A    float4 float4_2;\0D\0A    float4 float4_3;\0D\0A    \0D\0A    float float_0;\0D\0A    float float_1;\0D\0A    float float_2;\0D\0A    float float_3;\0D\0A};\0D\0A\0D\0A\0D\0Astruct PBRMaterial\0D\0A{\0D\0A    float4 baseColor;\0D\0A    float4 emissiveColor;\0D\0A    \0D\0A    float metallic;\0D\0A    float roughness;\0D\0A    float normalScale;\0D\0A};\0D\0A\0D\0Astruct PhongMaterial\0D\0A{\0D\0A    float4 diffuseColor;\0D\0A    float4 emissiveColor;\0D\0A    float4 specularColor;\0D\0A    float4 ambientColor;\0D\0A\0D\0A    float normalScale;\0D\0A    float opacity;\0D\0A    float shininess;\0D\0A    float refractiveIndex;\0D\0A};\0D\0A\0D\0APBRMaterial GetPBRMaterial(GenericMaterial material)\0D\0A{\0D\0A    PBRMaterial pbrMaterial;\0D\0A    \0D\0A    pbrMaterial.baseColor = material.float4_0;\0D\0A    pbrMaterial.emissiveColor = material.float4_1;\0D\0A    \0D\0A    pbrMaterial.normalScale = material.float_0;\0D\0A    pbrMaterial.metallic = material.float_1;\0D\0A    pbrMaterial.roughness = material.float_2;\0D\0A\0D\0A    return pbrMaterial;\0D\0A}\0D\0A\0D\0APhongMaterial GetPhongMaterial(GenericMaterial material)\0D\0A{\0D\0A    PhongMaterial phongMaterial;\0D\0A    \0D\0A    phongMaterial.diffuseColor = material.float4_0;\0D\0A    phongMaterial.emissiveColor = material.float4_1;\0D\0A    phongMaterial.specularColor = material.float4_2;\0D\0A    phongMaterial.ambientColor = material.float4_3;\0D\0A    \0D\0A    phongMaterial.normalScale = material.float_0;\0D\0A    phongMaterial.opacity = material.float_1;\0D\0A    phongMaterial.shininess = material.float_2;\0D\0A    phongMaterial.refractiveIndex = material.float_3;\0D\0A    \0D\0A    return phongMaterial;\0D\0A}\0D\0A\0D\0Astatic const float3 ambientLightStrength = float3(0.13f, 0.13f, 0.13f);\0D\0A\0D\0Astruct LightResult\0D\0A{\0D\0A    float3 diffuse;\0D\0A    float3 specular;\0D\0A    float3 ambient;\0D\0A};\0D\0A\0D\0Astruct SurfaceData\0D\0A{\0D\0A    float3 N;\0D\0A    float3 V;\0D\0A    float NdotV;\0D\0A    float3 c_diff;\0D\0A    float3 c_spec;\0D\0A};\0D\0A\0D\0Astatic const float PI = 3.14159265;\0D\0Astatic const float kDielectricSpecular = 0.04f;\0D\0Astatic const float EPSILON = 1e-6f;\0D\0A\0D\0A/* https://github.com/microsoft/DirectXTK12/blob/main/Src/Shaders/Utilities.fxh */\0D\0A// Christian Schuler, \22Normal Mapping without Precomputed Tangents\22, ShaderX 5, Chapter 2.6, pp. 131-140\0D\0A// See also follow-up blog post: http://www.thetenthplanet.de/archives/1180\0D\0Afloat3x3 CalculateTBN(float3 p, float3 n, float2 tex)\0D\0A{\0D\0A    float3 dp1 = ddx(p);\0D\0A    float3 dp2 = ddy(p);\0D\0A    float2 duv1 = ddx(tex);\0D\0A    float2 duv2 = ddy(tex);\0D\0A\0D\0A    float3x3 M = float3x3(dp1, dp2, cross(dp1, dp2));\0D\0A    float2x3 inverseM = float2x3(cross(M[1], M[2]), cross(M[2], M[0]));\0D\0A    float3 t = normalize(mul(float2(duv1.x, duv2.x), inverseM));\0D\0A    float3 b = normalize(mul(float2(duv1.y, duv2.y), inverseM));\0D\0A    return float3x3(t, b, n);\0D\0A}\0D\0A\0D\0A// Compute normal unit vector from two x and y components\0D\0A// This is used for material textures which have a format of B8G8R8A8_UNORM\0D\0Afloat3 ComputeTwoChannelNormal(float2 normal)\0D\0A{\0D\0A    // Change normal mapping from [0, 1] to [-1, 1]\0D\0A    float2 xy = 2.0f * normal - 1.0f;\0D\0A    \0D\0A    // Compute z from x and y\0D\0A    float z = sqrt(1.0f - dot(xy, xy));\0D\0A\0D\0A    return float3(xy.x, xy.y, z);\0D\0A}\0D\0A\0D\0A\0D\0A// Packing and unpacking of normals for GBuffer\0D\0A// From https://jcgt.org/published/0003/02/01/\0D\0A\0D\0A// Returns \C2\B11\0D\0Afloat2 signNotZero(float2 v)\0D\0A{\0D\0A    return float2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);\0D\0A}\0D\0A// Assume normalized input. Output is on [-1, 1] for each component.\0D\0Afloat2 PackNormal(float3 v)\0D\0A{\0D\0A// Project the sphere onto the octahedron, and then onto the xy plane\0D\0A    float2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));\0D\0A// Reflect the folds of the lower hemisphere over the diagonals\0D\0A    return (v.z <= 0.0) ? ((1.0 - abs(p.yx)) * signNotZero(p)) : p;\0D\0A}\0D\0A\0D\0Afloat3 UnpackNormal(float2 e)\0D\0A{\0D\0A    float3 v = float3(e.xy, 1.0 - abs(e.x) - abs(e.y));\0D\0A    if (v.z < 0)\0D\0A        v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);\0D\0A    return normalize(v);\0D\0A}\0D\0A\0D\0A\0D\0Afloat Spec(float3 lightVec, SurfaceData surfData, float shininess)\0D\0A{\0D\0A    float3 R = normalize(reflect(-lightVec, surfData.N));\0D\0A    float RdotV = max(0, dot(R, surfData.V));\0D\0A    \0D\0A    return pow(RdotV, shininess);\0D\0A}\0D\0A\0D\0A\0D\0Afloat3 ComputeDirectionalLight(Light light, SurfaceData surfData, float shininess, float IoR)\0D\0A{\0D\0A    float3 L = -light.direction;\0D\0A    \0D\0A    float3 NdotL = max(dot(surfData.N, L), 0.0f);\0D\0A    \0D\0A\0D\0A    float3 diffuse = light.color * NdotL;\0D\0A    float3 specular = light.color * Spec(L, surfData, shininess);\0D\0A\0D\0A   \0D\0A    diffuse = saturate(diffuse);\0D\0A    specular = saturate(specular);\0D\0A    \0D\0A    \0D\0A    float3 ambient = surfData.c_diff * ambientLightStrength;\0D\0A    ambient = saturate(ambient);\0D\0A        \0D\0A    return (diffuse * surfData.c_diff + specular * surfData.c_spec + ambient);\0D\0A}\0D\0A\0D\0Afloat3 FresnelShlick(float3 F0, float3 F90, float cosine)\0D\0A{\0D\0A    return F0 + (F90 - F0) * pow(1.f - cosine, 5.f);\0D\0A\0D\0A}\0D\0A\0D\0Afloat3 Diffuse_Burley(SurfaceData surfData, float roughness, float LdotH, float NdotL)\0D\0A{\0D\0A    float fd90 = 0.5f + 2.0f * roughness * LdotH * LdotH;\0D\0A    \0D\0A    return FresnelShlick(1, fd90, NdotL).x * FresnelShlick(1, fd90, surfData.NdotV).x;\0D\0A}\0D\0A\0D\0Afloat Specular_D_GGX(SurfaceData surfData, float NdotH, float alphaSqr)\0D\0A{\0D\0A\0D\0A    float lower = (NdotH * NdotH * (alphaSqr - 1)) + 1;\0D\0A    \0D\0A    return alphaSqr / max(EPSILON, PI * lower * lower);\0D\0A\0D\0A}\0D\0A\0D\0Afloat G_Shlick_Smith_Hable(SurfaceData surfData, float LdotH, float alphaSqr)\0D\0A{\0D\0A    return rcp(lerp(LdotH * LdotH, 1, alphaSqr * 0.25f));\0D\0A}\0D\0A\0D\0Afloat3 Specular_BRDF(SurfaceData surfData, float LdotH, float NdotH, float alpha)\0D\0A{\0D\0A    float alphaSqr = alpha * alpha;\0D\0A    \0D\0A    float ND = Specular_D_GGX(surfData, NdotH, alphaSqr);\0D\0A    \0D\0A    float GV = G_Shlick_Smith_Hable(surfData, LdotH, alphaSqr);\0D\0A    \0D\0A    float3 F = FresnelShlick(surfData.c_spec, 1.0, LdotH);\0D\0A    \0D\0A    return ND * F * GV;\0D\0A\0D\0A}\0D\0A\0D\0A\0D\0A\0D\0Afloat3 PBRDirectionalLight(Light Light, SurfaceData surfData, float roughness)\0D\0A{    \0D\0A    float3 L = normalize(-Light.direction);\0D\0A    \0D\0A    \0D\0A    float3 H = normalize(L + surfData.V);\0D\0A    \0D\0A    float NdotL = saturate(dot(surfData.N, L));\0D\0A    float LdotH = saturate(dot(L, H));\0D\0A    float NdotH = saturate(dot(surfData.N, H));\0D\0A    \0D\0A    float alpha = roughness * roughness;\0D\0A    \0D\0A    float3 diffuse = Diffuse_Burley(surfData, roughness, LdotH, NdotL);\0D\0A    float3 specular = Specular_BRDF(surfData, LdotH, NdotH, alpha);\0D\0A    \0D\0A    return NdotL * Light.color * ((surfData.c_diff * diffuse) + specular);\0D\0A}\0D\0A\0D\0A"}
 !207 = !{!"..\5C..\5CClusteredVoxelGI\5CShaders\5CHlslCompat.h", !"#ifndef HLSLCOMPAT_H\0D\0A#define HLSLCOMPAT_H\0D\0A\0D\0Atypedef float3 XMFLOAT3;\0D\0Atypedef float4 XMFLOAT4;\0D\0Atypedef float4 XMVECTOR;\0D\0Atypedef float4x4 XMMATRIX;\0D\0Atypedef uint UINT;\0D\0A\0D\0A#endif // HLSLCOMPAT_H"}
 !208 = !{!"..\5C..\5CClusteredVoxelGI\5CShaders\5CTechniquesCompat.h", !"#ifndef TECHNIQUEHLSLCOMPAT_H\0D\0A#define TECHNIQUEHLSLCOMPAT_H\0D\0A\0D\0A#ifdef HLSL\0D\0A#include \22HlslCompat.h\22\0D\0A#define XMFLOAT4X4 float4x4\0D\0A#define XMUINT2 uint2\0D\0A#define XMUINT3 uint3 /* I don't know why, but this won't work if i define it in the HlslCompat.h file */\0D\0A\0D\0A// AABB is already defined in MathHelper.h so we don't need to redefine it for the c++ side;\0D\0A// However we need to define it for the hlsl files.\0D\0Astruct AABB\0D\0A{\0D\0A\09float3 Min;\0D\0A\09float3 Max;\0D\0A};\0D\0A\0D\0A#else\0D\0A\0D\0A#include <directx/d3d12.h>\0D\0A#include <DirectXMath.h>\0D\0Ausing namespace DirectX;\0D\0A\0D\0A#endif // HLSL\0D\0A\0D\0Astruct ConstantBufferVoxelCommons\0D\0A{\0D\0A\09XMUINT3 voxelTextureDimensions;\0D\0A\09float totalTime;\0D\0A\0D\0A\09XMFLOAT3 voxelCellSize;\0D\0A\09float deltaTime;\0D\0A\0D\0A\09XMFLOAT3 invVoxelTextureDimensions;\0D\0A\09UINT StoreData;\0D\0A\0D\0A\09XMFLOAT3 invVoxelCellSize;\0D\0A\09UINT VoxelCount;\0D\0A\0D\0A\09XMFLOAT3 SceneAABBMin;\0D\0A\09UINT ClusterCount;\0D\0A\0D\0A\09XMFLOAT3 SceneAABBMax;\0D\0A\09float pad3;\0D\0A\0D\0A\09XMFLOAT4X4 VoxelToWorld;\0D\0A\09XMFLOAT4X4 WorldToVoxel;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferCompactBuffer\0D\0A{\0D\0A\09UINT CurrentPhase;\0D\0A\09UINT CurrentStep;\0D\0A\09UINT CompactBufferSize;\0D\0A\09UINT ElementsPerThread;\0D\0A\0D\0A\09UINT NumElementsSweepDown;\0D\0A\09UINT NumElementsBase;\0D\0A\09UINT NumElementsLevel0;\0D\0A\09UINT NumElementsLevel1;\0D\0A\0D\0A\09UINT NumElementsLevel2;\0D\0A\09UINT NumElementsLevel3;\0D\0A\09float pad0;\0D\0A\09float pad1;\0D\0A\0D\0A\09XMUINT3 VoxelGridSize;\0D\0A\09float pad2;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferClusterizeBuffer\0D\0A{\0D\0A\09UINT CurrentPhase;\0D\0A\09UINT VoxelCount;\0D\0A\09UINT K;\0D\0A\09float m;\0D\0A\0D\0A\09XMUINT3 VoxelTextureDimensions;\0D\0A\09UINT S;\0D\0A\0D\0A\09XMUINT3 TileGridDimension;\0D\0A\09UINT FirstClusterSet;\0D\0A\0D\0A\09XMUINT3 CurrentTileUpdate;\0D\0A\09UINT UnassignedOnlyPass;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferRTShadows\0D\0A{\0D\0A\09XMFLOAT3 LightDirection;\0D\0A\09UINT FaceCount;\0D\0A\0D\0A\09UINT CurrentStep;\0D\0A\09UINT VoxelCount;\0D\0A\09UINT ClusterCount;\0D\0A\09UINT FrameCount;\0D\0A};\0D\0A\0D\0Astruct RTSceneVisibility\0D\0A{\0D\0A\09float pad0;\0D\0A\09float pad1;\0D\0A\09float pad2;\0D\0A\09UINT FaceCount;\0D\0A\0D\0A\09XMUINT3 GridDimension;\0D\0A\09UINT CurrentPhase;\0D\0A\0D\0A\09UINT BlasCount;\0D\0A\09UINT GeometryCount;\0D\0A\09float Rand1;\0D\0A\09float Rand2;\0D\0A\0D\0A};\0D\0A\0D\0Astruct ConstantBufferFaceCount\0D\0A{\0D\0A\09XMUINT3 GridDimension;\0D\0A\09UINT CurrentPhase;\0D\0A\0D\0A\09UINT VoxelCount;\0D\0A\09XMUINT3 pad1;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferAABBGeneration\0D\0A{\0D\0A\09XMUINT3 GridDimension;\0D\0A\09UINT ClusterCount;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferFacePenalty\0D\0A{\0D\0A\09UINT FaceCount;\0D\0A\09UINT VoxelCount;\0D\0A\09float pad0;\0D\0A\09float pad1;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferFrustumCulling\0D\0A{\0D\0A\09XMFLOAT4 FrustumPlanes[6];\0D\0A\0D\0A\09XMFLOAT3 CameraPosition;\0D\0A\09UINT AABBGroupCount;\0D\0A\0D\0A\09UINT CurrentStep;\0D\0A\09UINT VoxelCount;\0D\0A\09UINT FaceCount;\0D\0A\09UINT ResetRadianceBuffers;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferIndirectLightTransport\0D\0A{\0D\0A\09XMFLOAT3 LightDirection;\0D\0A\09UINT VoxelCount;\0D\0A\0D\0A\09XMFLOAT3 LightPosition;\0D\0A\09float LightIntensity;\0D\0A\0D\0A\09XMFLOAT3 EyePosition;\0D\0A\09UINT DispatchNumber;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferClearBuffers\0D\0A{\0D\0A\09UINT ValueCount0;\0D\0A\09UINT ValueCount1;\0D\0A\09UINT ValueCount2;\0D\0A\09UINT ValueCount3;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferLitVoxels\0D\0A{\0D\0A\0D\0A};\0D\0A\0D\0Astruct ClusterAABBInfo\0D\0A{\0D\0A\09XMFLOAT3 Min;\0D\0A\09UINT ClusterStartIndex;\0D\0A\09XMFLOAT3 Max;\0D\0A\09UINT ClusterElementCount;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferLerpRadiance\0D\0A{\0D\0A\09UINT CurrentPhase;\0D\0A\09float accumulatedTime;\0D\0A\09float maxTime;\0D\0A\09UINT FaceCount;\0D\0A};\0D\0A\0D\0Astruct ClusterData\0D\0A{\0D\0A\09XMUINT3 Center;\0D\0A\09UINT VoxelCount;\0D\0A\0D\0A\09XMFLOAT3 Normal;\0D\0A\09UINT FirstDataIndex;\0D\0A\0D\0A\09XMFLOAT3 Color;\0D\0A\09UINT FragmentCount;\0D\0A\0D\0A\09XMFLOAT3 MinAABB;\0D\0A\09UINT NeighbourCount;\0D\0A\0D\0A\09XMFLOAT3 MaxAABB;\0D\0A\09float pad0;\0D\0A\0D\0A\09UINT ClusterNeighbours[64];\0D\0A};\0D\0A\0D\0Astruct ConstantBufferComputeNeighbour\0D\0A{\0D\0A\09UINT ClusterCount;\0D\0A\09UINT ElementsPerThread;\0D\0A\09UINT TotalComputationCount;\0D\0A\09float pad1;\0D\0A};\0D\0A\0D\0Astruct ConstantBufferGaussianFilter\0D\0A{\0D\0A\09XMFLOAT3 EyePosition;\0D\0A\09UINT BlockNum;\0D\0A\0D\0A\09UINT CurrentPhase;\0D\0A\09UINT KernelSize;\0D\0A\09UINT VoxelCount;\0D\0A\09UINT FaceCount;\0D\0A};\0D\0A\0D\0A#endif // TECHNIQUEHLSLCOMPAT_H"}
-!209 = !{!"..\5C..\5CClusteredVoxelGI\5CShaders\5CVoxelUtils.hlsli", !"#ifndef VOXEL_UTILS\0D\0A#define VOXEL_UTILS\0D\0A\0D\0A#include \22..\5C..\5CDirectXLib\5CDX12Lib\5CDXWrapper\5CShaders\5CCommon.hlsli\22\0D\0A#define HLSL\0D\0A#include \22TechniquesCompat.h\22\0D\0A\0D\0A#define IRRADIANCE_FIELD_MULTIPLIER 100000.0f\0D\0A#define MAX_DISTANCE_VOXEL_OFFSET 2.5f\0D\0A#define MINIMUM_ANGLE_VOXEL_OFFSET 0.342f\0D\0A\0D\0A#define CLUSTER_TO_VOXEL_FORM_FACTOR_ADD 14860\0D\0A#define VOXEL_TO_VOXEL_FORM_FACTOR_ADD 3\0D\0A\0D\0Astatic const unsigned int UINT_MAX = 0xffffffff;\0D\0Astatic const float cos30 = 0.81915204428f;\0D\0Astatic const float cos25 = 0.9f;\0D\0A\0D\0Astruct VertexOutVoxel\0D\0A{\0D\0A    float4 PosH : SV_POSITION;\0D\0A    float3 PosW : POSITION0;\0D\0A    uint ProjAxis : AXIS;\0D\0A    float3 NormalW : NORMAL;\0D\0A    float2 Tex : TEXCOORD;\0D\0A};\0D\0A\0D\0Astruct VoxelCommons\0D\0A{\0D\0A    uint3 gridDimension;\0D\0A    float totalTime;\0D\0A    \0D\0A    float3 cellSize;\0D\0A    float deltaTime;\0D\0A    \0D\0A    float3 inverseGridDimension;\0D\0A    uint storeData;\0D\0A    \0D\0A    float3 inverseCellSize;\0D\0A    float pad1;\0D\0A};\0D\0A\0D\0A\0D\0Astruct VoxelCamera\0D\0A{\0D\0A    float4x4 xAxisView;\0D\0A    float4x4 yAxisView;\0D\0A    float4x4 zAxisView;\0D\0A    float4x4 orthoProj;\0D\0A    \0D\0A    float4x4 xAxisViewProj;\0D\0A    float4x4 yAxisViewProj;\0D\0A    float4x4 zAxisViewProj;\0D\0A    \0D\0A    float nearPlane;\0D\0A    float farPlane;\0D\0A    float pad0;\0D\0A    float pad1;\0D\0A};\0D\0A\0D\0Astruct FragmentData\0D\0A{\0D\0A    float3 position;\0D\0A    float pad0;\0D\0A\0D\0A    float4 color;\0D\0A\09\0D\0A    float3 normal;\0D\0A    uint voxelLinearCoord;\0D\0A};\0D\0A\0D\0A\0D\0A\0D\0Auint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)\0D\0A{\0D\0A    uint3 voxelPosition;\0D\0A    voxelPosition.x = voxelLinearCoord % gridDimension.x;\0D\0A    voxelPosition.y = (voxelLinearCoord / gridDimension.x) % gridDimension.y;\0D\0A    voxelPosition.z = voxelLinearCoord / (gridDimension.x * gridDimension.y); \0D\0A    return voxelPosition;\0D\0A}\0D\0A\0D\0Auint GetLinearCoord(uint3 coord3, uint3 gridDimension)\0D\0A{\0D\0A    return  coord3.x +\0D\0A            coord3.y * gridDimension.x +\0D\0A            coord3.z * gridDimension.x * gridDimension.y;\0D\0A}\0D\0A\0D\0A// Returns true if the voxel coordinates are withing the bounds after adding the offset vector\0D\0Abool IsWithinBounds(uint3 coord, int3 offset, uint3 gridDimension)\0D\0A{\0D\0A    // Check for underflow\0D\0A    if (any(coord < uint3(-min(int3(0, 0, 0), offset))))\0D\0A        return false;\0D\0A    \0D\0A    uint3 result = coord + max(int3(0, 0, 0), offset);\0D\0A\0D\0A    return all(result < gridDimension);\0D\0A}\0D\0A\0D\0Abool IsVoxelPresent(uint voxelLinearCoord, ByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    // ByteAddressBuffer operations wants multiple of 4 bytes\0D\0A    uint value = voxelPresenceBuffer.Load(index * 4);\0D\0A    \0D\0A    return (value & (1u << bit)) != 0;\0D\0A}\0D\0A\0D\0Abool IsVoxelPresent(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    // ByteAddressBuffer operations wants multiple of 4 bytes\0D\0A    uint value = voxelPresenceBuffer.Load(index * 4);\0D\0A    \0D\0A    return (value & (1u << bit)) != 0;\0D\0A}\0D\0A\0D\0Abool IsVoxelPresent(uint3 voxelCoord, uint3 gridDimension, ByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);\0D\0A    return IsVoxelPresent(voxelLinearCoord, voxelPresenceBuffer);\0D\0A}\0D\0A\0D\0Abool SetVoxelPresence(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    index = index * 4;\0D\0A    \0D\0A    uint outVal = 0;\0D\0A    \0D\0A    voxelPresenceBuffer.InterlockedOr(index, (1u << bit), outVal);\0D\0A    \0D\0A    return (outVal & (1u << bit)) != 0;\0D\0A}\0D\0A\0D\0Abool SetVoxelPresence(uint3 voxelCoord, uint3 gridDimension, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);\0D\0A    return SetVoxelPresence(voxelLinearCoord, voxelPresenceBuffer);\0D\0A}\0D\0A\0D\0A\0D\0Afloat differentialAreaFormFactor(float3 normalDA, float3 positionDA, float3 normalDB, float3 positionDB, float nSamples)\0D\0A{\0D\0A    float3 dAtoDiskDirection = positionDB - positionDA;\0D\0A    float distanceSq = dot(dAtoDiskDirection, dAtoDiskDirection);\0D\0A    dAtoDiskDirection = normalize(dAtoDiskDirection);\0D\0A    \0D\0A    float cosTheta1 = dot(normalDA, dAtoDiskDirection);\0D\0A    cosTheta1 = clamp(cosTheta1, 0.0, 1.0);\0D\0A    \0D\0A    float cosTheta2 = dot(normalDB, -dAtoDiskDirection);\0D\0A    cosTheta2 = clamp(cosTheta2, 0.0, 1.0);\0D\0A\0D\0A    return (cosTheta1 * cosTheta2) / (PI * distanceSq + nSamples);\0D\0A}\0D\0A\0D\0Afloat differentialAreaFormFactor(float3 normalDA, float3 normalDB)\0D\0A{\0D\0A    float cosTheta1 = dot(normalDA, -normalDB);\0D\0A    cosTheta1 = clamp(cosTheta1, 0.0, 1.0);\0D\0A\0D\0A    float cosTheta2 = dot(normalDB, normalDB);\0D\0A    cosTheta2 = clamp(cosTheta2, 0.0, 1.0);\0D\0A\0D\0A    // Avoid using distanceSq for directional lights as it is theoretically infinite\0D\0A    return (cosTheta1 * cosTheta2) / (PI * 1.0f);\0D\0A}\0D\0A\0D\0Afloat distanceSq(float3 a, float3 b)\0D\0A{\0D\0A    return dot(a - b, a - b);\0D\0A}\0D\0A\0D\0A\0D\0A#endif // VOXEL_UTILS"}
+!209 = !{!"..\5C..\5CClusteredVoxelGI\5CShaders\5CVoxelUtils.hlsli", !"#ifndef VOXEL_UTILS\0D\0A#define VOXEL_UTILS\0D\0A\0D\0A#include \22..\5C..\5CDirectXLib\5CDX12Lib\5CDXWrapper\5CShaders\5CCommon.hlsli\22\0D\0A#define HLSL\0D\0A#include \22TechniquesCompat.h\22\0D\0A\0D\0A#define IRRADIANCE_FIELD_MULTIPLIER 100000.0f\0D\0A#define MAX_DISTANCE_VOXEL_OFFSET 2.5f\0D\0A#define MINIMUM_ANGLE_VOXEL_OFFSET 0.342f\0D\0A\0D\0A#define CLUSTER_TO_VOXEL_FORM_FACTOR_ADD 14860\0D\0A#define VOXEL_TO_VOXEL_FORM_FACTOR_ADD 3\0D\0A\0D\0Astatic const unsigned int UINT_MAX = 0xffffffff;\0D\0Astatic const float cos30 = 0.81915204428f;\0D\0Astatic const float cos25 = 0.9f;\0D\0A\0D\0Astruct VertexOutVoxel\0D\0A{\0D\0A    float4 PosH : SV_POSITION;\0D\0A    float3 PosW : POSITION0;\0D\0A    uint ProjAxis : AXIS;\0D\0A    float3 NormalW : NORMAL;\0D\0A    float2 Tex : TEXCOORD;\0D\0A};\0D\0A\0D\0Astruct VoxelCommons\0D\0A{\0D\0A    uint3 gridDimension;\0D\0A    float totalTime;\0D\0A    \0D\0A    float3 cellSize;\0D\0A    float deltaTime;\0D\0A    \0D\0A    float3 inverseGridDimension;\0D\0A    uint storeData;\0D\0A    \0D\0A    float3 inverseCellSize;\0D\0A    float pad1;\0D\0A};\0D\0A\0D\0A\0D\0Astruct VoxelCamera\0D\0A{\0D\0A    float4x4 xAxisView;\0D\0A    float4x4 yAxisView;\0D\0A    float4x4 zAxisView;\0D\0A    float4x4 orthoProj;\0D\0A    \0D\0A    float4x4 xAxisViewProj;\0D\0A    float4x4 yAxisViewProj;\0D\0A    float4x4 zAxisViewProj;\0D\0A    \0D\0A    float nearPlane;\0D\0A    float farPlane;\0D\0A    float pad0;\0D\0A    float pad1;\0D\0A};\0D\0A\0D\0Astruct FragmentData\0D\0A{\0D\0A    float3 position;\0D\0A    float pad0;\0D\0A\0D\0A    float4 color;\0D\0A\09\0D\0A    float3 normal;\0D\0A    uint voxelLinearCoord;\0D\0A};\0D\0A\0D\0A\0D\0A\0D\0Auint3 GetVoxelPosition(uint voxelLinearCoord, uint3 gridDimension)\0D\0A{\0D\0A    uint3 voxelPosition;\0D\0A    voxelPosition.x = voxelLinearCoord % gridDimension.x;\0D\0A    voxelPosition.y = (voxelLinearCoord / gridDimension.x) % gridDimension.y;\0D\0A    voxelPosition.z = voxelLinearCoord / (gridDimension.x * gridDimension.y); \0D\0A    return voxelPosition;\0D\0A}\0D\0A\0D\0Auint GetLinearCoord(uint3 coord3, uint3 gridDimension)\0D\0A{\0D\0A    return  coord3.x +\0D\0A            coord3.y * gridDimension.x +\0D\0A            coord3.z * gridDimension.x * gridDimension.y;\0D\0A}\0D\0A\0D\0A// Returns true if the voxel coordinates are withing the bounds after adding the offset vector\0D\0Abool IsWithinBounds(uint3 coord, int3 offset, uint3 gridDimension)\0D\0A{\0D\0A    // Check for underflow\0D\0A    if (any(coord < uint3(-min(int3(0, 0, 0), offset))))\0D\0A        return false;\0D\0A    \0D\0A    uint3 result = coord + max(int3(0, 0, 0), offset);\0D\0A\0D\0A    return all(result < gridDimension);\0D\0A}\0D\0A\0D\0Abool IsVoxelPresent(uint voxelLinearCoord, ByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    // ByteAddressBuffer operations wants multiple of 4 bytes\0D\0A    uint value = voxelPresenceBuffer.Load(index * 4);\0D\0A    \0D\0A    return (value & (1u << bit)) != 0;\0D\0A}\0D\0A\0D\0Abool IsVoxelPresent(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    // ByteAddressBuffer operations wants multiple of 4 bytes\0D\0A    uint value = voxelPresenceBuffer.Load(index * 4);\0D\0A    \0D\0A    return (value & (1u << bit)) != 0;\0D\0A}\0D\0A\0D\0Abool IsVoxelPresent(uint3 voxelCoord, uint3 gridDimension, ByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);\0D\0A    return IsVoxelPresent(voxelLinearCoord, voxelPresenceBuffer);\0D\0A}\0D\0A\0D\0Abool SetVoxelPresence(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    index = index * 4;\0D\0A    \0D\0A    uint outVal = 0;\0D\0A    \0D\0A    voxelPresenceBuffer.InterlockedOr(index, (1u << bit), outVal);\0D\0A    \0D\0A    return (outVal & (1u << bit)) != 0;\0D\0A}\0D\0A\0D\0Abool SetVoxelPresence(uint3 voxelCoord, uint3 gridDimension, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint voxelLinearCoord = GetLinearCoord(voxelCoord, gridDimension);\0D\0A    return SetVoxelPresence(voxelLinearCoord, voxelPresenceBuffer);\0D\0A}\0D\0A\0D\0A\0D\0Abool ClearVoxelPresence(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBuffer)\0D\0A{\0D\0A    uint index = voxelLinearCoord >> 5u;\0D\0A    uint bit = voxelLinearCoord & 31u;\0D\0A    \0D\0A    index = index * 4;\0D\0A    \0D\0A    uint outVal = 0;\0D\0A    \0D\0A    voxelPresenceBuffer.InterlockedAnd(index, ~(1u << bit), outVal);\0D\0A    \0D\0A    return (outVal & (1u << bit)) == 0;\0D\0A}\0D\0A\0D\0Afloat differentialAreaFormFactor(float3 normalDA, float3 positionDA, float3 normalDB, float3 positionDB, float nSamples)\0D\0A{\0D\0A    float3 dAtoDiskDirection = positionDB - positionDA;\0D\0A    float distanceSq = dot(dAtoDiskDirection, dAtoDiskDirection);\0D\0A    dAtoDiskDirection = normalize(dAtoDiskDirection);\0D\0A    \0D\0A    float cosTheta1 = dot(normalDA, dAtoDiskDirection);\0D\0A    cosTheta1 = clamp(cosTheta1, 0.0, 1.0);\0D\0A    \0D\0A    float cosTheta2 = dot(normalDB, -dAtoDiskDirection);\0D\0A    cosTheta2 = clamp(cosTheta2, 0.0, 1.0);\0D\0A\0D\0A    return (cosTheta1 * cosTheta2) / (PI * distanceSq + nSamples);\0D\0A}\0D\0A\0D\0Afloat differentialAreaFormFactor(float3 normalDA, float3 normalDB)\0D\0A{\0D\0A    float cosTheta1 = dot(normalDA, -normalDB);\0D\0A    cosTheta1 = clamp(cosTheta1, 0.0, 1.0);\0D\0A\0D\0A    float cosTheta2 = dot(normalDB, normalDB);\0D\0A    cosTheta2 = clamp(cosTheta2, 0.0, 1.0);\0D\0A\0D\0A    // Avoid using distanceSq for directional lights as it is theoretically infinite\0D\0A    return (cosTheta1 * cosTheta2) / (PI * 1.0f);\0D\0A}\0D\0A\0D\0Afloat distanceSq(float3 a, float3 b)\0D\0A{\0D\0A    return dot(a - b, a - b);\0D\0A}\0D\0A\0D\0A\0D\0A#endif // VOXEL_UTILS"}
 !210 = !{!"..\5C..\5CClusteredVoxelGI\5CShaders\5CLitVoxels_CS.hlsl"}
 !211 = !{!"-E", !"CS", !"-T", !"cs_6_5", !"/Fo", !"C:\5CUsers\5Ciacco\5CDesktop\5CDistributedRendering\5CClusteredVoxelGI\5CData\5CShadersLitVoxels_CS.cso", !"/Od", !"/Zi", !"-Qembed_debug"}
 !212 = !{i32 1, i32 5}
@@ -1664,26 +1664,26 @@ attributes #2 = { nounwind }
 !606 = !DIExpression(DW_OP_bit_piece, 288, 32)
 !607 = !DIExpression(DW_OP_bit_piece, 320, 32)
 !608 = !DILocation(line: 164, column: 91, scope: !599)
-!609 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "normalDB", arg: 2, scope: !60, file: !45, line: 166, type: !16)
-!610 = !DILocation(line: 166, column: 58, scope: !60, inlinedAt: !611)
+!609 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "normalDB", arg: 2, scope: !60, file: !45, line: 180, type: !16)
+!610 = !DILocation(line: 180, column: 58, scope: !60, inlinedAt: !611)
 !611 = distinct !DILocation(line: 164, column: 36, scope: !599)
 !612 = !DILocation(line: 164, column: 36, scope: !599)
-!613 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "normalDA", arg: 1, scope: !60, file: !45, line: 166, type: !16)
-!614 = !DILocation(line: 166, column: 41, scope: !60, inlinedAt: !611)
-!615 = !DILocation(line: 168, column: 37, scope: !60, inlinedAt: !611)
-!616 = !DILocation(line: 168, column: 23, scope: !60, inlinedAt: !611)
-!617 = !DILocation(line: 168, column: 11, scope: !60, inlinedAt: !611)
-!618 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "cosTheta1", scope: !60, file: !45, line: 168, type: !8)
-!619 = !DILocation(line: 169, column: 17, scope: !60, inlinedAt: !611)
-!620 = !DILocation(line: 169, column: 15, scope: !60, inlinedAt: !611)
-!621 = !DILocation(line: 171, column: 23, scope: !60, inlinedAt: !611)
-!622 = !DILocation(line: 171, column: 11, scope: !60, inlinedAt: !611)
-!623 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "cosTheta2", scope: !60, file: !45, line: 171, type: !8)
-!624 = !DILocation(line: 172, column: 17, scope: !60, inlinedAt: !611)
-!625 = !DILocation(line: 172, column: 15, scope: !60, inlinedAt: !611)
-!626 = !DILocation(line: 175, column: 23, scope: !60, inlinedAt: !611)
-!627 = !DILocation(line: 175, column: 36, scope: !60, inlinedAt: !611)
-!628 = !DILocation(line: 175, column: 5, scope: !60, inlinedAt: !611)
+!613 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "normalDA", arg: 1, scope: !60, file: !45, line: 180, type: !16)
+!614 = !DILocation(line: 180, column: 41, scope: !60, inlinedAt: !611)
+!615 = !DILocation(line: 182, column: 37, scope: !60, inlinedAt: !611)
+!616 = !DILocation(line: 182, column: 23, scope: !60, inlinedAt: !611)
+!617 = !DILocation(line: 182, column: 11, scope: !60, inlinedAt: !611)
+!618 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "cosTheta1", scope: !60, file: !45, line: 182, type: !8)
+!619 = !DILocation(line: 183, column: 17, scope: !60, inlinedAt: !611)
+!620 = !DILocation(line: 183, column: 15, scope: !60, inlinedAt: !611)
+!621 = !DILocation(line: 185, column: 23, scope: !60, inlinedAt: !611)
+!622 = !DILocation(line: 185, column: 11, scope: !60, inlinedAt: !611)
+!623 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "cosTheta2", scope: !60, file: !45, line: 185, type: !8)
+!624 = !DILocation(line: 186, column: 17, scope: !60, inlinedAt: !611)
+!625 = !DILocation(line: 186, column: 15, scope: !60, inlinedAt: !611)
+!626 = !DILocation(line: 189, column: 23, scope: !60, inlinedAt: !611)
+!627 = !DILocation(line: 189, column: 36, scope: !60, inlinedAt: !611)
+!628 = !DILocation(line: 189, column: 5, scope: !60, inlinedAt: !611)
 !629 = !DILocation(line: 164, column: 23, scope: !599)
 !630 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "formFactor", scope: !599, file: !1, line: 164, type: !8)
 !631 = !DILocation(line: 166, column: 51, scope: !599)
@@ -1706,12 +1706,12 @@ attributes #2 = { nounwind }
 #endif
 
 const unsigned char g_pLitVoxels_CS[] = {
-  0x44, 0x58, 0x42, 0x43, 0x4e, 0xe9, 0x05, 0x15, 0xb0, 0xec, 0x00, 0x36,
-  0xf6, 0x39, 0x14, 0x33, 0x86, 0x92, 0xd5, 0xa5, 0x01, 0x00, 0x00, 0x00,
-  0x9c, 0xe9, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x00,
+  0x44, 0x58, 0x42, 0x43, 0x31, 0xe6, 0x20, 0x3b, 0x07, 0x5b, 0x9d, 0xc0,
+  0xb5, 0x27, 0x20, 0xbe, 0x10, 0x1a, 0x79, 0x9d, 0x01, 0x00, 0x00, 0x00,
+  0x04, 0xeb, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x00,
   0x54, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x74, 0x00, 0x00, 0x00,
-  0xcc, 0x01, 0x00, 0x00, 0x80, 0xc2, 0x00, 0x00, 0xdc, 0xd1, 0x00, 0x00,
-  0x10, 0xd2, 0x00, 0x00, 0x2c, 0xd2, 0x00, 0x00, 0x53, 0x46, 0x49, 0x30,
+  0xcc, 0x01, 0x00, 0x00, 0xe8, 0xc3, 0x00, 0x00, 0x44, 0xd3, 0x00, 0x00,
+  0x78, 0xd3, 0x00, 0x00, 0x94, 0xd3, 0x00, 0x00, 0x53, 0x46, 0x49, 0x30,
   0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x49, 0x53, 0x47, 0x31, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x08, 0x00, 0x00, 0x00, 0x4f, 0x53, 0x47, 0x31, 0x08, 0x00, 0x00, 0x00,
@@ -1744,10 +1744,10 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x49, 0x4c, 0x44, 0x42, 0xac, 0xc0, 0x00, 0x00,
-  0x65, 0x00, 0x05, 0x00, 0x2b, 0x30, 0x00, 0x00, 0x44, 0x58, 0x49, 0x4c,
-  0x05, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x94, 0xc0, 0x00, 0x00,
-  0x42, 0x43, 0xc0, 0xde, 0x21, 0x0c, 0x00, 0x00, 0x22, 0x30, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x49, 0x4c, 0x44, 0x42, 0x14, 0xc2, 0x00, 0x00,
+  0x65, 0x00, 0x05, 0x00, 0x85, 0x30, 0x00, 0x00, 0x44, 0x58, 0x49, 0x4c,
+  0x05, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0xfc, 0xc1, 0x00, 0x00,
+  0x42, 0x43, 0xc0, 0xde, 0x21, 0x0c, 0x00, 0x00, 0x7c, 0x30, 0x00, 0x00,
   0x0b, 0x82, 0x20, 0x00, 0x02, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00,
   0x07, 0x81, 0x23, 0x91, 0x41, 0xc8, 0x04, 0x49, 0x06, 0x10, 0x32, 0x39,
   0x92, 0x01, 0x84, 0x0c, 0x25, 0x05, 0x08, 0x19, 0x1e, 0x04, 0x8b, 0x62,
@@ -1871,7 +1871,7 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x9a, 0x01, 0x20, 0xdd, 0x0c, 0x00, 0xed, 0x66, 0x00, 0xa8, 0x37, 0x03,
   0x40, 0xbe, 0x19, 0x00, 0xfa, 0xcd, 0x00, 0x10, 0x70, 0x06, 0x80, 0x82,
   0x33, 0x00, 0x24, 0x9c, 0x01, 0x20, 0xe2, 0x0c, 0x00, 0x05, 0x46, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x79, 0x18, 0x00, 0x00, 0x3c, 0x21, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x79, 0x18, 0x00, 0x00, 0x96, 0x21, 0x00, 0x00,
   0x1a, 0x03, 0x4c, 0x90, 0xcc, 0x03, 0x09, 0x64, 0x08, 0x91, 0x21, 0xa3,
   0x91, 0xc0, 0x04, 0x11, 0x0e, 0x5c, 0x5c, 0xb8, 0x5c, 0x5c, 0xb8, 0x86,
   0xd8, 0xea, 0xe6, 0xe8, 0xca, 0xe4, 0xca, 0xc8, 0xac, 0xde, 0xf0, 0xca,
@@ -1986,7 +1986,7 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x4d, 0x56, 0x3f, 0x24, 0x76, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x40, 0x4d,
   0x24, 0x30, 0x32, 0x40, 0x40, 0x30, 0x40, 0x5a, 0x1b, 0x86, 0xc4, 0x0c,
   0xcc, 0x60, 0xd3, 0x00, 0x00, 0xe1, 0xb0, 0x6a, 0x02, 0x48, 0xe1, 0x17,
-  0xc0, 0x81, 0x14, 0xcc, 0x42, 0x1c, 0x80, 0xe0, 0x2c, 0x00, 0x00, 0x00,
+  0xc0, 0x81, 0x14, 0xe8, 0x42, 0x1c, 0x80, 0xa0, 0x2e, 0x00, 0x00, 0x00,
   0x11, 0x00, 0x00, 0x00, 0x60, 0x83, 0x21, 0x0a, 0xab, 0x00, 0x0b, 0xb5,
   0xe0, 0x0b, 0xe3, 0x40, 0xa4, 0x2a, 0xc9, 0x89, 0xea, 0xab, 0x29, 0x08,
   0x6b, 0x11, 0x03, 0x98, 0x01, 0x00, 0x00, 0x80, 0x1a, 0x00, 0x00, 0x00,
@@ -4064,7 +4064,7 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x5c, 0x2e, 0x2e, 0x5c, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x65,
   0x64, 0x56, 0x6f, 0x78, 0x65, 0x6c, 0x47, 0x49, 0x5c, 0x53, 0x68, 0x61,
   0x64, 0x65, 0x72, 0x73, 0x5c, 0x56, 0x6f, 0x78, 0x65, 0x6c, 0x55, 0x74,
-  0x69, 0x6c, 0x73, 0x2e, 0x68, 0x6c, 0x73, 0x6c, 0x69, 0xbc, 0x75, 0x62,
+  0x69, 0x6c, 0x73, 0x2e, 0x68, 0x6c, 0x73, 0x6c, 0x69, 0xfc, 0xcb, 0x62,
   0x24, 0xcd, 0xcc, 0x8d, 0xac, 0xcc, 0x0c, 0xc4, 0xea, 0x09, 0xab, 0x88,
   0xe9, 0xab, 0x8a, 0x2a, 0x89, 0x69, 0xaa, 0x41, 0x61, 0x84, 0xac, 0xcc,
   0x2c, 0xcd, 0xad, 0x0c, 0xc4, 0xea, 0x09, 0xab, 0x88, 0xe9, 0xab, 0x8a,
@@ -4385,7 +4385,37 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x0d, 0xaf, 0x8c, 0x8d, 0x29, 0xcd, 0xad, 0x2c, 0x4c, 0x6e, 0xe8, 0xed,
   0x4d, 0x8e, 0x8c, 0x05, 0xc4, 0xee, 0x0d, 0xaf, 0x8c, 0x0d, 0x4a, 0xae,
   0x6c, 0xae, 0xcc, 0x6d, 0xac, 0x4c, 0xa8, 0xce, 0xcc, 0xac, 0x4c, 0x2e,
-  0x65, 0xa7, 0x41, 0xa1, 0xaf, 0x41, 0xa1, 0x41, 0xa1, 0x41, 0xc1, 0x8c,
+  0x65, 0xa7, 0x41, 0xa1, 0xaf, 0x41, 0xa1, 0x41, 0xa1, 0x41, 0x41, 0xec,
+  0xed, 0x8d, 0x0d, 0x64, 0x88, 0xad, 0x2c, 0x4c, 0xce, 0xea, 0x0d, 0xaf,
+  0x8c, 0x0d, 0x4a, 0xae, 0x6c, 0xae, 0xcc, 0x6d, 0xac, 0x0c, 0xa5, 0x2e,
+  0xcd, 0x8d, 0x0e, 0xc4, 0xee, 0x0d, 0xaf, 0x8c, 0x8d, 0x29, 0xcd, 0xad,
+  0x2c, 0x4c, 0x6e, 0xe8, 0xed, 0x4d, 0x8e, 0x8c, 0x05, 0x44, 0xea, 0x4a,
+  0x28, 0x8f, 0xae, 0x2c, 0x88, 0x8c, 0x4c, 0xae, 0x6c, 0x6e, 0x4e, 0xa8,
+  0xce, 0xcc, 0xac, 0x4c, 0x0e, 0xc4, 0xee, 0x0d, 0xaf, 0x8c, 0x0d, 0x4a,
+  0xae, 0x6c, 0xae, 0xcc, 0x6d, 0xac, 0x4c, 0xa8, 0xce, 0xcc, 0xac, 0x4c,
+  0x2e, 0xa5, 0x41, 0x61, 0xaf, 0x41, 0x01, 0x04, 0x04, 0x04, 0xa4, 0x2e,
+  0xcd, 0x8d, 0x0e, 0x24, 0xcd, 0x8d, 0xac, 0x0c, 0x0f, 0xa4, 0x07, 0xc4,
+  0xee, 0x0d, 0xaf, 0x8c, 0x8d, 0x29, 0xcd, 0xad, 0x2c, 0x4c, 0x6e, 0xe8,
+  0xed, 0x4d, 0x8e, 0x0c, 0xc4, 0xc7, 0x07, 0xa4, 0xa6, 0x6e, 0xa7, 0x41,
+  0x01, 0x04, 0x04, 0x04, 0xa4, 0x2e, 0xcd, 0x8d, 0x0e, 0x44, 0x2c, 0x8d,
+  0x0e, 0xa4, 0x07, 0xc4, 0xee, 0x0d, 0xaf, 0x8c, 0x8d, 0x29, 0xcd, 0xad,
+  0x2c, 0x4c, 0x6e, 0xe8, 0xed, 0x4d, 0x8e, 0x0c, 0xc4, 0x04, 0x64, 0x26,
+  0xa6, 0x6e, 0xa7, 0x41, 0x01, 0x04, 0x04, 0x04, 0xa4, 0x41, 0x01, 0x04,
+  0x04, 0x04, 0x24, 0xcd, 0x8d, 0xac, 0x0c, 0x0f, 0xa4, 0x07, 0x24, 0xcd,
+  0x8d, 0xac, 0x0c, 0x0f, 0x44, 0x05, 0x84, 0x66, 0xa7, 0x41, 0x01, 0x04,
+  0x04, 0x04, 0xa4, 0x41, 0x01, 0x04, 0x04, 0x04, 0xa4, 0x2e, 0xcd, 0x8d,
+  0x0e, 0xe4, 0xad, 0x8e, 0xce, 0x2a, 0x8c, 0x0d, 0xa4, 0x07, 0x04, 0x66,
+  0xa7, 0x41, 0x01, 0x04, 0x04, 0x04, 0xa4, 0x41, 0x01, 0x04, 0x04, 0x04,
+  0xc4, 0xee, 0x0d, 0xaf, 0x8c, 0x0d, 0x4a, 0xae, 0x6c, 0xae, 0xcc, 0x6d,
+  0xac, 0x4c, 0xa8, 0xce, 0xcc, 0xac, 0x4c, 0xce, 0x25, 0xc9, 0x8d, 0xae,
+  0x4c, 0x8e, 0xed, 0x6d, 0x6c, 0xad, 0x8c, 0x2c, 0xc8, 0x8d, 0x0c, 0x25,
+  0xcd, 0x8d, 0xac, 0x0c, 0x8f, 0x05, 0xc4, 0x0f, 0x25, 0xa6, 0x0e, 0x84,
+  0x87, 0x07, 0x44, 0x2c, 0x8d, 0x2e, 0x85, 0x05, 0xe4, 0xad, 0x8e, 0xce,
+  0x2a, 0x8c, 0x2d, 0x65, 0xa7, 0x41, 0x01, 0x04, 0x04, 0x04, 0xa4, 0x41,
+  0x01, 0x04, 0x04, 0x04, 0x44, 0xae, 0x8c, 0xae, 0x4e, 0xce, 0x0d, 0x04,
+  0xe5, 0xad, 0x8e, 0xce, 0x2a, 0x8c, 0x0d, 0xc4, 0x04, 0x04, 0x25, 0xa6,
+  0x0e, 0x84, 0x87, 0x07, 0x44, 0x2c, 0x8d, 0x2e, 0x25, 0x05, 0xa4, 0xa7,
+  0x07, 0x04, 0x66, 0xa7, 0x41, 0xa1, 0xaf, 0x41, 0xa1, 0x41, 0xc1, 0x8c,
   0xed, 0x2d, 0x8c, 0x0e, 0x84, 0x2c, 0xcd, 0xcc, 0xac, 0x4c, 0xae, 0xcc,
   0x8d, 0x2e, 0x2d, 0x8c, 0x2d, 0x48, 0xae, 0x2c, 0xcc, 0xe8, 0x4d, 0xae,
   0xcd, 0x28, 0x6c, 0x8c, 0xee, 0x4d, 0x0e, 0xc5, 0x8c, 0xed, 0x2d, 0x8c,
@@ -4673,14 +4703,14 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x06, 0xeb, 0x08, 0xa0, 0x27, 0x40, 0x03, 0x0c, 0xd6, 0x11, 0x40, 0x4f,
   0x80, 0x08, 0x18, 0xac, 0x23, 0x80, 0x9e, 0x00, 0x13, 0x30, 0x58, 0x47,
   0x00, 0x3d, 0x01, 0x2a, 0x60, 0x40, 0xc4, 0xed, 0x4d, 0xae, 0x2d, 0x8c,
-  0x8d, 0x48, 0x68, 0x5c, 0x02, 0x84, 0xc8, 0x38, 0xb4, 0x14, 0x29, 0x98,
+  0x8d, 0x48, 0x68, 0x5c, 0x02, 0x84, 0xc8, 0x38, 0xb4, 0x14, 0x29, 0xd0,
   0x85, 0x19, 0x08, 0x40, 0x93, 0x05, 0xc9, 0x48, 0x01, 0x44, 0xdc, 0xde,
   0xe4, 0xda, 0xc2, 0xd8, 0x88, 0x82, 0xc6, 0x25, 0x40, 0x88, 0x8c, 0x03,
-  0x4c, 0x91, 0x82, 0x59, 0x98, 0x41, 0x00, 0x30, 0x19, 0x7b, 0x9b, 0xa3,
+  0x4c, 0x91, 0x02, 0x5d, 0x98, 0x41, 0x00, 0x30, 0x19, 0x7b, 0x9b, 0xa3,
   0x42, 0x2b, 0xa3, 0x0b, 0x8b, 0x19, 0x97, 0x00, 0x20, 0x32, 0x0e, 0x32,
-  0x45, 0x0a, 0x68, 0x91, 0x00, 0x00, 0x93, 0xb1, 0xb7, 0x39, 0x2a, 0xb4,
+  0x45, 0x0a, 0x76, 0x91, 0x00, 0x00, 0x93, 0xb1, 0xb7, 0x39, 0x2a, 0xb4,
   0x32, 0xba, 0x30, 0x99, 0x71, 0x09, 0x00, 0x22, 0xe3, 0x40, 0x53, 0xa4,
-  0xb0, 0x16, 0x09, 0x00, 0x50, 0x31, 0x7b, 0x93, 0x6b, 0x33, 0x0a, 0x1b,
+  0x90, 0x17, 0x09, 0x00, 0x50, 0x31, 0x7b, 0x93, 0x6b, 0x33, 0x0a, 0x1b,
   0xa3, 0x7b, 0x93, 0x1b, 0x97, 0x00, 0x20, 0x42, 0x52, 0x36, 0x25, 0x90,
   0x45, 0x02, 0x00, 0x6c, 0xec, 0xde, 0xf0, 0xca, 0xd8, 0xa4, 0xc2, 0xc8,
   0xd2, 0xc2, 0xdc, 0xc6, 0xca, 0xc6, 0x25, 0x00, 0x88, 0x90, 0x14, 0x4e,
@@ -5613,56 +5643,56 @@ const unsigned char g_pLitVoxels_CS[] = {
   0x80, 0x20, 0x8b, 0x5d, 0x20, 0x29, 0x60, 0x34, 0x21, 0x00, 0x26, 0x0c,
   0x80, 0x11, 0x03, 0x04, 0x00, 0x41, 0x30, 0x50, 0xda, 0x68, 0xd4, 0xff,
   0xff, 0xff, 0x07, 0xde, 0x19, 0xfb, 0xff, 0xff, 0xff, 0x81, 0x9a, 0x31,
-  0x20, 0xcc, 0x42, 0x0f, 0xc6, 0xe1, 0xa5, 0x46, 0x13, 0x84, 0x60, 0xc6,
+  0x20, 0xe8, 0x42, 0x0f, 0xc6, 0xe1, 0xa5, 0x46, 0x13, 0x84, 0x60, 0xc6,
   0x80, 0x20, 0x8b, 0x5d, 0x20, 0x29, 0x60, 0xc4, 0x00, 0x01, 0x40, 0x10,
   0x0c, 0x14, 0x37, 0x1a, 0xf5, 0xff, 0xff, 0xff, 0xa1, 0x77, 0xc8, 0xfe,
-  0xff, 0xff, 0x7f, 0x30, 0x66, 0x0c, 0x08, 0xb3, 0xd0, 0x83, 0x71, 0x78,
+  0xff, 0xff, 0x7f, 0x30, 0x66, 0x0c, 0x08, 0xba, 0xd0, 0x83, 0x71, 0x78,
   0xa9, 0xd1, 0x84, 0x41, 0x98, 0x31, 0x20, 0xc8, 0x62, 0x17, 0x48, 0x0a,
   0x18, 0x31, 0x40, 0x00, 0x10, 0x04, 0x03, 0xe5, 0x8d, 0x46, 0xfd, 0xff,
   0xff, 0x7f, 0xf0, 0x9d, 0xb2, 0xff, 0xff, 0xff, 0x1f, 0x84, 0x19, 0x03,
-  0xc2, 0x2c, 0xf4, 0x60, 0x1c, 0x5e, 0x8a, 0x5c, 0x07, 0x00, 0x66, 0x0c,
+  0x82, 0x2e, 0xf4, 0x60, 0x1c, 0x5e, 0x8a, 0x5c, 0x07, 0x00, 0x66, 0x0c,
   0x08, 0xb2, 0x20, 0x03, 0x92, 0x02, 0x46, 0x0c, 0x10, 0x00, 0x04, 0xc1,
   0x40, 0x81, 0x23, 0x53, 0xff, 0xff, 0xff, 0x1f, 0x7e, 0xc7, 0xec, 0xff,
-  0xff, 0xff, 0x87, 0x6b, 0xc6, 0x80, 0x30, 0x0b, 0x3d, 0x18, 0x87, 0x97,
+  0xff, 0xff, 0x87, 0x6b, 0xc6, 0x80, 0xa0, 0x0b, 0x3d, 0x18, 0x87, 0x97,
   0x1a, 0x31, 0x40, 0x00, 0x10, 0x04, 0x03, 0x05, 0x8e, 0x4a, 0xfd, 0xff,
   0xff, 0x7f, 0xf8, 0x1d, 0xb3, 0xff, 0xff, 0xff, 0x1f, 0x90, 0x09, 0x03,
   0x60, 0xc4, 0x00, 0x01, 0x40, 0x10, 0x0c, 0x14, 0x38, 0x22, 0xf5, 0xff,
   0xff, 0xff, 0xe1, 0x77, 0xcc, 0xfe, 0xff, 0xff, 0x7f, 0x18, 0x26, 0x0c,
   0x80, 0x11, 0x03, 0x04, 0x00, 0x41, 0x30, 0x50, 0xe0, 0x88, 0xd5, 0xff,
   0xff, 0xff, 0x87, 0xdf, 0x19, 0xfb, 0xff, 0xff, 0xff, 0xe1, 0x9a, 0x31,
-  0x20, 0xcc, 0x22, 0x0d, 0xc6, 0xe1, 0xa5, 0x46, 0x0c, 0x10, 0x00, 0x04,
+  0x20, 0xe8, 0x22, 0x0d, 0xc6, 0xe1, 0xa5, 0x46, 0x0c, 0x10, 0x00, 0x04,
   0xc1, 0x40, 0x81, 0xa3, 0x55, 0xff, 0xff, 0xff, 0x1f, 0x7e, 0x67, 0xec,
   0xff, 0xff, 0xff, 0x07, 0x64, 0xc2, 0x00, 0x18, 0x31, 0x40, 0x00, 0x10,
   0x04, 0x03, 0x05, 0x8e, 0x54, 0xfd, 0xff, 0xff, 0x7f, 0xf8, 0x9d, 0xb1,
   0xff, 0xff, 0xff, 0x1f, 0x86, 0x09, 0x03, 0xc0, 0x66, 0x87, 0x88, 0xcf,
-  0x8c, 0x01, 0x81, 0x16, 0x65, 0x30, 0x0e, 0x2f, 0x65, 0xb4, 0x43, 0xc4,
+  0x8c, 0x01, 0x61, 0x17, 0x65, 0x30, 0x0e, 0x2f, 0x65, 0xb4, 0x43, 0xc4,
   0x67, 0xc2, 0x00, 0xb0, 0xda, 0x21, 0xe2, 0x33, 0x61, 0x00, 0x8c, 0x18,
   0x2c, 0x00, 0x08, 0x82, 0x01, 0xd7, 0x46, 0xe6, 0xf3, 0x38, 0xcd, 0x20,
-  0x04, 0x33, 0x06, 0x04, 0x5a, 0x5c, 0xe3, 0xf0, 0x52, 0x34, 0x3b, 0x00,
-  0x30, 0x63, 0x40, 0xa0, 0xc5, 0x32, 0x0e, 0x2f, 0x35, 0x62, 0x80, 0x00,
+  0x04, 0x33, 0x06, 0x84, 0x5d, 0x5c, 0xe3, 0xf0, 0x52, 0x34, 0x3b, 0x00,
+  0x30, 0x63, 0x40, 0xd8, 0xc5, 0x32, 0x0e, 0x2f, 0x35, 0x62, 0x80, 0x00,
   0x20, 0x08, 0x06, 0x4a, 0x1d, 0xa1, 0xfa, 0xff, 0xff, 0xff, 0x40, 0x3e,
   0x66, 0xff, 0xff, 0xff, 0x3f, 0x60, 0x13, 0x06, 0xc0, 0x88, 0xc1, 0x01,
   0x80, 0x20, 0x18, 0x80, 0x41, 0x1b, 0x9d, 0x8f, 0xe0, 0x3b, 0x33, 0x06,
-  0x44, 0x5a, 0x44, 0xe3, 0xf0, 0x52, 0x23, 0x06, 0x07, 0x00, 0x82, 0x60,
+  0xc4, 0x5d, 0x44, 0xe3, 0xf0, 0x52, 0x23, 0x06, 0x07, 0x00, 0x82, 0x60,
   0x00, 0x06, 0x6e, 0x74, 0x3e, 0x41, 0xef, 0x4c, 0x18, 0x00, 0x64, 0x3b,
-  0x00, 0x30, 0x63, 0x40, 0xa4, 0xc5, 0x33, 0x0e, 0x2f, 0x35, 0x62, 0x80,
+  0x00, 0x30, 0x63, 0x40, 0xdc, 0xc5, 0x33, 0x0e, 0x2f, 0x35, 0x62, 0x80,
   0x00, 0x20, 0x08, 0x06, 0x0a, 0x1e, 0xa9, 0xfa, 0xff, 0xff, 0xff, 0x70,
-  0x3e, 0x69, 0xff, 0xff, 0xff, 0x3f, 0x6c, 0x33, 0x06, 0x04, 0x5a, 0x2c,
+  0x3e, 0x69, 0xff, 0xff, 0xff, 0x3f, 0x6c, 0x33, 0x06, 0x84, 0x5d, 0x2c,
   0xe3, 0xf0, 0x52, 0x23, 0x06, 0x0b, 0x00, 0x82, 0x60, 0xc0, 0xc9, 0xd1,
-  0xfa, 0x30, 0x8b, 0xc2, 0x2c, 0xca, 0x8c, 0x01, 0xb1, 0x16, 0xd7, 0x38,
-  0xbc, 0x14, 0xe1, 0x0e, 0x00, 0xcc, 0x18, 0x10, 0x6b, 0xb1, 0x8c, 0xc3,
+  0xfa, 0x30, 0x8b, 0xc2, 0x2c, 0xca, 0x8c, 0x01, 0x91, 0x17, 0xd7, 0x38,
+  0xbc, 0x14, 0xe1, 0x0e, 0x00, 0xcc, 0x18, 0x10, 0x79, 0xb1, 0x8c, 0xc3,
   0x4b, 0x8d, 0x18, 0x20, 0x00, 0x08, 0x82, 0x81, 0xa2, 0x47, 0xab, 0xfe,
   0xff, 0xff, 0x3f, 0xa4, 0x4f, 0xda, 0xff, 0xff, 0xff, 0x0f, 0xdd, 0x84,
   0x01, 0x30, 0x62, 0x70, 0x00, 0x20, 0x08, 0x06, 0x60, 0x20, 0x47, 0xec,
-  0x23, 0x8c, 0xcf, 0x8c, 0x01, 0xc1, 0x16, 0xd1, 0x38, 0xbc, 0xd4, 0x88,
+  0x23, 0x8c, 0xcf, 0x8c, 0x01, 0xa1, 0x17, 0xd1, 0x38, 0xbc, 0xd4, 0x88,
   0xc1, 0x01, 0x80, 0x20, 0x18, 0x80, 0xc1, 0x1c, 0xb1, 0x4f, 0x20, 0x3e,
-  0x13, 0x06, 0x00, 0xed, 0x0e, 0x00, 0xcc, 0x18, 0x10, 0x6c, 0xf1, 0x8c,
+  0x13, 0x06, 0x00, 0xed, 0x0e, 0x00, 0xcc, 0x18, 0x10, 0x7a, 0xf1, 0x8c,
   0xc3, 0x4b, 0x8d, 0x18, 0x20, 0x00, 0x08, 0x82, 0x81, 0xd2, 0x47, 0xad,
   0xfe, 0xff, 0xff, 0x3f, 0xb0, 0x0f, 0xdb, 0xff, 0xff, 0xff, 0x0f, 0x60,
-  0x30, 0x63, 0x40, 0xac, 0xc5, 0x32, 0x0e, 0x2f, 0x65, 0x87, 0x20, 0x9f,
-  0x19, 0x03, 0xe2, 0x2d, 0xae, 0x71, 0x78, 0x29, 0x0b, 0x7c, 0x87, 0x3e,
-  0x33, 0x06, 0xc4, 0x5b, 0x90, 0xc1, 0x38, 0xbc, 0x14, 0xf9, 0x0e, 0x00,
-  0xcc, 0x18, 0x10, 0x6f, 0x51, 0x8c, 0xc3, 0x4b, 0xd1, 0xef, 0x00, 0xc0,
+  0x30, 0x63, 0x40, 0xe4, 0xc5, 0x32, 0x0e, 0x2f, 0x65, 0x87, 0x20, 0x9f,
+  0x19, 0x03, 0xa2, 0x2f, 0xae, 0x71, 0x78, 0x29, 0x0b, 0x7c, 0x87, 0x3e,
+  0x33, 0x06, 0x44, 0x5f, 0x90, 0xc1, 0x38, 0xbc, 0x14, 0xf9, 0x0e, 0x00,
+  0xcc, 0x18, 0x10, 0x7d, 0x51, 0x8c, 0xc3, 0x4b, 0xd1, 0xef, 0x00, 0xc0,
   0x8c, 0x01, 0x41, 0x16, 0x17, 0x49, 0x01, 0x23, 0x06, 0x08, 0x00, 0x82,
   0x60, 0xa0, 0x84, 0x12, 0xac, 0xff, 0xff, 0xff, 0x0f, 0xf0, 0xe3, 0xf6,
   0xff, 0xff, 0xff, 0x03, 0x19, 0x4c, 0x18, 0x00, 0x36, 0x64, 0xf2, 0x99,

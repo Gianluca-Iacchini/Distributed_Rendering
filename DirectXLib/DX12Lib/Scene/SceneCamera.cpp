@@ -33,23 +33,6 @@ void DX12Lib::SceneCamera::Update(CommandContext& context)
 
 void DX12Lib::SceneCamera::Render(CommandContext& context)
 {
-
-}
-
-void DX12Lib::SceneCamera::OnResize(CommandContext& context, int newWidth, int newHeight)
-{
-	if (m_isOrthographic)
-	{
-		Camera::SetOrthogonalBounds(m_orthogonalBounds.x, m_orthogonalBounds.y, m_orthogonalBounds.z, m_orthogonalBounds.w);
-	}
-	else
-	{
-		Camera::SetLens(0.25f * DirectX::XM_PI, ((float)newWidth / newHeight), 1.0f, 1000.0f);
-	}
-}
-
-DirectX::GraphicsResource DX12Lib::SceneCamera::GetCameraBuffer()
-{
 	DirectX::XMMATRIX view = this->GetView();
 	DirectX::XMMATRIX projection = this->GetProjection();
 	DirectX::XMMATRIX viewProjection = view * projection;
@@ -67,9 +50,26 @@ DirectX::GraphicsResource DX12Lib::SceneCamera::GetCameraBuffer()
 	m_constantBufferCamera.farPlane = this->m_farZ;
 	m_constantBufferCamera.nearPlane = this->m_nearZ;
 
-					
 
-	return Renderer::s_graphicsMemory->AllocateConstant(m_constantBufferCamera);
+
+	m_cameraResource = Renderer::s_graphicsMemory->AllocateConstant(m_constantBufferCamera);
+}
+
+void DX12Lib::SceneCamera::OnResize(CommandContext& context, int newWidth, int newHeight)
+{
+	if (m_isOrthographic)
+	{
+		Camera::SetOrthogonalBounds(m_orthogonalBounds.x, m_orthogonalBounds.y, m_orthogonalBounds.z, m_orthogonalBounds.w);
+	}
+	else
+	{
+		Camera::SetLens(0.25f * DirectX::XM_PI, ((float)newWidth / newHeight), 1.0f, 1000.0f);
+	}
+}
+
+DirectX::GraphicsResource& DX12Lib::SceneCamera::GetCameraBuffer()
+{
+	return m_cameraResource;
 }
 
 void DX12Lib::SceneCamera::SetOrthogonal(DirectX::XMFLOAT4 bounds)

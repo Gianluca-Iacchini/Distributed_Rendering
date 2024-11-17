@@ -55,7 +55,7 @@ namespace Graphics::Renderer
 	D3D12_RECT s_scissorRect;
 
 	std::vector<DX12Lib::ModelRenderer*> m_renderers;
-	std::vector<DX12Lib::LightComponent*> m_shadowLights;
+	std::vector<DX12Lib::ShadowCamera*> m_shadowLights;
 	SceneCamera* m_mainCamera = nullptr;
 
 	std::unique_ptr<Swapchain> s_swapchain = nullptr;
@@ -67,13 +67,14 @@ namespace Graphics::Renderer
 	std::unordered_map<std::wstring, std::shared_ptr<PipelineState>> s_PSOs;
 	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
+	DescriptorHandle m_commonTextureSRVHandle;
+
 	int s_clientWidth = 1920;
 	int s_clientHeight = 1080;
 
 	bool sEnableRenderMainPass = true;
 	bool sEnableRenderShadows = true;
 
-	std::unique_ptr<DX12Lib::ShadowBuffer> s_shadowBuffer = nullptr;
 	std::unique_ptr<DX12Lib::ShadowBuffer> s_rtgiShadowBuffer = nullptr;
 	DX12Lib::ColorBuffer* s_voxel3DTexture = nullptr;
 
@@ -82,7 +83,6 @@ namespace Graphics::Renderer
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
 
 	// Ping ponging shadow textures for RTGI
-	DescriptorHandle m_shadowTextureHandle;
 	DescriptorHandle m_rtgiShadowTextureHandle;
 
 
@@ -132,18 +132,12 @@ namespace Graphics::Renderer
 		s_renderTargets[(UINT)RenderTargetType::MetallicRoughnessAO] = std::make_unique<ColorBuffer>(Color::Red());
 		s_renderTargets[(UINT)RenderTargetType::MetallicRoughnessAO]->Create2D(s_clientWidth, s_clientHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-		s_shadowBuffer = std::make_unique<ShadowBuffer>();
-		s_shadowBuffer->Create(2048, 2048);
-
 		s_rtgiShadowBuffer = std::make_unique<ShadowBuffer>();
 		s_rtgiShadowBuffer->Create(2048, 2048);
 
-		m_shadowTextureHandle = s_textureHeap->Alloc(1);
+		m_commonTextureSRVHandle = s_textureHeap->Alloc(2);
 		m_rtgiShadowTextureHandle = s_textureHeap->Alloc(1);
 
-
-
-		s_device->Get()->CopyDescriptorsSimple(1, m_shadowTextureHandle, s_shadowBuffer->GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		s_device->Get()->CopyDescriptorsSimple(1, m_rtgiShadowTextureHandle, s_rtgiShadowBuffer->GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
@@ -200,9 +194,14 @@ namespace Graphics::Renderer
 		m_renderers.push_back(renderer);
 	}
 
-	void AddLightToQueue(DX12Lib::LightComponent* light)
+	void AddShadowCamera(DX12Lib::ShadowCamera* shadowCamera)
 	{
-		m_shadowLights.push_back(light);
+		m_shadowLights.push_back(shadowCamera);
+	}
+
+	DX12Lib::DescriptorHandle& GetShadowMapSrv()
+	{
+		return m_commonTextureSRVHandle;
 	}
 
 	void AddMainCamera(DX12Lib::SceneCamera* camera)
@@ -210,17 +209,6 @@ namespace Graphics::Renderer
 		assert(camera != nullptr && "Main camera cannot be null");
 
 		m_mainCamera = camera;
-	}
-
-
-	DX12Lib::ShadowBuffer* const GetShadowBuffer()
-	{
-		return s_shadowBuffer.get();
-	}
-
-	DX12Lib::DescriptorHandle& GetShadowMapSrv()
-	{
-		return m_shadowTextureHandle;
 	}
 
 	std::vector<DX12Lib::ModelRenderer*> GetRenderers()
@@ -250,18 +238,23 @@ namespace Graphics::Renderer
 			return;
 		}
 
-		// Shadow pass opaque objects
-		s_shadowBuffer->RenderShadowStart(context);
+		for (UINT32 i = 0; i < m_shadowLights.size(); i++)
+		{
+			auto sl = m_shadowLights[i];
+			auto descriptorStartSize = m_commonTextureSRVHandle + s_textureHeap->GetDescriptorSize() * i;
+			s_device->Get()->CopyDescriptorsSimple(1, descriptorStartSize, sl->GetShadowBuffer().GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
 
+		// Shadow pass opaque objects
 		auto shadowPso = s_PSOs[PSO_SHADOW_OPAQUE];
-		for (auto& light : m_shadowLights)
+		for (auto sl : m_shadowLights)
 		{
 			context.SetPipelineState(shadowPso.get());
 
-			auto shadowCamera = light->GetShadowCamera();
+			sl->GetShadowBuffer().RenderShadowStart(context, true);
 
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
-				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
+				(UINT)RootSignatureSlot::CameraCBV, sl->GetShadowCB().GpuAddress());
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -276,18 +269,21 @@ namespace Graphics::Renderer
 					mesh->DrawMesh(context);
 				}
 			}
+
+			sl->GetShadowBuffer().RenderShadowEnd(context);
 		}
 
 		shadowPso = s_PSOs[PSO_SHADOW_ALPHA_TEST];
 
 		// Shadow pass transparent objects
-		for (auto& light : m_shadowLights)
+		for (auto& sl : m_shadowLights)
 		{
 			context.SetPipelineState(shadowPso.get());
 
-			auto shadowCamera = light->GetShadowCamera();
+			sl->GetShadowBuffer().RenderShadowStart(context, false);
+
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
-				(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
+				(UINT)RootSignatureSlot::CameraCBV, sl->GetShadowCB().GpuAddress());
 
 			for (ModelRenderer* mRenderer : m_renderers)
 			{
@@ -300,8 +296,10 @@ namespace Graphics::Renderer
 					mesh->DrawMesh(context);
 				}
 			}
+
+			sl->GetShadowBuffer().RenderShadowEnd(context);
 		}
-		s_shadowBuffer->RenderShadowEnd(context);
+
 
 		PIXEndEvent(context.m_commandList->Get());
 	}
@@ -477,7 +475,7 @@ namespace Graphics::Renderer
 		if (m_shadowLights.size() > 0)
 		{
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-				(UINT)DeferredRootSignatureSlot::CommonTextureSRV, m_shadowTextureHandle);
+				(UINT)DeferredRootSignatureSlot::CommonTextureSRV, m_commonTextureSRVHandle);
 		}
 
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
@@ -663,17 +661,12 @@ namespace Graphics::Renderer
 	{
 		m_rtgiData = techniqueData;
 		m_cbVoxelCommons = techniqueData->GetVoxelCommons();
-		//DirectX::XMMATRIX newVoxelToWorld = DebugVoxelToWorldMatrix(m_cbVoxelCommons, originalSceneMin, originalSceneMax);
-		//DirectX::XMMATRIX newWorldToVoxel = DirectX::XMMatrixInverse(nullptr, newVoxelToWorld);
-
-		//DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.VoxelToWorld, DirectX::XMMatrixTranspose(newVoxelToWorld));
-		//DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.WorldToVoxel, DirectX::XMMatrixTranspose(newWorldToVoxel));
 	}
 
 	void SwapShadowBuffers()
 	{
-		std::swap(s_shadowBuffer, s_rtgiShadowBuffer);
-		std::swap(m_shadowTextureHandle, m_rtgiShadowTextureHandle);
+		//std::swap(s_shadowBuffer, s_rtgiShadowBuffer);
+		//std::swap(m_shadowTextureHandle, m_rtgiShadowTextureHandle);
 	}
 
 	void CreateDefaultShaders()
@@ -883,7 +876,7 @@ namespace Graphics::Renderer
 		shadowPso->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
 					DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
 		shadowPso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		shadowPso->SetRenderTargetFormats(0, nullptr, s_shadowBuffer->GetFormat());
+		shadowPso->SetRenderTargetFormats(0, nullptr, DXGI_FORMAT_D16_UNORM);
 		shadowPso->SetShader(s_shaders[L"depthVS"], ShaderType::Vertex);
 		shadowPso->SetRootSignature(pbrRootSignature);
 		shadowPso->Finalize();

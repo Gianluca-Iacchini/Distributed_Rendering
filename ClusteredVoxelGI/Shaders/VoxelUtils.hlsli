@@ -148,6 +148,20 @@ bool SetVoxelPresence(uint3 voxelCoord, uint3 gridDimension, RWByteAddressBuffer
 }
 
 
+bool ClearVoxelPresence(uint voxelLinearCoord, RWByteAddressBuffer voxelPresenceBuffer)
+{
+    uint index = voxelLinearCoord >> 5u;
+    uint bit = voxelLinearCoord & 31u;
+    
+    index = index * 4;
+    
+    uint outVal = 0;
+    
+    voxelPresenceBuffer.InterlockedAnd(index, ~(1u << bit), outVal);
+    
+    return (outVal & (1u << bit)) == 0;
+}
+
 float differentialAreaFormFactor(float3 normalDA, float3 positionDA, float3 normalDB, float3 positionDB, float nSamples)
 {
     float3 dAtoDiskDirection = positionDB - positionDA;

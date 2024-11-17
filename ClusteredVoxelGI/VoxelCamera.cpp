@@ -10,9 +10,8 @@ void CVGI::VoxelCamera::Init(DX12Lib::CommandContext& context)
 	this->SetOrthogonal({ m_sceneHalfExtents.x * 2.f, m_sceneHalfExtents.y * 2.f, 0.1f, m_sceneHalfExtents.z * 2.f});
 }
 
-DirectX::GraphicsResource VoxelCamera::GetCameraBuffer()
+DirectX::GraphicsResource& VoxelCamera::GetCameraBuffer()
 {
-	//DirectX::XMMATRIX xAxisView = GetView();
 	DirectX::XMMATRIX xAxisView = this->BuildViewMatrix(DirectX::XMFLOAT3(1, 0, 0));
 	DirectX::XMMATRIX yAxisView = this->BuildViewMatrix(DirectX::XMFLOAT3(0, 1, 0));
 	DirectX::XMMATRIX zAxisView = this->BuildViewMatrix(DirectX::XMFLOAT3(0, 0, 1));
@@ -38,7 +37,9 @@ DirectX::GraphicsResource VoxelCamera::GetCameraBuffer()
 	m_voxelData.zNear = this->GetNearZ();
 	m_voxelData.zFar = this->GetFarZ();
 
-	return Graphics::Renderer::s_graphicsMemory->AllocateConstant(m_voxelData);
+	m_cameraResource = Graphics::Renderer::s_graphicsMemory->AllocateConstant(m_voxelData);
+
+	return m_cameraResource;
 }
 
 DirectX::XMMATRIX VoxelCamera::BuildViewMatrix(DirectX::XMFLOAT3 axisDirection)

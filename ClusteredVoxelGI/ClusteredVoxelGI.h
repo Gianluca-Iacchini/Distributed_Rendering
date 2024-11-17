@@ -71,8 +71,9 @@ namespace CVGI
 		std::unique_ptr<LerpRadianceTechnique> m_lerpRadianceTechnique;
 
 		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
-		std::unique_ptr<DX12Lib::Fence> m_accumulatedBufferFence;
+		std::unique_ptr<DX12Lib::Fence> m_rasterFence;
 		std::unique_ptr<DX12Lib::Fence> m_blockFence;
+		std::unique_ptr<DX12Lib::Fence> m_shadowFence;
 
 		UINT32 m_rasterFenceValue = 0;
 		UINT32 m_rtgiFenceValue = 0;
@@ -83,6 +84,7 @@ namespace CVGI
 		UINT32 IndirectBlockCount = 0;
 
 		bool LightDispatched = false;
+		bool BufferSwapped = true;
 
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 

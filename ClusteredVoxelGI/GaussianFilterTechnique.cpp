@@ -43,17 +43,11 @@ void CVGI::GaussianFilterTechnique::InitializeBuffers()
 	m_readBufferManager->AllocateBuffers();
 	m_writeBufferManager->AllocateBuffers();
 
-	m_cbGaussianFilter.CurrentPhase = 3;
 }
 
 void CVGI::GaussianFilterTechnique::PerformTechnique(DX12Lib::ComputeContext& context)
 {
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR_DEFAULT, Name.c_str());
-
-	if (m_cbGaussianFilter.CurrentPhase == 3)
-	{
-		TechniquePass(context, DirectX::XMUINT3(1, 1, 1));
-	}
 
     m_cbGaussianFilter.KernelSize = 5;
 	m_cbGaussianFilter.FaceCount = m_data->FaceCount;
@@ -64,11 +58,14 @@ void CVGI::GaussianFilterTechnique::PerformTechnique(DX12Lib::ComputeContext& co
 	// Called with execute indirect, group size is determined by previous pass.
 	TechniquePass(context, DirectX::XMUINT3(1, 1, 1));
 
-	m_cbGaussianFilter.CurrentPhase = 2;
-	// Called with execute indirect, group size is determined by previous pass.
-	TechniquePass(context, DirectX::XMUINT3(1, 1, 1));
 
 	PIXEndEvent(context.m_commandList->Get());
+}
+
+void CVGI::GaussianFilterTechnique::InitializeGaussianConstants(DX12Lib::ComputeContext& context)
+{
+	m_cbGaussianFilter.CurrentPhase = 0;
+	TechniquePass(context, DirectX::XMUINT3(1, 1, 1));
 }
 
 std::shared_ptr<DX12Lib::PipelineState> CVGI::GaussianFilterTechnique::BuildPipelineState()
@@ -86,10 +83,12 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::GaussianFilterTechnique::BuildPipe
     return gaussianFilterPso;
 }
 
-void CVGI::GaussianFilterTechnique::ResetGaussianBuffers(DX12Lib::ComputeContext& context)
+void CVGI::GaussianFilterTechnique::CopyBufferData(DX12Lib::ComputeContext& context)
 {
-	m_cbGaussianFilter.CurrentPhase = 0;
-	TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->FaceCount / 128.0f), 1, 1));
+	auto& writeBuffer = m_writeBufferManager->GetBuffer(0);
+	auto& readBuffer = m_readBufferManager->GetBuffer(0);
+
+	context.CopyBuffer(writeBuffer, readBuffer);
 }
 
 void CVGI::GaussianFilterTechnique::SwapBuffers()
@@ -102,6 +101,13 @@ void CVGI::GaussianFilterTechnique::SwapBuffers()
 void CVGI::GaussianFilterTechnique::SetGaussianBlock(UINT32 block)
 {
 	m_cbGaussianFilter.BlockNum = block;
+}
+
+void CVGI::GaussianFilterTechnique::PerformTechnique2(DX12Lib::ComputeContext& context)
+{
+	m_cbGaussianFilter.CurrentPhase = 2;
+	// Called with execute indirect, group size is determined by previous pass.
+	TechniquePass(context, DirectX::XMUINT3(1, 1, 1));
 }
 
 void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
@@ -122,13 +128,14 @@ void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 
 	for (UINT i = 0; i < visibleFacesBufferManager.GetBufferCount(); i++)
 	{
-		if (i != (UINT)LightTransportTechnique::LightTransportBufferType::IndirectDispatchBuffer)
+		if (i != (UINT)LightTransportTechnique::LightTransportBufferType::IndirectLightDispatchBuffer &&
+			i != (UINT)LightTransportTechnique::LightTransportBufferType::GaussianDispatchBuffer)
 		{
-			visibleFacesBufferManager.TransitionBuffer(i, context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			visibleFacesBufferManager.TransitionBuffer(i, context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 	}
 
-	auto& indirectCommandBuffer = visibleFacesBufferManager.GetBuffer((UINT)LightTransportTechnique::LightTransportBufferType::IndirectDispatchBuffer);
+	auto& indirectCommandBuffer = visibleFacesBufferManager.GetBuffer((UINT)LightTransportTechnique::LightTransportBufferType::GaussianDispatchBuffer);
 	context.TransitionResource(indirectCommandBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	
 	m_readBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -149,10 +156,10 @@ void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::GaussianBufferUAV, m_bufferManager->GetUAVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::WriteBufferUAV, m_writeBufferManager->GetUAVHandle());
 	
-	if (m_cbGaussianFilter.CurrentPhase != 0)
-		context.m_commandList->Get()->ExecuteIndirect(m_commandSignature.Get(), 1, indirectCommandBuffer.Get(), sizeof(D3D12_DISPATCH_ARGUMENTS), nullptr, 0);
-	else
+	if (m_cbGaussianFilter.CurrentPhase == 0)
 		context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
+	else
+		context.m_commandList->Get()->ExecuteIndirect(m_commandSignature.Get(), 1, indirectCommandBuffer.Get(), 0, nullptr, 0);
 }
 
 std::shared_ptr<DX12Lib::RootSignature> CVGI::GaussianFilterTechnique::BuildRootSignature()
@@ -164,7 +171,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::GaussianFilterTechnique::BuildRoot
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::VoxelDataSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::PrefixSumSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 1);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::FacePenaltySRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 2);
-    (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::VoxelVisibleFaceSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 3);
+    (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::VoxelVisibleFaceSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 2);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::RadianceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 4);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::ReadBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::GaussianBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);

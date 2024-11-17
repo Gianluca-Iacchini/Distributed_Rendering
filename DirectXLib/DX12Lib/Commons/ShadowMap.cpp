@@ -20,11 +20,15 @@ void DX12Lib::ShadowBuffer::Create(uint32_t width, uint32_t height)
 	m_bufferScissorRect = { 1, 1, static_cast<LONG>(width) - 2, static_cast<LONG>(height) - 2 };
 }
 
-void DX12Lib::ShadowBuffer::RenderShadowStart(GraphicsContext& context)
+void DX12Lib::ShadowBuffer::RenderShadowStart(GraphicsContext& context, bool clearDsv)
 {
-
 	context.TransitionResource(*this, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-	context.ClearDepth(*this);
+
+	if (clearDsv)
+	{
+		context.ClearDepth(*this);
+	}
+
 	context.SetDepthStencilTarget(GetDSV());
 	context.SetViewportAndScissor(m_bufferViewport, m_bufferScissorRect);
 }
@@ -34,6 +38,11 @@ void DX12Lib::ShadowBuffer::RenderShadowEnd(GraphicsContext& context)
 	context.TransitionResource(*this, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 }
 
+
+void DX12Lib::ShadowCamera::SetShadowBufferDimensions(uint32_t width, uint32_t height)
+{
+	m_shadowBuffer.Create(width, height);
+}
 
 void DX12Lib::ShadowCamera::UpdateShadowMatrix(SceneNode& sceneNode)
 {
@@ -45,11 +54,6 @@ void DX12Lib::ShadowCamera::UpdateShadowMatrix(SceneNode& sceneNode)
 
 
 	DirectX::XMMATRIX view = this->GetView();
-
-	//Camera::SetOrthogonalBounds(m_shadowCenter, m_shadowBounds);
-	Camera::SetOrthogonalBounds(38, 38, 1, 38);
-	m_nearZ = 1.0f;
-	m_farZ = 38.0f;
 
 	DirectX::XMMATRIX projection = GetProjection();
 
