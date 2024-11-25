@@ -3,10 +3,13 @@
 ConstantBuffer<ConstantBufferVoxelCommons> cbCommons : register(b0);
 ConstantBuffer<ConstantBufferLerpRadiance> cbLerpRadiance : register(b1);
 
-RWStructuredBuffer<uint2> gGaussianReadBuffer : register(u0, space0);
+RWStructuredBuffer<uint2> gCurrentGaussianRadiance : register(u0, space0);
 
-RWStructuredBuffer<uint2> gOldRadiance : register(u0, space1);
-RWStructuredBuffer<uint2> gNewRadiance : register(u1, space1);
+RWStructuredBuffer<uint2> gFinalLerpRadiance : register(u0, space1);
+RWStructuredBuffer<uint2> gLerpStartRadiance : register(u1, space1);
+//RWStructuredBuffer<uint2> gOldGaussianRadiance : register(u2, space1);
+RWStructuredBuffer<uint2> gLerpEndRadiance : register(u2, space1);
+
 
 float3 easeOutInterpolation(float3 colorA, float3 colorB, float t)
 {
@@ -26,38 +29,63 @@ void CS( uint3 DTid : SV_DispatchThreadID )
     if (DTid.x >= cbLerpRadiance.FaceCount)
         return;
     
-    if (cbLerpRadiance.accumulatedTime > cbLerpRadiance.maxTime)
-        return;
+    //uint2 currentRadiance = gCurrentGaussianRadiance[DTid.x];
+    //uint2 lerpStartRadiance = gLerpStartRadiance[DTid.x];
+
+    //float t = saturate(cbLerpRadiance.accumulatedTime / cbLerpRadiance.maxTime);
     
-    uint2 oldRadiancePacked = gOldRadiance[DTid.x];
-    uint2 newRadiancePacked = gNewRadiance[DTid.x];
+    //if (cbLerpRadiance.CurrentPhase == 1)
+    //{
+    //    uint2 oldGaussianRadiance = gOldGaussianRadiance[DTid.x];
+    //    gLerpStartRadiance[DTid.x] = oldGaussianRadiance;
+    //    gOldGaussianRadiance[DTid.x] = currentRadiance;
+    //    lerpStartRadiance = oldGaussianRadiance;
+    //}
     
+    //float3 currentRadianceFloat = float3(0.0f, 0.0f, 0.0f);
+    //float3 lerpStartRadianceFloat = float3(0.0f, 0.0f, 0.0f);
+    
+    //currentRadianceFloat.xy = UnpackFloats16(currentRadiance.x);
+    //currentRadianceFloat.z = UnpackFloats16(currentRadiance.y).x;
+    
+    //lerpStartRadianceFloat.xy = UnpackFloats16(lerpStartRadiance.x);
+    //lerpStartRadianceFloat.z = UnpackFloats16(lerpStartRadiance.y).x;
+    
+
+    
+    //float3 lerpRadiance = easeOutInterpolation(lerpStartRadianceFloat, currentRadianceFloat, t);
+    
+    //uint2 lerpRadiancePacked = uint2(PackFloats16(lerpRadiance.xy), PackFloats16(float2(lerpRadiance.z, 0.0f)));
+    
+    //gFinalLerpRadiance[DTid.x] = lerpRadiancePacked;
+    
+    
+    uint2 lerpStartRadiance = gLerpStartRadiance[DTid.x];
+    uint2 lerpEndRadiance = gLerpEndRadiance[DTid.x];
+
     if (cbLerpRadiance.CurrentPhase == 1)
     {
-        oldRadiancePacked = newRadiancePacked;
-        newRadiancePacked = gGaussianReadBuffer[DTid.x];
+        lerpStartRadiance = lerpEndRadiance;
+        lerpEndRadiance = gCurrentGaussianRadiance[DTid.x];
         
-        gOldRadiance[DTid.x] = oldRadiancePacked;
-        gNewRadiance[DTid.x] = newRadiancePacked;
+        gLerpStartRadiance[DTid.x] = lerpStartRadiance;
+        gLerpEndRadiance[DTid.x] = lerpEndRadiance;
     }
-        
-    float3 oldRadiance = float3(0.0f, 0.0f, 0.0f);
-    float3 newRadiance = float3(0.0f, 0.0f, 0.0f);
     
-    oldRadiance.xy = UnpackFloats16(oldRadiancePacked.x);
-    oldRadiance.z = UnpackFloats16(oldRadiancePacked.y).x;
+    float3 lerpStartRadianceFloat = float3(0.0f, 0.0f, 0.0f);
+    float3 lerpEndRadianceFloat = float3(0.0f, 0.0f, 0.0f);
     
-    newRadiance.xy = UnpackFloats16(newRadiancePacked.x);
-    newRadiance.z = UnpackFloats16(newRadiancePacked.y).x;
-        
-    float lerpFactor = cbLerpRadiance.accumulatedTime / cbLerpRadiance.maxTime;
+    lerpStartRadianceFloat.xy = UnpackFloats16(lerpStartRadiance.x);
+    lerpStartRadianceFloat.z = UnpackFloats16(lerpStartRadiance.y).x;
     
-    float3 lerpRadiance = lerp(oldRadiance, newRadiance, lerpFactor);
+    lerpEndRadianceFloat.xy = UnpackFloats16(lerpEndRadiance.x);
+    lerpEndRadianceFloat.z = UnpackFloats16(lerpEndRadiance.y).x;
     
-    uint2 packedRadiance = uint2(0, 0);
-    packedRadiance.x = PackFloats16(lerpRadiance.xy);
-    packedRadiance.y = PackFloats16(float2(lerpRadiance.z, 0.0f));
+
+    float t = saturate(cbLerpRadiance.accumulatedTime / cbLerpRadiance.maxTime);
+    float3 lerpRadiance = easeOutInterpolation(lerpStartRadianceFloat, lerpEndRadianceFloat, t);
     
-    gGaussianReadBuffer[DTid.x] = packedRadiance;
+    uint2 lerpRadiancePacked = uint2(PackFloats16(lerpRadiance.xy), PackFloats16(float2(lerpRadiance.z, 0.0f)));
     
+    gFinalLerpRadiance[DTid.x] = lerpRadiancePacked;
 }

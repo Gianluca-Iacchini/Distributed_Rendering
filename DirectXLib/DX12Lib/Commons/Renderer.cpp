@@ -228,11 +228,67 @@ namespace Graphics::Renderer
 		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
 	}
 
+	void ShadowPassForCamera(DX12Lib::GraphicsContext& context, DX12Lib::ShadowCamera* shadowCamera)
+	{
+		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(40, 40, 40), L"ShadowPass");
+		// Shadow pass opaque objects
+		auto shadowPso = s_PSOs[PSO_SHADOW_OPAQUE];
+
+		context.SetPipelineState(shadowPso.get());
+
+		shadowCamera->GetShadowBuffer().RenderShadowStart(context, true);
+
+		context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+			(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
+
+		for (ModelRenderer* mRenderer : m_renderers)
+		{
+			auto batch = mRenderer->GetAllOpaque();
+
+			mRenderer->Model->UseBuffers(context);
+
+			for (auto& mesh : batch)
+			{
+				context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
+				context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
+				mesh->DrawMesh(context);
+			}
+		}
+
+		shadowCamera->GetShadowBuffer().RenderShadowEnd(context);
+		
+
+		shadowPso = s_PSOs[PSO_SHADOW_ALPHA_TEST];
+
+		// Shadow pass transparent objects
+
+		context.SetPipelineState(shadowPso.get());
+
+		shadowCamera->GetShadowBuffer().RenderShadowStart(context, false);
+
+		context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+			(UINT)RootSignatureSlot::CameraCBV, shadowCamera->GetShadowCB().GpuAddress());
+
+		for (ModelRenderer* mRenderer : m_renderers)
+		{
+			auto batch = mRenderer->GetAllTransparent();
+
+			for (auto& mesh : batch)
+			{
+				context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
+				context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
+				mesh->DrawMesh(context);
+			}
+		}
+
+		shadowCamera->GetShadowBuffer().RenderShadowEnd(context);
+
+
+		PIXEndEvent(context.m_commandList->Get());
+	}
+
 	void ShadowPass(DX12Lib::GraphicsContext& context)
 	{
-
-		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(40, 40, 40), L"ShadowPass");
-
 		if (m_shadowLights.size() <= 0 || !sEnableRenderShadows)
 		{
 			return;
@@ -245,63 +301,13 @@ namespace Graphics::Renderer
 			s_device->Get()->CopyDescriptorsSimple(1, descriptorStartSize, sl->GetShadowBuffer().GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
-		// Shadow pass opaque objects
-		auto shadowPso = s_PSOs[PSO_SHADOW_OPAQUE];
-		for (auto sl : m_shadowLights)
+		for (UINT32 i = 0; i < m_shadowLights.size(); i++)
 		{
-			context.SetPipelineState(shadowPso.get());
-
-			sl->GetShadowBuffer().RenderShadowStart(context, true);
-
-			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
-				(UINT)RootSignatureSlot::CameraCBV, sl->GetShadowCB().GpuAddress());
-
-			for (ModelRenderer* mRenderer : m_renderers)
-			{
-				auto batch = mRenderer->GetAllOpaque();
-
-				mRenderer->Model->UseBuffers(context);
-
-				for (auto& mesh : batch)
-				{
-					context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
-					context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
-					mesh->DrawMesh(context);
-				}
-			}
-
-			sl->GetShadowBuffer().RenderShadowEnd(context);
-		}
-
-		shadowPso = s_PSOs[PSO_SHADOW_ALPHA_TEST];
-
-		// Shadow pass transparent objects
-		for (auto& sl : m_shadowLights)
-		{
-			context.SetPipelineState(shadowPso.get());
-
-			sl->GetShadowBuffer().RenderShadowStart(context, false);
-
-			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
-				(UINT)RootSignatureSlot::CameraCBV, sl->GetShadowCB().GpuAddress());
-
-			for (ModelRenderer* mRenderer : m_renderers)
-			{
-				auto batch = mRenderer->GetAllTransparent();
-
-				for (auto& mesh : batch)
-				{
-					context.m_commandList->Get()->SetGraphicsRootDescriptorTable((UINT)RootSignatureSlot::MaterialTextureSRV, mesh->GetMaterialTextureSRV());
-					context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)RootSignatureSlot::ObjectCBV, mesh->GetObjectCB().GpuAddress());
-					mesh->DrawMesh(context);
-				}
-			}
-
-			sl->GetShadowBuffer().RenderShadowEnd(context);
+			auto sl = m_shadowLights[i];
+			ShadowPassForCamera(context, sl);
 		}
 
 
-		PIXEndEvent(context.m_commandList->Get());
 	}
 
 
@@ -430,7 +436,7 @@ namespace Graphics::Renderer
 			auto& voxelSceneBufferManager = techPtr->GetBufferManager(L"VoxelizeScene");
 			auto& prefixBufferManager = techPtr->GetBufferManager(L"PrefixSumVoxels");
 			auto& clusterBufferManager = techPtr->GetBufferManager(L"ClusterVoxels");
-			auto& gaussianBufferManager = techPtr->GetBufferManager(L"GaussianFilterRead");
+			auto& gaussianBufferManager = techPtr->GetBufferManager(L"LerpRadianceTechnique");
 
 			voxelSceneBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			prefixBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

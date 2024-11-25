@@ -27,6 +27,8 @@ namespace DX12Lib
 
 		bool IsDirty();
 
+		const ConstantBufferCamera& GetCameraCB() const { return m_constantBufferCamera; }
+
 	public:
 		bool IsEnabled = true;
 

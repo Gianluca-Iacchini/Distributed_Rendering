@@ -8,7 +8,8 @@
 #include "WinPixEventRuntime/pix3.h"
 #include "DX12Lib/Commons/MathHelper.h"
 #include "GraphicsMemory.h"
-#include "DX12Lib/Commons/ShadowMap.h"
+#include "DX12Lib/DXWrapper/DescriptorHeap.h"
+#include "DX12Lib/Commons/CommonConstants.h"
 
 namespace DX12Lib
 {
@@ -70,11 +71,17 @@ namespace CVGI
 
 		void BuildMatrices();
 
-		DX12Lib::ShadowCamera* GetShadowCamera() { return m_shadowCamera.get(); }
+		void SetDepthCameraResource(DX12Lib::ConstantBufferLight cameraCB);
+		DirectX::GraphicsResource& GetDepthCameraResource();
 
-		void UpdateShadowCameraPosition();
+		void SetLightCameraResource(DX12Lib::ConstantBufferLight cameraCB);
+		DirectX::GraphicsResource& GetLightCameraResource();
 
-		DirectX::GraphicsResource& GetShadowCameraResource();
+		void SetDepthCameraSRVHandle(DX12Lib::DescriptorHandle handle) { m_cameraDepthHandleSRV = handle; }
+		void SetLightCameraSRVHandle(DX12Lib::DescriptorHandle handle) { m_lightDepthHandleSRV = handle; }
+
+		DX12Lib::DescriptorHandle& GetDepthCameraSRVHandle() { return m_cameraDepthHandleSRV; }
+		DX12Lib::DescriptorHandle& GetLightCameraSRVHandle() { return m_lightDepthHandleSRV; }
 
 	private:
 		DirectX::XMMATRIX BuildWorldToVoxelMatrix();
@@ -99,13 +106,17 @@ namespace CVGI
 		DirectX::XMFLOAT3 VoxelCellSize = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 		DX12Lib::AABB SceneAABB;
 		ConstantBufferVoxelCommons m_cbVoxelCommons;
-		DX12Lib::ConstantBufferLight m_shadowCameraCB;
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
-		DirectX::GraphicsResource m_shadowCameraResource;
+
 
 		DX12Lib::SceneCamera* m_sceneCamera = nullptr;
 		DX12Lib::LightComponent* m_lightComponent = nullptr;
-		std::unique_ptr<DX12Lib::ShadowCamera> m_shadowCamera = nullptr;
+
+		DirectX::GraphicsResource m_depthCameraResource;
+		DirectX::GraphicsResource m_lightCameraResource;
+
+		DX12Lib::DescriptorHandle m_cameraDepthHandleSRV;
+		DX12Lib::DescriptorHandle m_lightDepthHandleSRV;
 	};
 
 

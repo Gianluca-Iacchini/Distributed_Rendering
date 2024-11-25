@@ -23,9 +23,10 @@
 #include "LightTransportTechnique.h"
 #include "GaussianFilterTechnique.h"
 #include "LerpRadianceTechnique.h"
+#include "SceneDepthTechnique.h"
 
 #include "LightVoxel.h"
-
+#include "thread"
 
 namespace CVGI
 {
@@ -46,13 +47,16 @@ namespace CVGI
 		virtual void Initialize(DX12Lib::GraphicsContext& commandContext) override;
 		virtual void Update(DX12Lib::GraphicsContext& commandContext) override;
 		virtual void Draw(DX12Lib::GraphicsContext& commandContext) override;
+		virtual void OnClose(DX12Lib::GraphicsContext& commandContext) override;
 
 
 	private:
 		bool IsDirectXRaytracingSupported() const;
+		void ComputeRTGI();
 
 	public:
-		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
+		//const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
+		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(256.0f, 256.0f, 256.0f);
 
 	private:
 		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
@@ -65,6 +69,7 @@ namespace CVGI
 		std::unique_ptr<FaceCountTechnique> m_faceCountTechnique;
 		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
 		std::unique_ptr<FacePenaltyTechnique> m_facePenaltyTechnique;
+		std::unique_ptr<SceneDepthTechnique> m_sceneDepthTechnique;
 		std::unique_ptr<LightVoxel> m_lightVoxel;
 		std::unique_ptr<LightTransportTechnique> m_lightTransportTechnique;
 		std::unique_ptr<GaussianFilterTechnique> m_gaussianFilterTechnique;
@@ -83,8 +88,17 @@ namespace CVGI
 
 		UINT32 IndirectBlockCount = 0;
 
+		UINT32 m_lastBlockFenceVal = 0;
+		UINT32 maxDispatchesPerFrame = 4;
+
 		bool LightDispatched = false;
 		bool BufferSwapped = true;
+		bool m_isRunning = true;
+
+		bool m_resetTime = false;
+		bool m_resetCamera = false;
+
+		bool changeLerp = false;
 
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 
@@ -101,6 +115,9 @@ namespace CVGI
 
 		std::shared_ptr<TechniqueData> m_data = nullptr;
 
-		float RTGIUpdateDelta = 0.0f;
+		float RTGIUpdateDelta = 1.0f;
+		float lerpDelta = 0.0f;
+
+		float m_lastTotalTime = 0.0f;
 	};
 }

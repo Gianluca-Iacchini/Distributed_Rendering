@@ -72,8 +72,8 @@ void CVGI::LightVoxel::TechniquePass(DX12Lib::ComputeContext& context, DirectX::
 	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0), true);
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());
-	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::LightCommonCBV, Renderer::s_graphicsMemory->AllocateConstant(m_data->GetLightComponent()->GetLightCB()).GpuAddress());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::ShadowTextureSRV, Renderer::GetShadowMapSrv());
+	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::LightCommonCBV, m_data->GetLightCameraResource().GpuAddress());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::ShadowTextureSRV, m_data->GetLightCameraSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::VoxelSRV, voxelBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::CompactSRV, prefixSumBuffer.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)ShadowRootSignature::ClusterSRV, clusterVoxelBufferManager.GetSRVHandle());

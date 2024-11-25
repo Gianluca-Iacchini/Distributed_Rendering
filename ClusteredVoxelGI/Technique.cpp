@@ -33,24 +33,6 @@ void CVGI::TechniqueData::SetClusterCount(UINT32 count)
 void CVGI::TechniqueData::SetCamera(DX12Lib::SceneCamera* camera)
 {
 	m_sceneCamera = camera;
-
-	if (m_shadowCamera == nullptr)
-	{
-		m_shadowCamera = std::make_unique<DX12Lib::ShadowCamera>();
-		
-		float aspect = m_sceneCamera->GetAspect();
-		float fovY = m_sceneCamera->GetFovY();
-		float nearZ = m_sceneCamera->GetNearZ();
-		float farZ = m_sceneCamera->GetFarZ();
-
-		fovY = 2.0f * atan(tan(fovY / 2.0f) * 1.3f);
-
-		m_shadowCameraCB.CastsShadows = true;
-		m_shadowCamera->SetShadowBufferDimensions(1920, 1080);
-		m_shadowCamera->SetLens(fovY, aspect, nearZ, farZ);
-		m_shadowCamera->UpdateShadowMatrix(*m_sceneCamera->Node);
-
-	}
 }
 
 void CVGI::TechniqueData::SetVoxelGridSize(DirectX::XMUINT3 size)
@@ -94,24 +76,26 @@ void CVGI::TechniqueData::BuildMatrices()
 	DirectX::XMStoreFloat4x4(&m_cbVoxelCommons.VoxelToWorld, DirectX::XMMatrixTranspose(invMatrix));
 }
 
-void CVGI::TechniqueData::UpdateShadowCameraPosition()
+void CVGI::TechniqueData::SetDepthCameraResource(ConstantBufferLight cameraCB)
 {
-	if (m_shadowCamera != nullptr && m_sceneCamera != nullptr)
-	{
-		m_shadowCamera->UpdateShadowMatrix(*m_sceneCamera->Node);
-
-		m_shadowCameraCB.shadowTransform = m_shadowCamera->GetShadowTransform();
-		m_shadowCameraCB.invShadowTransform = m_shadowCamera->GetInvShadowTransform();
-		m_shadowCameraCB.Position = m_sceneCamera->Node->GetPosition();
-		m_shadowCameraResource = Renderer::s_graphicsMemory->AllocateConstant(m_shadowCameraCB);
-	}
+	m_depthCameraResource = Renderer::s_graphicsMemory->AllocateConstant(cameraCB);
 }
 
-DirectX::GraphicsResource& CVGI::TechniqueData::GetShadowCameraResource()
+DirectX::GraphicsResource& CVGI::TechniqueData::GetDepthCameraResource()
 {
-
-	return m_shadowCameraResource;
+	return m_depthCameraResource;
 }
+
+void CVGI::TechniqueData::SetLightCameraResource(ConstantBufferLight cameraCB)
+{
+	m_lightCameraResource = Renderer::s_graphicsMemory->AllocateConstant(cameraCB);
+}
+
+DirectX::GraphicsResource& CVGI::TechniqueData::GetLightCameraResource()
+{
+	return m_lightCameraResource;
+}
+
 
 DirectX::XMMATRIX CVGI::TechniqueData::BuildWorldToVoxelMatrix()
 {

@@ -5,54 +5,58 @@
 using namespace CVGI;
 using namespace DX12Lib;
 
-UINT BufferManager::AddStructuredBuffer(UINT32 elementCount, size_t elementSize)
+UINT BufferManager::AddStructuredBuffer(UINT32 elementCount, size_t elementSize, std::wstring bufferName)
 {
 	std::shared_ptr<StructuredBuffer> buffer = std::make_shared<StructuredBuffer>();
 	buffer->Create(elementCount, elementSize);
+	buffer->Get()->SetName(bufferName.c_str());
 
 	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
 
-UINT CVGI::BufferManager::AddByteAddressBuffer(UINT32 elementCount)
+UINT CVGI::BufferManager::AddByteAddressBuffer(UINT32 elementCount, std::wstring bufferName)
 {
 	std::shared_ptr<ByteAddressBuffer> buffer = std::make_shared<ByteAddressBuffer>();
 	buffer->Create(elementCount, sizeof(UINT32));
+	buffer->Get()->SetName(bufferName.c_str());
 
 	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
 
-UINT CVGI::BufferManager::Add2DTextureBuffer(UINT32 width, UINT32 height, DXGI_FORMAT format)
+UINT CVGI::BufferManager::Add2DTextureBuffer(UINT32 width, UINT32 height, DXGI_FORMAT format, std::wstring bufferName)
 {
 	std::shared_ptr<ColorBuffer> buffer = std::make_shared<ColorBuffer>();
 	buffer->Create3D(width, height, 1, 1, format);
+	buffer->Get()->SetName(bufferName.c_str());
 
 	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
 
-UINT CVGI::BufferManager::Add2DTextureBuffer(DirectX::XMUINT2 size, DXGI_FORMAT format)
+UINT CVGI::BufferManager::Add2DTextureBuffer(DirectX::XMUINT2 size, DXGI_FORMAT format, std::wstring bufferName)
 {
-	return Add2DTextureBuffer(size.x, size.y, format);
+	return Add2DTextureBuffer(size.x, size.y, format, bufferName);
 }
 
-UINT CVGI::BufferManager::Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format)
+UINT CVGI::BufferManager::Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format, std::wstring bufferName)
 {
 	std::shared_ptr<ColorBuffer> buffer = std::make_shared<ColorBuffer>();
 	buffer->Create3D(width, height, depth, 1, format);
+	buffer->Get()->SetName(bufferName.c_str());
 
 	m_buffers.push_back(buffer);
 
 	return m_buffers.size() - 1;
 }
 
-UINT CVGI::BufferManager::Add3DTextureBuffer(DirectX::XMUINT3 textureSize, DXGI_FORMAT format)
+UINT CVGI::BufferManager::Add3DTextureBuffer(DirectX::XMUINT3 textureSize, DXGI_FORMAT format, std::wstring bufferName)
 {
-	return Add3DTextureBuffer(textureSize.x, textureSize.y, textureSize.z, format);
+	return Add3DTextureBuffer(textureSize.x, textureSize.y, textureSize.z, format, bufferName);
 }
 
 void CVGI::BufferManager::RemoveBuffer(int index)

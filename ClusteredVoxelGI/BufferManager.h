@@ -17,13 +17,13 @@ namespace CVGI
 		BufferManager() {}
 		~BufferManager() {}
 
-		UINT AddStructuredBuffer(UINT32 elementCount, size_t elementSize);
-		UINT AddByteAddressBuffer(UINT32 elementCount = 1);
-		UINT Add2DTextureBuffer(UINT32 width, UINT32 height, DXGI_FORMAT format);
-		UINT Add2DTextureBuffer(DirectX::XMUINT2 size, DXGI_FORMAT format);
+		UINT AddStructuredBuffer(UINT32 elementCount, size_t elementSize, std::wstring bufferName = L"Buffer");
+		UINT AddByteAddressBuffer(UINT32 elementCount = 1, std::wstring bufferName = L"Buffer");
+		UINT Add2DTextureBuffer(UINT32 width, UINT32 height, DXGI_FORMAT format, std::wstring bufferName = L"Buffer");
+		UINT Add2DTextureBuffer(DirectX::XMUINT2 size, DXGI_FORMAT format, std::wstring bufferName = L"Buffer");
 
-		UINT Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format);
-		UINT Add3DTextureBuffer(DirectX::XMUINT3 size, DXGI_FORMAT format);
+		UINT Add3DTextureBuffer(UINT32 width, UINT32 height, UINT32 depth, DXGI_FORMAT format, std::wstring bufferName = L"Buffer");
+		UINT Add3DTextureBuffer(DirectX::XMUINT3 size, DXGI_FORMAT format, std::wstring bufferName = L"Buffer");
 		
 		void RemoveBuffer(int index);
 		void ResizeBuffer(int index, UINT32 elementCount);

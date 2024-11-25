@@ -36,8 +36,8 @@ void CVGI::GaussianFilterTechnique::InitializeBuffers()
 	// Gaussian precomputed values
 	m_bufferManager->AddStructuredBuffer(KERNEL_SIZE * KERNEL_SIZE * KERNEL_SIZE, sizeof(float));
 
-	m_readBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
-	m_writeBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+	m_readBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"Gaussian Read Buffer");
+	m_writeBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"Gaussian Write Buffer");
 
 	m_bufferManager->AllocateBuffers();
 	m_readBufferManager->AllocateBuffers();

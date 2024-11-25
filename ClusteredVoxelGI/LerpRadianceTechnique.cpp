@@ -18,11 +18,12 @@ CVGI::LerpRadianceTechnique::LerpRadianceTechnique(std::shared_ptr<TechniqueData
 
 void CVGI::LerpRadianceTechnique::InitializeBuffers()
 {
-	// Old Radiance
-	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 	// New Radiance
-	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
-
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"NewBuffer");
+	// Old Radiance
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"OldBuffer");
+	// Old Gaussian Radiance
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"OldGaussianBuffer");
 	m_bufferManager->AllocateBuffers();
 }
 
@@ -34,6 +35,8 @@ void CVGI::LerpRadianceTechnique::PerformTechnique(DX12Lib::ComputeContext& cont
 
 	TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->FaceCount / 128.0f), 1, 1));
 
+	m_cbLerpRadiance.CurrentPhase = 0;
+
 	PIXEndEvent(context.m_commandList->Get());
 }
 
@@ -42,7 +45,7 @@ void CVGI::LerpRadianceTechnique::TechniquePass(DX12Lib::ComputeContext& context
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 	context.SetPipelineState(Renderer::s_PSOs[Name.c_str()].get());
 
-	auto& gaussianBufferManager = m_data->GetBufferManager(GaussianFilterTechnique::Name);
+	auto& gaussianBufferManager = m_data->GetBufferManager(GaussianFilterTechnique::ReadName);
 
 	gaussianBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -94,7 +97,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::LerpRadianceTechnique::BuildRootSi
 	(*lerpRootSignature)[(UINT)LerpRadianceRootSignature::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*lerpRootSignature)[(UINT)LerpRadianceRootSignature::LerpRadianceCBV].InitAsConstantBuffer(1);
 	(*lerpRootSignature)[(UINT)LerpRadianceRootSignature::GaussianFilterBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
-	(*lerpRootSignature)[(UINT)LerpRadianceRootSignature::LerpBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 1);
+	(*lerpRootSignature)[(UINT)LerpRadianceRootSignature::LerpBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 1);
 
 	lerpRootSignature->Finalize();
 

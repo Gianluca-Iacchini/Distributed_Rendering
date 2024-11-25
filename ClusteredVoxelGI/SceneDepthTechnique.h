@@ -1,0 +1,29 @@
+#pragma once
+
+#include "Technique.h"
+#include "DX12Lib/Commons/ShadowMap.h"
+
+namespace CVGI
+{
+	class SceneDepthTechnique : public Technique
+	{
+	public:
+		SceneDepthTechnique(std::shared_ptr<TechniqueData> data);
+		virtual ~SceneDepthTechnique() = default;
+
+		virtual void InitializeBuffers() override;
+		virtual void PerformTechnique(DX12Lib::GraphicsContext& context) override;
+		void UpdateCameraMatrices();
+	private:
+		// Use to sample voxels from camera PoV
+		DX12Lib::ShadowCamera m_depthCamera;
+		// Use to sample lit voxels from light PoV
+		DX12Lib::ShadowCamera m_lightCamera;
+
+		// Used for scene depth
+		DX12Lib::ConstantBufferLight m_cameraCB;
+		DX12Lib::ConstantBufferLight m_lightCB;
+	};
+}
+
+

@@ -212,6 +212,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::VoxelizeScene::BuildPipelineState(
 
 	D3D12_RASTERIZER_DESC rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+	rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON;
 
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	depthStencilDesc.DepthEnable = FALSE;

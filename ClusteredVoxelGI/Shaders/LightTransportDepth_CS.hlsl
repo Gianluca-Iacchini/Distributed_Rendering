@@ -16,7 +16,7 @@ StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space1);
 // Map from aabbVoxelIndices to gVoxelIndicesCompactBuffer.
 StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space1);
 
-Texture2D gCameraDepth : register(t1, space2);
+Texture2D gCameraDepth : register(t0, space2);
 
 RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0);
 
@@ -55,8 +55,8 @@ void CS(uint3 DTid : SV_DispatchThreadID)
                 return;
         
             //gFaceRadianceBuffer[threadLinearIndex] = uint2(0, 0);
-            gGaussianFinalWriteBuffer[threadLinearIndex] = uint2(0, 0);
-            gGaussianFirstFilterBuffer[threadLinearIndex] = uint2(0, 0);
+            //gGaussianFinalWriteBuffer[threadLinearIndex] = uint2(0, 0);
+            //gGaussianFirstFilterBuffer[threadLinearIndex] = uint2(0, 0);
         }
         
         gIndirectLightVisibleFacesIndices[threadLinearIndex] = UINT_MAX;
@@ -125,82 +125,82 @@ void CS(uint3 DTid : SV_DispatchThreadID)
         
         
 
-        bool lit = false;
+     //   bool lit = false;
     
-        float3 worldPos = mul(float4(voxelPos, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
+     //   float3 worldPos = mul(float4(voxelPos, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
 		
-        float3 shadowTestPoints[12];
+     //   float3 shadowTestPoints[12];
     
-        float3 offset = cbVoxelCommons.voxelCellSize;
-        offset *= 2.0f;
+     //   float3 offset = cbVoxelCommons.voxelCellSize;
+     //   offset *= 2.0f;
     
-        // Generate the 6 corner points of the voxel
-        {
-	        // Corners
-            shadowTestPoints[0] = worldPos + float3(offset.x, 0.0, 0.0);
-            shadowTestPoints[1] = worldPos + float3(-1.0 * offset.x, 0.0, 0.0);
-            shadowTestPoints[2] = worldPos + float3(0.0, offset.y, 0.0);
-            shadowTestPoints[3] = worldPos + float3(0.0, -1.0 * offset.y, 0.0);
-            shadowTestPoints[4] = worldPos + float3(0.0, 0.0, offset.z);
-            shadowTestPoints[5] = worldPos + float3(0.0, 0.0, -1.0 * offset.z);
-        }
+     //   // Generate the 6 corner points of the voxel
+     //   {
+	    //    // Corners
+     //       shadowTestPoints[0] = worldPos + float3(offset.x, 0.0, 0.0);
+     //       shadowTestPoints[1] = worldPos + float3(-1.0 * offset.x, 0.0, 0.0);
+     //       shadowTestPoints[2] = worldPos + float3(0.0, offset.y, 0.0);
+     //       shadowTestPoints[3] = worldPos + float3(0.0, -1.0 * offset.y, 0.0);
+     //       shadowTestPoints[4] = worldPos + float3(0.0, 0.0, offset.z);
+     //       shadowTestPoints[5] = worldPos + float3(0.0, 0.0, -1.0 * offset.z);
+     //   }
     
-        float4 shadowCoord;
-        float depth;
-        for (uint i = 0; i < 6; ++i)
-        {
-            shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbCamera.shadowMatrix);
-            shadowCoord /= shadowCoord.w;
-            depth = gCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
-            if (depth > 0.0f)
-            {
-                lit = true;
-                break;
-            }
-        }
+     //   float4 shadowCoord;
+     //   float depth;
+     //   for (uint i = 0; i < 6; ++i)
+     //   {
+     //       shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbCamera.shadowMatrix);
+     //       shadowCoord /= shadowCoord.w;
+     //       depth = gCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
+     //       if (depth > 0.0f)
+     //       {
+     //           lit = true;
+     //           break;
+     //       }
+     //   }
 
-        // Test the mid edge points
+     //   // Test the mid edge points
 
-        // Add some extra distance for edge mid points for voxels in the corner of
-	    // a rectangular angle, so at least one point comes vsible for the test
-        offset *= 2.0f;
+     //   // Add some extra distance for edge mid points for voxels in the corner of
+	    //// a rectangular angle, so at least one point comes vsible for the test
+     //   offset *= 2.0f;
 
-        {
-	        // Edge mid points
-            shadowTestPoints[0] = worldPos + float3(0.0, offset.y, -1.0 * offset.z);
-            shadowTestPoints[1] = worldPos + float3(-1.0 * offset.x, 0.0, -1.0 * offset.z);
-            shadowTestPoints[2] = worldPos + float3(offset.x, 0.0, -1.0 * offset.z);
-            shadowTestPoints[3] = worldPos + float3(0.0, -1.0 * offset.y, -1.0 * offset.z);
-            shadowTestPoints[4] = worldPos + float3(-1.0 * offset.x, offset.y, 0.0);
-            shadowTestPoints[5] = worldPos + float3(offset.x, offset.y, 0.0);
-            shadowTestPoints[6] = worldPos + float3(-1.0 * offset.x, -1.0 * offset.y, 0.0);
-            shadowTestPoints[7] = worldPos + float3(offset.x, -1.0 * offset.y, 0.0);
-            shadowTestPoints[8] = worldPos + float3(0.0, offset.y, offset.z);
-            shadowTestPoints[9] = worldPos + float3(offset.x, 0.0, offset.z);
-            shadowTestPoints[10] = worldPos + float3(0.0, -1.0 * offset.y, offset.z);
-            shadowTestPoints[11] = worldPos + float3(-1.0 * offset.x, 0.0, offset.z);
-        }
+     //   {
+	    //    // Edge mid points
+     //       shadowTestPoints[0] = worldPos + float3(0.0, offset.y, -1.0 * offset.z);
+     //       shadowTestPoints[1] = worldPos + float3(-1.0 * offset.x, 0.0, -1.0 * offset.z);
+     //       shadowTestPoints[2] = worldPos + float3(offset.x, 0.0, -1.0 * offset.z);
+     //       shadowTestPoints[3] = worldPos + float3(0.0, -1.0 * offset.y, -1.0 * offset.z);
+     //       shadowTestPoints[4] = worldPos + float3(-1.0 * offset.x, offset.y, 0.0);
+     //       shadowTestPoints[5] = worldPos + float3(offset.x, offset.y, 0.0);
+     //       shadowTestPoints[6] = worldPos + float3(-1.0 * offset.x, -1.0 * offset.y, 0.0);
+     //       shadowTestPoints[7] = worldPos + float3(offset.x, -1.0 * offset.y, 0.0);
+     //       shadowTestPoints[8] = worldPos + float3(0.0, offset.y, offset.z);
+     //       shadowTestPoints[9] = worldPos + float3(offset.x, 0.0, offset.z);
+     //       shadowTestPoints[10] = worldPos + float3(0.0, -1.0 * offset.y, offset.z);
+     //       shadowTestPoints[11] = worldPos + float3(-1.0 * offset.x, 0.0, offset.z);
+     //   }
 		
-        if (!lit)
-        {
-            for (i = 0; i < 12; ++i)
-            {
-                shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbCamera.shadowMatrix);
-                shadowCoord /= shadowCoord.w;
-                depth = gCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
+     //   if (!lit)
+     //   {
+     //       for (i = 0; i < 12; ++i)
+     //       {
+     //           shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbCamera.shadowMatrix);
+     //           shadowCoord /= shadowCoord.w;
+     //           depth = gCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
         
-                if (depth > 0.0f)
-                {
-                    lit = true;
-                    break;
-                }
-            }
-        }
+     //           if (depth > 0.0f)
+     //           {
+     //               lit = true;
+     //               break;
+     //           }
+     //       }
+     //   }
 
-        if (!lit)
-        {
-            return;
-        }
+     //   if (!lit)
+     //   {
+     //       return;
+     //   }
 
             
 
@@ -255,8 +255,8 @@ void CS(uint3 DTid : SV_DispatchThreadID)
             gGaussianVisibleFacesIndices[gaussianStartAddress + 5] = threadLinearIndex * 6 + 5;
         }
                 
-        uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces));
-        uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (128.0f));
+        uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces) / 16.0f);
+        uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (16.0f * 128.0f));
         InterlockedMax(gIndirectLightDispatchIndirectBuffer[0].x, buffer0Max);
         InterlockedMax(gGaussianDispatchIndirectBuffer[0].x, buffer1Max);
     }

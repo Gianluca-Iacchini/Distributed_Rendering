@@ -60,6 +60,7 @@ StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space4);
 
 StructuredBuffer<uint2> gPackedRadiance : register(t0, space5);
 
+static const uint UINT_MAX = 0xFFFFFFFF;
 
 int3 arrayDirectionTexture[26] =
 {
@@ -151,7 +152,7 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord)
     return result;
 }
 
-bool FindClosestOccupiedVoxel(float3 fragmentWS, uint3 voxelCoord, out uint3 outputCoord)
+bool FindClosestOccupiedVoxel(float3 fragmentWS, uint3 voxelCoord, out uint3 outputCoord, out uint3 secondClosest)
 {
     float minimumDistance = 100000000.0f;
     bool foundCoordinates = false;
@@ -160,7 +161,8 @@ bool FindClosestOccupiedVoxel(float3 fragmentWS, uint3 voxelCoord, out uint3 out
     uint hashedIndex;
     float3 tempVoxelWorldCoords;
     float distanceSqTemp;
-
+    outputCoord = uint3(UINT_MAX, UINT_MAX, UINT_MAX);
+    
     int3 iVoxelCoord = int3(voxelCoord);
     int3 neighbourCoord;
     for (int i = -1; i <= 1; i++)
@@ -187,6 +189,7 @@ bool FindClosestOccupiedVoxel(float3 fragmentWS, uint3 voxelCoord, out uint3 out
                     if (distanceSqTemp < minimumDistance)
                     {
                         minimumDistance = distanceSqTemp;
+                        secondClosest = outputCoord;
                         outputCoord = uint3(neighbourCoord);
                         foundCoordinates = true;
                     }
@@ -261,42 +264,71 @@ float3 pointSegmentProjectionFixEdges(float3 s0, float3 s1, float3 p)
 float3 approximateIrradianceTwoPoint(float3 p0, float3 p1, float3 i0, float3 i1, float3 pnt)
 {
     float3 projection = pointSegmentProjectionFixEdges(p0, p1, pnt);
-    float3 irradianceP0P1 = i1 - i0;
     float segmentLength = distance(p0, p1) + 0.001f;
     float p0ProjectionDistance = distance(p0, projection);
-    float3 finalIrradiance = i0 + irradianceP0P1 * (p0ProjectionDistance / segmentLength);
-
+    
+    float3 finalIrradiance = lerp(i0, i1, (p0ProjectionDistance / segmentLength));
+    
     return finalIrradiance;
 }
 
 
-float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 normalDir)
-{
-    int3 arrayCombinationIndex[10] =
+float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, uint index, bool isDisplaced)
+{  
+    int3 arrayCombinationIndex[35] =
     {
         int3(0, 1, 2),
-        int3(0, 1, 3),
-        int3(0, 1, 4),
-        int3(0, 1, 5),
-        int3(0, 1, 6),
-        int3(0, 2, 3),
-        int3(0, 2, 4),
-        int3(0, 2, 5),
-        int3(0, 2, 6),
-        int3(0, 3, 4)
+    int3(0, 1, 3),
+    int3(0, 1, 4),
+    int3(0, 1, 5),
+    int3(0, 1, 6),
+    int3(0, 2, 3),
+    int3(0, 2, 4),
+    int3(0, 2, 5),
+    int3(0, 2, 6),
+    int3(0, 3, 4),
+    int3(0, 3, 5),
+    int3(0, 3, 6),
+    int3(0, 4, 5),
+    int3(0, 4, 6),
+    int3(0, 5, 6),
+    int3(1, 2, 3),
+    int3(1, 2, 4),
+    int3(1, 2, 5),
+    int3(1, 2, 6),
+    int3(1, 3, 4),
+    int3(1, 3, 5),
+    int3(1, 3, 6),
+    int3(1, 4, 5),
+    int3(1, 4, 6),
+    int3(1, 5, 6),
+    int3(2, 3, 4),
+    int3(2, 3, 5),
+    int3(2, 3, 6),
+    int3(2, 4, 5),
+    int3(2, 4, 6),
+    int3(2, 5, 6),
+    int3(3, 4, 5),
+    int3(3, 4, 6),
+    int3(3, 5, 6),
+    int3(4, 5, 6)
     };
-    
-    int3 iVoxelCoords = int3(voxelCoords);
+
     
     float3 voxelWorldCoords = mul(float4(float3(voxelCoords), 1.0f), VoxelToWorld).xyz;
     float3 voxelCenterToFragment = normalize(fragmentWorldPos - voxelWorldCoords);
+
+    int3 iVoxelCoords = int3(voxelCoords);
+    
+    bool hasBigDisplacement = isDisplaced && (distance(fragmentWorldPos, voxelWorldCoords) > voxelCellSize.x / 2.0f);
+
     
     int3 offset0 = int3(sign(voxelCenterToFragment.x), 0, 0);
     int3 offset1 = int3(0, sign(voxelCenterToFragment.y), 0);
     int3 offset2 = int3(0, 0, sign(voxelCenterToFragment.z));
     
-    uint index = FindMostAlignedDirection(normalDir);
-
+    bool isNotAligned = false;
+    
     uint voxelIdx = FindHashedCompactedPositionIndex(voxelCoords).x;
 
     uint faceIdx = voxelIdx * 6 + index;
@@ -352,7 +384,7 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     float maxIrradiance = 0.0f;
     uint IndexOfMax = -1;
     float3 vecOne = float3(1.0f, 1.0f, 1.0f);
-    for (i = 0; i < 10; ++i)
+    for (i = 0; i < 35; ++i)
     {
         currentIrradiance = dot(arrayIrradiance[arrayCombinationIndex[i].x], vecOne) + dot(arrayIrradiance[arrayCombinationIndex[i].y], vecOne) + dot(arrayIrradiance[arrayCombinationIndex[i].z], vecOne);
 
@@ -457,6 +489,7 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
 
     float3 arrayNonZeroIrradiancePoint[4];
     float3 arrayNonZeroIrradianceValue[4];
+
     
     for (i = 0; i < 4; ++i)
     {
@@ -467,7 +500,12 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
             numZeroIrradiance++;
         }
     }
-
+    
+    //if (hasBigDisplacement)
+    //{
+    //    return float3(0.0f, 0.0f, 0.0f);
+    //}
+    
     if (numZeroIrradiance == 2)
     {
         // In case two of the four irradiance values are zero, interpolate irradiance by projecting the fragment onto the segment
@@ -478,8 +516,9 @@ float3 InterpolateIrradiance(uint3 voxelCoords, float3 fragmentWorldPos, float3 
     }
     else if (numZeroIrradiance == 3)
     {
+        
         // In case one of the four points has zero irradiance value, interpolate through a triangle
-        float3 meanIrradiance = (arrayNonZeroIrradianceValue[0] + arrayNonZeroIrradianceValue[1] + arrayNonZeroIrradianceValue[2]) * 0.3333f;
+        float3 meanIrradiance = (arrayNonZeroIrradianceValue[0] + arrayNonZeroIrradianceValue[1] + arrayNonZeroIrradianceValue[2]) / 3.0f;
 
         if (all(radiance == 0.0f))
         {
@@ -579,31 +618,30 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         uint3 voxelCoord = uint3(mul(float4(worldCoord, 1.0f), WorldToVoxel).xyz);
         uint linearCoord = voxelCoord.x + voxelCoord.y * voxelTextureDimensions.x + voxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
     
-        uint faceDir = FindMostAlignedDirection(normal);
-    
-        float4 radiance = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        float3 radiance = float3(0.0f, 0.0f, 0.0f);
         bool found = IsVoxelPresent(linearCoord);
+        bool displaced = false;
+        uint3 secondClosest = uint3(UINT_MAX, UINT_MAX, UINT_MAX);
         if (!found)
         {
             uint3 newCoords;
-            found = FindClosestOccupiedVoxel(worldCoord, voxelCoord, newCoords);
+            found = FindClosestOccupiedVoxel(worldCoord, voxelCoord, newCoords, secondClosest);
             voxelCoord = newCoords;
+            displaced = true;
         }
         if (found)
         {
+            uint index = FindMostAlignedDirection(normal);
             
-            radiance = float4(1.0f, 1.0f, 1.0f, 1.0f);
-            linearCoord = voxelCoord.x + voxelCoord.y * voxelTextureDimensions.x + voxelCoord.z * voxelTextureDimensions.x * voxelTextureDimensions.y;
-            uint2 result = FindHashedCompactedPositionIndex(voxelCoord);
-            uint2 packedRadiance = gPackedRadiance[result.x * 6 + faceDir];
-            radiance.xy = UnpackFloats16(packedRadiance.x);
-            radiance.zw = UnpackFloats16(packedRadiance.y);
-            //radiance = float4(InterpolateIrradiance(voxelCoord, worldCoord, normal), 1.0f);
-            
+            float3 voxelWorldCoords = mul(float4(float3(voxelCoord), 1.0f), VoxelToWorld).xyz;
+            bool hasBigDisplacement = displaced && (distance(worldCoord, voxelWorldCoords) > voxelCellSize.x);
+
+            //if (!hasBigDisplacement)
+                radiance = InterpolateIrradiance(voxelCoord, worldCoord, index, displaced);
+
         }
         
-        lRes += surfData.c_diff * radiance.rgb * 0.8f;
-        //lRes = radiance.rgb;
+        lRes += surfData.c_diff * radiance * 0.8f;
     }
    
     

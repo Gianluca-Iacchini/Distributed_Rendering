@@ -112,11 +112,11 @@ void CVGI::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportTechniqueRootParameters::VoxelCommonsCBV, m_data->GetVoxelCommonsResource().GpuAddress());
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportTechniqueRootParameters::LightTransportCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbFrustumCulling).GpuAddress());
-	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportTechniqueRootParameters::CameraCBV, m_data->GetShadowCameraResource().GpuAddress());
+	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)LightTransportTechniqueRootParameters::CameraCBV, m_data->GetDepthCameraResource().GpuAddress());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::PrefixSumBuffersSRV, prefixSumBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::AABBBuffersSRV, aabbBufferManager.GetSRVHandle());
     //context.m_commandList->Get()->SetComputeRootShaderResourceView((UINT)LightTransportTechniqueRootParameters::AccelerationStructureSRV, m_data->GetTlas()->GetGpuVirtualAddress());
-    context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::DepthMapSRV, Renderer::GetShadowMapSrv());
+    context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::DepthMapSRV, m_data->GetDepthCameraSRVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::RadianceBufferUAV, m_indirectBufferManager->GetUAVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV, m_bufferManager->GetUAVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::GaussianFilterBufferUAV, gaussianBufferManager.GetUAVHandle());
@@ -345,7 +345,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::LightTransportTechnique::BuildRoot
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::PrefixSumBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, D3D12_SHADER_VISIBILITY_ALL, 0);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::AABBBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL, 1);
     //(*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::AccelerationStructureSRV].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL, 2);
-    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::DepthMapSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 2);
+    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::DepthMapSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::RadianceBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, (UINT)LightTransportBufferType::Count, D3D12_SHADER_VISIBILITY_ALL, 1);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::GaussianFilterBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);

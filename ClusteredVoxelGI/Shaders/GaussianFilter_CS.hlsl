@@ -82,7 +82,7 @@ float gaussianDistribution(float x, float y, float z, float sigma)
 }
 
 
-float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass)
+float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool shouldSet)
 {
 
     uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions);
@@ -94,7 +94,7 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass)
     float lKernel[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
     float3 lVoxelRadiance[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
 
-
+    shouldSet = true;
     float sum = 0.0f; // used for normalization, one sum value for each rgb channel
     
     // Generate 3x3 kernel 
@@ -123,9 +123,8 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass)
                             packedRadiance = gFaceRadianceReadBuffer[neighbourIdx * 6 + faceIdx];
                             if (!IsVoxelPresent(neighbourIdx, gIndirectLightUpdatedVoxelsBitmap))
                             {
-                                return float3(-1.0f, 0.0f, 0.0f);
+                                shouldSet = false;
                             }
-
                         }
                         else if (cbGaussianFilter.CurrentPhase == 2)
                         {
@@ -207,9 +206,9 @@ void CS( uint3 DTid : SV_DispatchThreadID)
     
 
     
-    //uint facesPerDispatch = ceil(visibleFaces / 16.0f);
+    uint facesPerDispatch = ceil(visibleFaces / 16.0f);
     
-    //threadGlobalIndex = cbGaussianFilter.BlockNum * facesPerDispatch + threadGlobalIndex;
+    threadGlobalIndex = cbGaussianFilter.BlockNum * facesPerDispatch + threadGlobalIndex;
     
     if (threadGlobalIndex >= visibleFaces)
         return;
@@ -227,15 +226,13 @@ void CS( uint3 DTid : SV_DispatchThreadID)
         radiance.xy = UnpackFloats16(packedRadiance.x);
         radiance.z = UnpackFloats16(packedRadiance.y).x;
     
-        float3 filteredRadiance = filterFace(voxIdx, faceIndex, true);
+        bool shouldSet = true;
+        
+        float3 filteredRadiance = filterFace(voxIdx, faceIndex, true, shouldSet);
     
-        if (filteredRadiance.x >= 0.0f)
+        if (shouldSet)
         {
             SetVoxelPresence(voxIdx, gGaussianUpdatedVoxelsBitmap);
-        }
-        else
-        {
-            filteredRadiance.x = 0.0f;
         }
         
         uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
@@ -251,7 +248,8 @@ void CS( uint3 DTid : SV_DispatchThreadID)
         
         if (any(radiance > 0.0f))
         {
-            radiance = filterFace(voxIdx, faceIndex, false);
+            bool shouldSet;
+            radiance = filterFace(voxIdx, faceIndex, false, shouldSet);
             packedRadiance = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
         }
         else

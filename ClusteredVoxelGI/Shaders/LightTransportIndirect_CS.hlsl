@@ -51,7 +51,7 @@ float3 clusterToVoxelIrradiancePerVoxelArrayVoxel(ClusterData cData, uint voxelI
     float3 irradianceAccumulated = float3(0.0, 0.0, 0.0);
     float3 emitterNormal = cbIndirectLight.LightDirection;
     float3 emitterPosition = cbIndirectLight.LightPosition;
-    float emitterRadiance = 25.0f; //cbIndirectLight.LightIntensity;
+    float emitterRadiance = 25.0f * 1.5f; //cbIndirectLight.LightIntensity;
     float attenuationFactor = 0.01f;
     
     uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIndex], cbVoxelCommons.voxelTextureDimensions);
@@ -175,9 +175,9 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
     
     uint nVisibleVoxels = gVisibleFaceCounter.Load(0);
     
-    //uint voxelsPerDispatch = ceil(nVisibleVoxels / 16.0f);
+    uint voxelsPerDispatch = ceil(nVisibleVoxels / 16.0f);
     
-    //threadID = voxelsPerDispatch * cbIndirectLight.DispatchNumber + threadID;
+    threadID = voxelsPerDispatch * cbIndirectLight.DispatchNumber + threadID;
     
     if (threadID > nVisibleVoxels)
         return;

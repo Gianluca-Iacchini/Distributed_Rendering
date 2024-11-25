@@ -85,6 +85,39 @@ void DX12Lib::ShadowCamera::UpdateShadowMatrix(SceneNode& sceneNode)
 	m_shadowCB.farPlane = m_farZ;
 }
 
+void DX12Lib::ShadowCamera::UpdateShadowMatrix(const ConstantBufferCamera& cb)
+{
+	m_shadowCB.view = cb.view;
+	m_shadowCB.invView = cb.invView;
+	m_shadowCB.projection = cb.projection;
+	m_shadowCB.invProjection = cb.invProjection;
+	m_shadowCB.viewProjection = cb.viewProjection;
+	m_shadowCB.invViewProjection = cb.invViewProjection;
+
+	DirectX::XMMATRIX view = DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&cb.view));
+	DirectX::XMMATRIX projection = DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&cb.projection));
+
+	DirectX::XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
+
+	DirectX::XMMATRIX S = view * projection * T;
+	DirectX::XMStoreFloat4x4(&m_shadowTransform, DirectX::XMMatrixTranspose(S));
+	DirectX::XMStoreFloat4x4(&m_invShadowTransform, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, S)));
+
+	m_shadowCB.eyePosition = DirectX::XMFLOAT3(
+		-m_shadowCB.view._14,
+		-m_shadowCB.view._24,
+		-m_shadowCB.view._34
+	);
+
+	m_shadowCB.nearPlane = m_nearZ;
+	m_shadowCB.farPlane = m_farZ;
+}
+
 DirectX::GraphicsResource DX12Lib::ShadowCamera::GetShadowCB()
 {
 	return Renderer::s_graphicsMemory->AllocateConstant(m_shadowCB);

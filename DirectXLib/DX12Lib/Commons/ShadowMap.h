@@ -30,9 +30,16 @@ namespace DX12Lib
 		void SetShadowBufferDimensions(uint32_t width, uint32_t height);
 		void SetCenter(const DirectX::XMFLOAT3& center) { m_shadowCenter = center; }
 		void SetBounds(const DirectX::XMFLOAT3& bounds) { m_shadowBounds = bounds; }
+		
 		ShadowBuffer& GetShadowBuffer() { return m_shadowBuffer; }
 		DirectX::XMFLOAT3 GetBounds() const { return m_shadowBounds; }
+
+		const ConstantBufferCamera& GetShadowConstantBuffer() const { return m_shadowCB; }
 		void UpdateShadowMatrix(SceneNode& node);
+		void UpdateShadowMatrix(const ConstantBufferCamera& cb);
+
+
+
 		DirectX::GraphicsResource GetShadowCB();
 		DirectX::XMFLOAT4X4 GetShadowTransform() const { return m_shadowTransform; }
 		DirectX::XMFLOAT4X4 GetInvShadowTransform() const { return m_invShadowTransform; }
