@@ -401,6 +401,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	Renderer::ShadowPass(commandContext);
 	Renderer::MainRenderPass(commandContext);
 	Renderer::DeferredPass(commandContext);
+	Renderer::PostProcessPass(commandContext);
 
 	//m_displayVoxelScene->PerformTechnique(commandContext);
 

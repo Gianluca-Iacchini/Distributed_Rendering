@@ -92,11 +92,15 @@ bool IsWithinBounds(uint3 coord, int3 offset, uint3 gridDimension)
 {
     // Check for underflow
     if (any(coord < uint3(-min(int3(0, 0, 0), offset))))
+    {
         return false;
-    
-    uint3 result = coord + max(int3(0, 0, 0), offset);
+    }
+    else
+    {
+        uint3 result = coord + max(int3(0, 0, 0), offset);
 
-    return all(result < gridDimension);
+        return all(result < gridDimension);
+    }
 }
 
 bool IsVoxelPresent(uint voxelLinearCoord, ByteAddressBuffer voxelPresenceBuffer)

@@ -1,4 +1,4 @@
-#define HLSL 1
+
 #include "VoxelUtils.hlsli"
 #include "TechniquesCompat.h"
 
@@ -46,38 +46,39 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
     uint rank = gIndirectionRankBuffer[indirectionIndex];
     uint hashedPosition = GetLinearCoord(coord, gridDimension);
     
-    if (any(coord >= cbAABB.GridDimension))
-        return result;
-    
-    if (rank == 0)
-        return result;
-    
-    uint tempHashed;
-    uint startIndex = index;
-    uint endIndex = index + rank;
-    uint currentIndex = (startIndex + endIndex) / 2;
-
-    for (int i = 0; i < int(12); ++i)
+    if (all(coord < cbAABB.GridDimension) && rank > 0)
     {
-        tempHashed = gVoxelHashedCompactBuffer[currentIndex];
+        
+    
 
-        if (tempHashed == hashedPosition)
-        {
-            return uint2(currentIndex, 1);
-        }
+    
+        uint tempHashed;
+        uint startIndex = index;
+        uint endIndex = index + rank;
+        uint currentIndex = (startIndex + endIndex) / 2;
 
-        if (tempHashed < hashedPosition)
+        for (int i = 0; i < int(12); ++i)
         {
-            startIndex = currentIndex;
-            currentIndex = (startIndex + endIndex) / 2;
-        }
-        else
-        {
-            endIndex = currentIndex;
-            currentIndex = (startIndex + endIndex) / 2;
+            tempHashed = gVoxelHashedCompactBuffer[currentIndex];
+
+            if (tempHashed == hashedPosition)
+            {
+                result = uint2(currentIndex, 1);
+                break;
+            }
+
+            if (tempHashed < hashedPosition)
+            {
+                startIndex = currentIndex;
+                currentIndex = (startIndex + endIndex) / 2;
+            }
+            else
+            {
+                endIndex = currentIndex;
+                currentIndex = (startIndex + endIndex) / 2;
+            }
         }
     }
-
     return result;
 }
 

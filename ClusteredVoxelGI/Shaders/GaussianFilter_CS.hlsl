@@ -84,38 +84,27 @@ float gaussianDistribution(float x, float y, float z, float sigma)
 
 float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool shouldSet)
 {
-
     uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions);
 
-    float gaussianValue;
-
-    float3 voxelFaceIrradiance;
-
-    float lKernel[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-    float3 lVoxelRadiance[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
-
     shouldSet = true;
-    float sum = 0.0f; // used for normalization, one sum value for each rgb channel
-    
-    // Generate 3x3 kernel 
+    float sum = 0.0f; // Normalization sum
+    float3 filteredIrradiance = float3(0.0f, 0.0f, 0.0f);
+
+    // Iterate over the kernel
     for (int x = -SIDE; x <= SIDE; ++x)
     {
         for (int y = -SIDE; y <= SIDE; ++y)
         {
             for (int z = -SIDE; z <= SIDE; ++z)
             {
-                lKernel[x + SIDE][y + SIDE][z + SIDE] = 0.0f;
-                lVoxelRadiance[x + SIDE][y + SIDE][z + SIDE] = float3(0.0f, 0.0f, 0.0f);
                 int3 offset = int3(x, y, z);
-
                 if (IsWithinBounds(voxelTexCoords, offset, cbVoxelCommons.voxelTextureDimensions))
                 {
                     uint3 neighbourCoord = voxelTexCoords + uint3(offset);
                     if (IsVoxelPresent(neighbourCoord, cbVoxelCommons.voxelTextureDimensions, gVoxelOccupiedBuffer))
                     {
                         uint neighbourIdx = FindHashedCompactedPositionIndex(neighbourCoord, cbVoxelCommons.voxelTextureDimensions).x;
-
-                        voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
+                        float3 voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
                         
                         uint2 packedRadiance = uint2(0, 0);
                         if (cbGaussianFilter.CurrentPhase == 1)
@@ -141,10 +130,11 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool should
                         if (isFirstPass || (any(voxelFaceIrradiance > 0.0f)))
                         {
                             uint linearCoord = GetLinearCoord(uint3(x + SIDE, y + SIDE, z + SIDE), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
-                            gaussianValue = gGaussianPrecomputedDataBuffer[linearCoord];
-                            lKernel[x + SIDE][y + SIDE][z + SIDE] = gaussianValue;
-                            lVoxelRadiance[x + SIDE][y + SIDE][z + SIDE] = voxelFaceIrradiance;
+                            float gaussianValue = gGaussianPrecomputedDataBuffer[linearCoord];
                             sum += gaussianValue;
+
+                            // Accumulate the filtered irradiance directly
+                            filteredIrradiance += voxelFaceIrradiance * gaussianValue;
                         }
                     }
                 }
@@ -152,29 +142,108 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool should
         }
     }
 
-    // Avoid division by zero
-    if (sum == 0.0f)
+    // Normalize the result
+    if (sum > 0.0f)
     {
-        sum = 1.0f;
-    }
-
-    // Apply kernel for the face
-    float3 filteredIrradiance = float3(0.0f, 0.0f, 0.0f);
-    float kernelNormalizedValue;
-    for (uint i = 0; i < KERNEL_SIZE; ++i)
-    {
-        for (uint j = 0; j < KERNEL_SIZE; ++j)
-        {
-            for (uint k = 0; k < KERNEL_SIZE; ++k)
-            {
-                kernelNormalizedValue = lKernel[i][j][k] /= sum;
-                filteredIrradiance += lVoxelRadiance[i][j][k] * kernelNormalizedValue;
-            }
-        }
+        filteredIrradiance /= sum;
     }
 
     return filteredIrradiance;
 }
+
+//float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool shouldSet)
+//{
+
+//    uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIdx], cbVoxelCommons.voxelTextureDimensions);
+
+//    float gaussianValue;
+
+//    float3 voxelFaceIrradiance;
+
+//    float lKernel[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
+//    float3 lVoxelRadiance[KERNEL_SIZE][KERNEL_SIZE][KERNEL_SIZE];
+
+//    shouldSet = true;
+//    float sum = 0.0f; // used for normalization, one sum value for each rgb channel
+    
+//    // Generate 3x3 kernel 
+//    for (int x = -SIDE; x <= SIDE; ++x)
+//    {
+//        for (int y = -SIDE; y <= SIDE; ++y)
+//        {
+//            for (int z = -SIDE; z <= SIDE; ++z)
+//            {
+//                lKernel[x + SIDE][y + SIDE][z + SIDE] = 0.0f;
+//                lVoxelRadiance[x + SIDE][y + SIDE][z + SIDE] = float3(0.0f, 0.0f, 0.0f);
+//                int3 offset = int3(x, y, z);
+
+//                if (IsWithinBounds(voxelTexCoords, offset, cbVoxelCommons.voxelTextureDimensions))
+//                {
+//                    uint3 neighbourCoord = voxelTexCoords + uint3(offset);
+//                    if (IsVoxelPresent(neighbourCoord, cbVoxelCommons.voxelTextureDimensions, gVoxelOccupiedBuffer))
+//                    {
+//                        uint neighbourIdx = FindHashedCompactedPositionIndex(neighbourCoord, cbVoxelCommons.voxelTextureDimensions).x;
+
+//                        voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
+                        
+//                        uint2 packedRadiance = uint2(0, 0);
+//                        if (cbGaussianFilter.CurrentPhase == 1)
+//                        {
+//                            packedRadiance = gFaceRadianceReadBuffer[neighbourIdx * 6 + faceIdx];
+//                            if (!IsVoxelPresent(neighbourIdx, gIndirectLightUpdatedVoxelsBitmap))
+//                            {
+//                                shouldSet = false;
+//                            }
+//                        }
+//                        else if (cbGaussianFilter.CurrentPhase == 2)
+//                        {
+//                            packedRadiance = gGaussianFirstFilterBuffer[neighbourIdx * 6 + faceIdx];
+//                        }
+//                        voxelFaceIrradiance.xy = UnpackFloats16(packedRadiance.x);
+//                        voxelFaceIrradiance.z = UnpackFloats16(packedRadiance.y).x;
+
+//                        if (voxelIdx == neighbourIdx)
+//                        {
+//                            voxelFaceIrradiance *= gFaceCloseVoxelsPenaltyBuffer[neighbourIdx * 6 + faceIdx];
+//                        }
+
+//                        if (isFirstPass || (any(voxelFaceIrradiance > 0.0f)))
+//                        {
+//                            uint linearCoord = GetLinearCoord(uint3(x + SIDE, y + SIDE, z + SIDE), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
+//                            gaussianValue = gGaussianPrecomputedDataBuffer[linearCoord];
+//                            lKernel[x + SIDE][y + SIDE][z + SIDE] = gaussianValue;
+//                            lVoxelRadiance[x + SIDE][y + SIDE][z + SIDE] = voxelFaceIrradiance;
+//                            sum += gaussianValue;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+
+//    // Avoid division by zero
+//    if (sum == 0.0f)
+//    {
+//        sum = 1.0f;
+//    }
+
+//    // Apply kernel for the face
+//    float3 filteredIrradiance = float3(0.0f, 0.0f, 0.0f);
+//    float kernelNormalizedValue;
+//    for (uint i = 0; i < KERNEL_SIZE; ++i)
+//    {
+//        for (uint j = 0; j < KERNEL_SIZE; ++j)
+//        {
+//            for (uint k = 0; k < KERNEL_SIZE; ++k)
+//            {
+//                kernelNormalizedValue = lKernel[i][j][k] /= sum;
+//                filteredIrradiance += lVoxelRadiance[i][j][k] * kernelNormalizedValue;
+//            }
+//        }
+//    }
+
+//    return filteredIrradiance;
+//}
 
 
 [numthreads(128, 1, 1)]

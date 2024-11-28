@@ -1,4 +1,3 @@
-#define HLSL 1
 #include "VoxelUtils.hlsli"
 #include "TechniquesCompat.h"
 

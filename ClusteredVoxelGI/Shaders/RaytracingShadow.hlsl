@@ -1,10 +1,10 @@
 #ifndef RAYTRACING_SHADOW_HLSL
 #define RAYTRACING_SHADOW_HLSL
 
-#define HLSL
+#include "VoxelUtils.hlsli"
 #include "TechniquesCompat.h"
 #include "RaytracingUtils.hlsli"
-#include "VoxelUtils.hlsli"
+
 
 ConstantBuffer<ConstantBufferVoxelCommons> cbVoxelCommons : register(b0);
 ConstantBuffer<ConstantBufferRTShadows> cbRaytracingShadows : register(b1);
