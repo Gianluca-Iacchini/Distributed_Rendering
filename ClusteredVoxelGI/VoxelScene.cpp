@@ -3,7 +3,6 @@
 #include "DX12Lib/Scene/LightComponent.h"
 #include "CameraController.h"
 #include "DX12Lib/Scene/SceneCamera.h"
-#include "VoxelMaterial.h"
 #include "DX12Lib/Scene/LightController.h"
 #include "DX12Lib/Commons/ShadowMap.h"
 

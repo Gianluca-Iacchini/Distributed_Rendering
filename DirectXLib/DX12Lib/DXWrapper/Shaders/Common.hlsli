@@ -1,3 +1,6 @@
+#ifndef COMMON_HLSLI
+#define COMMON_HLSLI
+
 #include "LightingUtil.hlsli"
 
 struct Commons
@@ -131,3 +134,5 @@ uint PackFloats16(float2 floatsToPack)
     
     return packedRadX;
 }
+
+#endif

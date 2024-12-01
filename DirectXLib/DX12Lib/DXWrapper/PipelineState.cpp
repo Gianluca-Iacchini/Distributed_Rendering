@@ -50,6 +50,37 @@ void GraphicsPipelineState::SetShader(std::shared_ptr<Shader> shader, ShaderType
 	}
 }
 
+void DX12Lib::GraphicsPipelineState::SetShader(const D3D12_SHADER_BYTECODE& shader, ShaderType type)
+{
+	if (type == ShaderType::Count)
+	{
+		return;
+	}
+
+	switch (type)
+	{
+	case ShaderType::Vertex:
+		m_psoDesc.VS = shader;
+		break;
+	case ShaderType::Pixel:
+		m_psoDesc.PS = shader;
+		break;
+	case ShaderType::Geometry:
+		m_psoDesc.GS = shader;
+		break;
+	case ShaderType::Hull:
+		m_psoDesc.HS = shader;
+		break;
+	case ShaderType::Domain:
+		m_psoDesc.DS = shader;
+		break;
+	case ShaderType::Count:
+		break;
+	default:
+		break;
+	}
+}
+
 void GraphicsPipelineState::InitializeDefaultStates()
 {
 	this->SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));

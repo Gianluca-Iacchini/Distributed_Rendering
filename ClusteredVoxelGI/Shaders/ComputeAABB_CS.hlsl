@@ -30,10 +30,10 @@ RWStructuredBuffer<uint> gAABBGridCount : register(u4, space0);
 // We use two counters per thread group to avoid performing two passes.
 // Counter at position 0 is used to find the offset of this aabb group.
 // Counter at position 1 is used to find the offset of the single aabb withing the group.
-groupshared uint voxelCount[2] = { 0, 0 };
+groupshared uint voxelCount[2];
 
 // Store the start index of the aabb group.
-groupshared uint aabbStart = 0;
+groupshared uint aabbStart;
 
 groupshared uint3 minAABB;
 groupshared uint3 maxAABB;
@@ -48,10 +48,6 @@ uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
     
     if (all(coord < cbAABB.GridDimension) && rank > 0)
     {
-        
-    
-
-    
         uint tempHashed;
         uint startIndex = index;
         uint endIndex = index + rank;
@@ -89,12 +85,21 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint GroupThreadIndex : SV_GroupIndex
     
     uint2 result = FindHashedCompactedPositionIndex(DTid, cbAABB.GridDimension);
     
+    if (GroupThreadIndex == 0)
+    {
+        voxelCount[0] = 0;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
     InterlockedAdd(voxelCount[0], result.y);
 
     GroupMemoryBarrierWithGroupSync();
     
     if (GroupThreadIndex == 0)
     {
+        voxelCount[1] = 0;
+        aabbStart = 0;
         minAABB = uint3(cbAABB.GridDimension) + 2;
         maxAABB = uint3(0, 0, 0);
         InterlockedAdd(gAABBCounter[0], voxelCount[0], aabbStart);

@@ -1,14 +1,5 @@
+#define NO_SHADER_OUTPUT
 #include "VoxelUtils.hlsli"
-#define HLSL
-#include "TechniquesCompat.h"
-
-struct PSInput
-{
-    float4 position : SV_POSITION;
-    float3 normal : NORMAL;
-    float3 color : COLOR;
-    uint ClusterIndex : CLUSTERINDEX;
-};
 
 struct GSInput
 {
@@ -157,7 +148,7 @@ bool IsVoxelLit(uint voxelIndex, ByteAddressBuffer shadowBuffer)
 [maxvertexcount(72)]
 void GS(
 	point GSInput input[1], 
-	inout TriangleStream< PSInput > triOutput
+	inout TriangleStream<GeometryOutClusterIndex> triOutput
 )
 {
 
@@ -261,7 +252,7 @@ void GS(
     [unroll]
     for (int i = 0; i < 6; i += 3)
     {
-        PSInput output;
+        GeometryOutClusterIndex output;
         
         float4 v1 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceIdx * 6) + i)]], 1.0f), cbVoxelCommons.VoxelToWorld);
         float4 v2 = mul(float4(voxelCoord + cubeVertices[cubeIndices[((faceIdx * 6) + i) + 1]], 1.0f), cbVoxelCommons.VoxelToWorld);

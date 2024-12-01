@@ -18,13 +18,8 @@ class MathHelper
 public:
 	static DirectX::XMFLOAT4X4 Identity4x4()
 	{
-		static DirectX::XMFLOAT4X4 I(
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		);
-
+		DirectX::XMFLOAT4X4 I;
+		DirectX::XMStoreFloat4x4(&I, DirectX::XMMatrixIdentity());
 		return I;
 	}
 
@@ -118,19 +113,19 @@ public:
 		// Pitch (x-axis rotation)
 		float sinr_cosp = 2 * (w * x + y * z);
 		float cosr_cosp = 1 - 2 * (x * x + y * y);
-		pitch = std::atan2(sinr_cosp, cosr_cosp);
+		pitch = atan2(sinr_cosp, cosr_cosp);
 
 		// Yaw (y-axis rotation)
 		float sinp = 2 * (w * y - z * x);
 		if (std::abs(sinp) >= 1)
-			yaw = std::copysign(DirectX::XM_PI / 2, sinp); // Use 90 degrees if out of range
+			yaw = copysign(DirectX::XM_PI / 2, sinp); // Use 90 degrees if out of range
 		else
-			yaw = std::asin(sinp);
+			yaw = asin(sinp);
 
 		// Roll (z-axis rotation)
 		float siny_cosp = 2 * (w * z + x * y);
 		float cosy_cosp = 1 - 2 * (y * y + z * z);
-		roll = std::atan2(siny_cosp, cosy_cosp);
+		roll = atan2(siny_cosp, cosy_cosp);
 
 		return DirectX::XMFLOAT3(pitch, yaw, roll);
 	}

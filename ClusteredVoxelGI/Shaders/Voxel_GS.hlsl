@@ -7,7 +7,7 @@ cbuffer cbVoxelCamera : register(b1)
 
 [maxvertexcount(3)]
 void GS(
-	triangle VertexOutVoxel input[3] : SV_POSITION, 
+	triangle VertexOutVoxel input[3], 
 	inout TriangleStream< VertexOutVoxel > output
 )
 {

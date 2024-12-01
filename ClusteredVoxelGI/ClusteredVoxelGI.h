@@ -4,29 +4,32 @@
 #include <DirectXMath.h>
 #include "DX12Lib/DXWrapper/RootSignature.h"
 #include "DX12Lib/DXWrapper/PipelineState.h"
-#include "CVGIDataTypes.h"
+#include "Helpers/CVGIDataTypes.h"
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "GraphicsMemory.h"
-#include "VoxelizeScene.h"
-#include "DisplayVoxelScene.h"
-#include "PrefixSumVoxels.h"
-#include "ClusterVoxels.h"
-#include "MergeClusters.h"
-#include "ComputeNeighboursTechnique.h"
-#include "ClusterVisibility.h"
-#include "FaceCountTechnique.h"
-#include "BuildAABBsTechnique.h"
-#include "FacePenaltyTechnique.h"
-#include "DX12Lib/Scene/LightComponent.h"
-#include "Technique.h"
-#include "LightTransportTechnique.h"
-#include "GaussianFilterTechnique.h"
-#include "LerpRadianceTechnique.h"
-#include "SceneDepthTechnique.h"
+#include "Techniques/Technique.h"
 
-#include "LightVoxel.h"
+#include "Techniques/VoxelizeScene.h"
+#include "Techniques/DisplayVoxelScene.h"
+#include "Techniques/PrefixSumVoxels.h"
+#include "Techniques/ClusterVoxels.h"
+#include "Techniques/MergeClusters.h"
+#include "Techniques/ComputeNeighboursTechnique.h"
+#include "Techniques/ClusterVisibility.h"
+#include "Techniques/BuildAABBsTechnique.h"
+#include "Techniques/FacePenaltyTechnique.h"
+#include "DX12Lib/Scene/LightComponent.h"
+
+#include "Techniques/LightTransportTechnique.h"
+#include "Techniques/GaussianFilterTechnique.h"
+#include "Techniques/LerpRadianceTechnique.h"
+#include "Techniques/SceneDepthTechnique.h"
+
+#include "Techniques/LightVoxel.h"
 #include "thread"
+
+#include "DX12Lib/DXWrapper/Fence.h"
 
 namespace CVGI
 {
@@ -66,7 +69,6 @@ namespace CVGI
 		std::unique_ptr<MergeClusters> m_mergeClusters;
 		std::unique_ptr<ComputeNeighboursTechnique> m_computeNeighboursTechnique;
 		std::unique_ptr<ClusterVisibility> m_clusterVisibility;
-		std::unique_ptr<FaceCountTechnique> m_faceCountTechnique;
 		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
 		std::unique_ptr<FacePenaltyTechnique> m_facePenaltyTechnique;
 		std::unique_ptr<SceneDepthTechnique> m_sceneDepthTechnique;

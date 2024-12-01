@@ -80,6 +80,7 @@ namespace DX12Lib {
 		void SetDesc(D3D12_GRAPHICS_PIPELINE_STATE_DESC desc) { m_psoDesc = desc; }
 
 		void SetShader(std::shared_ptr<Shader> shader, ShaderType type);
+		void SetShader(const D3D12_SHADER_BYTECODE& shader, ShaderType type);
 		void InitializeDefaultStates();
 
 		virtual void UseRootSignature(CommandList& commandList) const override;

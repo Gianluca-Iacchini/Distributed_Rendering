@@ -1,3 +1,6 @@
+#ifndef LIGHTING_UTIL
+#define LIGHTING_UTIL
+
 #define MAX_LIGHTS 16
 
 struct Light
@@ -255,3 +258,4 @@ float3 PBRDirectionalLight(Light Light, SurfaceData surfData, float roughness)
     return NdotL * Light.color * ((surfData.c_diff * diffuse) + specular);
 }
 
+#endif

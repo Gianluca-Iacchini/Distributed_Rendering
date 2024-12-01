@@ -49,7 +49,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_mergeClusters = std::make_unique<MergeClusters>(voxelTexDimensions);
 	m_computeNeighboursTechnique = std::make_unique<ComputeNeighboursTechnique>(m_data);
 	m_clusterVisibility = std::make_unique<ClusterVisibility>(m_data);
-	m_faceCountTechnique = std::make_unique<FaceCountTechnique>(m_data);
 	m_buildAABBsTechnique = std::make_unique<BuildAABBsTechnique>(m_data);
 	m_facePenaltyTechnique = std::make_unique<FacePenaltyTechnique>(m_data);
 	m_sceneDepthTechnique = std::make_unique<SceneDepthTechnique>(m_data);
@@ -74,8 +73,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	
 	auto computeNeighboursPso = m_computeNeighboursTechnique->BuildPipelineState();
 
-	auto faceCountPso = m_faceCountTechnique->BuildPipelineState();
-
 	auto aabbGenerationPso = m_buildAABBsTechnique->BuildPipelineState();
 
 	auto facePenaltyPso = m_facePenaltyTechnique->BuildPipelineState();
@@ -96,7 +93,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	Renderer::s_PSOs[clusterizeVoxelPso->Name] = clusterizeVoxelPso;
 	Renderer::s_PSOs[clusterReducePso->Name] = clusterReducePso;
 	Renderer::s_PSOs[computeNeighboursPso->Name] = computeNeighboursPso;
-	Renderer::s_PSOs[faceCountPso->Name] = faceCountPso;
 	Renderer::s_PSOs[aabbGenerationPso->Name] = aabbGenerationPso;
 	Renderer::s_PSOs[facePenaltyPso->Name] = facePenaltyPso;
 	Renderer::s_PSOs[raytracePso->Name] = raytracePso;
@@ -206,9 +202,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_computeNeighboursTechnique->InitializeBuffers();
 	m_computeNeighboursTechnique->PerformTechnique(computeContext);
 
-	//m_faceCountTechnique->InitializeBuffers();
-	//m_faceCountTechnique->PerformTechnique(computeContext);
-
 	m_data->FaceCount = m_data->GetVoxelCount() * 6;
 
 	m_buildAABBsTechnique->InitializeBuffers();
@@ -276,12 +269,6 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 	bool didLightChange = m_data->GetLightComponent()->Node->IsTransformDirty();
 	bool didCameraMove = m_data->GetCamera()->IsDirty();
-	//bool didCameraMove = kbState.IsKeyDown(DirectX::Keyboard::Space);
-
-
-
-
-
 
 	m_Scene->Render(commandContext);
 
@@ -316,11 +303,10 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 	if (LightDispatched && m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
 	{
+		DX12Lib::ComputeContext& context = ComputeContext::Begin();
 		if (IndirectBlockCount < 48)
 		{
 			UINT32 fenceCompletedValue = m_blockFence->GetGPUFenceValue();
-
-			DX12Lib::ComputeContext& context = ComputeContext::Begin();
 
 			UINT32 dispatchesInFlight = m_blockFence->CurrentFenceValue - fenceCompletedValue;
 			UINT32 dispatchesToLaunch = maxDispatchesPerFrame - dispatchesInFlight;
@@ -350,14 +336,13 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 				m_blockFence->CurrentFenceValue++;
 				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_blockFence);
 			}
-
-			context.Finish();
 		}
 		else if (IndirectBlockCount == 48 && m_blockFence->IsFenceComplete(m_blockFence->CurrentFenceValue))
 		{
 			m_gaussianFilterTechnique->SwapBuffers();
 			IndirectBlockCount = 0;
 			LightDispatched = false;
+			m_gaussianFilterTechnique->TransferRadianceData(context);
 			if (m_resetTime)
 			{
 				m_lastTotalTime = RTGIUpdateDelta;
@@ -366,6 +351,8 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			}
 			changeLerp = true;
 		}
+
+		context.Finish();
 	}
 
 	m_rasterFence->WaitForCurrentFence();
@@ -393,7 +380,6 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 		m_lerpRadianceTechnique->SetAccumulatedTime(deltTime);
 		m_lerpRadianceTechnique->PerformTechnique(context);
 		context.Finish(true);
-
 	}
 
 	lerpDelta += GameTime::GetDeltaTime();

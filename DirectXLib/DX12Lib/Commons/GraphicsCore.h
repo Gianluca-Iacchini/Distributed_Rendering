@@ -1,12 +1,14 @@
 #pragma once
 
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
+#include "DX12Lib/DXWrapper/CommandQueue.h"
 #include "GraphicsMemory.h"
 #include "Mouse.h"
 #include "Keyboard.h"
 #include "DX12Lib/DXWrapper/Texture.h"
 #include "DX12Lib/Models/MaterialManager.h"
 #include "Renderer.h"
+
 
 // From Microsoft mini engine
 #define D3D12_GPU_VIRTUAL_ADDRESS_NULL    ((D3D12_GPU_VIRTUAL_ADDRESS)0)
@@ -16,15 +18,7 @@
 
 
 namespace DX12Lib {
-	class Device;
-	class CommandAllocatorPool;
-	class CommandQueueManager;
-	class CommandAllocator;
-	class CommandList;
 	class CommandContextManager;
-	class PipelineState;
-	class Shader;
-
 }
 
 namespace Graphics

@@ -9,7 +9,7 @@
 
 #define USE_RTGI 1
 
-#include "../ClusteredVoxelGI/Technique.h"
+#include "../ClusteredVoxelGI/Techniques/Technique.h"
 
 #define PSO_SHADOW_OPAQUE L"ShadowOpaquePso"
 #define PSO_SHADOW_ALPHA_TEST L"ShadowAlphaTestPso"

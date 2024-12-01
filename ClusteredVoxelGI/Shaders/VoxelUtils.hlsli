@@ -25,6 +25,20 @@ struct VertexOutVoxel
     float2 Tex : TEXCOORD;
 };
 
+struct VertexOutVoxelIndex
+{
+    float4 Pos : SV_Position;
+    uint VoxelIndex : VOXELINDEX;
+};
+
+struct GeometryOutClusterIndex
+{
+    float4 position : SV_POSITION;
+    float3 normal : NORMAL;
+    float3 color : COLOR;
+    uint ClusterIndex : CLUSTERINDEX;
+};
+
 struct VoxelCommons
 {
     uint3 gridDimension;
