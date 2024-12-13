@@ -18,3 +18,4 @@ void Logger::Init()
 	s_coreLogger->info(L"Core Logger initialized");
 	s_clientLogger->info(L"Client Logger initialized");
 }
+

@@ -31,6 +31,8 @@
 
 #include "DX12Lib/DXWrapper/Fence.h"
 
+#include "DX12Lib/Commons/NetworkManager.h"
+
 namespace CVGI
 {
 	class VoxelCamera;
@@ -116,6 +118,8 @@ namespace CVGI
 		DX12Lib::ShadowCamera* m_shadowCamera = nullptr;
 
 		std::shared_ptr<TechniqueData> m_data = nullptr;
+
+		DX12Lib::NetworkHost m_networkServer;
 
 		float RTGIUpdateDelta = 1.0f;
 		float lerpDelta = 0.0f;

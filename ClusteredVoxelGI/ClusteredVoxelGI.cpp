@@ -236,7 +236,27 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_displayVoxelScene->SetCamera(m_Scene->GetMainCamera());
 	m_displayVoxelScene->SetVertexData(commandContext);
 
-	Renderer::SetRTGIData(m_data, originalMin, originalMax);
+	auto& rendererRTGIHandle = Renderer::GetRTGIHandleSRV();
+
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandles[6];
+
+	srvHandles[0] = m_voxelizeScene->GetBufferManager()->GetBuffer(0).GetSRV();
+
+	for (UINT i = 1; i < 5; i++)
+	{
+		srvHandles[i] = m_prefixSumVoxels->GetBufferManager()->GetBuffer(i - 1).GetSRV();
+	}
+
+	srvHandles[5] = m_lerpRadianceTechnique->GetBufferManager()->GetBuffer(0).GetSRV();
+
+	auto descriptorSize = Renderer::s_textureHeap->GetDescriptorSize();
+	for (UINT i = 0; i < 6; i++)
+	{
+		Graphics::s_device->Get()->CopyDescriptorsSimple(1, rendererRTGIHandle + descriptorSize * i, srvHandles[i], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	Renderer::SetRTGIData(m_data->GetVoxelCommons());
 	Renderer::UseRTGI(true);
 
 	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
@@ -245,13 +265,14 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_shadowFence);
 	m_lastBlockFenceVal = m_blockFence->CurrentFenceValue;
 
-	//Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_swapFence);
-
 
 	m_rtgiFence->Get()->SetName(L"RTGI Fence");
 	m_rasterFence->Get()->SetName(L"Acc Fence");
 	m_blockFence->Get()->SetName(L"Block Fence");
 	m_shadowFence->Get()->SetName(L"ShadowFence Fence");
+
+	DX12Lib::NetworkHost::InitializeEnet();
+	m_networkServer.StartServer(1234);
 
 	Renderer::PostDrawCleanup(commandContext);
 }
@@ -343,6 +364,15 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			IndirectBlockCount = 0;
 			LightDispatched = false;
 			m_gaussianFilterTechnique->TransferRadianceData(context);
+			if (m_networkServer.IsConnected())
+			{
+				std::vector<DirectX::XMUINT2>& radData = m_gaussianFilterTechnique->GetRadianceData();
+				UINT radSize = m_gaussianFilterTechnique->GetRadianceLength();
+				PacketGuard packet = m_networkServer.CreatePacket();
+				packet->ClearPacket();
+				packet->AppendToBuffer(reinterpret_cast<std::uint8_t*>(radData.data()), radSize * sizeof(DirectX::XMUINT2));
+				m_networkServer.SendData(packet);
+			}
 			if (m_resetTime)
 			{
 				m_lastTotalTime = RTGIUpdateDelta;
@@ -406,6 +436,8 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext)
 {
+	m_networkServer.Disconnect();
+	DX12Lib::NetworkHost::DeinitializeEnet();
 	D3DApp::OnClose(commandContext);
 }
 

@@ -118,13 +118,13 @@ void CVGI::GaussianFilterTechnique::TransferRadianceData(DX12Lib::ComputeContext
 
 	UINT32 dataSize = arraySize[1];
 
-	DirectX::XMUINT2* radData =  m_readBufferManager->ReadFromBuffer<DirectX::XMUINT2*>(context, 0, dataSize);
+	DirectX::XMUINT2* radData =  m_readBufferManager->ReadFromBuffer<DirectX::XMUINT2*>(context, 0, sizeof(DirectX::XMUINT2) * dataSize);
 
 
 
 	memcpy(m_radianceData.data(), radData, sizeof(DirectX::XMUINT2) * dataSize);
 
-	DXLIB_CORE_INFO("Visible face count: {0}", dataSize);
+	m_radLength = dataSize;
 }
 
 void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)

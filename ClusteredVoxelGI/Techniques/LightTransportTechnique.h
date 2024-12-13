@@ -22,6 +22,8 @@ namespace CVGI
 
 		void LaunchIndirectLightBlock(DX12Lib::ComputeContext& context, UINT blockCount);
 
+		BufferManager* GetIndirectBufferManager() { return m_indirectBufferManager.get(); }
+
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 groupSize) override;
 		void TechniquePassIndirect(DX12Lib::ComputeContext& commandContext);

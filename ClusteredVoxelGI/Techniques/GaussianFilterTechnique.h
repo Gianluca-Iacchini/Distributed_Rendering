@@ -21,8 +21,10 @@ namespace CVGI
 		void TransferRadianceData(DX12Lib::ComputeContext& context);
 
 		std::vector<DirectX::XMUINT2>& GetRadianceData() { return m_radianceData; }
+		UINT GetRadianceLength() { return m_radLength; }
 
 		std::vector<DirectX::XMUINT2> m_radianceData;
+		UINT m_radLength = 0;
 
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize);

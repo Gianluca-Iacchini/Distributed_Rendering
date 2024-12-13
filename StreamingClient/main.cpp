@@ -38,7 +38,6 @@ void InitializeWinsock()
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
 		SC_LOG_ERROR("WSAStartup failed.");
 		return;
-		return;
 	}
 
 	g_sockfd = socket(AF_INET, SOCK_DGRAM, 0);

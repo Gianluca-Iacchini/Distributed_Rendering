@@ -4,6 +4,8 @@
 #include "DX12Lib/Scene/LightComponent.h"
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "CameraController.h"
+#include "DX12Lib/Commons/ShadowMap.h"
+#include "DX12Lib/Scene/LightController.h"
 
 using namespace LI;
 using namespace DX12Lib;
@@ -20,12 +22,19 @@ void LI::LIScene::Init(DX12Lib::CommandContext& context)
 	Scene::Init(context);
 
 	auto lightNode = this->AddNode();
-	lightNode->SetPosition(0, 100, 0);
-	auto light = lightNode->AddComponent<LightComponent>();
+	lightNode->SetPosition(-1, 38, 0);
+	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
-	light->SetLightColor({ 0.75f, 0.65f, 0.4f });
-	lightNode->Rotate(lightNode->GetRight(), 1.2f);
+	light->SetLightColor({ 0.45f, 0.45f, 0.45f });
+	if (light->CastsShadows())
+	{
+		light->GetShadowCamera()->SetShadowBufferDimensions(2048, 2048);
+	}
 
+
+	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
+
+	lightNode->AddComponent<LightController>();
 
 	m_camera->Node->AddComponent<LI::CameraController>(m_isStreaming);
 

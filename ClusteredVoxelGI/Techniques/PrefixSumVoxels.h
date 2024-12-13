@@ -9,7 +9,15 @@ namespace CVGI
 	class PrefixSumVoxels : public Technique
 	{
 	private:
+		enum class CompactBufferRootSignature
+		{
+			PrefixSumCBV = 0,
+			VoxelizeUAVTable = 1,
+			StreamCompactionUAVTable = 2,
+			Count
+		};
 
+	public:
 		enum class PrefixSumBufferType
 		{
 			IndirectionRankBuffer,
@@ -17,14 +25,6 @@ namespace CVGI
 			CompactedVoxelIndex,
 			CompactedHashedBuffer,
 			PrefixSum,
-		};
-
-		enum class CompactBufferRootSignature
-		{
-			PrefixSumCBV = 0,
-			VoxelizeUAVTable = 1,
-			StreamCompactionUAVTable = 2,
-			Count
 		};
 
 	public:

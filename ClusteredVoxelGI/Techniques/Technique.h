@@ -138,6 +138,8 @@ namespace CVGI
 		virtual void PerformTechnique(DX12Lib::ComputeContext& context) {}
 		virtual void PerformTechnique(CVGI::RayTracingContext& context) {}
 
+		virtual BufferManager* GetBufferManager() { return m_bufferManager.get(); }
+
 	protected:
 		virtual void TechniquePass(DX12Lib::GraphicsContext& commandContext) {}
 		virtual void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 GroupSize) {}
@@ -145,6 +147,8 @@ namespace CVGI
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() { return nullptr; }
 		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() { return nullptr; }
+
+
 
 	protected:
 		std::shared_ptr<TechniqueData> m_data = nullptr;

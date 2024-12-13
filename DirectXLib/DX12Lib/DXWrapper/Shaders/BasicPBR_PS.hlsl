@@ -53,18 +53,13 @@ StructuredBuffer<GenericMaterial> gMaterials : register(t1, space1);
 
 ByteAddressBuffer gVoxelOccupiedBuffer : register(t0, space2);
 
-StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space3);
-StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space3);
+StructuredBuffer<uint> gIndirectionRankBuffer : register(t1, space2);
+StructuredBuffer<uint> gIndirectionIndexBuffer : register(t2, space2);
 
-StructuredBuffer<uint> gVoxelIndicesCompacted : register(t2, space3);
-StructuredBuffer<uint> gVoxelHashesCompacted : register(t3, space3);
+StructuredBuffer<uint> gVoxelIndicesCompacted : register(t3, space2);
+StructuredBuffer<uint> gVoxelHashesCompacted : register(t4, space2);
 
-//StructuredBuffer<ClusterData> gClusterDataBuffer : register(t0, space4);
-//StructuredBuffer<uint> gVoxelInClusterBuffer : register(t1, space4);
-//StructuredBuffer<uint> gVoxelAssignmentMap : register(t2, space4);
-StructuredBuffer<float3> gVoxelColorBuffer : register(t3, space4);
-
-StructuredBuffer<uint2> gPackedRadiance : register(t0, space5);
+StructuredBuffer<uint2> gPackedRadiance : register(t5, space2);
 
 static const uint UINT_MAX = 0xFFFFFFFF;
 

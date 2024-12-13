@@ -7,6 +7,8 @@
 #define PSO_PBR_TRANSPARENT L"pbrTransparentPso"
 #define PSO_PBR_ALPHA_TEST L"pbrAlphaTestPso"
 
+#include "../ClusteredVoxelGI/Shaders/TechniquesCompat.h"
+
 namespace DX12Lib
 {
 	class CommandContext;
@@ -97,8 +99,8 @@ namespace Graphics
 		void SetScissorAndViewportSize(int width, int height);
 
 		void UseRTGI(bool useRTGI);
-		void SetRTGIData(std::shared_ptr<CVGI::TechniqueData> techniqueData, DirectX::XMFLOAT3 originalSceneMin, DirectX::XMFLOAT3 originalSceneMax);
-		void SwapShadowBuffers();
+		void SetRTGIData(ConstantBufferVoxelCommons voxelCommonResource);
+		DX12Lib::DescriptorHandle& GetRTGIHandleSRV();
 	};
 }
 

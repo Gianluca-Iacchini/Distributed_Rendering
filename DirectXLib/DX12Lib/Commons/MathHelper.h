@@ -58,7 +58,7 @@ public:
 		return DirectX::XMFLOAT3(ceil(a.x / b.x), ceil(a.y / b.y), ceil(a.z / b.z));
 	}
 
-	static DirectX::XMFLOAT3 Ceil(const DirectX::XMFLOAT3& a, const UINT& b)
+	static DirectX::XMFLOAT3 Ceil(const DirectX::XMFLOAT3& a, const unsigned int& b)
 	{
 		return DirectX::XMFLOAT3(ceil(a.x / b), ceil(a.y / b), ceil(a.z / b));
 	}
@@ -68,12 +68,12 @@ public:
 		return DirectX::XMUINT3(ceil((float)a.x / b.x), ceil((float)a.y / b.y), ceil((float)a.z / b.z));
 	}
 
-	static DirectX::XMUINT3 Ceil(const DirectX::XMUINT3& a, const UINT& b)
+	static DirectX::XMUINT3 Ceil(const DirectX::XMUINT3& a, const unsigned int& b)
 	{
 		return DirectX::XMUINT3(ceil(a.x / (float)b), ceil(a.y / (float)b), ceil(a.z / (float)b));
 	}
 
-	static DirectX::XMUINT2 Ceil(const DirectX::XMUINT2& a, const UINT& b)
+	static DirectX::XMUINT2 Ceil(const DirectX::XMUINT2& a, const unsigned int& b)
 	{
 		return DirectX::XMUINT2(ceil(a.x / (float)b), ceil(a.y / (float)b));
 	}

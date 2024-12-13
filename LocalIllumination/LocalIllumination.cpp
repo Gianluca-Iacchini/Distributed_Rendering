@@ -5,6 +5,7 @@
 #include "DX12Lib/Commons/D3DApp.h"
 #include "LIScene.h"
 #include "DX12Lib/Models/ModelRenderer.h"
+#include "DX12Lib/Commons/NetworkManager.h"
 
 
 using namespace DirectX;
@@ -17,6 +18,8 @@ class LocalIlluminationApp : public D3DApp
 {
 private:
 	bool m_usePBRMaterials = true;
+	DX12Lib::NetworkHost m_networkClient;
+	DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
 
 public:
 	LocalIlluminationApp(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
@@ -27,7 +30,7 @@ public:
 		FlushCommandQueue();
 	};
 
-	virtual void Initialize(CommandContext& context) override
+	virtual void Initialize(GraphicsContext& context) override
 	{
 
 		std::string sourcePath = std::string(SOURCE_DIR);
@@ -42,7 +45,8 @@ public:
 
 		assert(loaded && "Model not loaded");
 
-
+		DX12Lib::NetworkHost::InitializeEnet();
+		m_networkClient.Connect("127.0.0.1", 1234);
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
@@ -56,14 +60,32 @@ public:
 		this->m_Scene->Init(context);
 	}
 
+	void sendData()
+	{
+		DXLIB_CORE_INFO("Sending packets");
+		PacketGuard packet = m_networkClient.CreatePacket();
+		packet->ClearPacket();
+		std::uint8_t message[5] = { 0, 1, 2, 3, 4 };
+		packet->AppendToBuffer(message, 5);
+		m_networkClient.SendData(packet);
+	}
 
-	virtual void Update(CommandContext& context) override
+	virtual void Update(GraphicsContext& context) override
 	{
 		D3DApp::Update(context);
 
+		auto kbState = Graphics::s_keyboard->GetState();
+		m_kbTracker.Update(kbState);
+
+		if (m_kbTracker.pressed.B)
+		{
+			sendData();
+			sendData();
+		}
+
 	}
 
-	virtual void Draw(CommandContext& context) override
+	virtual void Draw(GraphicsContext& context) override
 	{
 
 
@@ -81,10 +103,14 @@ public:
 		
 		if (scene != nullptr)
 			scene->StreamScene(context);
+
+		Renderer::PostDrawCleanup(context);
 	}
 
-	virtual void OnClose(CommandContext& context) override
+	virtual void OnClose(GraphicsContext& context) override
 	{
+		m_networkClient.Disconnect();
+		DX12Lib::NetworkHost::DeinitializeEnet();
 		D3DApp::OnClose(context);
 	}
 };

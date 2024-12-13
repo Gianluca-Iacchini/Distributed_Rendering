@@ -7,7 +7,9 @@
 #include <Windows.h>
 #include <d3d12.h>
 #include <assert.h>
+#include <queue>
 #include "DX12Lib/DXWrapper/Resource.h"
+#include "mutex"
 
 
 // From Microsoft mini engine
@@ -162,13 +164,181 @@ public:
     static std::wstring StartingWorkingDirectoryPath;
 };
 
+namespace DX12Lib {
+    template <typename T>
+    class ThreadSafeQueue
+    {
+    public:
+        ThreadSafeQueue() : m_maxSize(0) {}
+        ThreadSafeQueue(std::uint16_t maxSize) : m_maxSize(maxSize) {}
+        ~ThreadSafeQueue() = default;
+
+        void SetMaxSize(std::uint16_t maxSize) { m_maxSize = maxSize; }
+        void GetMaxSize() { return m_maxSize; }
+
+        bool EvictPush(T item, T& evictedItem);
+        void Push(T item);
+        bool Pop(T& outPop);
+
+        std::queue<T>& GetQueue() { return m_queue; }
+
+    private:
+        std::uint16_t m_maxSize = 0;
+        std::queue<T> m_queue;
+        std::mutex m_mutex;
+    };
 
 
+    template<typename T>
+    inline void ThreadSafeQueue<T>::Push(T item)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_queue.size() < m_maxSize)
+        {
+            m_queue.push(item);
+        }
 
+    }
 
+    template<typename T>
+    inline bool ThreadSafeQueue<T>::EvictPush(T item, T& evictedItem)
+    {
+        bool evicted = false;
 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_maxSize > 0 && m_queue.size() >= m_maxSize)
+        {
+            evictedItem = m_queue.front();
+            m_queue.pop();
+            evicted = true;
+        }
 
+        m_queue.push(item);
 
+        return evicted;
+    }
 
+    template<typename T>
+    inline bool ThreadSafeQueue<T>::Pop(T& outPop)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
 
+        if (m_queue.empty())
+        {
+            return false;
+        }
 
+        T value = m_queue.front();
+
+        outPop = value;
+        m_queue.pop();
+        return true;
+
+    }
+
+    template<typename T>
+    class ReusableQueue {
+    public:
+        ReusableQueue() {}
+
+        void Push(T element) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_elementQueue.push(element);
+            m_cv.notify_one();
+        }
+
+        void GetFromPool(T& element) {
+            std::unique_lock<std::mutex> lock(m_mutex);
+
+            // If the flag is set, we wait for an element to be available in the pool
+            if (ShouldWait)
+            {
+                m_cv.wait(lock, [this] { return !m_availableElementsPool.empty() || m_done; });
+            }
+            // If the flag is not set and the pool is empty, we return the oldest element in the queue (the one at the front) to the pool 
+            else if (m_availableElementsPool.empty())
+            {
+                m_availableElementsPool.push_back(m_elementQueue.front());
+                m_elementQueue.pop();
+            }
+
+			// Usually needed only when the thread has to be abruptly stopped
+            if (m_done)
+                return;
+
+            element = m_availableElementsPool.back();
+            m_availableElementsPool.pop_back();
+        }
+
+        void Pop(T& element) {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_cv.wait(lock, [this] { return !m_elementQueue.empty() || m_done; });
+
+            // Usually needed only when the thread has to be abruptly stopped
+            if (m_done)
+                return;
+
+            element = m_elementQueue.front();
+            m_elementQueue.pop();
+        }
+
+        bool NonBlockingPop(T& element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+
+			if (m_elementQueue.empty())
+				return false;
+
+			element = m_elementQueue.front();
+			m_elementQueue.pop();
+			return true;
+        }
+
+		void AddNewElementToPool(T element) {
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_availableElementsPool.push_back(element);
+		}
+
+        void ReturnToPool(T& element) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            
+			m_availableElementsPool.push_back(element);
+        }
+
+        void SetDone() {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_done = true;
+            m_cv.notify_all();
+        }
+
+        unsigned int GetQueueSize() {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            return m_elementQueue.size();
+        }
+
+        unsigned int GetPoolSize() {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            return m_availableElementsPool.size();
+        }
+
+		std::mutex& GetMutex() {
+			return m_mutex;
+		}
+
+		std::queue<T>& GetQueue() {
+			return m_elementQueue;
+		}
+
+		std::vector<T>& GetPool() { return m_availableElementsPool; }
+
+    public:
+        bool ShouldWait = true;
+
+    private:
+        int m_maxElements = 0;
+        std::queue<T> m_elementQueue;
+        std::vector<T> m_availableElementsPool;
+        std::mutex m_mutex;
+        std::condition_variable m_cv;
+        bool m_done = false;
+    };
+}

@@ -11,7 +11,7 @@ void LightController::Init(DX12Lib::CommandContext& context)
 
 void LightController::Update(DX12Lib::CommandContext& context)
 {
-	float speed = 0.5f;
+	float speed = 0.25f;
 
 	float deltaTime = GameTime::GetDeltaTime();
 

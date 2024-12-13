@@ -36,10 +36,12 @@ set_target_properties (DirectXTex texassemble texconv texdiag ddsview
 		FOLDER DirectXTex
 )
 
+set(ENET_STATIC 1)
 
 add_subdirectory(extern/spdlog)
 add_subdirectory(extern/DirectXTK12)
 add_subdirectory(extern/glfw)
+add_subdirectory(extern/enet)
 add_subdirectory(DirectXLib)
 add_subdirectory(ClusteredVoxelGI)
 add_subdirectory(LocalIllumination)
