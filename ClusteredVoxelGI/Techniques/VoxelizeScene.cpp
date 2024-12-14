@@ -106,6 +106,13 @@ void CVGI::VoxelizeScene::PerformTechnique(DX12Lib::GraphicsContext& context)
 	UINT32 voxelCount = *m_data->GetBufferManager(Name).ReadFromBuffer<UINT32*>(context, (UINT)VoxelBufferType::VoxelCounter);
 	m_data->SetVoxelCount(voxelCount);
 
+
+	UINT32 voxelOccupiedSize = ((voxelSceneSize.x * voxelSceneSize.y * voxelSceneSize.z) + 31) / 32;
+
+	UINT32* voxelOccupiedBuffer = m_data->GetBufferManager(Name).ReadFromBuffer<UINT32*>(context, (UINT)VoxelBufferType::VoxelOccupied);
+	m_occupiedVoxelBuffer.resize(voxelOccupiedSize);
+	memcpy(m_occupiedVoxelBuffer.data(), voxelOccupiedBuffer, voxelOccupiedSize * sizeof(UINT32));
+
 	PIXEndEvent(context.m_commandList->Get());
 }
 

@@ -6,6 +6,7 @@
 #include "LIScene.h"
 #include "DX12Lib/Models/ModelRenderer.h"
 #include "DX12Lib/Commons/NetworkManager.h"
+#include "LIUtils.h"
 
 
 using namespace DirectX;
@@ -14,13 +15,15 @@ using namespace Graphics;
 using namespace DX12Lib;
 
 
+
 class LocalIlluminationApp : public D3DApp
 {
 private:
 	bool m_usePBRMaterials = true;
 	DX12Lib::NetworkHost m_networkClient;
 	DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
-
+	ConstantBufferVoxelCommons m_cbVoxelCommons;
+	bool m_receivedVoxelizationData = false;
 public:
 	LocalIlluminationApp(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
 	LocalIlluminationApp(const LocalIlluminationApp& rhs) = delete;
@@ -29,6 +32,87 @@ public:
 
 		FlushCommandQueue();
 	};
+
+	void OnPacketReceived(const NetworkPacket* packet)
+	{
+		if (m_receivedVoxelizationData)
+		{
+			if (NetworkHost::CheckPacketHeader(packet, "VOXOCC"))
+			{
+				auto& dataVector = packet->GetDataVector();
+				std::vector<UINT32> voxelizationSize;
+				voxelizationSize.resize((packet->GetSize() - 7) / sizeof(UINT32));
+
+				memcpy(voxelizationSize.data(), dataVector.data() + 7, (packet->GetSize() - 7));
+
+				DXLIB_INFO("Received voxelization occupancy data, buffer size: {0}, first five elements are [{1},{2},{3},{4},{5}]", voxelizationSize.size(), voxelizationSize[0], voxelizationSize[1], voxelizationSize[2], voxelizationSize[3], voxelizationSize[4]);
+			}
+		}
+		else
+		{
+			// To ensure that the server sent the initialization message, the message starts with "VOX" (4 bytes due to null character)
+			// Then each float is 4 bytes long.
+
+			if (NetworkHost::CheckPacketHeader(packet, "VOX"))
+			{
+				auto& dataVector = packet->GetDataVector();
+				DirectX::XMUINT3 voxelizationSize;
+
+				memcpy(&voxelizationSize, dataVector.data() + 4, sizeof(DirectX::XMUINT3));
+
+				DXLIB_INFO("Received voxelization data with size: [{0},{1},{2}]", voxelizationSize.x, voxelizationSize.y, voxelizationSize.z);
+
+				LI::LIUtils::BuildVoxelCommons(GetSceneAABBExtents(), voxelizationSize);
+				m_receivedVoxelizationData = true;
+
+
+				PacketGuard packet = m_networkClient.CreatePacket();
+				packet->ClearPacket();
+				packet->AppendToBuffer("INIT");
+				m_networkClient.SendData(packet);
+			}
+		}
+	}
+
+	DX12Lib::AABB GetSceneAABBExtents()
+	{
+		auto* rootNode = m_Scene->GetRootNode();
+		UINT childCount = rootNode->GetChildCount();
+
+		DX12Lib::AABB sceneBounds;
+
+		for (UINT i = 0; i < childCount; i++)
+		{
+			auto* child = rootNode->GetChildAt(i);
+
+			auto* renderer = child->GetComponent<ModelRenderer>();
+
+			if (renderer != nullptr)
+			{
+				sceneBounds = renderer->Model->GetBounds();
+			}
+		}
+
+		DirectX::XMFLOAT3 originalMin = sceneBounds.Min;
+		DirectX::XMFLOAT3 originalMax = sceneBounds.Max;
+
+		float minComponent = std::min(sceneBounds.Min.x, std::min(sceneBounds.Min.y, sceneBounds.Min.z));
+		float maxComponent = std::max(sceneBounds.Max.x, std::max(sceneBounds.Max.y, sceneBounds.Max.z));
+
+		float extent = maxComponent - minComponent;
+
+		sceneBounds.Min.x = minComponent;
+		sceneBounds.Min.y = minComponent;
+		sceneBounds.Min.z = minComponent;
+
+		sceneBounds.Max.x = maxComponent;
+		sceneBounds.Max.y = maxComponent;
+		sceneBounds.Max.z = maxComponent;
+
+		return sceneBounds;
+	}
+
+
 
 	virtual void Initialize(GraphicsContext& context) override
 	{
@@ -46,6 +130,9 @@ public:
 		assert(loaded && "Model not loaded");
 
 		DX12Lib::NetworkHost::InitializeEnet();
+
+		m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
+
 		m_networkClient.Connect("127.0.0.1", 1234);
 
 		s_mouse->SetMode(Mouse::MODE_RELATIVE);
@@ -80,15 +167,12 @@ public:
 		if (m_kbTracker.pressed.B)
 		{
 			sendData();
-			sendData();
 		}
 
 	}
 
 	virtual void Draw(GraphicsContext& context) override
 	{
-
-
 
 		Renderer::SetUpRenderFrame(context);
 

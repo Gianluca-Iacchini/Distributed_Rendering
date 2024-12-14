@@ -70,6 +70,7 @@ namespace CVGI
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
 		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 
+		std::vector<UINT32>& GetOccupiedVoxelBuffer() { return m_occupiedVoxelBuffer; }
 
 	public:
 		static const std::wstring Name;
@@ -82,6 +83,7 @@ namespace CVGI
 		D3D12_VIEWPORT m_voxelScreenViewport;
 		D3D12_RECT m_voxelScissorRect;
 
+		std::vector<UINT32> m_occupiedVoxelBuffer;
 	};
 }
 

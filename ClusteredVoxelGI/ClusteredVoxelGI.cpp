@@ -34,19 +34,15 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	VoxelScene* voxelScene = static_cast<VoxelScene*>(this->m_Scene.get());
 
-	DirectX::XMUINT3 voxelTexDimensions = DirectX::XMUINT3(
-		VoxelTextureDimension.x,
-		VoxelTextureDimension.y,
-		VoxelTextureDimension.z);
 
 	m_data = std::make_shared<TechniqueData>();
-	m_data->SetVoxelGridSize(voxelTexDimensions);
+	m_data->SetVoxelGridSize(VoxelTextureDimension);
 
 	m_voxelizeScene = std::make_unique<VoxelizeScene>(m_data);
 	m_displayVoxelScene = std::make_unique<DisplayVoxelScene>(m_data);
 	m_prefixSumVoxels = std::make_unique<PrefixSumVoxels>(m_data);
 	m_clusterVoxels = std::make_unique<ClusterVoxels>(m_data);
-	m_mergeClusters = std::make_unique<MergeClusters>(voxelTexDimensions);
+	m_mergeClusters = std::make_unique<MergeClusters>(VoxelTextureDimension);
 	m_computeNeighboursTechnique = std::make_unique<ComputeNeighboursTechnique>(m_data);
 	m_clusterVisibility = std::make_unique<ClusterVisibility>(m_data);
 	m_buildAABBsTechnique = std::make_unique<BuildAABBsTechnique>(m_data);
@@ -141,9 +137,9 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	sceneBounds.Max.y = maxComponent;
 	sceneBounds.Max.z = maxComponent;
 
-	voxelCellSize.x = (sceneBounds.Max.x - sceneBounds.Min.x) / voxelTexDimensions.x;
-	voxelCellSize.y = (sceneBounds.Max.y - sceneBounds.Min.y) / voxelTexDimensions.y;
-	voxelCellSize.z = (sceneBounds.Max.z - sceneBounds.Min.z) / voxelTexDimensions.z;
+	voxelCellSize.x = (sceneBounds.Max.x - sceneBounds.Min.x) / ((float)VoxelTextureDimension.x);
+	voxelCellSize.y = (sceneBounds.Max.y - sceneBounds.Min.y) / ((float)VoxelTextureDimension.y);
+	voxelCellSize.z = (sceneBounds.Max.z - sceneBounds.Min.z) / ((float)VoxelTextureDimension.z);
 
 	m_data->SetVoxelCellSize(voxelCellSize);
 	m_data->SetSceneAABB(sceneBounds);
@@ -272,6 +268,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_shadowFence->Get()->SetName(L"ShadowFence Fence");
 
 	DX12Lib::NetworkHost::InitializeEnet();
+	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
+	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
 	m_networkServer.StartServer(1234);
 
 	Renderer::PostDrawCleanup(commandContext);
@@ -364,7 +362,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			IndirectBlockCount = 0;
 			LightDispatched = false;
 			m_gaussianFilterTechnique->TransferRadianceData(context);
-			if (m_networkServer.IsConnected())
+			if (m_receiveState == ReceiveState::CAMERA_DATA)
 			{
 				std::vector<DirectX::XMUINT2>& radData = m_gaussianFilterTechnique->GetRadianceData();
 				UINT radSize = m_gaussianFilterTechnique->GetRadianceLength();
@@ -439,6 +437,57 @@ void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext
 	m_networkServer.Disconnect();
 	DX12Lib::NetworkHost::DeinitializeEnet();
 	D3DApp::OnClose(commandContext);
+}
+
+void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* packet)
+{
+	if (m_receiveState == ReceiveState::CAMERA_DATA)
+	{
+
+	}
+	// Awaiting ACK for buffer data. If received we change state to listen for camera data.
+	else if (m_receiveState == ReceiveState::NECESSARY_BUFFERS)
+	{
+		if (NetworkHost::CheckPacketHeader(packet, "BUFFER"))
+		{
+			m_receiveState = ReceiveState::CAMERA_DATA;
+		}
+	}
+	// Voxel size data was sent on connection. Awaiting for an ACK from client to send buffer data.
+	else if (m_receiveState == ReceiveState::INITIALIZATION)
+	{
+		if (NetworkHost::CheckPacketHeader(packet, "INIT"))
+		{
+			DXLIB_CORE_INFO("Received INIT packet");
+			m_receiveState = ReceiveState::NECESSARY_BUFFERS;
+
+			auto& voxelOccupiedBuffer = m_voxelizeScene->GetOccupiedVoxelBuffer();
+
+			PacketGuard sendPacket = m_networkServer.CreatePacket();
+			sendPacket->ClearPacket();
+			sendPacket->AppendToBuffer("VOXOCC");
+			sendPacket->AppendToBuffer(voxelOccupiedBuffer);
+			m_networkServer.SendData(sendPacket);
+
+
+			DXLIB_CORE_INFO("Sent voxel occupied buffer: {0} bytes. First five values are: {1} {2} {3} {4} {5}",
+				voxelOccupiedBuffer.size(), voxelOccupiedBuffer[0], voxelOccupiedBuffer[1], voxelOccupiedBuffer[2], voxelOccupiedBuffer[3], voxelOccupiedBuffer[4]);
+		}
+	}
+}
+
+void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
+{
+	PacketGuard packet = m_networkServer.CreatePacket();
+	packet->ClearPacket();
+	packet->AppendToBuffer("VOX");
+	packet->AppendToBuffer(VoxelTextureDimension.x);
+	packet->AppendToBuffer(VoxelTextureDimension.y);
+	packet->AppendToBuffer(VoxelTextureDimension.z);
+
+	m_networkServer.SendData(packet);
+
+	m_receiveState = ReceiveState::INITIALIZATION;
 }
 
 bool CVGI::ClusteredVoxelGIApp::IsDirectXRaytracingSupported() const

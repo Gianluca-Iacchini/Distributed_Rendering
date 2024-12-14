@@ -56,12 +56,13 @@ namespace CVGI
 
 
 	private:
+		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
+		void OnClientConnected(const ENetPeer* peer);
 		bool IsDirectXRaytracingSupported() const;
-		void ComputeRTGI();
 
 	public:
 		//const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
-		const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(256.0f, 256.0f, 256.0f);
+		const DirectX::XMUINT3 VoxelTextureDimension = DirectX::XMUINT3(256.0f, 256.0f, 256.0f);
 
 	private:
 		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
@@ -120,6 +121,13 @@ namespace CVGI
 		std::shared_ptr<TechniqueData> m_data = nullptr;
 
 		DX12Lib::NetworkHost m_networkServer;
+
+		enum class ReceiveState
+		{
+			INITIALIZATION,
+			NECESSARY_BUFFERS,
+			CAMERA_DATA,
+		} m_receiveState = ReceiveState::INITIALIZATION;
 
 		float RTGIUpdateDelta = 1.0f;
 		float lerpDelta = 0.0f;

@@ -162,47 +162,6 @@ DX12Lib::NetworkHost::NetworkHost() : m_hostType(NetworkHostType::None)
 DX12Lib::NetworkHost::~NetworkHost()
 {
 	Disconnect();
-
-	//auto& receiveQueue = m_receivedPackets.GetQueue();
-	//auto& receivePool = m_receivedPackets.GetPool();
-
-	//auto& sendQueue = m_packetsToSend.GetQueue();
-	//auto& sendPool = m_packetsToSend.GetPool();
-
-	//UINT sendQueueSize = sendQueue.size() + sendPool.size();
-	//UINT receiveQueueSize = receiveQueue.size() + receivePool.size();
-
-	//DXLIB_CORE_INFO("Freeing {0} packets from send queue and {1} packets from receive queue", sendQueueSize, receiveQueueSize);
-
-	//while (!receiveQueue.empty())
-	//{
-	//	delete receiveQueue.front();
-	//	receiveQueue.pop();
-	//}
-
-	//while (!receivePool.empty())
-	//{
-	//	delete receivePool.back();
-	//	receivePool.pop_back();
-	//}
-
-	//DXLIB_CORE_INFO("Deleting send queue");
-
-	//while (!sendQueue.empty())
-	//{
-	//	delete sendQueue.front();
-	//	sendQueue.pop();
-	//}
-
-	//DXLIB_CORE_INFO("Deleting send pool");
-
-	//while (!sendPool.empty())
-	//{
-	//	auto packet = sendPool.back();
-
-
-	//	sendPool.pop_back();
-	//}
 }
 
 void DX12Lib::NetworkHost::Connect(const std::string address, const std::uint16_t port)
@@ -260,18 +219,20 @@ void DX12Lib::NetworkHost::SendData(DX12Lib::PacketGuard& packet)
 	m_packetsToSend.Push(packet.m_packet);
 }
 
-void DX12Lib::NetworkHost::OnPacketReceived(const NetworkPacket* packet)
-{
-	auto& dataVector = packet->GetDataVector();
-
-	std::uint8_t message[5] = { 0 };
-	memcpy(&message, dataVector.data(), 5);
-
-	DXLIB_CORE_INFO("Received message: [{0},{1},{2},{3},{4}] of length {5}", message[0], message[1], message[2], message[3], message[4], dataVector.size());
-}
+//void DX12Lib::NetworkHost::OnPacketReceived(const NetworkPacket* packet)
+//{
+//	auto& dataVector = packet->GetDataVector();
+//
+//	std::uint8_t message[5] = { 0 };
+//	memcpy(&message, dataVector.data(), 5);
+//
+//	DXLIB_CORE_INFO("Received message: [{0},{1},{2},{3},{4}] of length {5}", message[0], message[1], message[2], message[3], message[4], dataVector.size());
+//}
 
 PacketGuard DX12Lib::NetworkHost::CreatePacket()
 {
+	// If the pool is empty, add a new element, an old packet could be returned to the pool between this call and the GetFromPool call
+	// Since we are not holding the mutex between these two calls, but that's okay.
 	if (m_packetsToSend.GetPoolSize() == 0)
 	{
 		m_packetsToSend.AddNewElementToPool(NetworkPacket::MakeShared());
@@ -289,6 +250,22 @@ PacketGuard DX12Lib::NetworkHost::CreatePacket()
 		});
 
 	return packetGuard;
+}
+
+bool DX12Lib::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix)
+{
+	auto& data = packet->GetDataVector();
+
+	if (data.size() < prefix.size()) {
+		return false;
+	}
+
+	// Temporary buffer to hold the prefix-sized substring from data
+	std::vector<char> temp(prefix.size(), 0);
+	memcpy(temp.data(), data.data(), prefix.size());
+
+	return strncmp(temp.data(), prefix.c_str(), prefix.size()) == 0;
+	
 }
 
 void DX12Lib::NetworkHost::MainNetworkLoop()
@@ -320,6 +297,8 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 			{
 				DXLIB_CORE_INFO("A new client connected from {0}:{1}", addrStr, receivedEvent.peer->address.port);
 				m_Peer = receivedEvent.peer;
+				if (OnPeerConnected)
+					OnPeerConnected(receivedEvent.peer);
 			}
 			else if (receivedEvent.type == ENET_EVENT_TYPE_RECEIVE)
 			{
@@ -334,6 +313,8 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 			else if (receivedEvent.type == ENET_EVENT_TYPE_DISCONNECT)
 			{
 				DXLIB_CORE_INFO("Client disconnected from {0}:{1}", addrStr, receivedEvent.peer->address.port);
+				if (OnPeerDisconnected)
+					OnPeerDisconnected(receivedEvent.peer);
 				enet_peer_disconnect(receivedEvent.peer, 0);
 				m_isConnected = false;
 				m_Peer = nullptr;
@@ -404,7 +385,8 @@ void DX12Lib::NetworkHost::ReceiveDataLoop()
 			continue;
 		}
 
-		OnPacketReceived(packet.get());
+		if (OnPacketReceived)
+			OnPacketReceived(packet.get());
 
 		m_receivedPackets.ReturnToPool(packet);
 	}

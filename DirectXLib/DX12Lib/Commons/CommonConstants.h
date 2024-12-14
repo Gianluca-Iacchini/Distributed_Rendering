@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MathHelper.h"
+#include "basetsd.h"
 
 namespace DX12Lib {
 
@@ -67,7 +68,7 @@ namespace DX12Lib {
 		DirectX::XMFLOAT4X4 invWorld = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 texTransform = MathHelper::Identity4x4();
 
-		UINT materialIndex = 1;
+		UINT32 materialIndex = 1;
 		float _pad0 = 0.0f;
 		float _pad1 = 0.0f;
 		float _pad2 = 0.0f;

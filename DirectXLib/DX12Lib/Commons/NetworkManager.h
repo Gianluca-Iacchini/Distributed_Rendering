@@ -40,6 +40,26 @@ namespace DX12Lib
 			m_data.insert(m_data.end(), data, data + size);
 		}
 
+		void AppendToBuffer(const std::string& str) {
+			m_data.insert(m_data.end(), str.begin(), str.end());
+		}
+
+		void AppendToBuffer(const char* str) {
+			m_data.insert(m_data.end(), str, str + strlen(str) + 1);
+		}
+
+		void AppendToBuffer(const std::vector<std::uint8_t>& data) {
+			m_data.insert(m_data.end(), data.begin(), data.end());
+		}
+
+		void AppendToBuffer(const std::vector<UINT32>& data) {
+			std::size_t currentSize = m_data.size();
+			std::size_t appendDataByteSize = data.size() * sizeof(UINT32);
+
+			m_data.resize(currentSize + appendDataByteSize);
+			memcpy(m_data.data() + currentSize, data.data(), appendDataByteSize);
+		}
+
 		void ClearPacket() { m_data.clear(); }
 		const uint8_t* GetData() const { return m_data.data(); }
 		std::size_t GetSize() const { return m_data.size(); }
@@ -101,10 +121,12 @@ namespace DX12Lib
 
 		
 		void SendData(PacketGuard& packet);
-		virtual void OnPacketReceived(const NetworkPacket* packet);
 		PacketGuard CreatePacket();
 
 		bool IsConnected() const { return m_isConnected; }
+		bool HasPeers() const { return m_host->peerCount > 0; }
+
+		static bool CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix);
 
 	protected:
 		virtual void MainNetworkLoop();
@@ -118,6 +140,11 @@ namespace DX12Lib
 	public:
 		static void InitializeEnet();
 		static void DeinitializeEnet();
+
+	public:
+		std::function<void(const ENetPeer*)> OnPeerConnected;
+		std::function<void(const NetworkPacket*)> OnPacketReceived;
+		std::function<void(const ENetPeer*)> OnPeerDisconnected;
 
 	private:
 
