@@ -162,6 +162,8 @@ void CVGI::PrefixSumVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 	m_bufferManager->ResizeBuffer((UINT)PrefixSumBufferType::CompactedVoxelIndex, prefixSumValue);
 	m_bufferManager->ResizeBuffer((UINT)PrefixSumBufferType::CompactedHashedBuffer, prefixSumValue);
 
+	m_cmpIdxBuffer.resize(prefixSumValue);
+	m_cmpHshBuffer.resize(prefixSumValue);
 
 	// Subtracting one to m_currentStep due to the increment in the last iteration of the for loop
 	m_currentStep--;
@@ -208,6 +210,30 @@ void CVGI::PrefixSumVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 		prefixSumValue = val[m_prefixBufferSize - 1];
 	}
 	DXLIB_CORE_INFO("Prefix sum value after copy: {0}", prefixSumValue);
+
+	DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
+
+	UINT32 indRankSize = voxelGridSize.y * voxelGridSize.z;
+	UINT32 indIndexSize = voxelGridSize.x * voxelGridSize.y;
+
+
+	m_indIdxBuffer.resize(indIndexSize);
+	m_indRnkBuffer.resize(indRankSize);
+	
+	
+	UINT32* val = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::IndirectionRankBuffer);
+	memcpy(m_indRnkBuffer.data(), val, indRankSize * sizeof(UINT32));
+	
+	val = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::IndirectionIndexBuffer);
+	memcpy(m_indIdxBuffer.data(), val, indIndexSize * sizeof(UINT32));
+
+	val = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::CompactedVoxelIndex);
+	memcpy(m_cmpIdxBuffer.data(), val, prefixSumValue * sizeof(UINT32));
+
+
+	val = m_bufferManager->ReadFromBuffer<UINT32*>(context, (UINT)PrefixSumBufferType::CompactedHashedBuffer);
+	memcpy(m_cmpHshBuffer.data(), val, prefixSumValue * sizeof(UINT32));
+	
 
 	PIXEndEvent(context.m_commandList->Get());
 
@@ -271,6 +297,26 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::PrefixSumVoxels::BuildPipelineStat
 	voxelComputePSO->Name = Name;
 
 	return voxelComputePSO;
+}
+
+const std::vector<UINT32>& CVGI::PrefixSumVoxels::GetIndirectionRankBuffer() const
+{
+	return m_indRnkBuffer;
+}
+
+const std::vector<UINT32>& CVGI::PrefixSumVoxels::GetIndirectionIndexBuffer() const
+{
+	return m_indIdxBuffer;
+}
+
+const std::vector<UINT32>& CVGI::PrefixSumVoxels::GetCompactedVoxelIndexBuffer() const
+{
+	return m_cmpIdxBuffer;
+}
+
+const std::vector<UINT32>& CVGI::PrefixSumVoxels::GetCompactedHashedBuffer() const
+{
+	return m_cmpHshBuffer;
 }
 
 const std::wstring CVGI::PrefixSumVoxels::Name = L"PrefixSumVoxels";

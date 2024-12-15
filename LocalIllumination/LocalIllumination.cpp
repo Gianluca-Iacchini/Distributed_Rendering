@@ -1,5 +1,7 @@
 #define STREAMING 0
 
+#define NUM_BASIC_BUFFERS 5
+
 #include <DX12Lib/pch.h>
 
 #include "DX12Lib/Commons/D3DApp.h"
@@ -7,7 +9,8 @@
 #include "DX12Lib/Models/ModelRenderer.h"
 #include "DX12Lib/Commons/NetworkManager.h"
 #include "LIUtils.h"
-
+#include "DX12Lib/DXWrapper/UploadBuffer.h"
+#include "DX12Lib/DXWrapper/GPUBuffer.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -22,8 +25,27 @@ private:
 	bool m_usePBRMaterials = true;
 	DX12Lib::NetworkHost m_networkClient;
 	DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
-	ConstantBufferVoxelCommons m_cbVoxelCommons;
-	bool m_receivedVoxelizationData = false;
+
+	UINT m_buffersInitialized = 0;
+	UINT m_voxelCount = 0;
+	UINT m_faceCount = 0;
+	UINT m_clusterCount = 0;
+	
+	DX12Lib::UploadBuffer m_uploadBuffer;
+	DX12Lib::StructuredBuffer m_basicBuffers[5];
+	DX12Lib::StructuredBuffer m_radianceRingBuffers[3];
+
+	std::unique_ptr<DX12Lib::Fence> m_basicBufferFence;
+
+	const char* packetHeaders[NUM_BASIC_BUFFERS] = { "OCCVOX", "INDRNK", "INDIDX", "CMPIDX", "CMPHSH"};
+
+	enum class ReceiveState
+	{
+		INITIALIZATION,
+		BASIC_BUFFERS,
+		RADIANCE,
+	} m_receiveState = ReceiveState::INITIALIZATION;
+
 public:
 	LocalIlluminationApp(HINSTANCE hInstance, Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
 	LocalIlluminationApp(const LocalIlluminationApp& rhs) = delete;
@@ -35,20 +57,66 @@ public:
 
 	void OnPacketReceived(const NetworkPacket* packet)
 	{
-		if (m_receivedVoxelizationData)
+		if (m_receiveState == ReceiveState::RADIANCE)
 		{
-			if (NetworkHost::CheckPacketHeader(packet, "VOXOCC"))
-			{
-				auto& dataVector = packet->GetDataVector();
-				std::vector<UINT32> voxelizationSize;
-				voxelizationSize.resize((packet->GetSize() - 7) / sizeof(UINT32));
 
-				memcpy(voxelizationSize.data(), dataVector.data() + 7, (packet->GetSize() - 7));
-
-				DXLIB_INFO("Received voxelization occupancy data, buffer size: {0}, first five elements are [{1},{2},{3},{4},{5}]", voxelizationSize.size(), voxelizationSize[0], voxelizationSize[1], voxelizationSize[2], voxelizationSize[3], voxelizationSize[4]);
-			}
 		}
-		else
+		else if (m_receiveState == ReceiveState::BASIC_BUFFERS)
+		{
+			for (int i = 0; i < 5; i++)
+			{
+				if (NetworkHost::CheckPacketHeader(packet, packetHeaders[i]))
+				{
+					std::size_t pktSize = packet->GetSize() - 7;
+					std::size_t vecSize = pktSize / sizeof(UINT32);
+					DXLIB_INFO("Received packet with header: {0} and vector size: {1}", packetHeaders[i], vecSize);
+
+					m_basicBuffers[i].Create(vecSize, sizeof(UINT32));
+
+					// If the previous fence has not been signaled, then we have to wait before we can write data to the
+					// Upload buffer, since the GPU might still be using it.
+					m_basicBufferFence->WaitForCurrentFence();
+					{
+						void* mappedData = m_uploadBuffer.GetMappedData();
+
+						// The vertex buffer is just an array of indices frin 0 to faceCount-1.
+						// Not great but fine for a debug display.
+						for (UINT32 i = 0; i < vecSize; i++)
+						{
+							// 7 = Size of the packet header
+							((UINT32*)mappedData)[i] = i + 7;
+						}
+
+						DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
+
+						// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
+						context.TransitionResource(m_basicBuffers[i], D3D12_RESOURCE_STATE_COPY_DEST, true);
+						context.m_commandList->Get()->CopyResource(m_basicBuffers[i].Get(), m_uploadBuffer.Get());
+
+						UINT64 fenceVal = context.Finish();
+
+						m_basicBufferFence->CurrentFenceValue = fenceVal;
+						Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_basicBufferFence);
+
+						// This is not a very good way to check if all buffers have been initialized, as if the server sends the same buffer multiple
+						// times it will increment the counter. However, for the purposes of this demo it is enough.
+						m_buffersInitialized++;
+						if (m_buffersInitialized >= NUM_BASIC_BUFFERS)
+						{
+							DXLIB_INFO("All buffers initialized");
+							PacketGuard packet = m_networkClient.CreatePacket();
+							packet->ClearPacket();
+							packet->AppendToBuffer("BUFFER");
+							m_networkClient.SendData(packet);
+
+							m_receiveState = ReceiveState::RADIANCE;
+						}
+					}
+				}
+			}
+
+		}
+		else if (m_receiveState == ReceiveState::INITIALIZATION)
 		{
 			// To ensure that the server sent the initialization message, the message starts with "VOX" (4 bytes due to null character)
 			// Then each float is 4 bytes long.
@@ -58,12 +126,34 @@ public:
 				auto& dataVector = packet->GetDataVector();
 				DirectX::XMUINT3 voxelizationSize;
 
-				memcpy(&voxelizationSize, dataVector.data() + 4, sizeof(DirectX::XMUINT3));
+				// VOX + NULL character
+				size_t previousSize = 4;
+
+				memcpy(&voxelizationSize, dataVector.data() + previousSize, sizeof(DirectX::XMUINT3));
 
 				DXLIB_INFO("Received voxelization data with size: [{0},{1},{2}]", voxelizationSize.x, voxelizationSize.y, voxelizationSize.z);
 
+				previousSize += sizeof(DirectX::XMUINT3);
+				memcpy(&m_voxelCount, dataVector.data() + previousSize, sizeof(UINT));
+				m_faceCount = m_voxelCount * 6;
+
+				previousSize += sizeof(UINT);
+				memcpy(&m_clusterCount, dataVector.data() + previousSize, sizeof(UINT));
+
+
+
+				DXLIB_INFO("Received voxelization data with voxel count: {0} and cluster count: {1}", m_voxelCount, m_clusterCount);
+
+				m_uploadBuffer.Create(m_faceCount * sizeof(UINT32));
+				m_radianceRingBuffers[0].Create(m_faceCount, sizeof(UINT32));
+				m_radianceRingBuffers[1].Create(m_faceCount, sizeof(UINT32));
+				m_radianceRingBuffers[2].Create(m_faceCount, sizeof(UINT32));
+
+
+				m_uploadBuffer.Map();
+
 				LI::LIUtils::BuildVoxelCommons(GetSceneAABBExtents(), voxelizationSize);
-				m_receivedVoxelizationData = true;
+				m_receiveState = ReceiveState::BASIC_BUFFERS;
 
 
 				PacketGuard packet = m_networkClient.CreatePacket();
@@ -131,6 +221,9 @@ public:
 
 		DX12Lib::NetworkHost::InitializeEnet();
 
+		m_basicBufferFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
+		Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_basicBufferFence);
+
 		m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
 
 		m_networkClient.Connect("127.0.0.1", 1234);
@@ -145,6 +238,8 @@ public:
 		}
 
 		this->m_Scene->Init(context);
+
+
 	}
 
 	void sendData()

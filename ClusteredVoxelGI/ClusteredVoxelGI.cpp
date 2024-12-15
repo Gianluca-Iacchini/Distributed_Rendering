@@ -182,11 +182,12 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_prefixSumVoxels->InitializeBuffers(computeContext);
 	m_prefixSumVoxels->PerformTechnique(computeContext);
 
-
 	// Voxelize scene temporary buffers can be deleted after the voxelization and prefix sum passes.
 	m_voxelizeScene->DeleteTemporaryBuffers();
 	// Prefix sum temporary buffers are only needed for the prefix sum pass.
 	m_prefixSumVoxels->DeleteTemporaryBuffers();
+
+
 
 	m_clusterVoxels->InitializeBuffers();
 	m_clusterVoxels->PerformTechnique(computeContext);
@@ -266,6 +267,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_rasterFence->Get()->SetName(L"Acc Fence");
 	m_blockFence->Get()->SetName(L"Block Fence");
 	m_shadowFence->Get()->SetName(L"ShadowFence Fence");
+
+
 
 	DX12Lib::NetworkHost::InitializeEnet();
 	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
@@ -450,6 +453,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 	{
 		if (NetworkHost::CheckPacketHeader(packet, "BUFFER"))
 		{
+			DXLIB_CORE_INFO("Client received buffers");
 			m_receiveState = ReceiveState::CAMERA_DATA;
 		}
 	}
@@ -463,15 +467,58 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 
 			auto& voxelOccupiedBuffer = m_voxelizeScene->GetOccupiedVoxelBuffer();
 
-			PacketGuard sendPacket = m_networkServer.CreatePacket();
-			sendPacket->ClearPacket();
-			sendPacket->AppendToBuffer("VOXOCC");
-			sendPacket->AppendToBuffer(voxelOccupiedBuffer);
-			m_networkServer.SendData(sendPacket);
+			PacketGuard occupiedBufferPkt = m_networkServer.CreatePacket();
+			occupiedBufferPkt->ClearPacket();
+			occupiedBufferPkt->AppendToBuffer("OCCVOX");
+			occupiedBufferPkt->AppendToBuffer(voxelOccupiedBuffer);
+			m_networkServer.SendData(occupiedBufferPkt);
+
+			DXLIB_CORE_INFO("Send VOXOCC buffer with a size of: {0}", voxelOccupiedBuffer.size());
+
+			auto& indRnkBuffer = m_prefixSumVoxels->GetIndirectionRankBuffer();
+
+			PacketGuard indirectRankBufferPkt = m_networkServer.CreatePacket();
+			indirectRankBufferPkt->ClearPacket();
+			indirectRankBufferPkt->AppendToBuffer("INDRNK");
+			indirectRankBufferPkt->AppendToBuffer(indRnkBuffer);
+			m_networkServer.SendData(indirectRankBufferPkt);
+
+			DXLIB_CORE_INFO("Send INDRNK buffer with a size of: {0}", indRnkBuffer.size());
 
 
-			DXLIB_CORE_INFO("Sent voxel occupied buffer: {0} bytes. First five values are: {1} {2} {3} {4} {5}",
-				voxelOccupiedBuffer.size(), voxelOccupiedBuffer[0], voxelOccupiedBuffer[1], voxelOccupiedBuffer[2], voxelOccupiedBuffer[3], voxelOccupiedBuffer[4]);
+			auto& indIdxBUffer = m_prefixSumVoxels->GetIndirectionIndexBuffer();
+
+
+			PacketGuard indirectIndexBufferPkt = m_networkServer.CreatePacket();
+			indirectIndexBufferPkt->ClearPacket();
+			indirectIndexBufferPkt->AppendToBuffer("INDIDX");
+			indirectIndexBufferPkt->AppendToBuffer(indIdxBUffer);
+			m_networkServer.SendData(indirectIndexBufferPkt);
+
+			DXLIB_CORE_INFO("Send INDIDX buffer with a size of: {0}", indRnkBuffer.size());
+
+
+			auto& cmpIdxBuffer = m_prefixSumVoxels->GetCompactedVoxelIndexBuffer();
+
+
+			PacketGuard compactedIndicesPkt = m_networkServer.CreatePacket();
+			compactedIndicesPkt->ClearPacket();
+			compactedIndicesPkt->AppendToBuffer("CMPIDX");
+			compactedIndicesPkt->AppendToBuffer(cmpIdxBuffer);
+			m_networkServer.SendData(compactedIndicesPkt);
+
+			DXLIB_CORE_INFO("Send CMPIDX buffer with a size of: {0}", cmpIdxBuffer.size());
+
+			auto& cmpHshBuffer = m_prefixSumVoxels->GetCompactedHashedBuffer();
+
+			PacketGuard compactedHashesPkt = m_networkServer.CreatePacket();
+			compactedHashesPkt->ClearPacket();
+			compactedHashesPkt->AppendToBuffer("CMPHSH");
+			compactedHashesPkt->AppendToBuffer(cmpHshBuffer);
+			m_networkServer.SendData(compactedHashesPkt);
+
+			DXLIB_CORE_INFO("Send CMPHSH buffer with a size of: {0}", cmpHshBuffer.size());
+
 		}
 	}
 }
@@ -484,6 +531,8 @@ void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
 	packet->AppendToBuffer(VoxelTextureDimension.x);
 	packet->AppendToBuffer(VoxelTextureDimension.y);
 	packet->AppendToBuffer(VoxelTextureDimension.z);
+	packet->AppendToBuffer(m_data->GetVoxelCount());
+	packet->AppendToBuffer(m_data->GetClusterCount());
 
 	m_networkServer.SendData(packet);
 

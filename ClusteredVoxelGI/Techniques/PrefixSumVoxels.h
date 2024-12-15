@@ -41,6 +41,11 @@ namespace CVGI
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
 		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
 
+		const std::vector<UINT32>& GetIndirectionRankBuffer() const;
+		const std::vector<UINT32>& GetIndirectionIndexBuffer() const;
+		const std::vector<UINT32>& GetCompactedVoxelIndexBuffer() const;
+		const std::vector<UINT32>& GetCompactedHashedBuffer() const;
+
 	private:
 		void ComputePrefixSumVariables();
 	public:
@@ -60,6 +65,11 @@ namespace CVGI
 		UINT m_currentPhase = 0;
 
 		const UINT ELEMENTS_PER_THREAD = 128;
+		
+		std::vector<UINT32> m_indRnkBuffer;
+		std::vector<UINT32> m_indIdxBuffer;
+		std::vector<UINT32> m_cmpIdxBuffer;
+		std::vector<UINT32> m_cmpHshBuffer;
 	};
 }
 
