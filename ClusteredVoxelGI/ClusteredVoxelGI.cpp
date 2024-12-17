@@ -5,6 +5,7 @@
 #include "VoxelCamera.h"
 #include "DX12Lib/DXWrapper/UploadBuffer.h"
 #include "DX12Lib/Commons/ShadowMap.h"
+#include "CameraController.h"
 
 
 
@@ -368,11 +369,13 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			if (m_receiveState == ReceiveState::CAMERA_DATA)
 			{
 				std::vector<DirectX::XMUINT2>& radData = m_gaussianFilterTechnique->GetRadianceData();
-				UINT radSize = m_gaussianFilterTechnique->GetRadianceLength();
 				PacketGuard packet = m_networkServer.CreatePacket();
 				packet->ClearPacket();
-				packet->AppendToBuffer(reinterpret_cast<std::uint8_t*>(radData.data()), radSize * sizeof(DirectX::XMUINT2));
+				packet->AppendToBuffer("RDXBUFF");
+				packet->AppendToBuffer(radData);
 				m_networkServer.SendData(packet);
+
+				//DXLIB_CORE_INFO("First five elements: {0} {1} {2} {3} {4}", radData[0].x, radData[0].y, radData[1].x, radData[1].y, radData[2].x);
 			}
 			if (m_resetTime)
 			{
@@ -446,7 +449,44 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 {
 	if (m_receiveState == ReceiveState::CAMERA_DATA)
 	{
+		if (NetworkHost::CheckPacketHeader(packet, "CAMINP"))
+		{
+			auto& dataVector = packet->GetDataVector();
 
+			UINT64 timeStamp = 0;
+			DirectX::XMFLOAT3 clientAbsPos;
+			DirectX::XMFLOAT4 clientAbsRot;
+			std::uint8_t inputBitmask = 0;
+
+			// CAMINP + NULL character
+			size_t previousSize = 7;
+
+
+			memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
+			previousSize += sizeof(UINT64);
+
+			memcpy(&clientAbsPos, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
+			previousSize += sizeof(DirectX::XMFLOAT3);
+
+			memcpy(&clientAbsRot, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT4));
+			previousSize += sizeof(DirectX::XMFLOAT4);
+
+			memcpy(&inputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
+			
+			auto* camera = m_data->GetCamera();
+
+			if (camera != nullptr)
+			{
+				CameraController* controller = camera->Node->GetComponent<CameraController>();
+
+				if (controller != nullptr)
+				{
+					controller->IsRemote = true;
+
+					controller->SetRemoteInput(inputBitmask, clientAbsPos, clientAbsRot, timeStamp);
+				}
+			}
+		}
 	}
 	// Awaiting ACK for buffer data. If received we change state to listen for camera data.
 	else if (m_receiveState == ReceiveState::NECESSARY_BUFFERS)
@@ -495,7 +535,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 			indirectIndexBufferPkt->AppendToBuffer(indIdxBUffer);
 			m_networkServer.SendData(indirectIndexBufferPkt);
 
-			DXLIB_CORE_INFO("Send INDIDX buffer with a size of: {0}", indRnkBuffer.size());
+			DXLIB_CORE_INFO("Send INDIDX buffer with a size of: {0}", indIdxBUffer.size());
 
 
 			auto& cmpIdxBuffer = m_prefixSumVoxels->GetCompactedVoxelIndexBuffer();

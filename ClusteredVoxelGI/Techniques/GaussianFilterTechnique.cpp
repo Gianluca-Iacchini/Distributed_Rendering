@@ -114,9 +114,11 @@ void CVGI::GaussianFilterTechnique::TransferRadianceData(DX12Lib::ComputeContext
 {
 
 	auto& lightTransportBufferManager = m_data->GetBufferManager(LightTransportTechnique::Name);
-	UINT32* arraySize = lightTransportBufferManager.ReadFromBuffer<UINT32*>(context, (UINT)LightTransportTechnique::LightTransportBufferType::VisibleFaceCounter);
+	//UINT32* arraySize = lightTransportBufferManager.ReadFromBuffer<UINT32*>(context, (UINT)LightTransportTechnique::LightTransportBufferType::VisibleFaceCounter);
 
-	UINT32 dataSize = arraySize[1];
+	//UINT32 dataSize = arraySize[1];
+
+	UINT32 dataSize = m_data->FaceCount;
 
 	DirectX::XMUINT2* radData =  m_readBufferManager->ReadFromBuffer<DirectX::XMUINT2*>(context, 0, sizeof(DirectX::XMUINT2) * dataSize);
 

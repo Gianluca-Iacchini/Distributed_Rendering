@@ -39,19 +39,20 @@ void LI::CameraController::MoveUsingInput(float deltaTime, DirectX::Keyboard::St
 			this->Node->Rotate({ 0.0f, 1.0f, 0.0f }, state.x * deltaTime);
 		}
 	}
+	float speed = 3.0f;
 
 	if (kbState.W)
-		this->Node->Translate(Node->GetForward(), deltaTime);
+		this->Node->Translate(Node->GetForward(), deltaTime * speed);
 	if (kbState.S)
-		this->Node->Translate(Node->GetForward(), -deltaTime);
+		this->Node->Translate(Node->GetForward(), -deltaTime * speed);
 	if (kbState.A)
-		this->Node->Translate(Node->GetRight(), -deltaTime);
+		this->Node->Translate(Node->GetRight(), -deltaTime * speed);
 	if (kbState.D)
-		this->Node->Translate(Node->GetRight(), deltaTime);
+		this->Node->Translate(Node->GetRight(), deltaTime * speed);
 	if (kbState.E)
-		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, deltaTime);
+		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, deltaTime * speed);
 	if (kbState.Q)
-		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime);
+		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime * speed);
 }
 
 void LI::CameraController::MoveUsingNetwork(float deltaTime)

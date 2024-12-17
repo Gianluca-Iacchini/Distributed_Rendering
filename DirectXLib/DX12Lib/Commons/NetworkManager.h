@@ -60,6 +60,15 @@ namespace DX12Lib
 			memcpy(m_data.data() + currentSize, data.data(), appendDataByteSize);
 		}
 
+		void AppendToBuffer(const std::vector<DirectX::XMUINT2>& data)
+		{
+			std::size_t currentSize = m_data.size();
+			std::size_t appendDataByteSize = data.size() * sizeof(DirectX::XMUINT2);
+
+			m_data.resize(currentSize + appendDataByteSize);
+			memcpy(m_data.data() + currentSize, data.data(), appendDataByteSize);
+		}
+
 		void ClearPacket() { m_data.clear(); }
 		const uint8_t* GetData() const { return m_data.data(); }
 		std::size_t GetSize() const { return m_data.size(); }
@@ -140,6 +149,7 @@ namespace DX12Lib
 	public:
 		static void InitializeEnet();
 		static void DeinitializeEnet();
+		static UINT64 GetEpochTime();
 
 	public:
 		std::function<void(const ENetPeer*)> OnPeerConnected;

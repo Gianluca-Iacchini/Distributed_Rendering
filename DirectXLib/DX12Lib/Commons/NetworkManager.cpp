@@ -5,6 +5,7 @@
 #include "WS2tcpip.h"
 #include "in6addr.h"
 #include "../extern/enet/include/enet/enet.h"
+#include "chrono"
 
 #define QUEUE_SIZE 3
 
@@ -32,6 +33,12 @@ void DX12Lib::NetworkHost::DeinitializeEnet()
 		m_isEnetInitialized = false;
 	}
 
+}
+
+UINT64 DX12Lib::NetworkHost::GetEpochTime()
+{
+	std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+	return ms.count();
 }
 
 void DX12Lib::NetworkHost::InitializeAsClient()
