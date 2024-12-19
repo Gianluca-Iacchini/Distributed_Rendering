@@ -5,6 +5,7 @@
 #include "DX12Lib/Scene/LightComponent.h"
 #include "DX12Lib/Commons/ShadowMap.h"
 #include "DX12Lib/Scene/SceneCamera.h"
+#include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include <WinPixEventRuntime/pix3.h>
 
 #define USE_RTGI 1
@@ -29,6 +30,7 @@ namespace Graphics::Renderer
 		CommonTextureSRV,
 		GBufferSRV,
 		RTGISRV,
+		LerpRadianceSRV,
 		Count
 	};
 
@@ -53,7 +55,18 @@ namespace Graphics::Renderer
 		Count
 	};
 
+	struct ConstantBufferLerp
+	{
+		UINT32 CurrentPhase = 0;
+		UINT32 FaceCount = 0;
+		DirectX::XMUINT2 ScreenSize = DirectX::XMUINT2(480, 360);
 
+		float accumulatedTime = 0.0f;
+		float maxTime = 0.0f;
+		float pad0 = 0.0f;
+		float pad1 = 0.0f;
+
+	} m_cbLerp;
 
 	D3D12_VIEWPORT s_screenViewport;
 	D3D12_RECT s_scissorRect;
@@ -71,7 +84,7 @@ namespace Graphics::Renderer
 	std::unordered_map<std::wstring, std::shared_ptr<PipelineState>> s_PSOs;
 	std::unordered_map<std::wstring, std::shared_ptr<Shader>> s_shaders;
 
-	DescriptorHandle m_commonTextureSRVHandle;
+	DX12Lib::DescriptorHandle m_commonTextureSRVHandle;
 
 	int s_clientWidth = 1920;
 	int s_clientHeight = 1080;
@@ -89,11 +102,17 @@ namespace Graphics::Renderer
 	UINT64 backBufferFences[3] = { 0, 0, 0 };
 
 	// Ping ponging shadow textures for RTGI
-	DescriptorHandle m_rtgiHandleSRV;
+	DX12Lib::DescriptorHandle m_rtgiHandleSRV;
+
+	DX12Lib::DescriptorHandle m_postProcessHandleUAV;
+	DX12Lib::DescriptorHandle m_postProcessHandleSRV;
 
 
-	DescriptorHandle m_gbufferStartHandle;
-	DescriptorHandle m_deferredRtStartHandle;
+	// Post process buffers (used for lerp in radiance);
+	DX12Lib::StructuredBuffer m_postProcessBuffers[3];
+
+	DX12Lib::DescriptorHandle m_gbufferStartHandle;
+	DX12Lib::DescriptorHandle m_deferredRtStartHandleSRV;
 
 	CostantBufferCommons m_costantBufferCommons;
 
@@ -152,6 +171,9 @@ namespace Graphics::Renderer
 		m_commonTextureSRVHandle = s_textureHeap->Alloc(2);
 		m_rtgiHandleSRV = s_textureHeap->Alloc(6);
 
+		m_postProcessHandleSRV = s_textureHeap->Alloc(3);
+		m_postProcessHandleUAV = s_textureHeap->Alloc(3);
+
 		m_gbufferStartHandle = s_textureHeap->Alloc((UINT)RenderTargetType::Count);
 		UINT gbufferStartIndex = s_textureHeap->GetOffsetOfHandle(m_gbufferStartHandle);
 
@@ -163,15 +185,18 @@ namespace Graphics::Renderer
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
-		m_deferredRtStartHandle = s_textureHeap->Alloc(2);
-		UINT deferredRtStartIndex = s_textureHeap->GetOffsetOfHandle(m_deferredRtStartHandle);
+		m_deferredRtStartHandleSRV = s_textureHeap->Alloc(2);
+
+
+		size_t offset = s_textureHeap->GetDescriptorSize();
 
 		for (UINT i = 0; i < 2; i++)
 		{
 			s_device->Get()->CopyDescriptorsSimple(1,
-				(*s_textureHeap)[deferredRtStartIndex + i],
+				m_deferredRtStartHandleSRV + offset * i,
 				s_defferedOutputRenderTargets[i]->GetSRV(),
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 		}
 
 		CreateDefaultShaders();
@@ -179,6 +204,7 @@ namespace Graphics::Renderer
 		BuildRenderQuadGeometry();
 		s_materialManager->LoadDefaultMaterials(*s_textureManager);
 
+		m_cbVoxelCommons.VoxelCount = 0;
 	}
 
 	void BuildRenderQuadGeometry()
@@ -209,6 +235,8 @@ namespace Graphics::Renderer
 		m_indexBufferView.BufferLocation = m_indexBufferResource->GetGPUVirtualAddress();
 		m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
 		m_indexBufferView.SizeInBytes = sizeof(UINT16) * numIndices;
+
+		m_cbLerp.ScreenSize = DirectX::XMUINT2(s_clientWidth, s_clientHeight);
 	}
 
 	void AddRendererToQueue(ModelRenderer* renderer)
@@ -236,6 +264,36 @@ namespace Graphics::Renderer
 	std::vector<DX12Lib::ModelRenderer*> GetRenderers()
 	{
 		return m_renderers;
+	}
+
+	void LerpRadiancePass(DX12Lib::GraphicsContext& context)
+	{
+		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"LerpRadiancePass");
+
+		context.SetPipelineState(s_PSOs[L"lerpRadiancePso"].get());
+
+		for (UINT i = 0; i < 3; i++)
+		{
+			context.TransitionResource(m_postProcessBuffers[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+
+		// Gaussian radiance data should already be in the NON_PIXEL_SHADER_RESOURCE state
+
+		context.m_commandList->Get()->SetGraphicsRootConstantBufferView(0, s_graphicsMemory->AllocateConstant(m_cbLerp).GpuAddress());
+
+		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(1, m_rtgiHandleSRV + s_textureHeap->GetDescriptorSize() * 5);
+
+		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
+			2, m_postProcessHandleUAV);
+
+		context.SetRenderTargets(0, nullptr, Renderer::s_depthStencilBuffer->GetDSV());
+
+		DrawScreenQuad(context);
+
+		if (m_cbLerp.CurrentPhase == 1)
+			m_cbLerp.CurrentPhase = 0;
+		
+		PIXEndEvent(context.m_commandList->Get());
 	}
 
 	void SetUpRenderFrame(DX12Lib::CommandContext& context)
@@ -450,12 +508,16 @@ namespace Graphics::Renderer
 
 		if (m_useRTGI)
 		{
+			context.TransitionResource(m_postProcessBuffers[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)DeferredRootSignatureSlot::VoxelRTGICBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
 
 			context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 				(UINT)DeferredRootSignatureSlot::RTGISRV, m_rtgiHandleSRV);
-			
+
+			context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
+				(UINT)DeferredRootSignatureSlot::LerpRadianceSRV, m_postProcessBuffers[0].GetGpuVirtualAddress());
 		}
 
 		context.FlushResourceBarriers();
@@ -535,10 +597,9 @@ namespace Graphics::Renderer
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 			(UINT)PostProcessRootSignatureSlot::GBufferSRV, m_gbufferStartHandle);
 
+
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-			(UINT)PostProcessRootSignatureSlot::DeferredResultSRV, m_deferredRtStartHandle);
-
-
+			(UINT)PostProcessRootSignatureSlot::DeferredResultSRV, m_deferredRtStartHandleSRV);
 
 		context.ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
 		context.ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
@@ -557,6 +618,9 @@ namespace Graphics::Renderer
 
 		if (sEnableRenderMainPass)
 			MainRenderPass(context);
+
+		if (m_useRTGI)
+			LerpRadiancePass(context);
 
 		DeferredPass(context);
 		PostProcessPass(context);
@@ -679,12 +743,47 @@ namespace Graphics::Renderer
 
 	void SetRTGIData(ConstantBufferVoxelCommons voxelCommons)
 	{
+		UINT32 prevVoxelCount = m_cbVoxelCommons.VoxelCount;
+
 		m_cbVoxelCommons = voxelCommons;
+
+		if (prevVoxelCount != voxelCommons.VoxelCount)
+		{
+			for (UINT i = 0; i < 3; i++)
+			{
+				m_postProcessBuffers[i].Create(voxelCommons.VoxelCount * 6, sizeof(DirectX::XMUINT2));
+
+				if (prevVoxelCount == 0)
+				{
+					size_t offset = s_textureHeap->GetDescriptorSize() * i;
+
+					s_device->Get()->CopyDescriptorsSimple(1, m_postProcessHandleSRV + offset, m_postProcessBuffers[i].GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+					s_device->Get()->CopyDescriptorsSimple(1, m_postProcessHandleUAV + offset, m_postProcessBuffers[i].GetUAV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+				}
+			}
+
+			m_cbLerp.FaceCount = voxelCommons.VoxelCount * 6;
+		}
 	}
 
 	DX12Lib::DescriptorHandle& GetRTGIHandleSRV()
 	{
 		return m_rtgiHandleSRV;
+	}
+
+	void ResetLerpTime()
+	{
+		m_cbLerp.CurrentPhase = 1;
+	}
+
+	void SetDeltaLerpTime(float delta)
+	{
+		m_cbLerp.accumulatedTime = delta;
+	}
+
+	void SetLerpMaxTime(float maxTime)
+	{
+		m_cbLerp.maxTime = maxTime;
 	}
 
 	void CreateDefaultShaders()
@@ -697,6 +796,7 @@ namespace Graphics::Renderer
 		std::wstring gbufferPBRpsFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\GBufferPBR_PS.hlsl";
 		std::wstring deferredVSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\Deferred_VS.hlsl";
 		std::wstring postProcessPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\PostProcess_PS.hlsl";
+		std::wstring lerpRadiancePSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\LerpRadiance_PS.hlsl";
 
 		std::wstring alphaTestPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTest_PS.hlsl";
 		std::wstring alphaTestPBRPSFile = srcDir + L"\\DX12Lib\\DXWrapper\\Shaders\\AlphaTestPBR_PS.hlsl";
@@ -709,6 +809,8 @@ namespace Graphics::Renderer
 		std::shared_ptr<Shader> deferredVS = std::make_shared<Shader>(deferredVSFile, "VS", "vs_5_1");
 		std::shared_ptr<Shader> depthVS = std::make_shared<Shader>(depthVSFile, "VS", "vs_5_1");
 		std::shared_ptr<Shader> postProcessPS = std::make_shared<Shader>(postProcessPSFile, "PS", "ps_5_1");
+		std::shared_ptr<Shader> lerpRadiancePS = std::make_shared<Shader>(lerpRadiancePSFile, "PS", "ps_5_1");
+
 
 		std::shared_ptr<Shader> phongAlphaTestPS = std::make_shared<Shader>(alphaTestPSFile, "PS", "ps_5_1");
 		std::shared_ptr<Shader> pbrAlphaTestPS = std::make_shared<Shader>(alphaTestPBRPSFile, "PS", "ps_5_1");
@@ -725,6 +827,7 @@ namespace Graphics::Renderer
 		pbrAlphaTestPS->Compile();
 		depthAlphaTestPS->Compile();
 		postProcessPS->Compile();
+		lerpRadiancePS->Compile();
 
 		s_shaders[L"basicVS"] = std::move(basicVS);
 		s_shaders[L"phongPS"] = std::move(phongPS);
@@ -736,6 +839,7 @@ namespace Graphics::Renderer
 		s_shaders[L"pbrAlphaTestPS"] = std::move(pbrAlphaTestPS);
 		s_shaders[L"depthAlphaTestPS"] = std::move(depthAlphaTestPS);
 		s_shaders[L"postProcessPS"] = std::move(postProcessPS);
+		s_shaders[L"lerpRadiancePS"] = std::move(lerpRadiancePS);
 	}
 
 	void CreateDefaultPSOs()
@@ -787,7 +891,8 @@ namespace Graphics::Renderer
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::MaterialSRV].InitAsBufferSRV(1, D3D12_SHADER_VISIBILITY_ALL, 1);				
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::CommonTextureSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);	
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, (UINT)RenderTargetType::Count);	
-		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::RTGISRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_ALL, 2);
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::RTGISRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 2);
+		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::LerpRadianceSRV].InitAsBufferSRV(5, D3D12_SHADER_VISIBILITY_ALL, 2);
 		deferredRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<RootSignature> postProcessRootSignature = std::make_shared<RootSignature>((UINT)PostProcessRootSignatureSlot::Count, 1);
@@ -797,6 +902,12 @@ namespace Graphics::Renderer
 		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, (UINT)RenderTargetType::Count);
 		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::DeferredResultSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)RenderTargetType::Count, 2);
 		postProcessRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+		std::shared_ptr<RootSignature> lerpRadianceRootSignature = std::make_shared<RootSignature>(3, 0);
+		(*lerpRadianceRootSignature)[0].InitAsConstantBuffer(0);
+		(*lerpRadianceRootSignature)[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+		(*lerpRadianceRootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+		lerpRadianceRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<GraphicsPipelineState> phongPso = std::make_shared<GraphicsPipelineState>();
 		phongPso->InitializeDefaultStates();
@@ -851,6 +962,18 @@ namespace Graphics::Renderer
 		postProcessPso->SetRootSignature(postProcessRootSignature);
 		postProcessPso->Finalize();
 		postProcessPso->Name = L"postProcessPso";
+
+		std::shared_ptr<GraphicsPipelineState> lerpRadiancePso = std::make_shared<GraphicsPipelineState>();
+		lerpRadiancePso->InitializeDefaultStates();
+		lerpRadiancePso->SetInputLayout(DirectX::VertexPositionTexture::InputLayout.pInputElementDescs, \
+			DirectX::VertexPositionTexture::InputLayout.NumElements);
+		lerpRadiancePso->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		lerpRadiancePso->SetRenderTargetFormats(0, nullptr, m_depthStencilFormat);
+		lerpRadiancePso->SetShader(s_shaders[L"deferredVS"], ShaderType::Vertex);
+		lerpRadiancePso->SetShader(s_shaders[L"lerpRadiancePS"], ShaderType::Pixel);
+		lerpRadiancePso->SetRootSignature(lerpRadianceRootSignature);
+		lerpRadiancePso->Finalize();
+		lerpRadiancePso->Name = L"lerpRadiancePso";
 
 		std::shared_ptr<GraphicsPipelineState> phongAlphaTestPso = std::make_shared<GraphicsPipelineState>();
 		*phongAlphaTestPso = *phongPso;
@@ -959,5 +1082,6 @@ namespace Graphics::Renderer
 
 		s_PSOs[deferredPso->Name] = std::move(deferredPso);
 		s_PSOs[postProcessPso->Name] = std::move(postProcessPso);
+		s_PSOs[lerpRadiancePso->Name] = std::move(lerpRadiancePso);
 	}
 }

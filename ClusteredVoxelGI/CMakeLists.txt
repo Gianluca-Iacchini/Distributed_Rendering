@@ -23,7 +23,6 @@ set(COMPUTE_SHADERS
 	Shaders/FacePenalty_CS.hlsl
 	Shaders/FastSlic_CS.hlsl
 	Shaders/GaussianFilter_CS.hlsl
-	Shaders/LerpRadiance_CS.hlsl
 	Shaders/LightTransport_CS.hlsl
 	Shaders/LightTransportDepth_CS.hlsl
 	Shaders/LightTransportIndirect_CS.hlsl
@@ -89,8 +88,6 @@ set(TECHNIQUES
 	Techniques/FacePenaltyTechnique.cpp
 	Techniques/GaussianFilterTechnique.h
 	Techniques/GaussianFilterTechnique.cpp
-	Techniques/LerpRadianceTechnique.h
-	Techniques/LerpRadianceTechnique.cpp
 	Techniques/LightTransportTechnique.h
 	Techniques/LightTransportTechnique.cpp
 	Techniques/LightVoxel.h

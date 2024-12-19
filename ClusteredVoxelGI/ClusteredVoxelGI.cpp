@@ -52,7 +52,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_lightVoxel = std::make_unique<LightVoxel>(m_data);
 	m_lightTransportTechnique = std::make_unique<LightTransportTechnique>(m_data);
 	m_gaussianFilterTechnique = std::make_unique<GaussianFilterTechnique>(m_data);
-	m_lerpRadianceTechnique = std::make_unique<LerpRadianceTechnique>(m_data);
 
 
 
@@ -82,8 +81,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	auto gaussianFilterPso = m_gaussianFilterTechnique->BuildPipelineState();
 
-	auto lerpRadiancePso = m_lerpRadianceTechnique->BuildPipelineState();
-
 	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
 	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
 	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
@@ -96,7 +93,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	Renderer::s_PSOs[lightVoxelPso->Name] = lightVoxelPso;
 	Renderer::s_PSOs[lightTransportPso->Name] = lightTransportPso;
 	Renderer::s_PSOs[gaussianFilterPso->Name] = gaussianFilterPso;
-	Renderer::s_PSOs[lerpRadiancePso->Name] = lerpRadiancePso;
 
 
 	m_voxelizeScene->InitializeBuffers();
@@ -224,8 +220,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
 	m_gaussianFilterTechnique->InitializeGaussianConstants(computeContext);
 
-	m_lerpRadianceTechnique->InitializeBuffers();
-
 	assert(foundLightComponent && "Failed to find light component with shadows enabled.");
 
 
@@ -246,7 +240,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 		srvHandles[i] = m_prefixSumVoxels->GetBufferManager()->GetBuffer(i - 1).GetSRV();
 	}
 
-	srvHandles[5] = m_lerpRadianceTechnique->GetBufferManager()->GetBuffer(0).GetSRV();
+	srvHandles[5] = m_data->GetBufferManager(GaussianFilterTechnique::ReadName).GetBuffer(0).GetSRV();
 
 	auto descriptorSize = Renderer::s_textureHeap->GetDescriptorSize();
 	for (UINT i = 0; i < 6; i++)
@@ -371,15 +365,13 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 				std::vector<DirectX::XMUINT2>& radData = m_gaussianFilterTechnique->GetRadianceData();
 				PacketGuard packet = m_networkServer.CreatePacket();
 				packet->ClearPacket();
-				packet->AppendToBuffer("RDXBUFF");
+				packet->AppendToBuffer("RDXBUF");
 				packet->AppendToBuffer(radData);
 				m_networkServer.SendData(packet);
-
-				//DXLIB_CORE_INFO("First five elements: {0} {1} {2} {3} {4}", radData[0].x, radData[0].y, radData[1].x, radData[1].y, radData[2].x);
 			}
 			if (m_resetTime)
 			{
-				m_lastTotalTime = RTGIUpdateDelta;
+				//m_lastTotalTime = RTGIUpdateDelta;
 				RTGIUpdateDelta = 0.0f;
 				m_resetTime = false;
 			}
@@ -389,16 +381,13 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 		context.Finish();
 	}
 
-	m_rasterFence->WaitForCurrentFence();
 	{
 		if (lerpDelta > m_lastTotalTime && changeLerp)
 		{
 			lerpDelta = 0.0f;
-			m_lerpRadianceTechnique->SetPhase(1);
+			Renderer::ResetLerpTime();
 			changeLerp = false;
 		}
-
-		DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
 
 		float totTime = m_lastTotalTime;
 		float deltTime = lerpDelta;
@@ -410,18 +399,34 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			m_resetCamera = false;
 		}
 
-		m_lerpRadianceTechnique->SetMaxTime(totTime);
-		m_lerpRadianceTechnique->SetAccumulatedTime(deltTime);
-		m_lerpRadianceTechnique->PerformTechnique(context);
-		context.Finish(true);
+		Renderer::SetLerpMaxTime(totTime);
+		Renderer::SetDeltaLerpTime(deltTime);
+
+		//if (lerpDelta > m_lastTotalTime && changeLerp)
+		//{
+		//	lerpDelta = 0.0f;
+		//	Renderer::ResetLerpTime();
+		//	changeLerp = false;
+		//}
+
+		//float totTime = m_lastTotalTime;
+		//float deltTime = lerpDelta;
+
+		//if (m_resetCamera)
+		//{
+		//	totTime = 1.0f;
+		//	deltTime = 1.0f;
+		//	m_resetCamera = false;
+		//}
+
+		//Renderer::SetLerpMaxTime(totTime);
+		//Renderer::SetDeltaLerpTime(deltTime);
+	
 	}
 
 	lerpDelta += GameTime::GetDeltaTime();
 
-	Renderer::ShadowPass(commandContext);
-	Renderer::MainRenderPass(commandContext);
-	Renderer::DeferredPass(commandContext);
-	Renderer::PostProcessPass(commandContext);
+	Renderer::RenderLayers(commandContext);
 
 	//m_displayVoxelScene->PerformTechnique(commandContext);
 

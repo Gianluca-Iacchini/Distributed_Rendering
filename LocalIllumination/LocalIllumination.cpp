@@ -71,7 +71,7 @@ public:
 	{
 		if (m_receiveState == ReceiveState::RADIANCE)
 		{
-			if (NetworkHost::CheckPacketHeader(packet, "RDXBUFF"))
+			if (NetworkHost::CheckPacketHeader(packet, "RDXBUF"))
 			{
 				std::size_t pktSize = packet->GetSize() - 7;
 				std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
@@ -79,8 +79,6 @@ public:
 				std::vector<DirectX::XMUINT2> radBuffer(vecSize);
 
 				memcpy(radBuffer.data(), packet->GetDataVector().data() + 7, vecSize * sizeof(DirectX::XMUINT2));
-
-				//DXLIB_CORE_INFO("First five elements: {0} {1} {2} {3} {4}", radBuffer[0].x, radBuffer[0].y, radBuffer[1].x, radBuffer[1].y, radBuffer[2].x);
 
 				m_bufferFence->WaitForCurrentFence();
 				{

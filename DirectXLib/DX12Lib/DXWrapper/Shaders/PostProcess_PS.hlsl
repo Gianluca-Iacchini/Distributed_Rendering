@@ -10,6 +10,8 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
+
+
 Texture2D gBufferaWorld : register(t0);
 Texture2D gBufferNormal : register(t1);
 Texture2D gBufferDiffuse : register(t2);
@@ -48,7 +50,7 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
 
     float2 texelSize = 1.0 / float2(width, height);
 
-// Bilateral filter parameters
+    // Bilateral filter parameters
     float sigmaSpatial = 20.0f; // Controls spatial smoothing (e.g., pixel distance)
     float sigmaIntensity = 12.0f; // Controls intensity smoothing (e.g., color difference)
     float worldThreshold = 2.0f; // Maximum allowed difference in world coordinates

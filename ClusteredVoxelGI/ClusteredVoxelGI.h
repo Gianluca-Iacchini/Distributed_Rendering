@@ -23,7 +23,6 @@
 
 #include "Techniques/LightTransportTechnique.h"
 #include "Techniques/GaussianFilterTechnique.h"
-#include "Techniques/LerpRadianceTechnique.h"
 #include "Techniques/SceneDepthTechnique.h"
 
 #include "Techniques/LightVoxel.h"
@@ -78,7 +77,6 @@ namespace CVGI
 		std::unique_ptr<LightVoxel> m_lightVoxel;
 		std::unique_ptr<LightTransportTechnique> m_lightTransportTechnique;
 		std::unique_ptr<GaussianFilterTechnique> m_gaussianFilterTechnique;
-		std::unique_ptr<LerpRadianceTechnique> m_lerpRadianceTechnique;
 
 		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
 		std::unique_ptr<DX12Lib::Fence> m_rasterFence;
@@ -132,6 +130,6 @@ namespace CVGI
 		float RTGIUpdateDelta = 1.0f;
 		float lerpDelta = 0.0f;
 
-		float m_lastTotalTime = 0.0f;
+		float m_lastTotalTime = 0.15f;
 	};
 }

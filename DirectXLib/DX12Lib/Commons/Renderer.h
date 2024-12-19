@@ -101,6 +101,11 @@ namespace Graphics
 		void UseRTGI(bool useRTGI);
 		void SetRTGIData(ConstantBufferVoxelCommons voxelCommonResource);
 		DX12Lib::DescriptorHandle& GetRTGIHandleSRV();
+
+		void ResetLerpTime();
+		void SetDeltaLerpTime(float delta);
+		void SetLerpMaxTime(float maxTime);
+		
 	};
 }
 

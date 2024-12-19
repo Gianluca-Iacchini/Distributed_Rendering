@@ -21,7 +21,9 @@ set(PIXEL_SHADERS
 	DX12Lib/DXWrapper/Shaders/AlphaTest_PS.hlsl
 	DX12Lib/DXWrapper/Shaders/AlphaTestPBR_PS.hlsl
 	DX12Lib/DXWrapper/Shaders/AlphaTestDepth_PS.hlsl
-	DX12Lib/DXWrapper/Shaders/GBufferPBR_PS.hlsl)
+	DX12Lib/DXWrapper/Shaders/GBufferPBR_PS.hlsl
+	DX12Lib/DXWrapper/Shaders/PostProcess_PS.hlsl
+	DX12Lib/DXWrapper/Shaders/LerpRadiance_PS.hlsl)
 
 set(INCLUDE_SHADERS 
 	DX12Lib/DXWrapper/Shaders/Common.hlsli
