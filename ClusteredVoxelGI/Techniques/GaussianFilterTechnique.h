@@ -20,7 +20,8 @@ namespace CVGI
 		void PerformTechnique2(DX12Lib::ComputeContext& context);
 		void TransferRadianceData(DX12Lib::ComputeContext& context);
 
-		std::vector<DirectX::XMUINT2>& GetRadianceData() { return m_radianceData; }
+		std::vector<DirectX::XMUINT2>& GetRadianceData();
+		std::uint8_t* GetRadianceDataPtr();
 		UINT GetRadianceLength() { return m_radLength; }
 
 		std::vector<DirectX::XMUINT2> m_radianceData;
@@ -38,6 +39,10 @@ namespace CVGI
 
 		ConstantBufferGaussianFilter m_cbGaussianFilter;
 		Microsoft::WRL::ComPtr<ID3D12CommandSignature> m_commandSignature;
+
+		DX12Lib::ReadBackBuffer m_radianceReadBack;
+
+		bool m_isTransferingRadiance = false;
 
 	public:
 		static const std::wstring Name;

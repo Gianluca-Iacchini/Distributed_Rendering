@@ -249,7 +249,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	}
 
 	Renderer::SetRTGIData(m_data->GetVoxelCommons());
-	Renderer::UseRTGI(true);
 
 	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
 	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
@@ -270,6 +269,8 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
 	m_networkServer.StartServer(1234);
 
+	//m_computeThread = std::thread(&ClusteredVoxelGIApp::ComputeThread, this);
+
 	Renderer::PostDrawCleanup(commandContext);
 }
 
@@ -289,162 +290,192 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 	m_Scene->Render(commandContext);
 
-	if (!LightDispatched && (didLightChange || didCameraMove))
-	{
-		DX12Lib::ComputeContext& context = ComputeContext::Begin();
-		m_sceneDepthTechnique->PerformTechnique(commandContext);
-		commandContext.Flush(true);
-
-		if (didLightChange)
-		{
-			m_lightVoxel->PerformTechnique(context);
-			m_lightTransportTechnique->ResetRadianceBuffers(true);
-		}
-		else
-		{
-			m_gaussianFilterTechnique->CopyBufferData(context);
-		}
-
-		m_lightTransportTechnique->PerformTechnique(context);
-
-		context.Finish();
-
-		LightDispatched = true;
-
-		m_resetTime = didLightChange;
-		m_resetCamera = didCameraMove;
-
-		m_rtgiFence->CurrentFenceValue++;
-		Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
-	}
-
-	if (LightDispatched && m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
-	{
-		DX12Lib::ComputeContext& context = ComputeContext::Begin();
-		if (IndirectBlockCount < 48)
-		{
-			UINT32 fenceCompletedValue = m_blockFence->GetGPUFenceValue();
-
-			UINT32 dispatchesInFlight = m_blockFence->CurrentFenceValue - fenceCompletedValue;
-			UINT32 dispatchesToLaunch = maxDispatchesPerFrame - dispatchesInFlight;
-
-			for (UINT32 i = 0; i < dispatchesToLaunch; i++)
-			{
-				if (IndirectBlockCount < 16)
-				{
-					m_lightTransportTechnique->LaunchIndirectLightBlock(context, IndirectBlockCount);
-					IndirectBlockCount += 1;
-				}
-				else if (IndirectBlockCount < 32)
-				{
-					m_gaussianFilterTechnique->SetGaussianBlock(IndirectBlockCount - 16);
-					m_gaussianFilterTechnique->PerformTechnique(context);
-					IndirectBlockCount += 1;
-				}
-				else if (IndirectBlockCount < 48)
-				{
-					m_gaussianFilterTechnique->SetGaussianBlock(IndirectBlockCount - 32);
-					m_gaussianFilterTechnique->PerformTechnique2(context);
-					IndirectBlockCount += 1;
-				}
-
-				context.Flush();
-
-				m_blockFence->CurrentFenceValue++;
-				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_blockFence);
-			}
-		}
-		else if (IndirectBlockCount == 48 && m_blockFence->IsFenceComplete(m_blockFence->CurrentFenceValue))
-		{
-			m_gaussianFilterTechnique->SwapBuffers();
-			IndirectBlockCount = 0;
-			LightDispatched = false;
-			m_gaussianFilterTechnique->TransferRadianceData(context);
-			if (m_receiveState == ReceiveState::CAMERA_DATA)
-			{
-				std::vector<DirectX::XMUINT2>& radData = m_gaussianFilterTechnique->GetRadianceData();
-				PacketGuard packet = m_networkServer.CreatePacket();
-				packet->ClearPacket();
-				packet->AppendToBuffer("RDXBUF");
-				packet->AppendToBuffer(radData);
-				m_networkServer.SendData(packet);
-			}
-			if (m_resetTime)
-			{
-				//m_lastTotalTime = RTGIUpdateDelta;
-				RTGIUpdateDelta = 0.0f;
-				m_resetTime = false;
-			}
-			changeLerp = true;
-		}
-
-		context.Finish();
-	}
-
-	{
-		if (lerpDelta > m_lastTotalTime && changeLerp)
-		{
-			lerpDelta = 0.0f;
-			Renderer::ResetLerpTime();
-			changeLerp = false;
-		}
-
-		float totTime = m_lastTotalTime;
-		float deltTime = lerpDelta;
-
-		if (m_resetCamera)
-		{
-			totTime = 1.0f;
-			deltTime = 1.0f;
-			m_resetCamera = false;
-		}
-
-		Renderer::SetLerpMaxTime(totTime);
-		Renderer::SetDeltaLerpTime(deltTime);
-
-		//if (lerpDelta > m_lastTotalTime && changeLerp)
-		//{
-		//	lerpDelta = 0.0f;
-		//	Renderer::ResetLerpTime();
-		//	changeLerp = false;
-		//}
-
-		//float totTime = m_lastTotalTime;
-		//float deltTime = lerpDelta;
-
-		//if (m_resetCamera)
-		//{
-		//	totTime = 1.0f;
-		//	deltTime = 1.0f;
-		//	m_resetCamera = false;
-		//}
-
-		//Renderer::SetLerpMaxTime(totTime);
-		//Renderer::SetDeltaLerpTime(deltTime);
 	
+	//bool atomicCameraMove = m_didCameraMove.load();
+	//bool atomicLightChange = m_didLightChange.load();
+
+	//m_didCameraMove.store(atomicCameraMove || didCameraMove);
+	//m_didLightChange.store(atomicLightChange || didLightChange);
+	
+	static float lastSendTime = GameTime::GetTotalTime();
+
+		if ((didLightChange || didCameraMove))
+		{
+
+			if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
+			{
+				DX12Lib::ComputeContext& context = ComputeContext::Begin();
+				m_sceneDepthTechnique->PerformTechnique(commandContext);
+				commandContext.Flush(true);
+
+				if (didLightChange)
+				{
+					m_lightVoxel->PerformTechnique(context);
+					m_lightTransportTechnique->ResetRadianceBuffers(true);
+					RTGIUpdateDelta = 0.0f;
+				}
+				else
+				{
+					m_gaussianFilterTechnique->CopyBufferData(context);
+				}
+
+				m_lightTransportTechnique->PerformTechnique(context);
+
+				m_lightTransportTechnique->LaunchIndirectLightBlock(context, 1);
+				m_gaussianFilterTechnique->PerformTechnique(context);
+				m_gaussianFilterTechnique->PerformTechnique2(context);
+
+				m_gaussianFilterTechnique->TransferRadianceData(context);
+
+				m_rtgiFence->CurrentFenceValue = context.Finish(true);
+				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
+
+				m_gaussianFilterTechnique->SwapBuffers();
+
+				DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
+
+				auto srvHandle = m_data->GetBufferManager(GaussianFilterTechnique::ReadName).GetBuffer(0).GetSRV();
+				Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * 5,
+					srvHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+
+				float timeNow = GameTime::GetTotalTime();
+
+				if (m_receiveState == ReceiveState::CAMERA_DATA && (timeNow - lastSendTime) > 0.15f)
+				{
+					PacketGuard packet = m_networkServer.CreatePacket();
+					packet->ClearPacket();
+					packet->AppendToBuffer("RDXBUF");
+					packet->AppendToBuffer(m_gaussianFilterTechnique->GetRadianceDataPtr(), m_data->FaceCount * sizeof(DirectX::XMUINT2));
+					m_networkServer.SendData(packet);
+
+					lastSendTime = timeNow;
+				}
+
+				m_resetCamera = didCameraMove;
+				changeLerp = true;
+
+				m_rasterFenceValue = m_rasterFence->CurrentFenceValue;
+		}
 	}
+
+	//if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
+	//{
+	//	if (!LightDispatched && (didLightChange || didCameraMove))
+	//	{
+
+	//		if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
+	//		{
+	//			DX12Lib::ComputeContext& context = ComputeContext::Begin();
+	//			m_sceneDepthTechnique->PerformTechnique(commandContext);
+	//			commandContext.Flush(true);
+
+	//			if (didLightChange)
+	//			{
+	//				m_lightVoxel->PerformTechnique(context);
+	//				m_lightTransportTechnique->ResetRadianceBuffers(true);
+	//				RTGIUpdateDelta = 0.0f;
+	//			}
+	//			else
+	//			{
+	//				m_gaussianFilterTechnique->CopyBufferData(context);
+	//			}
+
+	//			m_lightTransportTechnique->PerformTechnique(context);
+
+	//			m_lightTransportTechnique->LaunchIndirectLightBlock(context, 1);
+	//			m_gaussianFilterTechnique->PerformTechnique(context);
+	//			m_gaussianFilterTechnique->PerformTechnique2(context);
+
+	//			m_gaussianFilterTechnique->TransferRadianceData(context);
+
+	//			m_rtgiFence->CurrentFenceValue = context.Finish();
+	//			Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
+
+	//			LightDispatched = true;
+	//		}
+	//	}
+	//	else if (LightDispatched)
+	//	{
+	//		m_gaussianFilterTechnique->SwapBuffers();
+
+	//		DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
+
+	//		auto srvHandle = m_data->GetBufferManager(GaussianFilterTechnique::ReadName).GetBuffer(0).GetSRV();
+	//		Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * 5,
+	//			srvHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	//		PacketGuard packet = m_networkServer.CreatePacket();
+	//		packet->ClearPacket();
+	//		packet->AppendToBuffer("RDXBUF");
+	//		packet->AppendToBuffer(m_gaussianFilterTechnique->GetRadianceDataPtr(), m_data->FaceCount * sizeof(DirectX::XMUINT2));
+	//		m_networkServer.SendData(packet);
+
+
+
+	//		m_resetCamera = didCameraMove;
+	//		changeLerp = true;
+	//		LightDispatched = false;
+
+	//		m_rasterFenceValue = m_rasterFence->CurrentFenceValue;
+	//	}
+	//}
+	
+	
+	
+	//if (lerpDelta > m_lastTotalTime && m_shouldChangeLerp)
+	//{
+	//	lerpDelta = 0.0f;
+	//	Renderer::ResetLerpTime();
+	//	m_shouldChangeLerp = false;
+	//}
+
+	//float totTime = m_lastTotalTime;
+	//float deltTime = lerpDelta;
+
+	//if (didCameraMove)
+	//{
+	//	totTime = 1.0f;
+	//	deltTime = 1.0f;
+	//}
+
+	//Renderer::SetLerpMaxTime(totTime);
+	//Renderer::SetDeltaLerpTime(deltTime);	
+	
+	Renderer::ResetLerpTime();
+
+	//Renderer::SetLerpMaxTime(totTime);
+	//Renderer::SetDeltaLerpTime(deltTime);
 
 	lerpDelta += GameTime::GetDeltaTime();
+
+	//if (m_rtgiFence->IsFenceComplete(m_rtgiFenceValue))
+	//{
+	//	m_sceneDepthTechnique->UpdateCameraMatrices();
+	//	m_sceneDepthTechnique->PerformTechnique(commandContext);
+	//	m_rtgiFenceValue = m_rtgiFence->CurrentFenceValue;
+	//}
 
 	Renderer::RenderLayers(commandContext);
 
 	//m_displayVoxelScene->PerformTechnique(commandContext);
 
-	commandContext.Flush();
-	m_rasterFence->CurrentFenceValue++;
+	m_rasterFence->CurrentFenceValue = commandContext.Flush();
 	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
 
-	m_sceneDepthTechnique->UpdateCameraMatrices();
+
 
 	RTGIUpdateDelta += GameTime::GetDeltaTime();
-
-
-
+	m_sceneDepthTechnique->UpdateCameraMatrices();
 	Renderer::PostDrawCleanup(commandContext);
 }
 
 void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext)
 {
+	m_isRunning = false;
+	if (m_computeThread.joinable())
+		m_computeThread.join();
+	
 	m_networkServer.Disconnect();
 	DX12Lib::NetworkHost::DeinitializeEnet();
 	D3DApp::OnClose(commandContext);
@@ -592,6 +623,88 @@ bool CVGI::ClusteredVoxelGIApp::IsDirectXRaytracingSupported() const
 		return false;
 
 	return featureSupport.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+}
+
+void CVGI::ClusteredVoxelGIApp::ComputeThread()
+{
+	DX12Lib::ComputeContext& context = ComputeContext::Begin();
+
+	enum class ComputeState
+	{
+		READY_TO_DISPATCH,
+		READY_TO_SWAP,
+		WAITING_FOR_RASTER,
+		NONE
+	} computeState = ComputeState::NONE;
+
+	float startTime = GameTime::GetTotalTime();
+	float endTime = 0.0f;
+
+	while (m_isRunning)
+	{
+		bool didLightChange = m_didLightChange.load();
+		bool didCameraMove = m_didCameraMove.load();
+
+		if (!(didLightChange || didCameraMove))
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			continue;
+		}
+
+		// Before overwriting the write buffer, we need to make sure that it is no longer in use by the rasterization pass.
+		m_rasterFence->WaitForFence(m_rasterFenceValue);
+
+
+
+		if (didLightChange)
+		{
+			m_lightVoxel->PerformTechnique(context);
+			m_lightTransportTechnique->ResetRadianceBuffers(true);
+			RTGIUpdateDelta = 0.0f;
+		}
+		else
+		{
+			m_gaussianFilterTechnique->CopyBufferData(context);
+		}
+
+		m_lightTransportTechnique->PerformTechnique(context);
+
+		m_lightTransportTechnique->LaunchIndirectLightBlock(context, 1);
+		m_gaussianFilterTechnique->PerformTechnique(context);
+		m_gaussianFilterTechnique->PerformTechnique2(context);
+
+		m_gaussianFilterTechnique->TransferRadianceData(context);
+
+		m_rtgiFence->CurrentFenceValue = context.Flush(true);
+		Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
+		
+		m_gaussianFilterTechnique->SwapBuffers();
+		
+		if (m_receiveState == ReceiveState::CAMERA_DATA)
+		{
+			PacketGuard packet = m_networkServer.CreatePacket();
+			packet->ClearPacket();
+			packet->AppendToBuffer("RDXBUF");
+			packet->AppendToBuffer(m_gaussianFilterTechnique->GetRadianceDataPtr(), m_data->FaceCount * sizeof(DirectX::XMUINT2));
+			m_networkServer.SendData(packet);
+		}
+
+
+		m_resetCamera = didCameraMove;
+		m_shouldChangeLerp = true;
+
+		m_rasterFenceValue = m_rasterFence->CurrentFenceValue;
+
+		m_didCameraMove = false;
+		m_didLightChange = false;
+
+		endTime = GameTime::GetTotalTime();
+
+		m_lastTotalTime = endTime - startTime;
+		startTime = endTime;
+	}
+
+	context.Finish(true);
 }
 
 

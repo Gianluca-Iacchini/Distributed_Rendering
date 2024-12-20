@@ -58,13 +58,8 @@ void CVGI::SceneDepthTechnique::InitializeBuffers()
 
 void CVGI::SceneDepthTechnique::PerformTechnique(DX12Lib::GraphicsContext& context)
 {
-
-	//Graphics::Renderer::SetUpRenderFrame(context);
-
 	Graphics::Renderer::ShadowPassForCamera(context, &m_depthCamera);
 	Graphics::Renderer::ShadowPassForCamera(context, &m_lightCamera);
-
-	//Graphics::Renderer::PostDrawCleanup(context);
 }
 
 void CVGI::SceneDepthTechnique::UpdateCameraMatrices()

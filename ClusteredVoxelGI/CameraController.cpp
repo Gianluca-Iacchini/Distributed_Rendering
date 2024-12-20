@@ -75,7 +75,7 @@ void CVGI::CameraController::SetRemoteInput(CameraState cameraState, DirectX::XM
 	else
 	{
 		// Smoothly interpolate the rotation
-		DirectX::XMVECTOR newRot = DirectX::XMQuaternionSlerp(currentQuatRot, clientQuatRot, 0.95f);
+		DirectX::XMVECTOR newRot = DirectX::XMQuaternionSlerp(currentQuatRot, clientQuatRot, 1.0f);
 
 		DirectX::XMFLOAT4 rot;
 		DirectX::XMStoreFloat4(&rot, newRot);

@@ -59,6 +59,8 @@ namespace CVGI
 		void OnClientConnected(const ENetPeer* peer);
 		bool IsDirectXRaytracingSupported() const;
 
+		void ComputeThread();
+
 	public:
 		//const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
 		const DirectX::XMUINT3 VoxelTextureDimension = DirectX::XMUINT3(256.0f, 256.0f, 256.0f);
@@ -131,5 +133,11 @@ namespace CVGI
 		float lerpDelta = 0.0f;
 
 		float m_lastTotalTime = 0.15f;
+
+		std::thread m_computeThread;
+
+		std::atomic<bool> m_didCameraMove = false;
+		std::atomic<bool> m_didLightChange = false;
+		std::atomic<bool> m_shouldChangeLerp = false;
 	};
 }

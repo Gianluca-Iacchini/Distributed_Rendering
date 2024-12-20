@@ -42,6 +42,8 @@ void CVGI::GaussianFilterTechnique::InitializeBuffers()
 	m_readBufferManager->AllocateBuffers();
 	m_writeBufferManager->AllocateBuffers();
 
+	m_radianceReadBack.Create(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+
 	m_radianceData.resize(m_data->FaceCount);
 }
 
@@ -96,6 +98,11 @@ void CVGI::GaussianFilterTechnique::SwapBuffers()
 	std::swap(m_readBufferManager, m_writeBufferManager);
 	m_data->SetBufferManager(ReadName, m_readBufferManager);
 	m_data->SetBufferManager(WriteName, m_writeBufferManager);
+
+	DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
+
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * 5,
+		m_readBufferManager->GetBuffer(0).GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void CVGI::GaussianFilterTechnique::SetGaussianBlock(UINT32 block)
@@ -112,21 +119,27 @@ void CVGI::GaussianFilterTechnique::PerformTechnique2(DX12Lib::ComputeContext& c
 
 void CVGI::GaussianFilterTechnique::TransferRadianceData(DX12Lib::ComputeContext& context)
 {
+	m_isTransferingRadiance = true;
 
-	auto& lightTransportBufferManager = m_data->GetBufferManager(LightTransportTechnique::Name);
-	//UINT32* arraySize = lightTransportBufferManager.ReadFromBuffer<UINT32*>(context, (UINT)LightTransportTechnique::LightTransportBufferType::VisibleFaceCounter);
+	context.CopyBuffer(m_radianceReadBack, m_writeBufferManager->GetBuffer(0));
 
-	//UINT32 dataSize = arraySize[1];
+	m_radLength = m_data->FaceCount;
+}
 
-	UINT32 dataSize = m_data->FaceCount;
+std::vector<DirectX::XMUINT2>& CVGI::GaussianFilterTechnique::GetRadianceData()
+{
+	void* data = m_radianceReadBack.ReadBack(m_data->FaceCount * sizeof(DirectX::XMUINT2));
+	
+	memcpy(m_radianceData.data(), data, m_data->FaceCount * sizeof(DirectX::XMUINT2));
 
-	DirectX::XMUINT2* radData =  m_readBufferManager->ReadFromBuffer<DirectX::XMUINT2*>(context, 0, sizeof(DirectX::XMUINT2) * dataSize);
+	return m_radianceData;
+}
 
+std::uint8_t* CVGI::GaussianFilterTechnique::GetRadianceDataPtr()
+{
+	void* data = m_radianceReadBack.ReadBack(m_data->FaceCount * sizeof(DirectX::XMUINT2));
 
-
-	memcpy(m_radianceData.data(), radData, sizeof(DirectX::XMUINT2) * dataSize);
-
-	m_radLength = dataSize;
+	return reinterpret_cast<std::uint8_t*>(data);
 }
 
 void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
@@ -169,7 +182,7 @@ void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::VoxelDataSRV, voxelBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::PrefixSumSRV, prefixSumBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::FacePenaltySRV, facePenaltyBufferManager.GetSRVHandle());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::VoxelVisibleFaceSRV, visibleFacesBufferManager.GetSRVHandle());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::VoxelVisibleFaceSRV, visibleFacesBufferManager.GetUAVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::RadianceBufferSRV, faceRadianceBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::ReadBufferSRV, m_readBufferManager->GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::GaussianBufferUAV, m_bufferManager->GetUAVHandle());

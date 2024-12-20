@@ -13,7 +13,7 @@ void LightController::Update(DX12Lib::CommandContext& context)
 {
 	float speed = 0.25f;
 
-	float deltaTime = GameTime::GetDeltaTime();
+	float deltaTime = 1.0f / 60.0f;
 
 	auto kbState = Graphics::s_kbTracker->GetLastState();
 

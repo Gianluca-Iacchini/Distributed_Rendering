@@ -50,10 +50,6 @@ void CS(uint3 DTid : SV_DispatchThreadID)
 
         if (cbFrustumCulling.ResetRadianceBuffers == 1)
         {
-
-            if (threadLinearIndex >= cbFrustumCulling.FaceCount)
-                return;
-        
             //gFaceRadianceBuffer[threadLinearIndex] = uint2(0, 0);
             //gGaussianFinalWriteBuffer[threadLinearIndex] = uint2(0, 0);
             //gGaussianFirstFilterBuffer[threadLinearIndex] = uint2(0, 0);
@@ -235,16 +231,8 @@ void CS(uint3 DTid : SV_DispatchThreadID)
             gIndirectLightVisibleFacesIndices[indirectLightStartAddress + 5] = threadLinearIndex * 6 + 5;
         }
                 
-        //wasSet = false;
-        //if (!isAtEdgeOfCamera)
-        //{
-        //    wasSet = SetVoxelPresence(threadLinearIndex, gGaussianUpdatedVoxelsBitmap);
-        //}
-        //else
-        //{
-            wasSet = IsVoxelPresent(threadLinearIndex, gGaussianUpdatedVoxelsBitmap);
-        //}
-        
+
+        wasSet = IsVoxelPresent(threadLinearIndex, gGaussianUpdatedVoxelsBitmap);
         if (!wasSet)
         {
             gGaussianVisibleFacesIndices[gaussianStartAddress + 0] = threadLinearIndex * 6 + 0;
@@ -255,8 +243,8 @@ void CS(uint3 DTid : SV_DispatchThreadID)
             gGaussianVisibleFacesIndices[gaussianStartAddress + 5] = threadLinearIndex * 6 + 5;
         }
                 
-        uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces) / 16.0f);
-        uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (16.0f * 128.0f));
+        uint buffer0Max = (uint) ceil((indirectLightStartAddress + nIndirectLightFaces));
+        uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (128.0f));
         InterlockedMax(gIndirectLightDispatchIndirectBuffer[0].x, buffer0Max);
         InterlockedMax(gGaussianDispatchIndirectBuffer[0].x, buffer1Max);
     }

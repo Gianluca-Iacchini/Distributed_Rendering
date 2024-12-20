@@ -277,6 +277,8 @@ namespace Graphics::Renderer
 			context.TransitionResource(m_postProcessBuffers[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
+		context.FlushResourceBarriers();
+
 		// Gaussian radiance data should already be in the NON_PIXEL_SHADER_RESOURCE state
 
 		context.m_commandList->Get()->SetGraphicsRootConstantBufferView(0, s_graphicsMemory->AllocateConstant(m_cbLerp).GpuAddress());
@@ -735,11 +737,6 @@ namespace Graphics::Renderer
 		Renderer::s_scissorRect = { 0, 0, width, height};
 	}
 
-	void UseRTGI(bool useRTGI)
-	{
-		m_useRTGI = useRTGI;
-	}
-
 
 	void SetRTGIData(ConstantBufferVoxelCommons voxelCommons)
 	{
@@ -764,6 +761,8 @@ namespace Graphics::Renderer
 
 			m_cbLerp.FaceCount = voxelCommons.VoxelCount * 6;
 		}
+
+		m_useRTGI = true;
 	}
 
 	DX12Lib::DescriptorHandle& GetRTGIHandleSRV()

@@ -309,7 +309,6 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 			}
 			else if (receivedEvent.type == ENET_EVENT_TYPE_RECEIVE)
 			{
-				DXLIB_CORE_INFO("Packet received from {0}:{1}", addrStr, receivedEvent.peer->address.port);
 				std::shared_ptr<NetworkPacket> receivedPacket;
 				m_receivedPackets.GetFromPool(receivedPacket);
 				receivedPacket->ClearPacket();

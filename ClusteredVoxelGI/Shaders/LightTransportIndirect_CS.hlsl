@@ -175,9 +175,9 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
     
     uint nVisibleVoxels = gVisibleFaceCounter.Load(0);
     
-    uint voxelsPerDispatch = ceil(nVisibleVoxels / 16.0f);
+    //uint voxelsPerDispatch = ceil(nVisibleVoxels / 16.0f);
     
-    threadID = voxelsPerDispatch * cbIndirectLight.DispatchNumber + threadID;
+    //threadID = voxelsPerDispatch * cbIndirectLight.DispatchNumber + threadID;
     
     if (threadID > nVisibleVoxels)
         return;

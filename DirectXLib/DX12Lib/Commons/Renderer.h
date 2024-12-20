@@ -98,7 +98,7 @@ namespace Graphics
 		void Present(UINT64 fenceVal);
 		void SetScissorAndViewportSize(int width, int height);
 
-		void UseRTGI(bool useRTGI);
+
 		void SetRTGIData(ConstantBufferVoxelCommons voxelCommonResource);
 		DX12Lib::DescriptorHandle& GetRTGIHandleSRV();
 

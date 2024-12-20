@@ -37,11 +37,8 @@ float3 easeOutInterpolation(float3 colorA, float3 colorB, float t)
 }
 
 
-float4 PS(VertexOutPosTex pIn) : SV_Target
+void UpdateRadiance(uint idx)
 {
-    uint2 pixelCoord = uint2(pIn.Tex * lerpRadiance.screenDimension);
-    uint idx = lerpRadiance.screenDimension.x * pixelCoord.y + pixelCoord.x;
-    
     uint2 lerpStartRadiance = gLerpStartRadiance[idx];
     uint2 lerpEndRadiance = gLerpEndRadiance[idx];
 
@@ -70,6 +67,26 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
     uint2 lerpRadiancePacked = uint2(PackFloats16(lerpRadiance.xy), PackFloats16(float2(lerpRadiance.z, 0.0f)));
     
     gRadianceLerpResult[idx] = lerpRadiancePacked;
+}
+
+float4 PS(VertexOutPosTex pIn) : SV_Target
+{
+    uint totPixels = lerpRadiance.screenDimension.x * lerpRadiance.screenDimension.y;
+    
+    uint facesPerPixel = uint(ceil(float(lerpRadiance.FaceCount) / float(totPixels)));
+    
+    uint2 pixelCoord = uint2(pIn.Tex * lerpRadiance.screenDimension);
+    uint startIdx = lerpRadiance.screenDimension.x * pixelCoord.y + pixelCoord.x;
+    
+    startIdx *= facesPerPixel;
+    uint endIdx = min(startIdx + facesPerPixel, lerpRadiance.FaceCount);
+    
+    for (uint idx = startIdx; idx < endIdx; idx++)
+    {
+        
+        gRadianceLerpResult[idx] = gGaussianRadiance[idx];
+        //UpdateRadiance(idx);
+    }
     
     return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }

@@ -152,7 +152,6 @@ public:
 							m_radianceRingBuffers[1].Create(m_faceCount, sizeof(DirectX::XMUINT2));
 							m_radianceRingBuffers[2].Create(m_faceCount, sizeof(DirectX::XMUINT2));
 
-							Renderer::UseRTGI(true);
 							Renderer::SetRTGIData(m_cbVoxelCommons);
 
 							DXLIB_INFO("All buffers initialized");
@@ -203,6 +202,7 @@ public:
 				m_uploadBuffer.Map();
 
 				m_cbVoxelCommons = LI::LIUtils::BuildVoxelCommons(GetSceneAABBExtents(), voxelizationSize);
+				m_cbVoxelCommons.VoxelCount = m_voxelCount;
 				m_receiveState = ReceiveState::BASIC_BUFFERS;
 
 
@@ -362,6 +362,9 @@ public:
 
 		if (fencePair.second != 0)
 		{
+			Renderer::ResetLerpTime();
+			//Renderer::SetLerpMaxTime(1.0f);
+			//Renderer::SetDeltaLerpTime(0.0f);
 			DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
 			auto& writeRdxBuffer = m_radianceRingBuffers[fencePair.first];
 			Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * 5, writeRdxBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
