@@ -76,7 +76,6 @@ namespace CVGI
 			RadianceBufferUAV,
 			LightTransportBuffersUAV,
 			GaussianFilterBufferUAV,
-			GaussianFinalWriteBufferUAV,
 			Count
 		};
 

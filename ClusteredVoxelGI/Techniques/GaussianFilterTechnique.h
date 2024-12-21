@@ -32,7 +32,6 @@ namespace CVGI
 		std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
 
 	private:
-		std::shared_ptr<BufferManager> m_writeBufferManager;
 		std::shared_ptr<BufferManager> m_readBufferManager;
 
 		bool m_resetBuffers = true;
@@ -47,7 +46,6 @@ namespace CVGI
 	public:
 		static const std::wstring Name;
 		static const std::wstring ReadName;
-		static const std::wstring WriteName;
 
 	private:
 		enum class GaussianFilterRootParameters
@@ -59,7 +57,6 @@ namespace CVGI
 			FacePenaltySRV,
 			VoxelVisibleFaceSRV,
 			RadianceBufferSRV,
-			ReadBufferSRV,
 			GaussianBufferUAV,
 			WriteBufferUAV,
 			Count

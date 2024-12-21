@@ -32,8 +32,6 @@ RWStructuredBuffer<uint3> gIndirectLightDispatchIndirectBuffer : register(u6, sp
 
 RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space2);
 
-RWStructuredBuffer<uint2> gGaussianFinalWriteBuffer : register(u0, space3);
-
 static const float SQRT_2 = 3.0f; //1.41421356237f;
 
 

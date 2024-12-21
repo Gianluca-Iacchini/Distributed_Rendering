@@ -16,7 +16,6 @@ StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space2);
 
 StructuredBuffer<uint2> gFaceRadianceReadBuffer : register(t0, space4);
 
-StructuredBuffer<uint2> gReadFinalRadianceBuffer : register(t0, space5);
 
 RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space0);
 RWStructuredBuffer<float> gGaussianPrecomputedDataBuffer : register(u1, space0);

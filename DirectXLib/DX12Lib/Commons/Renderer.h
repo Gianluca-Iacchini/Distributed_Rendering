@@ -85,6 +85,7 @@ namespace Graphics
 		void ShadowPass(DX12Lib::GraphicsContext& context);
 		void MainRenderPass(DX12Lib::GraphicsContext& context);
 		void DeferredPass(DX12Lib::GraphicsContext& context);
+		void LerpRadiancePass(DX12Lib::GraphicsContext& context);
 		void PostProcessPass(DX12Lib::GraphicsContext& context);
 		void RenderLayers(DX12Lib::GraphicsContext& context);
 		void PostDrawCleanup(DX12Lib::CommandContext& context);

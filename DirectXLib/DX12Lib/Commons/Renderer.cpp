@@ -637,6 +637,7 @@ namespace Graphics::Renderer
 
 	void DrawScreenQuad(DX12Lib::GraphicsContext& context)
 	{
+		context.m_commandList->Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		context.m_commandList->Get()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 		context.m_commandList->Get()->IASetIndexBuffer(&m_indexBufferView);
 

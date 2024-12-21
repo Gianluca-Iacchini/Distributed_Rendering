@@ -44,7 +44,7 @@ void UpdateRadiance(uint idx)
 
     if (lerpRadiance.CurrentPhase == 1)
     {
-        lerpStartRadiance = lerpEndRadiance;
+        lerpStartRadiance = gRadianceLerpResult[idx];
         lerpEndRadiance = gGaussianRadiance[idx];
         
         gLerpStartRadiance[idx] = lerpStartRadiance;
@@ -83,9 +83,7 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
     
     for (uint idx = startIdx; idx < endIdx; idx++)
     {
-        
-        gRadianceLerpResult[idx] = gGaussianRadiance[idx];
-        //UpdateRadiance(idx);
+        UpdateRadiance(idx);
     }
     
     return float4(0.0f, 0.0f, 0.0f, 0.0f);

@@ -18,11 +18,9 @@ CVGI::GaussianFilterTechnique::GaussianFilterTechnique(std::shared_ptr<Technique
 {
 	m_bufferManager = std::make_shared<BufferManager>();
 	m_readBufferManager = std::make_shared<BufferManager>();
-	m_writeBufferManager = std::make_shared<BufferManager>();
 
 	data->SetBufferManager(Name, m_bufferManager);
 	data->SetBufferManager(ReadName, m_readBufferManager);
-	data->SetBufferManager(WriteName, m_writeBufferManager);
 
 	m_data = data;
 }
@@ -36,11 +34,9 @@ void CVGI::GaussianFilterTechnique::InitializeBuffers()
 	m_bufferManager->AddStructuredBuffer(KERNEL_SIZE * KERNEL_SIZE * KERNEL_SIZE, sizeof(float));
 
 	m_readBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"Gaussian Read Buffer");
-	m_writeBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2), L"Gaussian Write Buffer");
 
 	m_bufferManager->AllocateBuffers();
 	m_readBufferManager->AllocateBuffers();
-	m_writeBufferManager->AllocateBuffers();
 
 	m_radianceReadBack.Create(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 
@@ -85,25 +81,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::GaussianFilterTechnique::BuildPipe
     return gaussianFilterPso;
 }
 
-void CVGI::GaussianFilterTechnique::CopyBufferData(DX12Lib::ComputeContext& context)
-{
-	auto& writeBuffer = m_writeBufferManager->GetBuffer(0);
-	auto& readBuffer = m_readBufferManager->GetBuffer(0);
 
-	context.CopyBuffer(writeBuffer, readBuffer);
-}
-
-void CVGI::GaussianFilterTechnique::SwapBuffers()
-{
-	std::swap(m_readBufferManager, m_writeBufferManager);
-	m_data->SetBufferManager(ReadName, m_readBufferManager);
-	m_data->SetBufferManager(WriteName, m_writeBufferManager);
-
-	DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
-
-	Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * 5,
-		m_readBufferManager->GetBuffer(0).GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-}
 
 void CVGI::GaussianFilterTechnique::SetGaussianBlock(UINT32 block)
 {
@@ -119,11 +97,11 @@ void CVGI::GaussianFilterTechnique::PerformTechnique2(DX12Lib::ComputeContext& c
 
 void CVGI::GaussianFilterTechnique::TransferRadianceData(DX12Lib::ComputeContext& context)
 {
-	m_isTransferingRadiance = true;
+	//m_isTransferingRadiance = true;
 
-	context.CopyBuffer(m_radianceReadBack, m_writeBufferManager->GetBuffer(0));
+	//context.CopyBuffer(m_radianceReadBack, m_writeBufferManager->GetBuffer(0));
 
-	m_radLength = m_data->FaceCount;
+	//m_radLength = m_data->FaceCount;
 }
 
 std::vector<DirectX::XMUINT2>& CVGI::GaussianFilterTechnique::GetRadianceData()
@@ -170,9 +148,8 @@ void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 	auto& indirectCommandBuffer = visibleFacesBufferManager.GetBuffer((UINT)LightTransportTechnique::LightTransportBufferType::GaussianDispatchBuffer);
 	context.TransitionResource(indirectCommandBuffer, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	
-	m_readBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	m_writeBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_readBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(1));
 	context.FlushResourceBarriers();
@@ -184,9 +161,8 @@ void CVGI::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::FacePenaltySRV, facePenaltyBufferManager.GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::VoxelVisibleFaceSRV, visibleFacesBufferManager.GetUAVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::RadianceBufferSRV, faceRadianceBufferManager.GetSRVHandle());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::ReadBufferSRV, m_readBufferManager->GetSRVHandle());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::GaussianBufferUAV, m_bufferManager->GetUAVHandle());
-	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::WriteBufferUAV, m_writeBufferManager->GetUAVHandle());
+	context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)GaussianFilterRootParameters::WriteBufferUAV, m_readBufferManager->GetUAVHandle());
 	
 	if (m_cbGaussianFilter.CurrentPhase == 0)
 		context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
@@ -205,7 +181,6 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::GaussianFilterTechnique::BuildRoot
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::FacePenaltySRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 2);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::VoxelVisibleFaceSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 2);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::RadianceBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 4);
-    (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::ReadBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::GaussianBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 0);
     (*gaussianRootSig)[(UINT)GaussianFilterRootParameters::WriteBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 1);
 
@@ -216,4 +191,3 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::GaussianFilterTechnique::BuildRoot
 
 const std::wstring CVGI::GaussianFilterTechnique::Name = L"GaussianFilterTechnique";
 const std::wstring CVGI::GaussianFilterTechnique::ReadName = L"GaussianFilterRead";
-const std::wstring CVGI::GaussianFilterTechnique::WriteName = L"GaussianFilterWrite";

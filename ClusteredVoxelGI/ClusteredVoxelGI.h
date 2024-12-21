@@ -59,7 +59,6 @@ namespace CVGI
 		void OnClientConnected(const ENetPeer* peer);
 		bool IsDirectXRaytracingSupported() const;
 
-		void ComputeThread();
 
 	public:
 		//const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
@@ -82,19 +81,10 @@ namespace CVGI
 
 		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
 		std::unique_ptr<DX12Lib::Fence> m_rasterFence;
-		std::unique_ptr<DX12Lib::Fence> m_blockFence;
-		std::unique_ptr<DX12Lib::Fence> m_shadowFence;
 
 		UINT32 m_rasterFenceValue = 0;
 		UINT32 m_rtgiFenceValue = 0;
 
-		UINT32 DirectLightFenceValue = 0;
-		UINT32 IndirectLightFenceValue = 0;
-
-		UINT32 IndirectBlockCount = 0;
-
-		UINT32 m_lastBlockFenceVal = 0;
-		UINT32 maxDispatchesPerFrame = 4;
 
 		bool LightDispatched = false;
 		bool BufferSwapped = true;
@@ -103,7 +93,7 @@ namespace CVGI
 		bool m_resetTime = false;
 		bool m_resetCamera = false;
 
-		bool changeLerp = false;
+		bool m_isRadianceReady = false;
 
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 
@@ -111,8 +101,6 @@ namespace CVGI
 
 		D3D12_VIEWPORT m_voxelScreenViewport;
 		D3D12_RECT m_voxelScissorRect;
-
-		std::vector<DX12Lib::GPUBuffer*> m_uavBuffers;
 
 		UINT64 m_numberOfVoxels = 0;
 
@@ -130,14 +118,6 @@ namespace CVGI
 		} m_receiveState = ReceiveState::INITIALIZATION;
 
 		float RTGIUpdateDelta = 1.0f;
-		float lerpDelta = 0.0f;
-
-		float m_lastTotalTime = 0.15f;
-
-		std::thread m_computeThread;
-
-		std::atomic<bool> m_didCameraMove = false;
-		std::atomic<bool> m_didLightChange = false;
-		std::atomic<bool> m_shouldChangeLerp = false;
+		float m_lerpDeltaTime = 0.0f;
 	};
 }

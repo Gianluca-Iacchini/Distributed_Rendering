@@ -100,14 +100,12 @@ void CVGI::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& conte
 	auto& prefixSumBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
 	auto& aabbBufferManager = m_data->GetBufferManager(BuildAABBsTechnique::Name);
 	auto& gaussianBufferManager = m_data->GetBufferManager(GaussianFilterTechnique::Name);
-    auto& gaussianWriteBufferManager = m_data->GetBufferManager(GaussianFilterTechnique::WriteName);
 
 
 	prefixSumBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	aabbBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	gaussianBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	gaussianWriteBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	m_indirectBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0), true);
 
@@ -121,7 +119,6 @@ void CVGI::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& conte
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::RadianceBufferUAV, m_indirectBufferManager->GetUAVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV, m_bufferManager->GetUAVHandle());
     context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::GaussianFilterBufferUAV, gaussianBufferManager.GetUAVHandle());
-    context.m_commandList->Get()->SetComputeRootDescriptorTable((UINT)LightTransportTechniqueRootParameters::GaussianFinalWriteBufferUAV, gaussianWriteBufferManager.GetUAVHandle());
 
 
     context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
@@ -350,7 +347,6 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::LightTransportTechnique::BuildRoot
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::RadianceBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 0);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::LightTransportBuffersUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, (UINT)LightTransportBufferType::Count, D3D12_SHADER_VISIBILITY_ALL, 1);
     (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::GaussianFilterBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
-    (*LightTransportRootSignature)[(UINT)LightTransportTechniqueRootParameters::GaussianFinalWriteBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 3);
 
     LightTransportRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
