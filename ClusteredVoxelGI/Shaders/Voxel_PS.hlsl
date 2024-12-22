@@ -1,5 +1,4 @@
-#include "VoxelUtils.hlsli"
-
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
 
 
 Texture2D gEmissiveTex : register(t0);

@@ -1,10 +1,9 @@
 #include "DX12Lib/pch.h"
 #include "NetworkManager.h"
 
-#define ENET_DEBUG 1
+
 #include "WS2tcpip.h"
 #include "in6addr.h"
-#include "../extern/enet/include/enet/enet.h"
 #include "chrono"
 
 #define QUEUE_SIZE 3
@@ -190,9 +189,9 @@ void DX12Lib::NetworkHost::Connect(const std::string address, const std::uint16_
 	enet_address_set_host(&m_address, address.c_str());
 	m_address.port = port;
 
-	m_Peer = enet_host_connect(m_host, &m_address, 1, 0);
+	ENetPeer* peer = enet_host_connect(m_host, &m_address, 1, 0);
 
-	if (m_Peer == NULL)
+	if (peer == NULL)
 	{
 		DXLIB_CORE_ERROR("Failed to connect to peer {0} at port {1}", address, port);
 		return;
@@ -226,15 +225,6 @@ void DX12Lib::NetworkHost::SendData(DX12Lib::PacketGuard& packet)
 	m_packetsToSend.Push(packet.m_packet);
 }
 
-//void DX12Lib::NetworkHost::OnPacketReceived(const NetworkPacket* packet)
-//{
-//	auto& dataVector = packet->GetDataVector();
-//
-//	std::uint8_t message[5] = { 0 };
-//	memcpy(&message, dataVector.data(), 5);
-//
-//	DXLIB_CORE_INFO("Received message: [{0},{1},{2},{3},{4}] of length {5}", message[0], message[1], message[2], message[3], message[4], dataVector.size());
-//}
 
 PacketGuard DX12Lib::NetworkHost::CreatePacket()
 {

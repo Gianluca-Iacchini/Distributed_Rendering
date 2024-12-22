@@ -4,28 +4,26 @@ set(GEOMETRY_SHADERS Shaders/Voxel_GS.hlsl Shaders/VoxelDisplay_GS.hlsl)
 set(PIXEL_SHADERS Shaders/Voxel_PS.hlsl Shaders/VoxelDisplay_PS.hlsl)
 
 set(INCLUDE_SHADERS 
-	Shaders/VoxelUtils.hlsli 
-	Shaders/TechniquesCompat.h
+	../VoxelUtils/Shaders/VoxelUtils.hlsli 
+	../VoxelUtils/Shaders/TechniquesCompat.h
 )
 
 set(RAYTRACING_SHADERS
-	Shaders/RaytracingUtils.hlsli
-	Shaders/Raytracing.hlsl
-	Shaders/RaytracingShadow.hlsl
+	../VoxelUtils/Shaders/RaytracingUtils.hlsli
+	../VoxelUtils/Shaders/Raytracing.hlsl
+	../VoxelUtils/Shaders/RaytracingShadow.hlsl
 )
 
 set(COMPUTE_SHADERS 
+
+	../VoxelUtils/Shaders/ClearBufferShader_CS.hlsl
+	../VoxelUtils/Shaders/GaussianFilter_CS.hlsl
+	../VoxelUtils/Shaders/LightTransportDepth_CS.hlsl
+	../VoxelUtils/Shaders/LightTransportIndirect_CS.hlsl
 	Shaders/PrefixSum_CS.hlsl
-	Shaders/ClearBufferShader_CS.hlsl
-	Shaders/ClusterReduce_CS.hlsl
 	Shaders/ComputeAABB_CS.hlsl
 	Shaders/ComputeNeighbour_CS.hlsl
-	Shaders/FacePenalty_CS.hlsl
 	Shaders/FastSlic_CS.hlsl
-	Shaders/GaussianFilter_CS.hlsl
-	Shaders/LightTransport_CS.hlsl
-	Shaders/LightTransportDepth_CS.hlsl
-	Shaders/LightTransportIndirect_CS.hlsl
 	Shaders/LitVoxels_CS.hlsl)
 
 set(SHADERS ${VERTEX_SHADERS} ${GEOMETRY_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS} ${COMPUTE_SHADERS} ${RAYTRACING_SHADERS})
@@ -34,8 +32,9 @@ source_group("Shaders" FILES ${SHADERS})
 
 set_source_files_properties( ${VERTEX_SHADERS} ${GEOMETRY_SHADERS} ${PIXEL_SHADERS} ${COMPUTE_SHADERS} ${RAYTRACING_SHADERS}
     PROPERTIES
-        VS_SHADER_OBJECT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Data/Shaders/%(Filename).cso"
-        VS_SHADER_OUTPUT_HEADER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Data/Shaders/Include/%(Filename).h"
+
+        VS_SHADER_OBJECT_FILE_NAME "%(RelativeDir)/../Data/Shaders/%(Filename).cso"
+        VS_SHADER_OUTPUT_HEADER_FILE "%(RelativeDir)/../Data/Shaders/Include/%(Filename).h"
 		VS_SHADER_VARIABLE_NAME "g_p%(Filename)"
         VS_SHADER_MODEL 6.5
         VS_SHADER_DISABLE_OPTIMIZATIONS $<$<CONFIG:Debug>:ON>
@@ -72,8 +71,14 @@ set_source_files_properties( ${RAYTRACING_SHADERS}
 )
 
 set(TECHNIQUES
-	Techniques/Technique.h
-	Techniques/Technique.cpp
+	../VoxelUtils/Techniques/Technique.h
+	../VoxelUtils/Techniques/Technique.cpp
+	../VoxelUtils/Techniques/LightTransportTechnique.h
+	../VoxelUtils/Techniques/LightTransportTechnique.cpp
+	../VoxelUtils/Techniques/GaussianFilterTechnique.h
+	../VoxelUtils/Techniques/GaussianFilterTechnique.cpp
+	../VoxelUtils/Techniques/SceneDepthTechnique.h
+	../VoxelUtils/Techniques/SceneDepthTechnique.cpp
 	Techniques/BuildAABBsTechnique.h
 	Techniques/BuildAABBsTechnique.cpp
 	Techniques/ClusterVisibility.h
@@ -84,34 +89,24 @@ set(TECHNIQUES
 	Techniques/ComputeNeighboursTechnique.cpp
 	Techniques/DisplayVoxelScene.h
 	Techniques/DisplayVoxelScene.cpp
-	Techniques/FacePenaltyTechnique.h
-	Techniques/FacePenaltyTechnique.cpp
-	Techniques/GaussianFilterTechnique.h
-	Techniques/GaussianFilterTechnique.cpp
-	Techniques/LightTransportTechnique.h
-	Techniques/LightTransportTechnique.cpp
 	Techniques/LightVoxel.h
 	Techniques/LightVoxel.cpp
-	Techniques/MergeClusters.h
-	Techniques/MergeClusters.cpp
 	Techniques/PrefixSumVoxels.h
 	Techniques/PrefixSumVoxels.cpp
-	Techniques/SceneDepthTechnique.h
-	Techniques/SceneDepthTechnique.cpp
 	Techniques/VoxelizeScene.h
 	Techniques/VoxelizeScene.cpp)
 
 source_group("Techniques" FILES ${TECHNIQUES})
 
 set(CVGI_HELPERS
-	Helpers/BufferManager.h
-	Helpers/BufferManager.cpp
-	Helpers/CVGIDataTypes.h
-	Helpers/CVGIDataTypes.cpp
-	Helpers/RayTracingHelpers.h
-	Helpers/RayTracingHelpers.cpp
-	Helpers/RaytracingStateObject.h
-	Helpers/RaytracingStateObject.cpp)
+	../VoxelUtils/BufferManager.h
+	../VoxelUtils/BufferManager.cpp
+	../VoxelUtils/CVGIDataTypes.h
+	../VoxelUtils/CVGIDataTypes.cpp
+	../VoxelUtils/RT/RayTracingHelpers.h
+	../VoxelUtils/RT/RayTracingHelpers.cpp
+	../VoxelUtils/RT/RaytracingStateObject.h
+	../VoxelUtils/RT/RaytracingStateObject.cpp)
 
 source_group("Helpers" FILES ${CVGI_HELPERS})
 
@@ -127,6 +122,10 @@ set(SOURCE_FILES
 )
 
 add_executable(ClusteredVoxelGI WIN32 ${SOURCE_FILES} ${TECHNIQUES} ${CVGI_HELPERS} ${SHADERS})
+
+target_include_directories(ClusteredVoxelGI
+	PUBLIC "../VoxelUtils"
+	PUBLIC "../VoxelUtils/Techniques")
 
 set_property(TARGET ClusteredVoxelGI PROPERTY CXX_STANDARD 20)
 

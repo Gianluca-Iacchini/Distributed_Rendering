@@ -7,8 +7,9 @@
 using namespace CVGI;
 using namespace DX12Lib;
 using namespace Graphics;
+using namespace VOX;
 
-CVGI::PrefixSumVoxels::PrefixSumVoxels(std::shared_ptr<TechniqueData> data)
+CVGI::PrefixSumVoxels::PrefixSumVoxels(std::shared_ptr<VOX::TechniqueData> data)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
 	data->SetBufferManager(Name, m_bufferManager);
@@ -246,7 +247,7 @@ void CVGI::PrefixSumVoxels::TechniquePass(DX12Lib::ComputeContext& context, Dire
 	m_cbCompactBuffer.CurrentPhase = m_currentPhase;
 
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)CompactBufferRootSignature::PrefixSumCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbCompactBuffer).GpuAddress());
 
@@ -284,19 +285,19 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::PrefixSumVoxels::BuildRootSignatur
 	return voxelComputeRootSignature;
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::PrefixSumVoxels::BuildPipelineState()
+void CVGI::PrefixSumVoxels::BuildPipelineState()
 {
 	std::shared_ptr<RootSignature> rootSig = BuildRootSignature();
 
 	auto computeShader = CD3DX12_SHADER_BYTECODE((void*)g_pPrefixSum_CS, ARRAYSIZE(g_pPrefixSum_CS));
 
-	std::shared_ptr<ComputePipelineState> voxelComputePSO = std::make_shared<ComputePipelineState>();
+	std::unique_ptr<ComputePipelineState> voxelComputePSO = std::make_unique<ComputePipelineState>();
 	voxelComputePSO->SetRootSignature(rootSig);
 	voxelComputePSO->SetComputeShader(computeShader);
 	voxelComputePSO->Finalize();
 	voxelComputePSO->Name = Name;
 
-	return voxelComputePSO;
+	m_techniquePSO = std::move(voxelComputePSO);
 }
 
 const std::vector<UINT32>& CVGI::PrefixSumVoxels::GetIndirectionRankBuffer() const

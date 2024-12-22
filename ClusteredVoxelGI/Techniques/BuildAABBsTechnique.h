@@ -1,10 +1,10 @@
 #pragma once
 #include "Technique.h"
-#include "../Helpers/RayTracingHelpers.h"
+#include "RT/RayTracingHelpers.h"
 
 namespace CVGI
 {
-	class BuildAABBsTechnique : public Technique
+	class BuildAABBsTechnique : public VOX::Technique
 	{
 	private:
 		enum class AABBGenerationRootSignature
@@ -17,9 +17,9 @@ namespace CVGI
 		};
 
 	public:
-		BuildAABBsTechnique(std::shared_ptr<TechniqueData> data)
+		BuildAABBsTechnique(std::shared_ptr<VOX::TechniqueData> data)
 		{
-			m_bufferManager = std::make_shared<BufferManager>();
+			m_bufferManager = std::make_shared<VOX::BufferManager>();
 			data->SetBufferManager(Name, m_bufferManager);
 			m_data = data;
 		}
@@ -30,7 +30,7 @@ namespace CVGI
 		virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 
 	public:
 		static const std::wstring Name;

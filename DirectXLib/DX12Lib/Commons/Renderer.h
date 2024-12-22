@@ -7,7 +7,7 @@
 #define PSO_PBR_TRANSPARENT L"pbrTransparentPso"
 #define PSO_PBR_ALPHA_TEST L"pbrAlphaTestPso"
 
-#include "../ClusteredVoxelGI/Shaders/TechniquesCompat.h"
+#include "../VoxelUtils/Shaders/TechniquesCompat.h"
 
 namespace DX12Lib
 {

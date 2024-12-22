@@ -7,8 +7,9 @@
 using namespace DX12Lib;
 using namespace Graphics;
 using namespace CVGI;
+using namespace VOX;
 
-CVGI::ComputeNeighboursTechnique::ComputeNeighboursTechnique(std::shared_ptr<TechniqueData> data)
+CVGI::ComputeNeighboursTechnique::ComputeNeighboursTechnique(std::shared_ptr<VOX::TechniqueData> data)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
 	data->SetBufferManager(Name, m_bufferManager);
@@ -30,7 +31,7 @@ void CVGI::ComputeNeighboursTechnique::PerformTechnique(DX12Lib::ComputeContext&
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR_DEFAULT, Name.c_str());
 
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 	UINT32 clusterCount = m_data->GetClusterCount();
 	UINT32 totalComputation = clusterCount * (clusterCount + 1) / 2;
@@ -48,7 +49,7 @@ void CVGI::ComputeNeighboursTechnique::PerformTechnique(DX12Lib::ComputeContext&
 
 void CVGI::ComputeNeighboursTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
 
 	auto& clusterVoxelBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
@@ -65,19 +66,19 @@ void CVGI::ComputeNeighboursTechnique::TechniquePass(DX12Lib::ComputeContext& co
 	context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::ComputeNeighboursTechnique::BuildPipelineState()
+void CVGI::ComputeNeighboursTechnique::BuildPipelineState()
 {
 	std::shared_ptr<DX12Lib::RootSignature> computeNeighborRootSig = BuildRootSignature();
 
 	auto shaderBlob = CD3DX12_SHADER_BYTECODE((void*)g_pComputeNeighbour_CS, ARRAYSIZE(g_pComputeNeighbour_CS));
 
-	std::shared_ptr<DX12Lib::ComputePipelineState> computeNeighborPso = std::make_shared<DX12Lib::ComputePipelineState>();
+	std::unique_ptr<DX12Lib::ComputePipelineState> computeNeighborPso = std::make_unique<DX12Lib::ComputePipelineState>();
 	computeNeighborPso->SetRootSignature(computeNeighborRootSig);
 	computeNeighborPso->SetComputeShader(shaderBlob);
 	computeNeighborPso->Finalize();
 	computeNeighborPso->Name = Name;
 
-	return computeNeighborPso;
+	m_techniquePSO = std::move(computeNeighborPso);
 }
 
 std::shared_ptr<DX12Lib::RootSignature> CVGI::ComputeNeighboursTechnique::BuildRootSignature()

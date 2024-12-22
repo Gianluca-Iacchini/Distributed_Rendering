@@ -1,5 +1,7 @@
 #pragma once
 
+#include "memory"
+
 namespace DX12Lib {
 
 	class GameTime

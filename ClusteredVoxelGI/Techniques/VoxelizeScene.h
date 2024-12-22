@@ -8,7 +8,7 @@
 namespace CVGI
 {
 
-	class VoxelizeScene : public Technique
+	class VoxelizeScene : public VOX::Technique
 	{
 	private:
 		enum class VoxelizeSceneRootParameterSlot
@@ -49,9 +49,9 @@ namespace CVGI
 
 
 	public:
-		VoxelizeScene(std::shared_ptr<TechniqueData> data)
+		VoxelizeScene(std::shared_ptr<VOX::TechniqueData> data)
 		{
-			m_bufferManager = std::make_shared<BufferManager>();
+			m_bufferManager = std::make_shared<VOX::BufferManager>();
 			data->SetBufferManager(Name, m_bufferManager);
 			m_data = data;
 		}
@@ -68,7 +68,7 @@ namespace CVGI
 		void DeleteTemporaryBuffers();
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 
 		std::vector<UINT32>& GetOccupiedVoxelBuffer() { return m_occupiedVoxelBuffer; }
 

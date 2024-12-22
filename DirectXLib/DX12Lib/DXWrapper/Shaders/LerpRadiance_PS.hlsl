@@ -69,7 +69,9 @@ void UpdateRadiance(uint idx)
     gRadianceLerpResult[idx] = lerpRadiancePacked;
 }
 
-float4 PS(VertexOutPosTex pIn) : SV_Target
+// We don't write to any render target during this pass.
+// This proved to be faster than using a compute shader.
+void PS(VertexOutPosTex pIn)
 {
     uint totPixels = lerpRadiance.screenDimension.x * lerpRadiance.screenDimension.y;
     
@@ -85,6 +87,4 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
     {
         UpdateRadiance(idx);
     }
-    
-    return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }

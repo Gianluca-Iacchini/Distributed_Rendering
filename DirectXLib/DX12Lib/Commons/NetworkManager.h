@@ -6,7 +6,7 @@
 #include "thread"
 #include "Helpers.h"
 #include "functional"
-
+#include "DirectXMath.h"
 
 #include "../extern/enet/include/enet/enet.h"
 

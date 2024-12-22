@@ -135,7 +135,7 @@ void CVGI::VoxelizeScene::TechniquePass(DX12Lib::GraphicsContext& context)
 
 	context.SetViewportAndScissor(m_voxelScreenViewport, m_voxelScissorRect);
 
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 	context.m_commandList->GetComPtr()->SetGraphicsRootConstantBufferView(
 		(UINT)VoxelizeSceneRootParameterSlot::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());
@@ -203,7 +203,7 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::VoxelizeScene::BuildRootSignature(
 	return voxelizeSceneRootSignature;
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::VoxelizeScene::BuildPipelineState()
+void CVGI::VoxelizeScene::BuildPipelineState()
 {
 	std::shared_ptr<DX12Lib::RootSignature> voxelRootSig = BuildRootSignature();
 
@@ -221,7 +221,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::VoxelizeScene::BuildPipelineState(
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	depthStencilDesc.StencilEnable = FALSE;
 
-	std::shared_ptr<GraphicsPipelineState> voxelPSO = std::make_shared<GraphicsPipelineState>();
+	std::unique_ptr<GraphicsPipelineState> voxelPSO = std::make_unique<GraphicsPipelineState>();
 	voxelPSO->InitializeDefaultStates();
 	voxelPSO->SetRasterizerState(rasterizerDesc);
 	voxelPSO->SetDepthStencilState(depthStencilDesc);
@@ -237,7 +237,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::VoxelizeScene::BuildPipelineState(
 	voxelPSO->Name = Name;
 	voxelPSO->Finalize();
 
-	return voxelPSO;
+	m_techniquePSO = std::move(voxelPSO);
 }
 
 const std::wstring CVGI::VoxelizeScene::Name = L"VoxelizeScene";

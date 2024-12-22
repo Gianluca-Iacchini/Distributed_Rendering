@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../Helpers/BufferManager.h"
-#include "../Helpers/RayTracingHelpers.h"
-#include "../Helpers/RaytracingStateObject.h"
+#include "RT/RayTracingHelpers.h"
+#include "RT/RaytracingStateObject.h"
 #include "DX12Lib/Commons/MathHelper.h"
 #include "../Shaders/TechniquesCompat.h"
 #include "Technique.h"
@@ -18,12 +17,12 @@ namespace DX12Lib
 namespace CVGI
 {
 
-	class ClusterVisibility : public Technique
+	class ClusterVisibility : public VOX::Technique
 	{
 	public:
-		ClusterVisibility(std::shared_ptr<TechniqueData> data)
+		ClusterVisibility(std::shared_ptr<VOX::TechniqueData> data)
 		{
-			m_bufferManager = std::make_shared<BufferManager>();
+			m_bufferManager = std::make_shared<VOX::BufferManager>();
 			data->SetBufferManager(Name, m_bufferManager);
 			m_data = data;
 		}
@@ -32,12 +31,12 @@ namespace CVGI
 
 		virtual void InitializeBuffers() override;
 		virtual void PerformTechnique(DX12Lib::ComputeContext& context) override;
-		virtual void TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
+		virtual void TechniquePass(VOX::RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 
-		std::unique_ptr<TopLevelAccelerationStructure> BuildAccelerationStructures(DX12Lib::ComputeContext& context);
+		std::unique_ptr<VOX::TopLevelAccelerationStructure> BuildAccelerationStructures(DX12Lib::ComputeContext& context);
 
 	public:
 		static const std::wstring Name;

@@ -4,7 +4,7 @@
 #include <DirectXMath.h>
 #include "DX12Lib/DXWrapper/RootSignature.h"
 #include "DX12Lib/DXWrapper/PipelineState.h"
-#include "Helpers/CVGIDataTypes.h"
+#include "../VoxelUtils/CVGIDataTypes.h"
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include "DX12Lib/DXWrapper/DescriptorHeap.h"
 #include "GraphicsMemory.h"
@@ -14,11 +14,9 @@
 #include "Techniques/DisplayVoxelScene.h"
 #include "Techniques/PrefixSumVoxels.h"
 #include "Techniques/ClusterVoxels.h"
-#include "Techniques/MergeClusters.h"
 #include "Techniques/ComputeNeighboursTechnique.h"
 #include "Techniques/ClusterVisibility.h"
 #include "Techniques/BuildAABBsTechnique.h"
-#include "Techniques/FacePenaltyTechnique.h"
 #include "DX12Lib/Scene/LightComponent.h"
 
 #include "Techniques/LightTransportTechnique.h"
@@ -69,15 +67,13 @@ namespace CVGI
 		std::unique_ptr<DisplayVoxelScene> m_displayVoxelScene;
 		std::unique_ptr<PrefixSumVoxels> m_prefixSumVoxels;
 		std::unique_ptr<ClusterVoxels> m_clusterVoxels;
-		std::unique_ptr<MergeClusters> m_mergeClusters;
 		std::unique_ptr<ComputeNeighboursTechnique> m_computeNeighboursTechnique;
 		std::unique_ptr<ClusterVisibility> m_clusterVisibility;
 		std::unique_ptr<BuildAABBsTechnique> m_buildAABBsTechnique;
-		std::unique_ptr<FacePenaltyTechnique> m_facePenaltyTechnique;
-		std::unique_ptr<SceneDepthTechnique> m_sceneDepthTechnique;
+		std::unique_ptr<VOX::SceneDepthTechnique> m_sceneDepthTechnique;
 		std::unique_ptr<LightVoxel> m_lightVoxel;
-		std::unique_ptr<LightTransportTechnique> m_lightTransportTechnique;
-		std::unique_ptr<GaussianFilterTechnique> m_gaussianFilterTechnique;
+		std::unique_ptr<VOX::LightTransportTechnique> m_lightTransportTechnique;
+		std::unique_ptr<VOX::GaussianFilterTechnique> m_gaussianFilterTechnique;
 
 		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
 		std::unique_ptr<DX12Lib::Fence> m_rasterFence;
@@ -106,7 +102,7 @@ namespace CVGI
 
 		DX12Lib::ShadowCamera* m_shadowCamera = nullptr;
 
-		std::shared_ptr<TechniqueData> m_data = nullptr;
+		std::shared_ptr<VOX::TechniqueData> m_data = nullptr;
 
 		DX12Lib::NetworkHost m_networkServer;
 

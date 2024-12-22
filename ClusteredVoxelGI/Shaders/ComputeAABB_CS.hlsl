@@ -1,6 +1,6 @@
 
-#include "VoxelUtils.hlsli"
-#include "TechniquesCompat.h"
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
+#include "../../VoxelUtils/Shaders/TechniquesCompat.h"
 
 
 ConstantBuffer<ConstantBufferAABBGeneration> cbAABB : register(b0);

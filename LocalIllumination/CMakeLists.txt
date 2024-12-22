@@ -1,18 +1,43 @@
 set(VERTEX_SHADERS )
 set(PIXEL_SHADERS )
-set(INCLUDE_SHADERS )
 
-set(SHADERS ${VERTEX_SHADERS} ${PIXEL_SHADERS} ${INCLUDE_SHADERS})
+set(INCLUDE_SHADERS 
+	../VoxelUtils/Shaders/VoxelUtils.hlsli 
+	../VoxelUtils/Shaders/TechniquesCompat.h
+)
+
+set(RAYTRACING_SHADERS
+	../VoxelUtils/Shaders/RaytracingUtils.hlsli
+	../VoxelUtils/Shaders/Raytracing.hlsl
+	../VoxelUtils/Shaders/RaytracingShadow.hlsl
+)
+
+set(COMPUTE_SHADERS 
+
+	../VoxelUtils/Shaders/ClearBufferShader_CS.hlsl
+	../VoxelUtils/Shaders/GaussianFilter_CS.hlsl
+	../VoxelUtils/Shaders/LightTransportDepth_CS.hlsl
+	../VoxelUtils/Shaders/LightTransportIndirect_CS.hlsl
+)
 
 source_group("Shaders" FILES ${SHADERS})
 
-set_source_files_properties( ${VERTEX_SHADERS} ${PIXEL_SHADERS}
+set_source_files_properties( ${VERTEX_SHADERS} ${GEOMETRY_SHADERS} ${PIXEL_SHADERS} ${COMPUTE_SHADERS} ${RAYTRACING_SHADERS}
     PROPERTIES
-        VS_SHADER_OBJECT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Data/Shaders/%(Filename).cso"
-        VS_SHADER_MODEL 5.1
+
+        VS_SHADER_OBJECT_FILE_NAME "%(RelativeDir)/../Data/Shaders/%(Filename).cso"
+        VS_SHADER_OUTPUT_HEADER_FILE "%(RelativeDir)/../Data/Shaders/Include/%(Filename).h"
+		VS_SHADER_VARIABLE_NAME "g_p%(Filename)"
+        VS_SHADER_MODEL 6.5
         VS_SHADER_DISABLE_OPTIMIZATIONS $<$<CONFIG:Debug>:ON>
         VS_SHADER_ENABLE_DEBUG $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:ON>
 )
+
+
+set(SHADERS ${VERTEX_SHADERS}  ${PIXEL_SHADERS} ${INCLUDE_SHADERS} ${COMPUTE_SHADERS} ${RAYTRACING_SHADERS})
+
+source_group("Shaders" FILES ${SHADERS})
+
 
 set_source_files_properties( ${VERTEX_SHADERS}
     PROPERTIES 
@@ -26,7 +51,40 @@ set_source_files_properties( ${PIXEL_SHADERS}
 	VS_SHADER_ENTRYPOINT PS
 )
 
+set_source_files_properties( ${COMPUTE_SHADERS}
+    PROPERTIES 
+        VS_SHADER_TYPE Compute
+	VS_SHADER_ENTRYPOINT CS
+)
+
+set_source_files_properties( ${RAYTRACING_SHADERS}
+	PROPERTIES 
+	VS_SHADER_TYPE Library
+)
+
+set(VOX_HELPERS 
+	../VoxelUtils/BufferManager.h
+	../VoxelUtils/BufferManager.cpp
+	../VoxelUtils/CVGIDataTypes.h
+	../VoxelUtils/CVGIDataTypes.cpp
+)
+
+source_group("Helpers" FILES ${VOX_HELPERS})
+
+set(TECHNIQUES
+	../VoxelUtils/Techniques/Technique.h
+	../VoxelUtils/Techniques/Technique.cpp
+	../VoxelUtils/Techniques/LightTransportTechnique.h
+	../VoxelUtils/Techniques/LightTransportTechnique.cpp
+	../VoxelUtils/Techniques/GaussianFilterTechnique.h
+	../VoxelUtils/Techniques/GaussianFilterTechnique.cpp
+	../VoxelUtils/Techniques/SceneDepthTechnique.h
+	../VoxelUtils/Techniques/SceneDepthTechnique.cpp)
+
+source_group("Techniques" FILES ${TECHNIQUES})
+
 set(SOURCE_FILES
+	LocalIllumination.h 
 	LocalIllumination.cpp 
 	LIScene.h
 	LIScene.cpp
@@ -36,7 +94,7 @@ set(SOURCE_FILES
     LIUtils.cpp
 )
 
-add_executable(LocalIllumination WIN32 ${SOURCE_FILES} ${SHADERS})
+add_executable(LocalIllumination WIN32 ${SOURCE_FILES} ${TECHNIQUES} ${VOX_HELPERS} ${SHADERS})
 
 set_property(TARGET LocalIllumination PROPERTY CXX_STANDARD 20)
 
@@ -47,6 +105,10 @@ target_link_libraries(LocalIllumination PRIVATE d3d12.lib)
 target_link_libraries(LocalIllumination PRIVATE dxgi.lib)
 target_link_libraries(LocalIllumination PRIVATE D3DCompiler.lib)
 target_link_libraries(LocalIllumination PRIVATE DirectXTK12)
+
+target_include_directories(LocalIllumination
+    PUBLIC "../VoxelUtils"
+    PUBLIC "../VoxelUtils/Techniques") 
 
 file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll")
 

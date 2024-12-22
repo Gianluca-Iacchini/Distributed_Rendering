@@ -7,7 +7,6 @@
 #include "ClusterVoxels.h"
 #include "LightVoxel.h"
 #include "LightTransportTechnique.h"
-#include "FacePenaltyTechnique.h"
 #include "GaussianFilterTechnique.h"
 #include "../Data/Shaders/Include/VoxelDisplay_VS.h"
 #include "../Data/Shaders/Include/VoxelDisplay_GS.h"
@@ -16,8 +15,9 @@
 using namespace CVGI;
 using namespace DX12Lib;
 using namespace Graphics;
+using namespace VOX;
 
-CVGI::DisplayVoxelScene::DisplayVoxelScene(std::shared_ptr<TechniqueData> data) : m_vertexBuffer(DXGI_FORMAT_R32_UINT)
+CVGI::DisplayVoxelScene::DisplayVoxelScene(std::shared_ptr<VOX::TechniqueData> data) : m_vertexBuffer(DXGI_FORMAT_R32_UINT)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
 	data->SetBufferManager(Name, m_bufferManager);
@@ -80,14 +80,12 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 	auto& shadowBufferManager = m_data->GetBufferManager(LightVoxel::Name);
 	auto& lightTransportBufferManager = m_data->GetBufferManager(LightTransportTechnique::Name);
 	auto& gaussianBufferManager = m_data->GetBufferManager(GaussianFilterTechnique::Name);
-	auto& facePenaltyBufferManager = m_data->GetBufferManager(FacePenaltyTechnique::Name);
 
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	shadowBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	lightTransportBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	gaussianBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	facePenaltyBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	
 
 	context.TransitionResource(m_vertexBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
@@ -100,7 +98,7 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 
 	context.SetViewportAndScissor(Renderer::s_screenViewport, Renderer::s_scissorRect);
 
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 	context.m_commandList->Get()->SetGraphicsRootConstantBufferView((UINT)DisplayVoxelRootParameterSlot::VoxelCommonCBV,
 		m_data->GetVoxelCommonsResource().GpuAddress());
@@ -126,9 +124,6 @@ void CVGI::DisplayVoxelScene::TechniquePass(DX12Lib::GraphicsContext& context)
 	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 		(UINT)DisplayVoxelRootParameterSlot::GaussianSRVBufferTable, gaussianBufferManager.GetSRVHandle());
 
-	context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
-		(UINT)DisplayVoxelRootParameterSlot::FacePenaltySRVBufferTable, facePenaltyBufferManager.GetSRVHandle());
-
 
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = m_vertexBuffer.VertexBufferView();
 
@@ -153,13 +148,12 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::DisplayVoxelScene::BuildRootSignat
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::ShadowSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 3);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::LightTransportSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 4);
 	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::GaussianSRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 5);
-	(*displayVoxelRootSignature)[(UINT)DisplayVoxelRootParameterSlot::FacePenaltySRVBufferTable].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 6);
 	displayVoxelRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	return displayVoxelRootSignature;
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::DisplayVoxelScene::BuildPipelineState()
+void CVGI::DisplayVoxelScene::BuildPipelineState()
 {
 	std::shared_ptr<DX12Lib::RootSignature> voxelRootSig = BuildRootSignature();
 
@@ -167,7 +161,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::DisplayVoxelScene::BuildPipelineSt
 	auto geometryShaderByteCode = CD3DX12_SHADER_BYTECODE((void*)g_pVoxelDisplay_GS, ARRAYSIZE(g_pVoxelDisplay_GS));
 	auto pixelShaderByteCode = CD3DX12_SHADER_BYTECODE((void*)g_pVoxelDisplay_PS, ARRAYSIZE(g_pVoxelDisplay_PS));
 
-	std::shared_ptr<GraphicsPipelineState> displayVoxelPSO = std::make_shared<GraphicsPipelineState>();
+	std::unique_ptr<GraphicsPipelineState> displayVoxelPSO = std::make_unique<GraphicsPipelineState>();
 	displayVoxelPSO->InitializeDefaultStates();
 	displayVoxelPSO->SetInputLayout(VertexSingleUINT::InputLayout.pInputElementDescs, \
 		VertexSingleUINT::InputLayout.NumElements);
@@ -180,7 +174,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::DisplayVoxelScene::BuildPipelineSt
 	displayVoxelPSO->Name = Name;
 	displayVoxelPSO->Finalize();
 
-	return displayVoxelPSO;
+	m_techniquePSO = std::move(displayVoxelPSO);
 }
 
 const std::wstring CVGI::DisplayVoxelScene::Name = L"DisplayVoxelScene";

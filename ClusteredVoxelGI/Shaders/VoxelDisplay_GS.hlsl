@@ -1,5 +1,5 @@
 #define NO_SHADER_OUTPUT
-#include "VoxelUtils.hlsli"
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
 
 struct GSInput
 {

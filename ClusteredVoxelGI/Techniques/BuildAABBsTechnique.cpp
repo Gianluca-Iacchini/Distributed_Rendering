@@ -46,7 +46,7 @@ void CVGI::BuildAABBsTechnique::PerformTechnique(DX12Lib::ComputeContext& contex
 void CVGI::BuildAABBsTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 	auto& compactBufferManager = m_data->GetBufferManager(PrefixSumVoxels::Name);
 	auto& clusterBufferManager = m_data->GetBufferManager(ClusterVoxels::Name);
@@ -80,19 +80,19 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::BuildAABBsTechnique::BuildRootSign
 	return AABBComputeRootSignature;
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::BuildAABBsTechnique::BuildPipelineState()
+void CVGI::BuildAABBsTechnique::BuildPipelineState()
 {
 	std::shared_ptr<DX12Lib::RootSignature> rootSig = BuildRootSignature();
 
 	auto shaderByteCode = CD3DX12_SHADER_BYTECODE((void*)g_pComputeAABB_CS, ARRAYSIZE(g_pComputeAABB_CS));
 
-	std::shared_ptr<ComputePipelineState> AABBGenerationComputePso = std::make_shared<ComputePipelineState>();
+	std::unique_ptr<ComputePipelineState> AABBGenerationComputePso = std::make_unique<ComputePipelineState>();
 	AABBGenerationComputePso->SetRootSignature(rootSig);
 	AABBGenerationComputePso->SetComputeShader(shaderByteCode);
 	AABBGenerationComputePso->Finalize();
 	AABBGenerationComputePso->Name = Name;
 
-	return AABBGenerationComputePso;
+	m_techniquePSO = std::move(AABBGenerationComputePso);
 }
 
 

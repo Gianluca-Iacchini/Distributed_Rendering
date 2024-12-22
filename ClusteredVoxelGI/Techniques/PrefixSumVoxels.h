@@ -1,12 +1,12 @@
 #pragma once
-#include "../Helpers/BufferManager.h"
+
 #include "DirectXMath.h"
 #include "Technique.h"
 
 
 namespace CVGI
 {
-	class PrefixSumVoxels : public Technique
+	class PrefixSumVoxels : public VOX::Technique
 	{
 	private:
 		enum class CompactBufferRootSignature
@@ -28,7 +28,7 @@ namespace CVGI
 		};
 
 	public:
-		PrefixSumVoxels(std::shared_ptr<TechniqueData> data);
+		PrefixSumVoxels(std::shared_ptr<VOX::TechniqueData> data);
 
 		virtual ~PrefixSumVoxels() {}
 
@@ -39,7 +39,7 @@ namespace CVGI
 		void DeleteTemporaryBuffers();
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 
 		const std::vector<UINT32>& GetIndirectionRankBuffer() const;
 		const std::vector<UINT32>& GetIndirectionIndexBuffer() const;

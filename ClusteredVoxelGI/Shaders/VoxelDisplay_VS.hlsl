@@ -1,4 +1,4 @@
-#include "VoxelUtils.hlsli"
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
 
 VertexOutVoxelIndex VS(uint coord : SV_Position)
 {

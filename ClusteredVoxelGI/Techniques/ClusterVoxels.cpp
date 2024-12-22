@@ -120,7 +120,7 @@ void CVGI::ClusterVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 void CVGI::ClusterVoxels::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 
 	auto& voxelBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
@@ -155,19 +155,19 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusterVoxels::BuildRootSignature(
 	return clusterRootSignature;
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::ClusterVoxels::BuildPipelineState()
+void CVGI::ClusterVoxels::BuildPipelineState()
 {
 	std::shared_ptr<RootSignature> rootSig = BuildRootSignature();
 
 	auto shaderByteCode = CD3DX12_SHADER_BYTECODE((void*)g_pFastSlic_CS, ARRAYSIZE(g_pFastSlic_CS));
 
-	std::shared_ptr<ComputePipelineState> voxelClusterizeComputePso = std::make_shared<ComputePipelineState>();
+	std::unique_ptr<ComputePipelineState> voxelClusterizeComputePso = std::make_unique<ComputePipelineState>();
 	voxelClusterizeComputePso->SetRootSignature(rootSig);
 	voxelClusterizeComputePso->SetComputeShader(shaderByteCode);
 	voxelClusterizeComputePso->Finalize();
 	voxelClusterizeComputePso->Name = Name;
 
-	return voxelClusterizeComputePso;
+	m_techniquePSO = std::move(voxelClusterizeComputePso);
 }
 
 const std::wstring ClusterVoxels::Name = L"ClusterVoxels";

@@ -2,10 +2,10 @@
 
 namespace CVGI
 {
-	class ComputeNeighboursTechnique : public Technique
+	class ComputeNeighboursTechnique : public VOX::Technique
 	{
 	public:
-		ComputeNeighboursTechnique(std::shared_ptr<TechniqueData> data);
+		ComputeNeighboursTechnique(std::shared_ptr<VOX::TechniqueData> data);
 
 		~ComputeNeighboursTechnique() {}
 
@@ -14,7 +14,7 @@ namespace CVGI
 		void PerformTechnique(DX12Lib::ComputeContext& context) override;
 		
 
-		std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 		std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;

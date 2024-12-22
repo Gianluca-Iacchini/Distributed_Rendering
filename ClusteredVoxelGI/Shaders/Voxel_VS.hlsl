@@ -1,4 +1,4 @@
-#include "VoxelUtils.hlsli"
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
 
 cbuffer cbPerObject : register(b2)
 {

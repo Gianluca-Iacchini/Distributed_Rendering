@@ -4,10 +4,10 @@
 
 namespace CVGI
 {
-	class DisplayVoxelScene : public Technique
+	class DisplayVoxelScene : public VOX::Technique
 	{
 	public:
-		DisplayVoxelScene(std::shared_ptr<TechniqueData> data);
+		DisplayVoxelScene(std::shared_ptr<VOX::TechniqueData> data);
 		virtual ~DisplayVoxelScene() override {} ;
 
 		virtual void InitializeBuffers() override;
@@ -17,7 +17,7 @@ namespace CVGI
 		void SetCamera(DX12Lib::SceneCamera* camera);
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 	protected:
 		virtual void TechniquePass(DX12Lib::GraphicsContext& commandContext) override;
 
@@ -68,7 +68,6 @@ namespace CVGI
 			ShadowSRVBufferTable,
 			LightTransportSRVBufferTable,
 			GaussianSRVBufferTable,
-			FacePenaltySRVBufferTable,
 			Count
 		};
 	};

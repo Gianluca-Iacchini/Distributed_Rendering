@@ -16,7 +16,7 @@
 using namespace CVGI;
 using namespace DX12Lib;
 using namespace Graphics;
-
+using namespace VOX;
 
 void CVGI::ClusterVisibility::InitializeBuffers()
 {
@@ -64,7 +64,7 @@ void CVGI::ClusterVisibility::PerformTechnique(DX12Lib::ComputeContext& computeC
 void CVGI::ClusterVisibility::TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize)
 {
 	context.SetDescriptorHeap(Renderer::s_textureHeap.get());
-	context.SetPipelineState(Renderer::s_PSOs[Name].get());
+	context.SetPipelineState(m_techniquePSO.get());
 
 	auto& voxelizeSceneBufferManager = m_data->GetBufferManager(VoxelizeScene::Name);
 	auto& aabbBufferManager = m_data->GetBufferManager(BuildAABBsTechnique::Name);
@@ -106,11 +106,11 @@ std::shared_ptr<DX12Lib::RootSignature> CVGI::ClusterVisibility::BuildRootSignat
 	return rayTracingRootSignature;
 }
 
-std::shared_ptr<DX12Lib::PipelineState> CVGI::ClusterVisibility::BuildPipelineState()
+void CVGI::ClusterVisibility::BuildPipelineState()
 {
 	std::shared_ptr<DX12Lib::RootSignature> globalRootSig = BuildRootSignature();
 
-	std::shared_ptr<RaytracingStateObject> rayTracingPso = std::make_shared<RaytracingStateObject>();
+	std::unique_ptr<RaytracingStateObject> rayTracingPso = std::make_unique<RaytracingStateObject>();
 
 	auto shaderBlob = CD3DX12_SHADER_BYTECODE((void*)g_pRaytracing, ARRAYSIZE(g_pRaytracing));
 
@@ -131,7 +131,7 @@ std::shared_ptr<DX12Lib::PipelineState> CVGI::ClusterVisibility::BuildPipelineSt
 	rayTracingPso->Finalize();
 	rayTracingPso->Name = Name;
 
-	return rayTracingPso;
+	m_techniquePSO = std::move(rayTracingPso);
 }
 
 

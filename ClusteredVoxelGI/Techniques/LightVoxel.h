@@ -1,10 +1,9 @@
 #pragma once
 
-#include "../Helpers/BufferManager.h"
 #include "DX12Lib/Commons/MathHelper.h"
 #include "../Shaders/TechniquesCompat.h"
-#include "../Helpers/RayTracingHelpers.h"
-#include "../Helpers/RaytracingStateObject.h"
+#include "RT/RayTracingHelpers.h"
+#include "RT/RaytracingStateObject.h"
 #include "../Data/Shaders/Include/RaytracingShadow.h"
 #include "../Data/Shaders/Include/ClearBufferShader_CS.h"
 #include "DX12Lib/Commons/CommonConstants.h"
@@ -43,10 +42,10 @@ namespace CVGI
 		Count
 	};
 
-	class LightVoxel : public Technique
+	class LightVoxel : public VOX::Technique
 	{
 	public:
-		LightVoxel(std::shared_ptr<TechniqueData> data);
+		LightVoxel(std::shared_ptr<VOX::TechniqueData> data);
 		~LightVoxel() {}
 
 		virtual void InitializeBuffers() override;
@@ -57,7 +56,7 @@ namespace CVGI
 		//virtual void TechniquePass(RayTracingContext& context, DirectX::XMUINT3 groupSize) override;
 		void ClearBufferPass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize);
 
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 		void BuildClearBufferPso();
 
 		void SetLightComponent(DX12Lib::LightComponent* lightComponent) { m_lightComponent = lightComponent; }
@@ -73,6 +72,7 @@ namespace CVGI
 		ConstantBufferRTShadows m_cbShadowRaytrace;
 		ConstantBufferClearBuffers m_cbClearBuffers;
 		DX12Lib::LightComponent* m_lightComponent;
+		std::unique_ptr<DX12Lib::ComputePipelineState> m_clearBufferPso;
 	};
 }
 

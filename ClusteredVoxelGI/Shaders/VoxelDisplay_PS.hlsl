@@ -1,4 +1,4 @@
-#include "VoxelUtils.hlsli"
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
 
 float4 PS(GeometryOutClusterIndex psIn) : SV_TARGET
 {

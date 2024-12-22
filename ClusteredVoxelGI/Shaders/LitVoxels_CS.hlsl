@@ -1,4 +1,4 @@
-#include "VoxelUtils.hlsli"
+#include "../../VoxelUtils/Shaders/VoxelUtils.hlsli"
 
 ConstantBuffer<ConstantBufferVoxelCommons> cbCommons : register(b0);
 ConstantBuffer<Light> cbLight : register(b1);

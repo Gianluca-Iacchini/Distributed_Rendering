@@ -15,6 +15,7 @@ using namespace Graphics;
 using namespace DX12Lib;
 
 using namespace CVGI;
+using namespace VOX;
 
 
 
@@ -34,63 +35,32 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	VoxelScene* voxelScene = static_cast<VoxelScene*>(this->m_Scene.get());
 
 
-	m_data = std::make_shared<TechniqueData>();
+	m_data = std::make_shared<VOX::TechniqueData>();
 	m_data->SetVoxelGridSize(VoxelTextureDimension);
 
 	m_voxelizeScene = std::make_unique<VoxelizeScene>(m_data);
 	m_displayVoxelScene = std::make_unique<DisplayVoxelScene>(m_data);
 	m_prefixSumVoxels = std::make_unique<PrefixSumVoxels>(m_data);
 	m_clusterVoxels = std::make_unique<ClusterVoxels>(m_data);
-	m_mergeClusters = std::make_unique<MergeClusters>(VoxelTextureDimension);
 	m_computeNeighboursTechnique = std::make_unique<ComputeNeighboursTechnique>(m_data);
 	m_clusterVisibility = std::make_unique<ClusterVisibility>(m_data);
 	m_buildAABBsTechnique = std::make_unique<BuildAABBsTechnique>(m_data);
-	m_facePenaltyTechnique = std::make_unique<FacePenaltyTechnique>(m_data);
 	m_sceneDepthTechnique = std::make_unique<SceneDepthTechnique>(m_data);
 	m_lightVoxel = std::make_unique<LightVoxel>(m_data);
 	m_lightTransportTechnique = std::make_unique<LightTransportTechnique>(m_data);
 	m_gaussianFilterTechnique = std::make_unique<GaussianFilterTechnique>(m_data);
 
 
-
-	auto voxelScenePSO = m_voxelizeScene->BuildPipelineState(); 
-	auto voxelDisplayPSO = m_displayVoxelScene->BuildPipelineState();
-
-
-	auto compactBufferPSO = m_prefixSumVoxels->BuildPipelineState();
-
-	auto clusterizeVoxelPso = m_clusterVoxels->BuildPipelineState(); 
-
-	auto clusterReduceRootSignature = m_mergeClusters->BuildMergeClustersRootSignature(); 
-	
-	auto clusterReducePso = m_mergeClusters->BuildMergeClustersPipelineState(clusterReduceRootSignature); 
-	
-	auto computeNeighboursPso = m_computeNeighboursTechnique->BuildPipelineState();
-
-	auto aabbGenerationPso = m_buildAABBsTechnique->BuildPipelineState();
-
-	auto facePenaltyPso = m_facePenaltyTechnique->BuildPipelineState();
-
-	auto raytracePso = m_clusterVisibility->BuildPipelineState();
-
-	auto lightVoxelPso = m_lightVoxel->BuildPipelineState();
-
-	auto lightTransportPso = m_lightTransportTechnique->BuildPipelineState();
-
-	auto gaussianFilterPso = m_gaussianFilterTechnique->BuildPipelineState();
-
-	Renderer::s_PSOs[voxelScenePSO->Name] = voxelScenePSO;
-	Renderer::s_PSOs[voxelDisplayPSO->Name] = voxelDisplayPSO;
-	Renderer::s_PSOs[compactBufferPSO->Name] = compactBufferPSO;
-	Renderer::s_PSOs[clusterizeVoxelPso->Name] = clusterizeVoxelPso;
-	Renderer::s_PSOs[clusterReducePso->Name] = clusterReducePso;
-	Renderer::s_PSOs[computeNeighboursPso->Name] = computeNeighboursPso;
-	Renderer::s_PSOs[aabbGenerationPso->Name] = aabbGenerationPso;
-	Renderer::s_PSOs[facePenaltyPso->Name] = facePenaltyPso;
-	Renderer::s_PSOs[raytracePso->Name] = raytracePso;
-	Renderer::s_PSOs[lightVoxelPso->Name] = lightVoxelPso;
-	Renderer::s_PSOs[lightTransportPso->Name] = lightTransportPso;
-	Renderer::s_PSOs[gaussianFilterPso->Name] = gaussianFilterPso;
+	m_voxelizeScene->BuildPipelineState();
+	m_displayVoxelScene->BuildPipelineState();
+	m_prefixSumVoxels->BuildPipelineState();
+	m_clusterVoxels->BuildPipelineState();
+	m_computeNeighboursTechnique->BuildPipelineState();
+	m_clusterVisibility->BuildPipelineState();
+	m_buildAABBsTechnique->BuildPipelineState();
+	m_lightVoxel->BuildPipelineState();
+	m_lightTransportTechnique->BuildPipelineState();
+	m_gaussianFilterTechnique->BuildPipelineState();
 
 
 	m_voxelizeScene->InitializeBuffers();
@@ -186,15 +156,10 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 
 	m_clusterVoxels->InitializeBuffers();
 	m_clusterVoxels->PerformTechnique(computeContext);
-
-
-	//m_mergeClusters->InitializeBuffers(commandContext, *m_clusterVoxels);
-	//m_mergeClusters->StartMerging(computeContext, *m_prefixSumVoxels->GetBufferManager());
 	
 	m_computeNeighboursTechnique->InitializeBuffers();
 	m_computeNeighboursTechnique->PerformTechnique(computeContext);
 
-	m_data->FaceCount = m_data->GetVoxelCount() * 6;
 
 	m_buildAABBsTechnique->InitializeBuffers();
 	m_buildAABBsTechnique->PerformTechnique(computeContext);
@@ -203,9 +168,6 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_data->SetTlas(m_clusterVisibility->BuildAccelerationStructures(computeContext));
 
 	m_clusterVisibility->PerformTechnique(computeContext);
-
-	m_facePenaltyTechnique->InitializeBuffers();
-	m_facePenaltyTechnique->PerformTechnique(computeContext);
 
 	m_sceneDepthTechnique->InitializeBuffers();
 

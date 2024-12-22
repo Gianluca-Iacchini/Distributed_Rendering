@@ -11,7 +11,7 @@ namespace DX12Lib
 
 namespace CVGI
 {
-	class ClusterVoxels : public Technique
+	class ClusterVoxels : public VOX::Technique
 	{
 	private:
 		enum class ClusterizeRootSignature
@@ -39,9 +39,9 @@ namespace CVGI
 		};
 
 	public:
-		ClusterVoxels(std::shared_ptr<TechniqueData> data)
+		ClusterVoxels(std::shared_ptr<VOX::TechniqueData> data)
 		{
-			m_bufferManager = std::make_shared<BufferManager>();
+			m_bufferManager = std::make_shared<VOX::BufferManager>();
 			data->SetBufferManager(Name, m_bufferManager);
 			m_data = data;	
 		}
@@ -52,7 +52,7 @@ namespace CVGI
 		virtual void TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize) override;
 
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
-		virtual std::shared_ptr<DX12Lib::PipelineState> BuildPipelineState() override;
+		virtual void BuildPipelineState() override;
 
 	public:
 		static const std::wstring Name;
