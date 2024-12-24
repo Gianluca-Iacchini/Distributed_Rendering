@@ -17,12 +17,23 @@ namespace VOX
 		virtual void PerformTechnique(DX12Lib::ComputeContext& context) override;
 		virtual void BuildPipelineState() override;
 	
+		void BuildPipelineState(CD3DX12_SHADER_BYTECODE& shaderByteCode);
+
+		void ClearRadianceBuffers(DX12Lib::ComputeContext& context, bool resetRadiance = false);
+		void ComputeVisibleFaces(DX12Lib::ComputeContext& context);
+
 		void ResetRadianceBuffers(bool reset);
 		inline Microsoft::WRL::ComPtr<ID3D12CommandSignature> GetIndirectCommandSignature() const { return m_commandSignature; }
 
 		void LaunchIndirectLightBlock(DX12Lib::ComputeContext& context, UINT blockCount);
 
 		BufferManager* GetIndirectBufferManager() { return m_indirectBufferManager.get(); }
+
+		void TransferRadianceData(DX12Lib::ComputeContext& context);
+
+		std::uint8_t* GetVisibleFacesIndices(UINT32 visibleFacesCount);
+		std::uint8_t* GetVisibleFacesRadiance(UINT32 visibleFacesCount);
+		UINT32 GetVisibleFacesCount();
 
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 groupSize) override;
@@ -42,6 +53,14 @@ namespace VOX
 	private:
 		std::shared_ptr<BufferManager> m_indirectBufferManager;
 		bool m_computeIndirect = true;
+
+		DX12Lib::ReadBackBuffer m_faceIndicesReadBack;
+		DX12Lib::ReadBackBuffer m_faceRadianceReadback;
+		DX12Lib::ReadBackBuffer m_visibleFacesCountReadback;
+
+		std::uint8_t* m_visibleFacesIndices = nullptr;
+		std::uint8_t* m_visibleFacesRadiance = nullptr;
+		UINT32 m_visibleFacesCount = 0;
 
 	private:
 		ConstantBufferFrustumCulling m_cbFrustumCulling;

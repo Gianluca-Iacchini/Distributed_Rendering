@@ -18,6 +18,9 @@ set(COMPUTE_SHADERS
 	../VoxelUtils/Shaders/GaussianFilter_CS.hlsl
 	../VoxelUtils/Shaders/LightTransportDepth_CS.hlsl
 	../VoxelUtils/Shaders/LightTransportIndirect_CS.hlsl
+
+	Shaders/RadianceFromNetwork_CS.hlsl
+	Shaders/GaussianOnly_CS.hlsl
 )
 
 source_group("Shaders" FILES ${SHADERS})
@@ -79,7 +82,11 @@ set(TECHNIQUES
 	../VoxelUtils/Techniques/GaussianFilterTechnique.h
 	../VoxelUtils/Techniques/GaussianFilterTechnique.cpp
 	../VoxelUtils/Techniques/SceneDepthTechnique.h
-	../VoxelUtils/Techniques/SceneDepthTechnique.cpp)
+	../VoxelUtils/Techniques/SceneDepthTechnique.cpp
+	
+	RadianceFromNetworkTechnique.h
+	RadianceFromNetworkTechnique.cpp
+)
 
 source_group("Techniques" FILES ${TECHNIQUES})
 

@@ -738,6 +738,10 @@ namespace Graphics::Renderer
 		Renderer::s_scissorRect = { 0, 0, width, height};
 	}
 
+	void UseRTGI(bool useRTGI)
+	{
+		m_useRTGI = useRTGI;
+	}
 
 	void SetRTGIData(ConstantBufferVoxelCommons voxelCommons)
 	{
@@ -762,8 +766,6 @@ namespace Graphics::Renderer
 
 			m_cbLerp.FaceCount = voxelCommons.VoxelCount * 6;
 		}
-
-		m_useRTGI = true;
 	}
 
 	DX12Lib::DescriptorHandle& GetRTGIHandleSRV()

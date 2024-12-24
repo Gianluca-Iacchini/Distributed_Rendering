@@ -91,6 +91,8 @@ namespace CVGI
 
 		bool m_isRadianceReady = false;
 
+		UINT32 m_wasRadianceReset = 0;
+
 		DirectX::GraphicsResource m_cbVoxelCommonsResource;
 
 		DX12Lib::TypedBuffer m_vertexBuffer;

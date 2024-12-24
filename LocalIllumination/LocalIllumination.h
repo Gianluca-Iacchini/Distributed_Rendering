@@ -12,6 +12,11 @@
 
 #include "Keyboard.h"
 
+#include "LightTransportTechnique.h"
+#include "SceneDepthTechnique.h"
+#include "RadianceFromNetworkTechnique.h"
+#include "GaussianFilterTechnique.h"
+
 #define NUM_BASIC_BUFFERS 5
 
 namespace VOX
@@ -22,6 +27,12 @@ namespace VOX
 
 namespace LI
 {
+	struct NetworkRadianceBufferInfo
+	{
+		std::shared_ptr<DX12Lib::UploadBuffer> buffer;
+		UINT nFaces = 0;
+		UINT ShouldReset = 0;
+	};
 
 	class LocalIlluminationApp : public DX12Lib::D3DApp
 	{
@@ -34,21 +45,19 @@ namespace LI
 	private:
 		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
 		DX12Lib::AABB GetSceneAABBExtents();
+		void CopyDataToBasicBuffer(UINT bufferIdx);
 	private:
 		bool m_usePBRMaterials = true;
 		DX12Lib::NetworkHost m_networkClient;
 		DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
 
-		ConstantBufferVoxelCommons m_cbVoxelCommons;
-
 		UINT m_buffersInitialized = 0;
-		UINT m_voxelCount = 0;
-		UINT m_faceCount = 0;
-		UINT m_clusterCount = 0;
 
-		DX12Lib::UploadBuffer m_uploadBuffer;
-		DX12Lib::StructuredBuffer m_basicBuffers[5];
-		DX12Lib::StructuredBuffer m_radianceRingBuffers[3];
+		std::shared_ptr<VOX::BufferManager> m_voxelBufferManager;
+		std::shared_ptr<VOX::BufferManager> m_prefixSumBufferManager;
+
+		std::queue<std::pair<std::shared_ptr<DX12Lib::UploadBuffer>, UINT64>> m_ReadyToWriteBuffers;
+		std::queue<NetworkRadianceBufferInfo> m_ReadyToCopyBuffer;
 
 		DX12Lib::ShadowCamera m_depthCamera;
 
@@ -57,16 +66,20 @@ namespace LI
 
 		UINT m_writeRadIx = 0;
 
-		const char* packetHeaders[NUM_BASIC_BUFFERS] = { "OCCVOX", "INDRNK", "INDIDX", "CMPIDX", "CMPHSH" };
+		const char* packetHeaders[NUM_BASIC_BUFFERS] = {"INDRNK", "INDIDX", "CMPIDX", "CMPHSH", "OCCVOX"};
 
 		std::uint8_t m_lastInputBitMask = 0;
-
-		std::queue<std::pair<UINT, UINT64>> m_fenceForBufferIdx;
-
 		std::mutex m_vectorMutex;
+		std::mutex m_mainThreadMutex;
+		std::condition_variable m_mainThreadCV;
+		bool m_isMainThreadReady = false;
 
 		std::shared_ptr<VOX::TechniqueData> m_data;
-		
+		std::shared_ptr<VOX::SceneDepthTechnique> m_sceneDepthTechnique;
+		std::shared_ptr<LI::RadianceFromNetworkTechnique> m_radianceFromNetworkTechnique;
+		std::shared_ptr<VOX::LightTransportTechnique> m_lightTransportTechnique;
+		std::shared_ptr<VOX::GaussianFilterTechnique> m_gaussianFilterTechnique;
+
 
 		enum class ReceiveState
 		{
@@ -75,6 +88,8 @@ namespace LI
 			RADIANCE,
 		} m_receiveState = ReceiveState::INITIALIZATION;
 
+		float lerpDeltaTime = 0.0f;
+		float lerpMaxTime = 0.5f;
 
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};

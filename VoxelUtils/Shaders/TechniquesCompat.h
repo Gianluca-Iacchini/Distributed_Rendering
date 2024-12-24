@@ -229,4 +229,12 @@ struct ConstantBufferGaussianFilter
 	UINT FaceCount;
 };
 
+struct ConstantBufferRadianceFromNetwork
+{
+	UINT ShouldReset;
+	UINT FaceCount;
+	UINT ReceivedFaceCount;
+	UINT pad0;
+};
+
 #endif // TECHNIQUEHLSLCOMPAT_H

@@ -17,13 +17,13 @@ using namespace Graphics;
 VOX::LightTransportTechnique::LightTransportTechnique(std::shared_ptr<TechniqueData> data, bool computeIndirect) : m_computeIndirect(computeIndirect)
 {
 	m_bufferManager = std::make_shared<BufferManager>();
+    data->SetBufferManager(Name, m_bufferManager);
 
-    if (computeIndirect)
-    {
-        m_indirectBufferManager = std::make_shared<BufferManager>();
-        data->SetBufferManager(Name, m_bufferManager);
-        data->SetBufferManager(IndirectName, m_indirectBufferManager);
-    }
+
+    m_indirectBufferManager = std::make_shared<BufferManager>();
+    data->SetBufferManager(IndirectName, m_indirectBufferManager);
+    
+
 
 	m_data = data;
 }
@@ -39,9 +39,9 @@ void VOX::LightTransportTechnique::InitializeBuffers()
 	// 1: Visible faces to be updated for the gaussian filter
     m_bufferManager->AddByteAddressBuffer(2);
     // Indirect light visible faces indices
-    m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
+    m_bufferManager->AddStructuredBuffer((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(UINT32));
     // Gaussian visible faces indices
-    m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
+    m_bufferManager->AddStructuredBuffer((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(UINT32));
 	// Updated indirect light voxels bitmap
 	m_bufferManager->AddByteAddressBuffer(voxelBitCount);
 	// Updated gaussian filter voxels bitmap
@@ -53,15 +53,22 @@ void VOX::LightTransportTechnique::InitializeBuffers()
 
     m_bufferManager->AllocateBuffers();
 
-    if (m_computeIndirect)
+    // packing 16bit floats into 32bit floats
+    // Voxel face radiance packed
+    m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+    // Radiance for visible face idx
+
+    //if (m_computeIndirect)
     {
-        // packing 16bit floats into 32bit floats
-        // Voxel face radiance packed
-        m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
-        // Voxel face FILTERED radiance packed (used by the gaussian filter)
-        m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
-        m_indirectBufferManager->AllocateBuffers();
+
+        m_indirectBufferManager->AddStructuredBuffer((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(DirectX::XMUINT2));
+
+		m_faceIndicesReadBack.Create((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(UINT32));
+		m_faceRadianceReadback.Create((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(DirectX::XMUINT2));
+		m_visibleFacesCountReadback.Create(1, sizeof(UINT32));
     }
+
+    m_indirectBufferManager->AllocateBuffers();
     
     this->CreateExecuteIndirectCommandBuffer();
 
@@ -81,7 +88,7 @@ void VOX::LightTransportTechnique::PerformTechnique(DX12Lib::ComputeContext& con
 
 
     // Reset buffers
-	TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->FaceCount / 128.0f), 1, 1));
+	TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->FaceCount / ( 2.0f * 128.0f)), 1, 1));
 
     m_cbFrustumCulling.CurrentStep = 1;
 
@@ -117,8 +124,8 @@ void VOX::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& contex
 
 void VOX::LightTransportTechnique::TechniquePassIndirect(DX12Lib::ComputeContext& context)
 {
-    if (!m_computeIndirect)
-        return;
+    //if (!m_computeIndirect)
+    //    return;
 
     context.SetDescriptorHeap(Renderer::s_textureHeap.get());
     context.SetPipelineState(m_indirectLightPso.get());
@@ -236,7 +243,7 @@ std::shared_ptr<DX12Lib::RootSignature>  VOX::LightTransportTechnique::BuildIndi
     (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::ClusterVisibilitySRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 3);
     (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::LitVoxelsSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_ALL, 4);
     (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::LightTransportBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_ALL, 5);
-    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::RadianceBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+    (*LightTransportRootSignature)[(UINT)LightTransportIndirectRootParameters::RadianceBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
 
     LightTransportRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
@@ -274,6 +281,61 @@ void VOX::LightTransportTechnique::BuildPipelineState()
 	m_techniquePSO = std::move(lightTransportComputePso);
 }
 
+void VOX::LightTransportTechnique::BuildPipelineState(CD3DX12_SHADER_BYTECODE& shaderByteCode)
+{
+    std::shared_ptr<DX12Lib::RootSignature> rootSig = BuildRootSignature();
+
+    std::unique_ptr<ComputePipelineState> lightTransportComputePso = std::make_unique<ComputePipelineState>();
+    lightTransportComputePso->SetRootSignature(rootSig);
+    lightTransportComputePso->SetComputeShader(shaderByteCode);
+    lightTransportComputePso->Finalize();
+    lightTransportComputePso->Name = Name;
+
+    BuildIndirectCommandPSO();
+
+    m_techniquePSO = std::move(lightTransportComputePso);
+}
+
+void VOX::LightTransportTechnique::ClearRadianceBuffers(DX12Lib::ComputeContext& context, bool resetRadiance)
+{
+    PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"Clear buffers");
+
+    CreateFrustumPlanes();
+
+    m_cbFrustumCulling.AABBGroupCount = m_data->AABBGeometryGroupCount;
+    m_cbFrustumCulling.CameraPosition = m_data->GetCamera()->Node->GetPosition();
+    m_cbFrustumCulling.CurrentStep = 0;
+    m_cbFrustumCulling.VoxelCount = m_data->GetVoxelCount();
+    m_cbFrustumCulling.FaceCount = m_data->FaceCount;
+	m_cbFrustumCulling.ResetRadianceBuffers = (UINT)resetRadiance;
+
+    // Reset buffers
+    TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->FaceCount / (2.0f * 128.0f)), 1, 1));
+
+    m_cbFrustumCulling.ResetRadianceBuffers = 0;
+
+    PIXEndEvent(context.m_commandList->Get());
+}
+
+void VOX::LightTransportTechnique::ComputeVisibleFaces(DX12Lib::ComputeContext& context)
+{
+    PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"Compute Visible Faces");
+
+    CreateFrustumPlanes();
+
+    m_cbFrustumCulling.AABBGroupCount = m_data->AABBGeometryGroupCount;
+    m_cbFrustumCulling.CameraPosition = m_data->GetCamera()->Node->GetPosition();
+    m_cbFrustumCulling.CurrentStep = 1;
+    m_cbFrustumCulling.VoxelCount = m_data->GetVoxelCount();
+    m_cbFrustumCulling.FaceCount = m_data->FaceCount;
+    m_cbFrustumCulling.ResetRadianceBuffers = 0;
+
+
+    TechniquePass(context, DirectX::XMUINT3(ceilf(m_data->GetVoxelCount() / 128.0f), 1, 1));
+
+    PIXEndEvent(context.m_commandList->Get());
+}
+
 
 void VOX::LightTransportTechnique::ResetRadianceBuffers(bool reset)
 {
@@ -291,6 +353,41 @@ void VOX::LightTransportTechnique::LaunchIndirectLightBlock(DX12Lib::ComputeCont
 	m_cbLightIndirect.DispatchNumber = blockCount;
 
     TechniquePassIndirect(context);
+}
+
+void VOX::LightTransportTechnique::TransferRadianceData(DX12Lib::ComputeContext& context)
+{
+    //if (!m_computeIndirect)
+    //    return;
+
+    context.CopyBuffer(m_faceIndicesReadBack, m_bufferManager->GetBuffer((UINT)LightTransportBufferType::IndirectLightVisibleFacesIndices));
+	context.CopyBuffer(m_faceRadianceReadback, m_indirectBufferManager->GetBuffer(1));
+	context.CopyBufferRegion(m_visibleFacesCountReadback, 0, m_bufferManager->GetBuffer(0), 0, sizeof(UINT32));
+}
+
+std::uint8_t* VOX::LightTransportTechnique::GetVisibleFacesIndices(UINT32 visFaceCount)
+{
+    void* data = m_faceIndicesReadBack.ReadBack(visFaceCount * sizeof(DirectX::XMUINT2));
+
+    return reinterpret_cast<std::uint8_t*>(data);
+}
+
+std::uint8_t* VOX::LightTransportTechnique::GetVisibleFacesRadiance(UINT32 visFaceCount)
+{
+    void* data = m_faceRadianceReadback.ReadBack(visFaceCount * sizeof(DirectX::XMUINT2));
+
+    return reinterpret_cast<std::uint8_t*>(data);
+}
+
+UINT32 VOX::LightTransportTechnique::GetVisibleFacesCount()
+{
+    void* data = m_visibleFacesCountReadback.ReadBack(sizeof(UINT32));
+
+    UINT32 faceCount = 0;
+
+	memcpy(&faceCount, data, sizeof(UINT32));
+
+	return faceCount;
 }
 
 std::shared_ptr<DX12Lib::RootSignature> VOX::LightTransportTechnique::BuildRootSignature()

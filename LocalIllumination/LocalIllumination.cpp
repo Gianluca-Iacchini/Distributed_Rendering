@@ -5,6 +5,7 @@
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "LIUtils.h"
 #include "Technique.h"
+#include "./Data/Shaders/Include/GaussianOnly_CS.h"
 
 
 using namespace DirectX;
@@ -12,6 +13,8 @@ using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
 using namespace LI;
+
+using UploadBufferFencePair = std::pair<std::shared_ptr<DX12Lib::UploadBuffer>, UINT64>;
 
 LocalIlluminationApp::~LocalIlluminationApp()
 {
@@ -28,34 +31,52 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 			std::size_t pktSize = packet->GetSize() - 7;
 			std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
 
-			std::vector<DirectX::XMUINT2> radBuffer(vecSize);
+			UploadBufferFencePair pair;
 
-			memcpy(radBuffer.data(), packet->GetDataVector().data() + 7, vecSize * sizeof(DirectX::XMUINT2));
-
-			m_bufferFence->WaitForCurrentFence();
 			{
-				void* mappedData = m_uploadBuffer.GetMappedData();
+				std::lock_guard<std::mutex> lock(m_vectorMutex);
 
-				auto& writeRdxBuffer = m_radianceRingBuffers[m_writeRadIx];
+				if (m_ReadyToWriteBuffers.empty())
+					return;
 
-				memcpy(mappedData, packet->GetDataVector().data() + 7, vecSize * sizeof(DirectX::XMUINT2));
+				pair = m_ReadyToWriteBuffers.front();
+			}
 
-				DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
+			// Wait for the first buffer to complete its copy operation before we can write to it.
+			m_bufferFence->WaitForFence(pair.second);
 
-				context.TransitionResource(writeRdxBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
-				context.m_commandList->Get()->CopyResource(writeRdxBuffer.Get(), m_uploadBuffer.Get());
+			{
+				std::lock_guard<std::mutex> lock(m_vectorMutex);
+				// Assign again in case the queue was modified while waiting for the fence
+				pair = m_ReadyToWriteBuffers.front();
+				m_ReadyToWriteBuffers.pop();
+			}
 
-				UINT64 fenceVal = context.Finish();
-					 
-				m_bufferFence->CurrentFenceValue = fenceVal;
-				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
+			auto& uploadBuffer = pair.first;
 
-				{
-					std::lock_guard<std::mutex> lock(m_vectorMutex);
-					m_fenceForBufferIdx.push(std::make_pair(m_writeRadIx, fenceVal));
-				}
+			// RADBUF + NULL character
+			UINT totalBytes = 7;
 
-				m_writeRadIx = (m_writeRadIx + 1) % 3;
+			UINT nFaces = 0;
+			UINT shouldReset = 0;
+
+			void* mappedData = uploadBuffer->Map();
+
+			memcpy(&nFaces, packet->GetDataVector().data() + 7, sizeof(UINT));
+			totalBytes += sizeof(UINT);
+			memcpy(&shouldReset, packet->GetDataVector().data() + totalBytes, sizeof(UINT));
+			totalBytes += sizeof(UINT);
+			memcpy(mappedData, packet->GetDataVector().data() + totalBytes, vecSize * sizeof(DirectX::XMUINT2));
+
+
+			// The buffer can now be used in the main thread command list.
+			{
+				NetworkRadianceBufferInfo buffInfo;
+				buffInfo.buffer = uploadBuffer;
+				buffInfo.nFaces = nFaces;
+				buffInfo.ShouldReset = shouldReset;
+				std::lock_guard<std::mutex> lock(m_vectorMutex);
+				m_ReadyToCopyBuffer.push(buffInfo);
 			}
 		}
 	}
@@ -69,53 +90,74 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 				std::size_t vecSize = pktSize / sizeof(UINT32);
 				DXLIB_INFO("Received packet with header: {0} and vector size: {1}", packetHeaders[bf], vecSize);
 
-				m_basicBuffers[bf].Create(vecSize, sizeof(UINT32));
+				DX12Lib::GPUBuffer& currentBuffer = (bf == 4) ? m_voxelBufferManager->GetBuffer(0) : m_prefixSumBufferManager->GetBuffer(bf);
 
 				// If the previous fence has not been signaled, then we have to wait before we can write data to the
 				// Upload buffer, since the GPU might still be using it.
-				m_bufferFence->WaitForCurrentFence();
+
+				UploadBufferFencePair pair;
+
 				{
-					void* mappedData = m_uploadBuffer.GetMappedData();
-
-					memcpy(mappedData, packet->GetDataVector().data() + 7, vecSize * sizeof(UINT32));
-
-					DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
-
-					// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
-					context.TransitionResource(m_basicBuffers[bf], D3D12_RESOURCE_STATE_COPY_DEST, true);
-					context.m_commandList->Get()->CopyBufferRegion(m_basicBuffers[bf].Get(), 0, m_uploadBuffer.Get(), 0, vecSize * sizeof(UINT32));
-
-					UINT64 fenceVal = context.Finish();
-
-					m_bufferFence->CurrentFenceValue = fenceVal;
-					Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
-
-					DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
-					Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * bf, m_basicBuffers[bf].GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-					// This is not a very good way to check if all buffers have been initialized, as if the server sends the same buffer multiple
-					// times it will increment the counter. However, for the purposes of this demo it is enough.
-					m_buffersInitialized++;
-					if (m_buffersInitialized >= NUM_BASIC_BUFFERS)
-					{
-						m_receiveState = ReceiveState::RADIANCE;
-
-						m_radianceRingBuffers[0].Create(m_faceCount, sizeof(DirectX::XMUINT2));
-						m_radianceRingBuffers[1].Create(m_faceCount, sizeof(DirectX::XMUINT2));
-						m_radianceRingBuffers[2].Create(m_faceCount, sizeof(DirectX::XMUINT2));
-
-						Renderer::SetRTGIData(m_cbVoxelCommons);
-
-						DXLIB_INFO("All buffers initialized");
-						PacketGuard packet = m_networkClient.CreatePacket();
-						packet->ClearPacket();
-						packet->AppendToBuffer("BUFFER");
-						m_networkClient.SendData(packet);
-					}
+					std::lock_guard<std::mutex> lock(m_vectorMutex);
+					pair = m_ReadyToWriteBuffers.front();
 				}
+				
+				m_bufferFence->WaitForFence(pair.second);
+				
+				{
+					std::lock_guard<std::mutex> lock(m_vectorMutex);
+					// Assign again in case the queue was modified while waiting for the fence
+					pair = m_ReadyToWriteBuffers.front();
+					m_ReadyToWriteBuffers.pop();
+				}
+
+				auto& uploadBuffer = pair.first;
+
+				void* mappedData = uploadBuffer->Map();
+
+				memcpy(mappedData, packet->GetDataVector().data() + 7, vecSize * sizeof(UINT32));
+
+				DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
+
+				// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
+				context.TransitionResource(currentBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
+				context.m_commandList->Get()->CopyBufferRegion(currentBuffer.Get(), 0, uploadBuffer->Get(), 0, vecSize * sizeof(UINT32));
+				context.TransitionResource(currentBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				UINT64 fenceVal = context.Finish();
+
+				// Since the copy is done in the same thread, we can just put the buffer in the write queue again
+				{
+					std::lock_guard<std::mutex> lock(m_vectorMutex);
+					m_ReadyToWriteBuffers.push(UploadBufferFencePair(pair.first, fenceVal));
+				}
+
+				m_bufferFence->CurrentFenceValue = fenceVal;
+				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
+
+				// This is not a very good way to check if all buffers have been initialized, as if the server sends the same buffer multiple
+				// times it will increment the counter. However, for the purposes of this demo it is enough.
+				m_buffersInitialized++;
+				if (m_buffersInitialized >= NUM_BASIC_BUFFERS)
+				{
+
+					m_receiveState = ReceiveState::RADIANCE;
+
+					DXLIB_INFO("All buffers initialized");
+					PacketGuard packet = m_networkClient.CreatePacket();
+					packet->ClearPacket();
+					packet->AppendToBuffer("BUFFER");
+					m_networkClient.SendData(packet);
+
+					{
+						std::lock_guard<std::mutex> lock(m_mainThreadMutex);
+						m_isMainThreadReady = true;
+					}
+
+					m_mainThreadCV.notify_one();
+				}
+				
 			}
 		}
-
 	}
 	else if (m_receiveState == ReceiveState::INITIALIZATION)
 	{
@@ -135,44 +177,59 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 			DXLIB_INFO("Received voxelization data with size: [{0},{1},{2}]", voxelizationSize.x, voxelizationSize.y, voxelizationSize.z);
 
 			previousSize += sizeof(DirectX::XMUINT3);
-			memcpy(&m_voxelCount, dataVector.data() + previousSize, sizeof(UINT));
-			m_faceCount = m_voxelCount * 6;
+			UINT32 voxelCount = 0;
+			memcpy(&voxelCount, dataVector.data() + previousSize, sizeof(UINT));
+
 
 			previousSize += sizeof(UINT);
-			memcpy(&m_clusterCount, dataVector.data() + previousSize, sizeof(UINT));
+			UINT32 clusterCount = 0;
+			memcpy(&clusterCount, dataVector.data() + previousSize, sizeof(UINT));
 
 
-			DXLIB_INFO("Received voxelization data with voxel count: {0} and cluster count: {1}", m_voxelCount, m_clusterCount);
+			DXLIB_INFO("Received voxelization data with voxel count: {0} and cluster count: {1}", voxelCount, clusterCount);
 
-			m_uploadBuffer.Create(m_faceCount * sizeof(DirectX::XMUINT2));
-			m_radianceRingBuffers[0].Create(m_faceCount, sizeof(DirectX::XMUINT2));
-			m_radianceRingBuffers[1].Create(m_faceCount, sizeof(DirectX::XMUINT2));
-			m_radianceRingBuffers[2].Create(m_faceCount, sizeof(DirectX::XMUINT2));
+			UINT32 faceCount = voxelCount * 6;
+			for (UINT i = 0; i < 3; i++)
+			{
+				std::shared_ptr<DX12Lib::UploadBuffer> uploadBuffer = std::make_shared<DX12Lib::UploadBuffer>();
+				uploadBuffer->Create(faceCount * sizeof(DirectX::XMUINT2));
 
+				m_ReadyToWriteBuffers.push(std::make_pair(uploadBuffer, 0));
+			}
 
-
-
-			m_uploadBuffer.Map();
 
 			DX12Lib::AABB sceneBounds = GetSceneAABBExtents();
 			DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3((sceneBounds.Max.x - sceneBounds.Min.x) / voxelizationSize.x,
 				(sceneBounds.Max.y - sceneBounds.Min.y) / voxelizationSize.y,
 				(sceneBounds.Max.z - sceneBounds.Min.z) / voxelizationSize.z);
 
-			if (m_data == nullptr)
-			{
-				m_data = std::make_shared<VOX::TechniqueData>();
-			}
-
 			m_data->SetSceneAABB(sceneBounds);
 			m_data->SetVoxelGridSize(voxelizationSize);
 			m_data->SetVoxelCellSize(voxelCellSize);
-			m_data->SetClusterCount(m_clusterCount);
-			m_data->SetVoxelCount(m_voxelCount);
+			m_data->SetClusterCount(clusterCount);
+			m_data->SetVoxelCount(voxelCount);
 			m_data->BuildMatrices();
+			Renderer::SetRTGIData(m_data->GetVoxelCommons());
 
-			m_cbVoxelCommons = m_data->GetVoxelCommons();
-			m_cbVoxelCommons.VoxelCount = m_voxelCount;
+			m_radianceFromNetworkTechnique->InitializeBuffers();
+			m_lightTransportTechnique->InitializeBuffers();
+
+			m_gaussianFilterTechnique->InitializeBuffers();
+			m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
+
+
+			UINT32 voxelLinearSIze = voxelizationSize.x * voxelizationSize.y * voxelizationSize.z;
+			UINT32 voxelBitmapSize = (voxelLinearSIze + 31) / 32;
+
+			m_voxelBufferManager->AddStructuredBuffer(voxelBitmapSize, sizeof(UINT32));
+			m_voxelBufferManager->AllocateBuffers();
+
+			m_prefixSumBufferManager->AddStructuredBuffer(voxelizationSize.y * voxelizationSize.z, sizeof(UINT32));
+			m_prefixSumBufferManager->AddStructuredBuffer(voxelizationSize.y * voxelizationSize.z, sizeof(UINT32));
+			m_prefixSumBufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(UINT32));
+			m_prefixSumBufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(UINT32));
+			m_prefixSumBufferManager->AllocateBuffers();
+
 			m_receiveState = ReceiveState::BASIC_BUFFERS;
 
 
@@ -222,6 +279,10 @@ DX12Lib::AABB LocalIlluminationApp::GetSceneAABBExtents()
 	return sceneBounds;
 }
 
+void LI::LocalIlluminationApp::CopyDataToBasicBuffer(UINT bufferIdx)
+{
+}
+
 
 
 void LocalIlluminationApp::Initialize(GraphicsContext& context)
@@ -246,7 +307,7 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
 
-	m_networkClient.Connect("127.0.0.1", 1234);
+
 
 	s_mouse->SetMode(Mouse::MODE_RELATIVE);
 
@@ -259,18 +320,70 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	this->m_Scene->Init(context);
 
-	auto* camera = this->m_Scene->GetMainCamera();
 
-	float aspect = camera->GetAspect();
-	float fovY = camera->GetFovY();
-	float nearZ = camera->GetNearZ();
-	float farZ = camera->GetFarZ();
+	m_data = std::make_shared<VOX::TechniqueData>();
+	m_data->SetCamera(m_Scene->GetMainCamera());
 
-	fovY = 2.0f * atan(tan(fovY / 2.0f) * 1.3f);
+	m_voxelBufferManager = std::make_shared<VOX::BufferManager>();
+	m_prefixSumBufferManager = std::make_shared<VOX::BufferManager>();
 
-	m_depthCamera.SetShadowBufferDimensions(1920, 1080);
-	m_depthCamera.SetLens(camera->GetFovY(), aspect, nearZ, farZ);
-	m_depthCamera.UpdateShadowMatrix(*camera->Node);
+	m_data->SetBufferManager(VOXELIZE_SCENE, m_voxelBufferManager);
+	m_data->SetBufferManager(PREFIX_SUM, m_prefixSumBufferManager);
+
+	m_sceneDepthTechnique = std::make_shared<VOX::SceneDepthTechnique>(m_data, true);
+	m_sceneDepthTechnique->InitializeBuffers();
+
+	auto shaderBytecode = CD3DX12_SHADER_BYTECODE((void*)g_pGaussianOnly_CS, ARRAYSIZE(g_pGaussianOnly_CS));
+	m_lightTransportTechnique = std::make_shared<VOX::LightTransportTechnique>(m_data, false);
+	m_lightTransportTechnique->BuildPipelineState(shaderBytecode);
+
+	m_radianceFromNetworkTechnique = std::make_shared<LI::RadianceFromNetworkTechnique>(m_data);
+	m_radianceFromNetworkTechnique->BuildPipelineState();
+
+	m_gaussianFilterTechnique = std::make_shared<VOX::GaussianFilterTechnique>(m_data);
+	m_gaussianFilterTechnique->BuildPipelineState();
+
+	m_networkClient.Connect("127.0.0.1", 1234);
+
+	std::unique_lock<std::mutex> lock(m_mainThreadMutex);
+	
+	if (m_mainThreadCV.wait_for(lock, std::chrono::seconds(5), [this] { return m_isMainThreadReady; }))
+	{
+		DXLIB_INFO("Initialization complete");
+
+		m_bufferFence->WaitForCurrentFence();
+		DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
+		m_gaussianFilterTechnique->InitializeGaussianConstants(context);
+		
+		context.Finish(true);
+
+
+		DescriptorHandle& rendererRTGIHandle = Renderer::GetRTGIHandleSRV();
+
+		D3D12_CPU_DESCRIPTOR_HANDLE srvHandles[6];
+
+		srvHandles[0] = m_voxelBufferManager->GetBuffer(0).GetSRV();
+
+		for (UINT i = 1; i < 5; i++)
+		{
+			srvHandles[i] = m_prefixSumBufferManager->GetBuffer(i - 1).GetSRV();
+		}
+
+		srvHandles[5] = m_data->GetBufferManager(VOX::GaussianFilterTechnique::ReadName).GetBuffer(0).GetSRV();
+
+		auto descriptorSize = Renderer::s_textureHeap->GetDescriptorSize();
+		for (UINT i = 0; i < 6; i++)
+		{
+			Graphics::s_device->Get()->CopyDescriptorsSimple(1, rendererRTGIHandle + descriptorSize * i, srvHandles[i], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
+
+		Renderer::UseRTGI(true);
+	}
+	else
+	{
+		m_bufferFence->WaitForCurrentFence();
+		DXLIB_ERROR("Timeout waiting for initialization");
+	}
 }
 
 void LocalIlluminationApp::Update(GraphicsContext& context)
@@ -325,48 +438,82 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 
 	Renderer::SetUpRenderFrame(context);
 
-	std::pair<UINT, UINT64> fencePair = std::pair<UINT, UINT64>(0, 0);
-
-	{
-		std::lock_guard<std::mutex> lock(m_vectorMutex);
-		if (!m_fenceForBufferIdx.empty())
-		{
-			auto fPair = m_fenceForBufferIdx.front();
-
-			if (m_bufferFence->IsFenceComplete(fencePair.second))
-			{
-				m_fenceForBufferIdx.pop();
-				fencePair = fPair;
-			}
-		}
-	}
-
-	if (fencePair.second != 0)
-	{
-		Renderer::ResetLerpTime();
-		DescriptorHandle& rtgiHandle = Renderer::GetRTGIHandleSRV();
-		auto& writeRdxBuffer = m_radianceRingBuffers[fencePair.first];
-		Graphics::s_device->Get()->CopyDescriptorsSimple(1, rtgiHandle + Renderer::s_textureHeap->GetDescriptorSize() * 5, writeRdxBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	}
-
 	this->m_Scene->Render(context);
 
-	auto* camera = this->m_Scene->GetMainCamera();
 
-	m_depthCamera.UpdateShadowMatrix(*camera->Node);
+	if (m_receiveState == ReceiveState::RADIANCE)
+	{
+		NetworkRadianceBufferInfo buffInfo;
+		buffInfo.buffer = nullptr;
+		buffInfo.nFaces = 0;
+		buffInfo.ShouldReset = 0;
 
-	//m_cameraCB.Position = m_data->GetCamera()->Node->GetPosition();
-	//m_cameraCB.Direction = m_data->GetCamera()->Node->GetForward();
-	//m_cameraCB.shadowTransform = m_depthCamera.GetShadowTransform();
-	//m_cameraCB.invShadowTransform = m_depthCamera.GetInvShadowTransform();
+		{
+			std::lock_guard<std::mutex> lock(m_vectorMutex);
+			if (m_ReadyToCopyBuffer.size() > 0)
+			{
+				buffInfo = m_ReadyToCopyBuffer.front();
 
-	Renderer::ShadowPassForCamera(context, &m_depthCamera);
+				m_ReadyToCopyBuffer.pop();
+			}
+		}
+
+		DX12Lib::ComputeContext& computeContext = DX12Lib::ComputeContext::Begin();
+
+		bool shouldResetBuffers = buffInfo.ShouldReset != 0;
+
+		m_lightTransportTechnique->ClearRadianceBuffers(computeContext, shouldResetBuffers);
+
+		if (buffInfo.buffer != nullptr)
+		{
+			UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, buffInfo.buffer.get(), buffInfo.nFaces, buffInfo.ShouldReset);
+			m_bufferFence->CurrentFenceValue = fenceVal;
+			Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
+			{
+				std::lock_guard<std::mutex> lock(m_vectorMutex);
+				m_ReadyToWriteBuffers.push(std::make_pair(buffInfo.buffer, fenceVal));
+			}
+		}
+
+		m_sceneDepthTechnique->UpdateCameraMatrices();
+		m_sceneDepthTechnique->PerformTechnique(context);
+		context.Flush(true);
+
+		if (buffInfo.ShouldReset != 0)
+		{
+			m_lightTransportTechnique->ResetRadianceBuffers(true);
+		}
+
+		m_lightTransportTechnique->ComputeVisibleFaces(computeContext);
+		m_gaussianFilterTechnique->PerformTechnique(computeContext);
+		m_gaussianFilterTechnique->PerformTechnique2(computeContext);
+
+
+		computeContext.Finish(true);
+
+
+		if (buffInfo.ShouldReset == 0)
+		{
+			Renderer::ResetLerpTime();
+			lerpDeltaTime = 0.0f;
+		}
+		else
+		{
+			Renderer::SetLerpMaxTime(lerpDeltaTime);
+			Renderer::SetDeltaLerpTime(0.3f);
+		}
+
+
+	}
+
 	Renderer::RenderLayers(context);
 		
 	LI::LIScene* scene = dynamic_cast<LI::LIScene*>(this->m_Scene.get());
 		
 	if (scene != nullptr)
 		scene->StreamScene(context);
+
+	lerpDeltaTime += GameTime::GetDeltaTime();
 
 	Renderer::PostDrawCleanup(context);
 }

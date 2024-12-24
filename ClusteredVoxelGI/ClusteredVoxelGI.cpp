@@ -209,6 +209,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	}
 
 	Renderer::SetRTGIData(m_data->GetVoxelCommons());
+	Renderer::UseRTGI(true);
 
 	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
 	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
@@ -266,6 +267,8 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 					m_lightVoxel->PerformTechnique(context);
 					m_lightTransportTechnique->ResetRadianceBuffers(true);
 					RTGIUpdateDelta = 0.0f;
+
+					m_wasRadianceReset = 1;
 				}
 
 				// Compute visible faces
@@ -278,7 +281,10 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 				// Copy data to readback buffer if we're sending it to the client.
 				if (m_receiveState == ReceiveState::CAMERA_DATA)
-					m_gaussianFilterTechnique->TransferRadianceData(context);
+				{
+					m_lightTransportTechnique->TransferRadianceData(context);
+				}
+					
 
 				m_rtgiFence->CurrentFenceValue = context.Finish();
 				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
@@ -291,11 +297,21 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			// Send radiance data to client
 			if (m_receiveState == ReceiveState::CAMERA_DATA)
 			{
-				PacketGuard packet = m_networkServer.CreatePacket();
-				packet->ClearPacket();
-				packet->AppendToBuffer("RDXBUF");
-				packet->AppendToBuffer(m_gaussianFilterTechnique->GetRadianceDataPtr(), m_data->FaceCount * sizeof(DirectX::XMUINT2));
-				m_networkServer.SendData(packet);
+				UINT32 visibleFacesCount = m_lightTransportTechnique->GetVisibleFacesCount();
+
+				if (visibleFacesCount > 0)
+				{
+					PacketGuard packet = m_networkServer.CreatePacket();
+					packet->ClearPacket();
+					packet->AppendToBuffer("RDXBUF");
+					packet->AppendToBuffer(visibleFacesCount);
+					packet->AppendToBuffer(m_wasRadianceReset);
+					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesIndices(visibleFacesCount), visibleFacesCount * sizeof(UINT32));
+					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesRadiance(visibleFacesCount), visibleFacesCount * sizeof(DirectX::XMUINT2));
+					m_networkServer.SendData(packet);
+
+					m_wasRadianceReset = 0;
+				}
 			}
 
 			// Signal lerp shader to update the radiance data.

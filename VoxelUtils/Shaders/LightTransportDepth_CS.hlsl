@@ -32,7 +32,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
     if (cbFrustumCulling.CurrentStep == 0)
     {
         
-        if (threadLinearIndex >= cbFrustumCulling.FaceCount)
+        if (threadLinearIndex >= ceil(cbFrustumCulling.FaceCount / 2.0f))
             return;
         
         gIndirectLightVisibleFacesIndices[threadLinearIndex] = UINT_MAX;
@@ -174,6 +174,8 @@ void CS(uint3 DTid : SV_DispatchThreadID)
         }
 
             
+        bool wasSet = false;
+        
 #ifndef GAUSSIAN_ONLY
         uint nIndirectLightFaces = 0;
         uint indirectLightStartAddress = 0;
@@ -186,7 +188,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
 
         gVisibleFacesCounter.InterlockedAdd(0, nIndirectLightFaces, indirectLightStartAddress);
 
-        bool wasSet = SetVoxelPresence(threadLinearIndex, gIndirectLightUpdatedVoxelsBitmap);
+        wasSet = SetVoxelPresence(threadLinearIndex, gIndirectLightUpdatedVoxelsBitmap);
         if (!wasSet)
         {
             gIndirectLightVisibleFacesIndices[indirectLightStartAddress + 0] = threadLinearIndex * 6 + 0;

@@ -8,13 +8,16 @@ namespace VOX
 	class SceneDepthTechnique : public Technique
 	{
 	public:
-		SceneDepthTechnique(std::shared_ptr<TechniqueData> data);
+		SceneDepthTechnique(std::shared_ptr<TechniqueData> data, bool cameraOnly=false);
 		virtual ~SceneDepthTechnique() = default;
 
 		virtual void InitializeBuffers() override;
 		virtual void PerformTechnique(DX12Lib::GraphicsContext& context) override;
 		void UpdateCameraMatrices();
 	private:
+
+		bool m_cameraOnly = false;
+
 		// Use to sample voxels from camera PoV
 		DX12Lib::ShadowCamera m_depthCamera;
 		// Use to sample lit voxels from light PoV
