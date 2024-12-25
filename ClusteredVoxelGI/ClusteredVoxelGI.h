@@ -10,6 +10,8 @@
 #include "GraphicsMemory.h"
 #include "Techniques/Technique.h"
 
+#include "VoxelScene.h"
+
 #include "Techniques/VoxelizeScene.h"
 #include "Techniques/DisplayVoxelScene.h"
 #include "Techniques/PrefixSumVoxels.h"
@@ -55,6 +57,7 @@ namespace CVGI
 	private:
 		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
 		void OnClientConnected(const ENetPeer* peer);
+		void ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera);
 		bool IsDirectXRaytracingSupported() const;
 
 
@@ -81,6 +84,7 @@ namespace CVGI
 		UINT32 m_rasterFenceValue = 0;
 		UINT32 m_rtgiFenceValue = 0;
 
+		CVGI::VoxelScene* m_voxelScene = nullptr;
 
 		bool LightDispatched = false;
 		bool BufferSwapped = true;
@@ -107,6 +111,8 @@ namespace CVGI
 		std::shared_ptr<VOX::TechniqueData> m_data = nullptr;
 
 		DX12Lib::NetworkHost m_networkServer;
+
+		DirectX::XMFLOAT3 m_lastCameraPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 		enum class ReceiveState
 		{

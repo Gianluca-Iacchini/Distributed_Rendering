@@ -6,6 +6,7 @@
 #include "DX12Lib/DXWrapper/UploadBuffer.h"
 #include "DX12Lib/Commons/ShadowMap.h"
 #include "CameraController.h"
+#include "DX12Lib/Scene/LightController.h"
 
 
 
@@ -218,7 +219,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_rtgiFence->Get()->SetName(L"RTGI Fence");
 	m_rasterFence->Get()->SetName(L"Acc Fence");
 
-
+	m_voxelScene = voxelScene;
 
 	DX12Lib::NetworkHost::InitializeEnet();
 	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
@@ -397,41 +398,11 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 	{
 		if (NetworkHost::CheckPacketHeader(packet, "CAMINP"))
 		{
-			auto& dataVector = packet->GetDataVector();
-
-			UINT64 timeStamp = 0;
-			DirectX::XMFLOAT3 clientAbsPos;
-			DirectX::XMFLOAT4 clientAbsRot;
-			std::uint8_t inputBitmask = 0;
-
-			// CAMINP + NULL character
-			size_t previousSize = 7;
-
-
-			memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
-			previousSize += sizeof(UINT64);
-
-			memcpy(&clientAbsPos, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
-			previousSize += sizeof(DirectX::XMFLOAT3);
-
-			memcpy(&clientAbsRot, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT4));
-			previousSize += sizeof(DirectX::XMFLOAT4);
-
-			memcpy(&inputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
-			
-			auto* camera = m_data->GetCamera();
-
-			if (camera != nullptr)
-			{
-				CameraController* controller = camera->Node->GetComponent<CameraController>();
-
-				if (controller != nullptr)
-				{
-					controller->IsRemote = true;
-
-					controller->SetRemoteInput(inputBitmask, clientAbsPos, clientAbsRot, timeStamp);
-				}
-			}
+			ConsumeNodeInput(packet, true);
+		}
+		else if (NetworkHost::CheckPacketHeader(packet, "LGTINP"))
+		{
+			ConsumeNodeInput(packet, false);
 		}
 	}
 	// Awaiting ACK for buffer data. If received we change state to listen for camera data.
@@ -523,6 +494,64 @@ void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
 	m_networkServer.SendData(packet);
 
 	m_receiveState = ReceiveState::INITIALIZATION;
+}
+
+void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera)
+{
+	auto& dataVector = packet->GetDataVector();
+
+	UINT64 timeStamp = 0;
+	DirectX::XMFLOAT3 clientAbsPos;
+	DirectX::XMFLOAT4 clientAbsRot;
+	std::uint8_t clientInputBitmask = 0;
+
+	// HEADER + NULL character
+	size_t previousSize = 7;
+
+
+	memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
+	previousSize += sizeof(UINT64);
+
+	memcpy(&clientAbsPos, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
+	previousSize += sizeof(DirectX::XMFLOAT3);
+
+	memcpy(&clientAbsRot, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT4));
+	previousSize += sizeof(DirectX::XMFLOAT4);
+
+	memcpy(&clientInputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
+	previousSize += sizeof(std::uint8_t);
+
+	if (isCamera)
+	{
+		auto* camera = m_data->GetCamera();
+
+		if (camera != nullptr)
+		{
+			CameraController* controller = camera->Node->GetComponent<CameraController>();
+
+			if (controller != nullptr)
+			{
+				controller->IsRemote = true;
+				controller->SetRemoteInput(clientInputBitmask, clientAbsPos, clientAbsRot, timeStamp);
+			}
+		}
+	}
+
+	else
+	{
+		auto* light = m_data->GetLightComponent();
+
+		if (light != nullptr)
+		{
+			LightController* controller = light->Node->GetComponent<LightController>();
+
+			if (controller != nullptr)
+			{
+				controller->ControlOverNetwork(true);
+				controller->SetRemoteInput(clientInputBitmask, clientAbsPos, clientAbsRot, timeStamp);
+			}
+		}
+	}
 }
 
 bool CVGI::ClusteredVoxelGIApp::IsDirectXRaytracingSupported() const

@@ -28,7 +28,7 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	
 	lightNode->AddComponent<LightController>();
 
-
+	m_mainLight = light;
 
 	m_camera->Node->AddComponent<CameraController>();
 

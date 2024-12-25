@@ -38,6 +38,8 @@ void LI::LIScene::Init(DX12Lib::CommandContext& context)
 
 	m_camera->Node->AddComponent<LI::CameraController>(m_isStreaming);
 
+	m_mainLight = light;
+
 	if (m_isStreaming)
 	{
 		m_ffmpegStreamer->OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight);

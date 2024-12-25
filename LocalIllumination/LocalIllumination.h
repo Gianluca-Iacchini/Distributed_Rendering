@@ -68,7 +68,9 @@ namespace LI
 
 		const char* packetHeaders[NUM_BASIC_BUFFERS] = {"INDRNK", "INDIDX", "CMPIDX", "CMPHSH", "OCCVOX"};
 
-		std::uint8_t m_lastInputBitMask = 0;
+		std::uint8_t m_lastCameraBitMask = 0;
+		std::uint8_t m_lastLightBitMask = 0;
+
 		std::mutex m_vectorMutex;
 		std::mutex m_mainThreadMutex;
 		std::condition_variable m_mainThreadCV;
@@ -88,8 +90,20 @@ namespace LI
 			RADIANCE,
 		} m_receiveState = ReceiveState::INITIALIZATION;
 
+		std::unique_ptr<DX12Lib::Fence> m_rasterFence;
+		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
+		UINT64 m_rasterFenceValue = 0;
+
+		bool LightDispatched = false;
+
 		float lerpDeltaTime = 0.0f;
 		float lerpMaxTime = 0.5f;
+
+		bool m_radianceReady = false;
+
+		float sendPacketDeltaTime = 0.0f;
+
+		bool m_wasLightningChanged = false;
 
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};

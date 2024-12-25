@@ -25,11 +25,15 @@ namespace LI
 		
 		const std::vector<char>& GetNetworkData() const { return m_inputData; }
 
+		DX12Lib::LightComponent* GetMainLight() { return m_mainLight; }
+
 	private:
 		void SetNetworkData(const char* data, size_t size);
 
 
 	private:
+		DX12Lib::LightComponent* m_mainLight = nullptr;
+
 		bool m_isStreaming = false;
 		std::unique_ptr<DX12Lib::FFmpegStreamer> m_ffmpegStreamer = nullptr;
 

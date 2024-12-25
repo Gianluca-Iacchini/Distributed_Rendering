@@ -108,7 +108,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
         float3 shadowTestPoints[12];
     
         float3 offset = cbVoxelCommons.voxelCellSize;
-        offset *= 1.5f;
+        offset *= 3.0f;
     
         // Generate the 6 corner points of the voxel
         {

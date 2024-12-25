@@ -3,6 +3,7 @@
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"
 #include "DX12Lib/Scene/SceneCamera.h"
+#include "DX12Lib/Scene/LightComponent.h"
 #include "LIUtils.h"
 #include "Technique.h"
 #include "./Data/Shaders/Include/GaussianOnly_CS.h"
@@ -305,6 +306,14 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 	m_bufferFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
 	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
 
+	m_rasterFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
+	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
+
+	m_rtgiFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
+	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
+
+
+
 	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
 
 
@@ -396,28 +405,44 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 	auto mouseState = Graphics::s_mouse->GetState();
 	bool mouseMoved = false;
 
-	if (m_receiveState == ReceiveState::RADIANCE)
+	if ((m_receiveState == ReceiveState::RADIANCE) && sendPacketDeltaTime > 0.1f)
 	{
 		DX12Lib::SceneCamera* camera = this->m_Scene->GetMainCamera();
+		
+		LI::LIScene* scene = dynamic_cast<LI::LIScene*>(m_Scene.get());
 
-		std::uint8_t inputBitMask = 0;
+		DX12Lib::LightComponent* light = scene->GetMainLight();
+
+		std::uint8_t cameraInputBitMask = 0;
+		std::uint8_t lightInputBitMask = 0;
+
 
 		if (kbState.W)
-			inputBitMask |= 1 << 0;
+			cameraInputBitMask |= 1 << 0;
 		if (kbState.S)
-			inputBitMask |= 1 << 1;
+			cameraInputBitMask |= 1 << 1;
 		if (kbState.A)
-			inputBitMask |= 1 << 2;
+			cameraInputBitMask |= 1 << 2;
 		if (kbState.D)
-			inputBitMask |= 1 << 3;
+			cameraInputBitMask |= 1 << 3;
 		if (kbState.E)
-			inputBitMask |= 1 << 4;
+			cameraInputBitMask |= 1 << 4;
 		if (kbState.Q)
-			inputBitMask |= 1 << 5;
+			cameraInputBitMask |= 1 << 5;
 
+		if (kbState.Up)
+			lightInputBitMask |= 1 << 0;
+		if (kbState.Down)
+			lightInputBitMask |= 1 << 1;
+		if (kbState.Left)
+			lightInputBitMask |= 1 << 2;
+		if (kbState.Right)
+			lightInputBitMask |= 1 << 3;
 
+		bool isCameraDirty = camera != nullptr && camera->IsDirty();
+		bool isLightDirty = light != nullptr && light->Node->IsTransformDirty();
 
-		if (camera != nullptr && ((m_lastInputBitMask != inputBitMask) || camera->IsDirty()))
+		if (camera != nullptr && ((m_lastCameraBitMask != cameraInputBitMask) || isCameraDirty))
 		{
 			PacketGuard packet = m_networkClient.CreatePacket();
 			packet->ClearPacket();
@@ -425,12 +450,29 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 			packet->AppendToBuffer(NetworkHost::GetEpochTime());
 			packet->AppendToBuffer(camera->Node->GetPosition());
 			packet->AppendToBuffer(camera->Node->GetRotationQuaternion());
-			packet->AppendToBuffer(inputBitMask);
+			packet->AppendToBuffer(cameraInputBitMask);
 			m_networkClient.SendData(packet);
 		}
 
-		m_lastInputBitMask = inputBitMask;
+		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty))
+		{
+			PacketGuard packet = m_networkClient.CreatePacket();
+			packet->ClearPacket();
+			packet->AppendToBuffer("LGTINP");
+			packet->AppendToBuffer(NetworkHost::GetEpochTime());
+			packet->AppendToBuffer(light->Node->GetPosition());
+			packet->AppendToBuffer(light->Node->GetRotationQuaternion());
+			packet->AppendToBuffer(lightInputBitMask);
+			m_networkClient.SendData(packet);
+		}
+
+		m_lastLightBitMask = lightInputBitMask;
+		m_lastCameraBitMask = cameraInputBitMask;
+
+		sendPacketDeltaTime = 0.0f;
 	}
+
+	sendPacketDeltaTime += GameTime::GetDeltaTime();
 }
 
 void LocalIlluminationApp::Draw(GraphicsContext& context)
@@ -448,65 +490,104 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 		buffInfo.nFaces = 0;
 		buffInfo.ShouldReset = 0;
 
+		bool shouldUpdateLight = false;
+
 		{
 			std::lock_guard<std::mutex> lock(m_vectorMutex);
-			if (m_ReadyToCopyBuffer.size() > 0)
-			{
-				buffInfo = m_ReadyToCopyBuffer.front();
+			shouldUpdateLight = !m_ReadyToCopyBuffer.empty();
+		}
 
-				m_ReadyToCopyBuffer.pop();
+		auto kbState = Graphics::s_keyboard->GetState();
+
+		bool didCameraMove = m_data->GetCamera()->IsDirty();
+
+		bool shouldResetBuffers = false;
+
+		if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
+		{
+			if (!LightDispatched && (shouldUpdateLight || didCameraMove))
+			{
+				if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
+				{
+					if (shouldUpdateLight)
+					{
+						buffInfo = m_ReadyToCopyBuffer.front();
+						m_ReadyToCopyBuffer.pop();
+						shouldUpdateLight = true;
+					}
+
+					shouldResetBuffers = (buffInfo.ShouldReset != 0);
+					m_wasLightningChanged = shouldResetBuffers;
+
+					DX12Lib::ComputeContext& computeContext = DX12Lib::ComputeContext::Begin();
+
+					m_lightTransportTechnique->ClearRadianceBuffers(computeContext, shouldResetBuffers);
+
+					if (shouldUpdateLight)
+					{
+						UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, buffInfo.buffer.get(), buffInfo.nFaces, buffInfo.ShouldReset);
+						m_bufferFence->CurrentFenceValue = fenceVal;
+						Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
+						{
+							std::lock_guard<std::mutex> lock(m_vectorMutex);
+							m_ReadyToWriteBuffers.push(std::make_pair(buffInfo.buffer, fenceVal));
+						}
+					}
+
+					m_lightTransportTechnique->ComputeVisibleFaces(computeContext);
+					m_gaussianFilterTechnique->PerformTechnique(computeContext);
+					m_gaussianFilterTechnique->PerformTechnique2(computeContext);
+
+					m_rtgiFence->CurrentFenceValue = computeContext.Finish();
+					Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
+
+					LightDispatched = true;
+				}
+			}
+			else if (LightDispatched)
+			{
+				m_radianceReady = true;
+				LightDispatched = false;
 			}
 		}
 
-		DX12Lib::ComputeContext& computeContext = DX12Lib::ComputeContext::Begin();
-
-		bool shouldResetBuffers = buffInfo.ShouldReset != 0;
-
-		m_lightTransportTechnique->ClearRadianceBuffers(computeContext, shouldResetBuffers);
-
-		if (buffInfo.buffer != nullptr)
-		{
-			UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, buffInfo.buffer.get(), buffInfo.nFaces, buffInfo.ShouldReset);
-			m_bufferFence->CurrentFenceValue = fenceVal;
-			Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
-			{
-				std::lock_guard<std::mutex> lock(m_vectorMutex);
-				m_ReadyToWriteBuffers.push(std::make_pair(buffInfo.buffer, fenceVal));
-			}
-		}
-
-		m_sceneDepthTechnique->UpdateCameraMatrices();
-		m_sceneDepthTechnique->PerformTechnique(context);
-		context.Flush(true);
-
-		if (buffInfo.ShouldReset != 0)
-		{
-			m_lightTransportTechnique->ResetRadianceBuffers(true);
-		}
-
-		m_lightTransportTechnique->ComputeVisibleFaces(computeContext);
-		m_gaussianFilterTechnique->PerformTechnique(computeContext);
-		m_gaussianFilterTechnique->PerformTechnique2(computeContext);
-
-
-		computeContext.Finish(true);
-
-
-		if (buffInfo.ShouldReset == 0)
+		if (m_radianceReady)
 		{
 			Renderer::ResetLerpTime();
 			lerpDeltaTime = 0.0f;
 		}
-		else
+
 		{
-			Renderer::SetLerpMaxTime(lerpDeltaTime);
-			Renderer::SetDeltaLerpTime(0.3f);
+			Renderer::SetLerpMaxTime(0.25f);
+			Renderer::SetDeltaLerpTime(lerpDeltaTime);
 		}
-
-
 	}
 
-	Renderer::RenderLayers(context);
+	// Render Layers
+	{
+		// Update depth cameras used to compute GI.
+		// Ideally we would only update the camera if the light changed or camera moved, but this is a cheap operation so we can get away with doing it every frame.
+		if (m_radianceReady)
+		{
+			m_sceneDepthTechnique->UpdateCameraMatrices();
+			m_sceneDepthTechnique->PerformTechnique(context);
+		}
+
+		Renderer::ShadowPass(context);
+		Renderer::MainRenderPass(context);
+
+		Renderer::LerpRadiancePass(context);
+
+		Renderer::DeferredPass(context);
+		Renderer::PostProcessPass(context);
+	}
+
+	if (m_radianceReady)
+	{
+		m_rasterFence->CurrentFenceValue = context.Flush();
+		Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
+		m_rasterFenceValue = m_rasterFence->CurrentFenceValue;
+	}
 		
 	LI::LIScene* scene = dynamic_cast<LI::LIScene*>(this->m_Scene.get());
 		
@@ -514,6 +595,8 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 		scene->StreamScene(context);
 
 	lerpDeltaTime += GameTime::GetDeltaTime();
+
+	m_radianceReady = false;
 
 	Renderer::PostDrawCleanup(context);
 }
