@@ -3,6 +3,7 @@
 ConstantBuffer<ConstantBufferVoxelCommons> cbVoxelCommons : register(b0);
 ConstantBuffer<ConstantBufferFrustumCulling> cbFrustumCulling : register(b1);
 ConstantBuffer<Light> cbCamera : register(b2);
+ConstantBuffer<Light> cbOffsetCamera : register(b3);
 
 StructuredBuffer<uint> gIndirectionRankBuffer : register(t0, space0);
 StructuredBuffer<uint> gIndirectionIndexBuffer : register(t1, space0);
@@ -11,6 +12,7 @@ StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space0);
 
 
 Texture2D gCameraDepth : register(t0, space1);
+Texture2D gOffsetCameraDepth : register(t1, space1);
 
 
 RWByteAddressBuffer gVisibleFacesCounter : register(u0);
@@ -133,6 +135,15 @@ void CS(uint3 DTid : SV_DispatchThreadID)
                 lit = true;
                 break;
             }
+            
+            shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbOffsetCamera.shadowMatrix);
+            shadowCoord /= shadowCoord.w;
+            depth = gOffsetCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
+            if (depth > 0.0f)
+            {
+                lit = true;
+                break;
+            }
         }
 
         // Test the mid edge points
@@ -159,6 +170,16 @@ void CS(uint3 DTid : SV_DispatchThreadID)
                 shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbCamera.shadowMatrix);
                 shadowCoord /= shadowCoord.w;
                 depth = gCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
+        
+                if (depth > 0.0f)
+                {
+                    lit = true;
+                    break;
+                }
+                
+                shadowCoord = mul(float4(shadowTestPoints[i], 1.0f), cbOffsetCamera.shadowMatrix);
+                shadowCoord /= shadowCoord.w;
+                depth = gOffsetCameraDepth.SampleCmpLevelZero(gShadowSampler, shadowCoord.xy, shadowCoord.z).r;
         
                 if (depth > 0.0f)
                 {

@@ -18,6 +18,8 @@ void VOX::SceneDepthTechnique::InitializeBuffers()
 {
 	auto* sceneCamera = m_data->GetCamera();
 
+	m_lastCameraPosition = sceneCamera->Node->GetPosition();
+
 	assert(sceneCamera != nullptr);
 
 	float aspect = sceneCamera->GetAspect();
@@ -31,9 +33,16 @@ void VOX::SceneDepthTechnique::InitializeBuffers()
 	m_depthCamera.SetLens(fovY, aspect, nearZ, farZ);
 	m_depthCamera.UpdateShadowMatrix(*sceneCamera->Node);
 
-	DX12Lib::DescriptorHandle cameraHandle = Graphics::Renderer::s_textureHeap->Alloc();
+	m_offsetDepthCamera.SetShadowBufferDimensions(1920, 1080);
+	m_offsetDepthCamera.SetLens(fovY, aspect, nearZ, farZ);
+	m_offsetDepthCamera.UpdateShadowMatrix(*sceneCamera->Node);
+
+	DX12Lib::DescriptorHandle cameraHandle = Graphics::Renderer::s_textureHeap->Alloc(2);
+
 	Graphics::s_device->Get()->CopyDescriptorsSimple(1, cameraHandle, m_depthCamera.GetShadowBuffer().GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	Graphics::s_device->Get()->CopyDescriptorsSimple(1, cameraHandle + Graphics::Renderer::s_textureHeap->GetDescriptorSize(), m_offsetDepthCamera.GetShadowBuffer().GetDepthSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_data->SetDepthCameraSRVHandle(cameraHandle);
+
 
 	if (m_cameraOnly)
 		return;
@@ -64,6 +73,7 @@ void VOX::SceneDepthTechnique::InitializeBuffers()
 void VOX::SceneDepthTechnique::PerformTechnique(DX12Lib::GraphicsContext& context)
 {
 	Graphics::Renderer::ShadowPassForCamera(context, &m_depthCamera);
+	Graphics::Renderer::ShadowPassForCamera(context, &m_offsetDepthCamera);
 
 	if (!m_cameraOnly)
 		Graphics::Renderer::ShadowPassForCamera(context, &m_lightCamera);
@@ -71,14 +81,43 @@ void VOX::SceneDepthTechnique::PerformTechnique(DX12Lib::GraphicsContext& contex
 
 void VOX::SceneDepthTechnique::UpdateCameraMatrices()
 {
-	m_depthCamera.UpdateShadowMatrix(*m_data->GetCamera()->Node);
+	auto* camera = m_data->GetCamera();
+
+	DirectX::XMFLOAT3 cameraPosition = camera->Node->GetPosition();
+	DirectX::XMFLOAT3 cameraUp = camera->Node->GetUp();
+	DirectX::XMFLOAT3 cameraForward = camera->Node->GetForward();
+	DirectX::XMFLOAT3 cameraRight = camera->Node->GetRight();
+
+	DirectX::XMFLOAT3 cameraOffset = DirectX::XMFLOAT3(
+		cameraPosition.x - m_lastCameraPosition.x,
+		cameraPosition.y - m_lastCameraPosition.y,
+		cameraPosition.z - m_lastCameraPosition.z
+	);
+
+	DirectX::XMVECTOR offset = DirectX::XMLoadFloat3(&cameraOffset);
+	offset = DirectX::XMVector3Normalize(offset);
+	offset = DirectX::XMVectorScale(offset, 1.5f);
+	offset = DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&cameraPosition), offset);
+
+	DirectX::XMStoreFloat3(&cameraOffset, offset);
+
+	m_lastCameraPosition = cameraPosition;
+
+	m_depthCamera.UpdateShadowMatrix(camera->Node->Transform);
+	m_offsetDepthCamera.UpdateShadowMatrix(cameraOffset, cameraUp, cameraForward, cameraRight);
 
 	m_cameraCB.Position = m_data->GetCamera()->Node->GetPosition();
 	m_cameraCB.Direction = m_data->GetCamera()->Node->GetForward();
 	m_cameraCB.shadowTransform = m_depthCamera.GetShadowTransform();
 	m_cameraCB.invShadowTransform = m_depthCamera.GetInvShadowTransform();
 
+	m_offsetCameraCB.Position = cameraOffset;
+	m_offsetCameraCB.Direction = m_data->GetCamera()->Node->GetForward();
+	m_offsetCameraCB.shadowTransform = m_offsetDepthCamera.GetShadowTransform();
+	m_offsetCameraCB.invShadowTransform = m_offsetDepthCamera.GetInvShadowTransform();
+
 	m_data->SetDepthCameraResource(m_cameraCB);
+	m_data->SetOffsetDepthCameraResource(m_offsetCameraCB);
 
 	if (!m_cameraOnly)
 	{

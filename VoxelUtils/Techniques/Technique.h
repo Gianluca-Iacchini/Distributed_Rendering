@@ -81,6 +81,9 @@ namespace VOX
 		void SetDepthCameraResource(DX12Lib::ConstantBufferLight cameraCB);
 		DirectX::GraphicsResource& GetDepthCameraResource();
 
+		void SetOffsetDepthCameraResource(DX12Lib::ConstantBufferLight cameraCB);
+		DirectX::GraphicsResource& GetOffsetDepthCameraResource();
+
 		void SetLightCameraResource(DX12Lib::ConstantBufferLight cameraCB);
 		DirectX::GraphicsResource& GetLightCameraResource();
 
@@ -120,6 +123,7 @@ namespace VOX
 		DX12Lib::LightComponent* m_lightComponent = nullptr;
 
 		DirectX::GraphicsResource m_depthCameraResource;
+		DirectX::GraphicsResource m_offsetDepthCameraResource;
 		DirectX::GraphicsResource m_lightCameraResource;
 
 		DX12Lib::DescriptorHandle m_cameraDepthHandleSRV;

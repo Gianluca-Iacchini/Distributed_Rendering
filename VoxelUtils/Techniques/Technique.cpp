@@ -89,6 +89,16 @@ DirectX::GraphicsResource& VOX::TechniqueData::GetDepthCameraResource()
 	return m_depthCameraResource;
 }
 
+void VOX::TechniqueData::SetOffsetDepthCameraResource(DX12Lib::ConstantBufferLight cameraCB)
+{
+	m_offsetDepthCameraResource = Renderer::s_graphicsMemory->AllocateConstant(cameraCB);
+}
+
+DirectX::GraphicsResource& VOX::TechniqueData::GetOffsetDepthCameraResource()
+{
+	return m_offsetDepthCameraResource;
+}
+
 void VOX::TechniqueData::SetLightCameraResource(ConstantBufferLight cameraCB)
 {
 	m_lightCameraResource = Renderer::s_graphicsMemory->AllocateConstant(cameraCB);

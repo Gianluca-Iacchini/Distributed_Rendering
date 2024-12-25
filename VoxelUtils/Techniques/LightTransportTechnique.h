@@ -90,6 +90,7 @@ namespace VOX
 			VoxelCommonsCBV = 0,
 			LightTransportCBV = 1,
 			CameraCBV,
+			OffsetCameraCBV,
 			PrefixSumBuffersSRV,
 			DepthMapSRV,
 			LightTransportBuffersUAV,

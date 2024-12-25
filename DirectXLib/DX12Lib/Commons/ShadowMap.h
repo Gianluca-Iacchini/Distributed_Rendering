@@ -37,7 +37,8 @@ namespace DX12Lib
 		const ConstantBufferCamera& GetShadowConstantBuffer() const { return m_shadowCB; }
 		void UpdateShadowMatrix(SceneNode& node);
 		void UpdateShadowMatrix(const ConstantBufferCamera& cb);
-
+		void UpdateShadowMatrix(Transform& transform);
+		void UpdateShadowMatrix(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 up, DirectX::XMFLOAT3 forward, DirectX::XMFLOAT3 right);
 
 
 		DirectX::GraphicsResource GetShadowCB();

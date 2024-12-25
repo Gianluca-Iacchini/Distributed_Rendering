@@ -48,41 +48,7 @@ void DX12Lib::ShadowCamera::UpdateShadowMatrix(SceneNode& sceneNode)
 {
 	auto& transform = sceneNode.Transform;
 
-	Camera::UpdateViewMatrix(transform.GetWorldPosition(), transform.GetUp(), transform.GetForward(), transform.GetRight());
-
-	DirectX::XMVECTOR cameraWS = transform.GetWorldPosition();
-
-
-	DirectX::XMMATRIX view = this->GetView();
-
-	DirectX::XMMATRIX projection = GetProjection();
-
-	DirectX::XMMATRIX T(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f
-	);
-
-	DirectX::XMMATRIX S = view * projection * T;
-	DirectX::XMStoreFloat4x4(&m_shadowTransform, DirectX::XMMatrixTranspose(S));
-	DirectX::XMStoreFloat4x4(&m_invShadowTransform, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, S)));
-
-	DirectX::XMMATRIX viewProjection = view * projection;
-	DirectX::XMMATRIX invView = DirectX::XMMatrixInverse(nullptr, view);
-	DirectX::XMMATRIX invProjection = DirectX::XMMatrixInverse(nullptr, projection);
-	DirectX::XMMATRIX invViewProjection = DirectX::XMMatrixInverse(nullptr, viewProjection);
-
-	DirectX::XMStoreFloat4x4(&m_shadowCB.view, DirectX::XMMatrixTranspose(view));
-	DirectX::XMStoreFloat4x4(&m_shadowCB.invView, DirectX::XMMatrixTranspose(invView));
-	DirectX::XMStoreFloat4x4(&m_shadowCB.projection, DirectX::XMMatrixTranspose(projection));
-	DirectX::XMStoreFloat4x4(&m_shadowCB.invProjection, DirectX::XMMatrixTranspose(invProjection));
-	DirectX::XMStoreFloat4x4(&m_shadowCB.viewProjection, DirectX::XMMatrixTranspose(viewProjection));
-	DirectX::XMStoreFloat4x4(&m_shadowCB.invViewProjection, DirectX::XMMatrixTranspose(invViewProjection));
-	DirectX::XMStoreFloat3(&m_shadowCB.eyePosition, cameraWS);
-
-	m_shadowCB.nearPlane = m_nearZ;
-	m_shadowCB.farPlane = m_farZ;
+	this->UpdateShadowMatrix(transform.GetWorldPosition3f(), transform.GetUp3f(), transform.GetForward3f(), transform.GetRight3f());
 }
 
 void DX12Lib::ShadowCamera::UpdateShadowMatrix(const ConstantBufferCamera& cb)
@@ -113,6 +79,52 @@ void DX12Lib::ShadowCamera::UpdateShadowMatrix(const ConstantBufferCamera& cb)
 		-m_shadowCB.view._24,
 		-m_shadowCB.view._34
 	);
+
+	m_shadowCB.nearPlane = m_nearZ;
+	m_shadowCB.farPlane = m_farZ;
+}
+
+void DX12Lib::ShadowCamera::UpdateShadowMatrix(Transform& transform)
+{
+	this->UpdateShadowMatrix(transform.GetWorldPosition3f(), transform.GetUp3f(), transform.GetForward3f(), transform.GetRight3f());
+}
+
+void DX12Lib::ShadowCamera::UpdateShadowMatrix(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 up, DirectX::XMFLOAT3 forward, DirectX::XMFLOAT3 right)
+{
+	DirectX::XMVECTOR xmPos = DirectX::XMLoadFloat3(&pos);
+	DirectX::XMVECTOR xmUp = DirectX::XMLoadFloat3(&up);
+	DirectX::XMVECTOR xmForward = DirectX::XMLoadFloat3(&forward);
+	DirectX::XMVECTOR xmRight = DirectX::XMLoadFloat3(&right);
+
+	Camera::UpdateViewMatrix(xmPos, xmUp, xmForward, xmRight);
+
+	DirectX::XMMATRIX view = this->GetView();
+
+	DirectX::XMMATRIX projection = GetProjection();
+
+	DirectX::XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
+
+	DirectX::XMMATRIX S = view * projection * T;
+	DirectX::XMStoreFloat4x4(&m_shadowTransform, DirectX::XMMatrixTranspose(S));
+	DirectX::XMStoreFloat4x4(&m_invShadowTransform, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, S)));
+
+	DirectX::XMMATRIX viewProjection = view * projection;
+	DirectX::XMMATRIX invView = DirectX::XMMatrixInverse(nullptr, view);
+	DirectX::XMMATRIX invProjection = DirectX::XMMatrixInverse(nullptr, projection);
+	DirectX::XMMATRIX invViewProjection = DirectX::XMMatrixInverse(nullptr, viewProjection);
+
+	DirectX::XMStoreFloat4x4(&m_shadowCB.view, DirectX::XMMatrixTranspose(view));
+	DirectX::XMStoreFloat4x4(&m_shadowCB.invView, DirectX::XMMatrixTranspose(invView));
+	DirectX::XMStoreFloat4x4(&m_shadowCB.projection, DirectX::XMMatrixTranspose(projection));
+	DirectX::XMStoreFloat4x4(&m_shadowCB.invProjection, DirectX::XMMatrixTranspose(invProjection));
+	DirectX::XMStoreFloat4x4(&m_shadowCB.viewProjection, DirectX::XMMatrixTranspose(viewProjection));
+	DirectX::XMStoreFloat4x4(&m_shadowCB.invViewProjection, DirectX::XMMatrixTranspose(invViewProjection));
+	DirectX::XMStoreFloat3(&m_shadowCB.eyePosition, xmPos);
 
 	m_shadowCB.nearPlane = m_nearZ;
 	m_shadowCB.farPlane = m_farZ;
