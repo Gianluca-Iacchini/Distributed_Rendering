@@ -243,11 +243,14 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	bool didLightChange = m_data->GetLightComponent()->Node->IsTransformDirty();
 	bool didCameraMove = m_data->GetCamera()->IsDirty();
 
-	bool shouldUpdateLight = didLightChange && RTGIUpdateDelta > 0.15f;
+	m_cameraMovedSinceLastUpdate |= didCameraMove;
+	m_lightChangedSinceLastUpdate |= didLightChange;
+
+	bool shouldUpdateLight = m_lightChangedSinceLastUpdate && RTGIUpdateDelta > 0.15f;
 
 	m_Scene->Render(commandContext);
 
-
+	bool lerpLightUpdate = false;
 	
 	static float lastSendTime = GameTime::GetTotalTime();
 
@@ -255,7 +258,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
 	{
 		// We only want to dispatch the light if the camera moved or the light changed.
-		if (!LightDispatched && (shouldUpdateLight || didCameraMove))
+		if (!LightDispatched && (shouldUpdateLight || m_cameraMovedSinceLastUpdate))
 		{
 			// We wait for the rasterization pass to finish since we use depth maps to compute the lights.
 			if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
@@ -318,6 +321,11 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			// Signal lerp shader to update the radiance data.
 			m_isRadianceReady = true;
 			LightDispatched = false;
+
+			lerpLightUpdate = m_lightChangedSinceLastUpdate;
+
+			m_cameraMovedSinceLastUpdate = false;
+			m_lightChangedSinceLastUpdate = false;
 		}
 	}
 
@@ -329,7 +337,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	}
 
 	// If only the camera moved, we don't want to lerp but change the radiance immediately to avoid radiance popping.
-	if (didCameraMove && !didLightChange)
+	if (didCameraMove && !lerpLightUpdate)
 	{
 		Renderer::SetLerpMaxTime(1.0f);
 		Renderer::SetDeltaLerpTime(1.0f);
@@ -338,7 +346,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	// In all other cases we want to lerp. Radiance popping may still be noticeable but it's less jarring when the light changes.
 	else
 	{
-		Renderer::SetLerpMaxTime(0.3f);
+		Renderer::SetLerpMaxTime(0.15f);
 		Renderer::SetDeltaLerpTime(m_lerpDeltaTime);
 	}
 

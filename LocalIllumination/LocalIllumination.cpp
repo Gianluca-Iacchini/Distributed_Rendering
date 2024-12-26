@@ -1,4 +1,5 @@
 #define STREAMING 0
+#define NETWORK_RADIANCE 1
 
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"
@@ -303,16 +304,6 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	DX12Lib::NetworkHost::InitializeEnet();
 
-	m_bufferFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
-	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
-
-	m_rasterFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
-	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
-
-	m_rtgiFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
-	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
-
-
 
 	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
 
@@ -328,6 +319,17 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 	}
 
 	this->m_Scene->Init(context);
+
+
+#if NETWORK_RADIANCE
+	m_bufferFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
+	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
+
+	m_rasterFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
+	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
+
+	m_rtgiFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
+	Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rtgiFence);
 
 
 	m_data = std::make_shared<VOX::TechniqueData>();
@@ -393,6 +395,8 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 		m_bufferFence->WaitForCurrentFence();
 		DXLIB_ERROR("Timeout waiting for initialization");
 	}
+
+#endif
 }
 
 void LocalIlluminationApp::Update(GraphicsContext& context)
@@ -490,40 +494,39 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 		buffInfo.nFaces = 0;
 		buffInfo.ShouldReset = 0;
 
-		bool shouldUpdateLight = false;
+		bool isRTGIDataAvailable = false;
 
 		{
 			std::lock_guard<std::mutex> lock(m_vectorMutex);
-			shouldUpdateLight = !m_ReadyToCopyBuffer.empty();
+			isRTGIDataAvailable = !m_ReadyToCopyBuffer.empty();
 		}
 
 		auto kbState = Graphics::s_keyboard->GetState();
 
 		bool didCameraMove = m_data->GetCamera()->IsDirty();
+		m_cameraMovedSinceLastUpdate |= didCameraMove;
 
-		bool shouldResetBuffers = false;
 
 		if (m_rtgiFence->IsFenceComplete(m_rtgiFence->CurrentFenceValue))
 		{
-			if (!LightDispatched && (shouldUpdateLight || didCameraMove))
+			if (!LightDispatched && (isRTGIDataAvailable || didCameraMove))
 			{
 				if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
 				{
-					if (shouldUpdateLight)
+					if (isRTGIDataAvailable)
 					{
+						std::lock_guard<std::mutex> lock(m_vectorMutex);
 						buffInfo = m_ReadyToCopyBuffer.front();
 						m_ReadyToCopyBuffer.pop();
-						shouldUpdateLight = true;
 					}
 
-					shouldResetBuffers = (buffInfo.ShouldReset != 0);
-					m_wasLightningChanged = shouldResetBuffers;
+					bool shouldResetBuffers = (buffInfo.ShouldReset != 0);
 
 					DX12Lib::ComputeContext& computeContext = DX12Lib::ComputeContext::Begin();
 
 					m_lightTransportTechnique->ClearRadianceBuffers(computeContext, shouldResetBuffers);
 
-					if (shouldUpdateLight)
+					if (isRTGIDataAvailable)
 					{
 						UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, buffInfo.buffer.get(), buffInfo.nFaces, buffInfo.ShouldReset);
 						m_bufferFence->CurrentFenceValue = fenceVal;
@@ -548,6 +551,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			{
 				m_radianceReady = true;
 				LightDispatched = false;
+				m_cameraMovedSinceLastUpdate = false;
 			}
 		}
 
@@ -557,6 +561,12 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			lerpDeltaTime = 0.0f;
 		}
 
+		if (didCameraMove)
+		{
+			Renderer::SetLerpMaxTime(0.1f);
+			Renderer::SetDeltaLerpTime(lerpDeltaTime);
+		}
+		else
 		{
 			Renderer::SetLerpMaxTime(0.25f);
 			Renderer::SetDeltaLerpTime(lerpDeltaTime);
@@ -573,13 +583,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			m_sceneDepthTechnique->PerformTechnique(context);
 		}
 
-		Renderer::ShadowPass(context);
-		Renderer::MainRenderPass(context);
-
-		Renderer::LerpRadiancePass(context);
-
-		Renderer::DeferredPass(context);
-		Renderer::PostProcessPass(context);
+		Renderer::RenderLayers(context);
 	}
 
 	if (m_radianceReady)

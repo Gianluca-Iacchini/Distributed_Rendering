@@ -91,7 +91,9 @@ namespace CVGI
 		bool m_isRunning = true;
 
 		bool m_resetTime = false;
-		bool m_resetCamera = false;
+
+		bool m_cameraMovedSinceLastUpdate = false;
+		bool m_lightChangedSinceLastUpdate = false;
 
 		bool m_isRadianceReady = false;
 

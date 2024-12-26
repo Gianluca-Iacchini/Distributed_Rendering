@@ -103,7 +103,7 @@ namespace LI
 
 		float sendPacketDeltaTime = 0.0f;
 
-		bool m_wasLightningChanged = false;
+		bool m_cameraMovedSinceLastUpdate = false;
 
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
