@@ -93,6 +93,8 @@ namespace VOX
 		DX12Lib::DescriptorHandle& GetDepthCameraSRVHandle() { return m_cameraDepthHandleSRV; }
 		DX12Lib::DescriptorHandle& GetLightCameraSRVHandle() { return m_lightDepthHandleSRV; }
 
+		const std::unordered_map<std::wstring, std::shared_ptr<BufferManager>>& const GetBufferManagers() { return m_bufferManagers; }
+
 	private:
 		DirectX::XMMATRIX BuildWorldToVoxelMatrix();
 
@@ -150,6 +152,8 @@ namespace VOX
 		virtual void PerformTechnique(VOX::RayTracingContext& context) {}
 
 		virtual BufferManager* GetBufferManager() { return m_bufferManager.get(); }
+
+		virtual UINT64 GetMemoryUsage() { return m_bufferManager->GetTotalMemorySize(); }
 
 	protected:
 		virtual void TechniquePass(DX12Lib::GraphicsContext& commandContext) {}

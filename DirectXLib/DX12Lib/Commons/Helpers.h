@@ -304,10 +304,11 @@ namespace DX12Lib {
 			m_availableElementsPool.push_back(element);
         }
 
-        void SetDone() {
+        void SetDone(bool done) {
             std::unique_lock<std::mutex> lock(m_mutex);
-            m_done = true;
-            m_cv.notify_all();
+            m_done = done;
+			if (m_done)
+                m_cv.notify_all();
         }
 
         unsigned int GetQueueSize() {

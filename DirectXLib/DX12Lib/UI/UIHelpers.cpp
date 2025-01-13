@@ -60,3 +60,29 @@ void DX12Lib::UIHelpers::StartFrame()
 
 }
 
+bool DX12Lib::UIHelpers::OddIntegerSlider(const char* label, int* value, int min, int max)
+{
+	// Clamp the initial value to the nearest odd number
+	if (*value % 2 == 0)
+		*value += 1;
+
+	int oddMin = min % 2 == 0? min + 1 : min;
+	int oddMax = max % 2 == 0 ? max - 1 : max;
+
+	int sliderValue = *value;
+	*value = std::clamp(*value, oddMin, oddMax);
+
+
+	if (ImGui::SliderInt(label, value, oddMin, oddMax))
+	{
+		if (*value % 2 == 0)
+		{
+			*value += 1;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+

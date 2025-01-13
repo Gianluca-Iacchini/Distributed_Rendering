@@ -24,9 +24,9 @@ RWStructuredBuffer<uint> gGaussianFaceIndices : register(u2, space2);
 RWByteAddressBuffer gIndirectLightUpdatedVoxelsBitmap : register(u3, space2);
 RWByteAddressBuffer gGaussianUpdatedVoxelsBitmap : register(u4, space2);
 
-#define SIDE 2
-#define KERNEL_SIZE 2 * SIDE + 1
-#define SIGMA 25.0
+#define DEFAULT_SIDE 2
+#define DEFAULT_KERNEL_SIZE 2 * DEFAULT_SIDE + 1
+#define SIGMA 2.0
 
 uint2 FindHashedCompactedPositionIndex(uint3 coord, uint3 gridDimension)
 {
@@ -86,12 +86,14 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool should
     float sum = 0.0f; // Normalization sum
     float3 filteredIrradiance = float3(0.0f, 0.0f, 0.0f);
 
+    int kernelSide = (cbGaussianFilter.KernelSize - 1) / 2;
+    
     // Iterate over the kernel
-    for (int x = -SIDE; x <= SIDE; ++x)
+    for (int x = -kernelSide; x <= kernelSide; ++x)
     {
-        for (int y = -SIDE; y <= SIDE; ++y)
+        for (int y = -kernelSide; y <= kernelSide; ++y)
         {
-            for (int z = -SIDE; z <= SIDE; ++z)
+            for (int z = -kernelSide; z <= kernelSide; ++z)
             {
                 int3 offset = int3(x, y, z);
                 if (IsWithinBounds(voxelTexCoords, offset, cbVoxelCommons.voxelTextureDimensions))
@@ -121,8 +123,18 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool should
 
                         if (isFirstPass || (any(voxelFaceIrradiance > 0.0f)))
                         {
-                            uint linearCoord = GetLinearCoord(uint3(x + SIDE, y + SIDE, z + SIDE), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
-                            float gaussianValue = gGaussianPrecomputedDataBuffer[linearCoord];
+                            float gaussianValue = 0.0f;
+                            
+                            if (cbGaussianFilter.UsePreComputedGaussian == 1)
+                            {
+                                uint linearCoord = GetLinearCoord(uint3(x + DEFAULT_SIDE, y + DEFAULT_SIDE, z + DEFAULT_SIDE), uint3(DEFAULT_KERNEL_SIZE, DEFAULT_KERNEL_SIZE, DEFAULT_KERNEL_SIZE));
+                                gaussianValue = gGaussianPrecomputedDataBuffer[linearCoord];
+                            }
+                            else
+                            {
+                                gaussianValue = gaussianDistribution(float(x), float(y), float(z), cbGaussianFilter.Sigma);
+                            }
+                            
                             sum += gaussianValue;
 
                             // Accumulate the filtered irradiance directly
@@ -154,14 +166,14 @@ void CS( uint3 DTid : SV_DispatchThreadID)
         if (threadGlobalIndex != 0)
             return;
         
-        for (uint x = 0; x < KERNEL_SIZE; x++)
+        for (uint x = 0; x < DEFAULT_KERNEL_SIZE; x++)
         {
-            for (uint y = 0; y < KERNEL_SIZE; y++)
+            for (uint y = 0; y < DEFAULT_KERNEL_SIZE; y++)
             {
-                for (uint z = 0; z < KERNEL_SIZE; z++)
+                for (uint z = 0; z < DEFAULT_KERNEL_SIZE; z++)
                 {
-                    int3 values = int3(int(x) - SIDE, int(y) - SIDE, int(z) - SIDE);
-                    uint linearCoord = GetLinearCoord(uint3(x, y, z), uint3(KERNEL_SIZE, KERNEL_SIZE, KERNEL_SIZE));
+                    int3 values = int3(int(x) - DEFAULT_SIDE, int(y) - DEFAULT_SIDE, int(z) - DEFAULT_SIDE);
+                    uint linearCoord = GetLinearCoord(uint3(x, y, z), uint3(DEFAULT_KERNEL_SIZE, DEFAULT_KERNEL_SIZE, DEFAULT_KERNEL_SIZE));
                     gGaussianPrecomputedDataBuffer[linearCoord] = gaussianDistribution(values.x, values.y, values.z, SIGMA);
                 }
             }
@@ -181,48 +193,61 @@ void CS( uint3 DTid : SV_DispatchThreadID)
     
     if (cbGaussianFilter.CurrentPhase == 1)
     {
-        uint packedRadiance = gFaceRadianceReadBuffer[idx];
+
         float3 radiance = float3(0.0f, 0.0f, 0.0f);
+
     
-        radiance.xyz = UnpackUintToFloat3(packedRadiance);
-    
-        bool shouldSet = true;
-        
-        float3 filteredRadiance = filterFace(voxIdx, faceIndex, true, shouldSet);
-    
-        if (shouldSet)
+        if (cbGaussianFilter.PassCount > 0)
         {
-            SetVoxelPresence(voxIdx, gGaussianUpdatedVoxelsBitmap);
-        }
+            bool shouldSet = true;
         
-        uint packedData = PackFloat3ToUint(filteredRadiance);
-        gGaussianFirstFilterBuffer[idx] = packedData;
-        
-        //uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
-        //gGaussianFirstFilterBuffer[idx] = packedData;
-    }
-    else if (cbGaussianFilter.CurrentPhase == 2)
-    {
-        //uint2 packedRadiance = gGaussianFirstFilterBuffer[idx];
-        
-        uint packedRadiance = gGaussianFirstFilterBuffer[idx];
-        
-        float3 radiance = UnpackUintToFloat3(packedRadiance); //float3(0.0f, 0.0f, 0.0f);
+            float3 filteredRadiance = filterFace(voxIdx, faceIndex, true, shouldSet);
     
-        //radiance.xy = UnpackFloats16(packedRadiance.x);
-        //radiance.z = UnpackFloats16(packedRadiance.y).x;
-        
-        uint2 finalPacked = uint2(0, 0);
-        
-        if (any(radiance > 0.0f))
-        {
-            bool shouldSet;
-            radiance = filterFace(voxIdx, faceIndex, false, shouldSet);
-            finalPacked = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
+            if (shouldSet)
+            {
+                SetVoxelPresence(voxIdx, gGaussianUpdatedVoxelsBitmap);
+            }
+            
+            radiance = filteredRadiance;
         }
         else
         {
-            finalPacked = uint2(0, 0);
+            uint packedRadiance = gFaceRadianceReadBuffer[idx];
+            radiance.xyz = UnpackUintToFloat3(packedRadiance);
+        }
+
+        uint packedData = PackFloat3ToUint(radiance);
+        gGaussianFirstFilterBuffer[idx] = packedData;
+        
+    }
+    else if (cbGaussianFilter.CurrentPhase == 2)
+    {
+
+        uint2 finalPacked = uint2(0, 0);
+        uint packedRadiance = gGaussianFirstFilterBuffer[idx];
+        float3 radiance = UnpackUintToFloat3(packedRadiance);
+        
+        if (cbGaussianFilter.PassCount > 1)
+        {
+
+    
+        
+
+        
+            if (any(radiance > 0.0f))
+            {
+                bool shouldSet;
+                radiance = filterFace(voxIdx, faceIndex, false, shouldSet);
+                finalPacked = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
+            }
+            else
+            {
+                finalPacked = uint2(0, 0);
+            }
+        }
+        else
+        {
+            finalPacked = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
         }
         
         gWriteFinalRadianceBuffer[idx] = finalPacked;

@@ -39,13 +39,18 @@ void VOX::GaussianFilterTechnique::InitializeBuffers()
 	m_radianceReadBack.Create(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 
 	m_radianceData.resize(m_data->FaceCount);
+
+	m_cbGaussianFilter.UsePreComputedGaussian = 1;
+
+	m_cbGaussianFilter.KernelSize = 5;
+	m_cbGaussianFilter.Sigma = 2.0f;
+	m_cbGaussianFilter.PassCount = 2;
 }
 
 void VOX::GaussianFilterTechnique::PerformTechnique(DX12Lib::ComputeContext& context)
 {
 	PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR_DEFAULT, Name.c_str());
 
-    m_cbGaussianFilter.KernelSize = 5;
 	m_cbGaussianFilter.FaceCount = m_data->FaceCount;
 	m_cbGaussianFilter.VoxelCount = m_data->GetVoxelCount();
 	m_cbGaussianFilter.EyePosition = m_data->GetCamera()->Node->GetPosition();
@@ -86,6 +91,30 @@ void VOX::GaussianFilterTechnique::SetGaussianBlock(UINT32 block)
 	m_cbGaussianFilter.BlockNum = block;
 }
 
+void VOX::GaussianFilterTechnique::SetGaussianKernelSize(UINT size)
+{
+	m_cbGaussianFilter.KernelSize = size;
+	m_gaussianOptionModified = true;
+}
+
+void VOX::GaussianFilterTechnique::SetUsePrecomputedGaussian(bool usePrecomp)
+{
+	m_cbGaussianFilter.UsePreComputedGaussian = usePrecomp ? 1 : 0;
+	m_gaussianOptionModified = true;
+}
+
+void VOX::GaussianFilterTechnique::SetGaussianPassCount(UINT passCount)
+{
+	m_cbGaussianFilter.PassCount = passCount;
+	m_gaussianOptionModified = true;
+}
+
+void VOX::GaussianFilterTechnique::SetGaussianSigma(float sigma)
+{
+	m_cbGaussianFilter.Sigma = sigma;
+	m_gaussianOptionModified = true;
+}
+
 void VOX::GaussianFilterTechnique::PerformTechnique2(DX12Lib::ComputeContext& context)
 {
 	m_cbGaussianFilter.CurrentPhase = 2;
@@ -116,6 +145,11 @@ std::uint8_t* VOX::GaussianFilterTechnique::GetRadianceDataPtr()
 	void* data = m_radianceReadBack.ReadBack(m_data->FaceCount * sizeof(DirectX::XMUINT2));
 
 	return reinterpret_cast<std::uint8_t*>(data);
+}
+
+UINT64 VOX::GaussianFilterTechnique::GetMemoryUsage()
+{
+	return m_bufferManager->GetTotalMemorySize() + m_readBufferManager->GetTotalMemorySize();
 }
 
 void VOX::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
@@ -163,6 +197,8 @@ void VOX::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& contex
 		context.Dispatch(groupSize.x, groupSize.y, groupSize.z);
 	else
 		context.m_commandList->Get()->ExecuteIndirect(m_commandSignature.Get(), 1, indirectCommandBuffer.Get(), 0, nullptr, 0);
+
+	m_gaussianOptionModified = false;
 }
 
 std::shared_ptr<DX12Lib::RootSignature> VOX::GaussianFilterTechnique::BuildRootSignature()

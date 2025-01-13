@@ -14,6 +14,8 @@ namespace VOX
 		virtual void InitializeBuffers() override;
 		virtual void PerformTechnique(DX12Lib::GraphicsContext& context) override;
 		void UpdateCameraMatrices();
+
+		virtual UINT64 GetMemoryUsage() override;
 	private:
 
 		bool m_cameraOnly = false;

@@ -50,6 +50,8 @@ namespace VOX
 
 		void MoveDataTo(BufferManager& other);
 
+		UINT64 GetTotalMemorySize();
+
 	private:
 		std::vector<std::shared_ptr<DX12Lib::Resource>> m_buffers;
 

@@ -131,3 +131,26 @@ void VOX::SceneDepthTechnique::UpdateCameraMatrices()
 		m_data->SetLightCameraResource(m_lightCB);
 	}
 }
+
+UINT64 VOX::SceneDepthTechnique::GetMemoryUsage()
+{
+	UINT64 size = 0;
+	auto depthCameraDesc = m_depthCamera.GetShadowBuffer().GetDesc();
+	auto offsetDepthCameraDesc = m_offsetDepthCamera.GetShadowBuffer().GetDesc();
+
+	D3D12_RESOURCE_ALLOCATION_INFO info = Graphics::s_device->Get()->GetResourceAllocationInfo(0, 1, &depthCameraDesc);
+	size += info.SizeInBytes;
+
+	info = Graphics::s_device->Get()->GetResourceAllocationInfo(0, 1, &offsetDepthCameraDesc);
+	size += info.SizeInBytes;
+
+	if (!m_cameraOnly)
+	{
+		auto lightCameraDesc = m_lightCamera.GetShadowBuffer().GetDesc();
+
+		info = Graphics::s_device->Get()->GetResourceAllocationInfo(0, 1, &lightCameraDesc);
+		size += info.SizeInBytes;
+	}
+
+	return size;
+}

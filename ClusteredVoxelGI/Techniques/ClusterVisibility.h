@@ -36,6 +36,8 @@ namespace CVGI
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
 		virtual void BuildPipelineState() override;
 
+		virtual UINT64 GetMemoryUsage() override;
+
 		std::unique_ptr<VOX::TopLevelAccelerationStructure> BuildAccelerationStructures(DX12Lib::ComputeContext& context);
 
 	public:

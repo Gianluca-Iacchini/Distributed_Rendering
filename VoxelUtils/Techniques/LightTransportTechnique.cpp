@@ -101,6 +101,11 @@ void VOX::LightTransportTechnique::PerformTechnique(DX12Lib::ComputeContext& con
 	PIXEndEvent(context.m_commandList->Get());
 }
 
+UINT64 VOX::LightTransportTechnique::GetMemoryUsage()
+{
+	return m_bufferManager->GetTotalMemorySize() + m_indirectBufferManager->GetTotalMemorySize();
+}
+
 void VOX::LightTransportTechnique::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
 {
     context.SetDescriptorHeap(Renderer::s_textureHeap.get());

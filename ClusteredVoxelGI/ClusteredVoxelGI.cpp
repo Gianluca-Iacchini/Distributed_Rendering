@@ -93,14 +93,15 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	bool didLightChange = 
 		m_data->GetLightComponent()->Node->IsTransformDirty() ||
 		m_data->GetLightComponent()->DidLightPropertyChange() ||
-		m_lightTransportTechnique->DidRadianceStrengthChange();
+		m_lightTransportTechnique->DidRadianceStrengthChange() ||
+		m_gaussianFilterTechnique->GaussianOptionModified();
 
 	bool didCameraMove = m_data->GetCamera()->IsDirty();
 
 	m_cameraMovedSinceLastUpdate |= didCameraMove;
 	m_lightChangedSinceLastUpdate |= didLightChange;
 
-	bool shouldUpdateLight = m_lightChangedSinceLastUpdate && RTGIUpdateDelta > 0.15f;
+	bool shouldUpdateLight = m_lightChangedSinceLastUpdate && (m_RTGIUpdateDelta > m_RTGIMaxTime);
 
 	m_Scene->Render(commandContext);
 
@@ -126,7 +127,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 					m_lightVoxel->PerformTechnique(context);
 
 					m_lightTransportTechnique->ResetRadianceBuffers(true);
-					RTGIUpdateDelta = 0.0f;
+					m_RTGIUpdateDelta = 0.0f;
 
 					m_wasRadianceReset = 1;
 				}
@@ -217,7 +218,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	// In all other cases we want to lerp. Radiance popping may still be noticeable but it's less jarring when the light changes.
 	else
 	{
-		Renderer::SetLerpMaxTime(0.2f);
+		Renderer::SetLerpMaxTime(m_lerpMaxTime);
 		Renderer::SetDeltaLerpTime(m_lerpDeltaTime);
 	}
 
@@ -256,7 +257,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	//m_displayVoxelScene->PerformTechnique(commandContext);
 
 	m_lerpDeltaTime += GameTime::GetDeltaTime();
-	RTGIUpdateDelta += GameTime::GetDeltaTime();
+	m_RTGIUpdateDelta += GameTime::GetDeltaTime();
 
 	m_isRadianceReady = false;
 
@@ -267,7 +268,11 @@ void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext
 {
 	m_isRunning = false;
 	
-	m_networkServer.Disconnect();
+	if (m_networkServer.IsConnected())
+	{
+		m_networkServer.Disconnect();
+	}
+
 	DX12Lib::NetworkHost::DeinitializeEnet();
 	
 	D3DApp::OnClose(commandContext);
@@ -400,7 +405,11 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 	float mspf = 0.0f;
 	GetFrameStats(fps, mspf);
 
+	float memoryUsageMiB = (float)m_rtgiMemoryUsage;
+	memoryUsageMiB /= (1024.0f * 1024.0f);
+
 	ImGui::Text("FPS: %d\tMSPF: %.2f", fps, mspf);
+	ImGui::Text("RTGI Memory usage: %.2f MiB", memoryUsageMiB);
 
 	ImGui::SeparatorText("Controls");
 
@@ -434,6 +443,7 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		ImGui::Text("Voxel Count: %d\tCluster Count: %d", m_data->GetVoxelCount(), m_data->GetClusterCount());
 
 		ImGui::SeparatorText("Real-time GI timings");
+
 		ImGui::Text("Lit voxels:");
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_litVoxelTime);
@@ -520,7 +530,7 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		float intensity = light->GetLightIntensity();
 
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + spacing);
-		ImGui::Text("Light Intensity:\t", intensity);
+		ImGui::Text("Light Intensity:\t");
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::SliderFloat("##LightIntensity", &intensity, 0.0f, 10.0f))
@@ -528,10 +538,12 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 			light->SetLightIntensity(intensity);
 		}
 		
+		ImGui::SeparatorText("Indirect Light");
+
 		float farStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
 		float closeStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
 
-		ImGui::Text("Far voxels bounce strength:", farStrength);
+		ImGui::Text("Far voxels bounce strength:");
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::SliderFloat("##FarStrength", &farStrength, 0.0f, 7.0f))
@@ -539,15 +551,119 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 			m_lightTransportTechnique->SetFarVoxelRadianceStrength(farStrength);
 		}
 
-		ImGui::Text("Close voxels bounce strength:", closeStrength);
+		ImGui::Text("Close voxels bounce strength:");
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::SliderFloat("##CloseStrength", &closeStrength, 0.0f, 7.0f))
 		{
 			m_lightTransportTechnique->SetCloseVoxelRadianceStrength(closeStrength);
 		}
-	}
 
+		ImGui::SeparatorText("Update frequency");
+
+		ImGui::Text("Light update frequency:");
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		ImGui::SliderFloat("##UpdateFrequency", &m_RTGIMaxTime, 0.0f, 0.5f);
+
+		ImGui::Text("Lerp update frequency:");
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		ImGui::SliderFloat("##LerpFrequency", &m_lerpMaxTime, 0.0f, 1.0f);
+
+		ImGui::Separator();
+
+		if (ImGui::Button("Reset settings"))
+		{
+			light->SetLightColor(DirectX::XMFLOAT3(0.45f, 0.45f, 0.45f));
+			light->SetLightIntensity(1.0f);
+
+			m_lightTransportTechnique->SetFarVoxelRadianceStrength(1.0f);
+			m_lightTransportTechnique->SetCloseVoxelRadianceStrength(1.0f);
+
+			m_RTGIMaxTime = 0.15f;
+			m_lerpMaxTime = 0.2f;
+		}
+	}
+	if (ImGui::CollapsingHeader("Gaussian filter options"))
+	{
+		maxX = ImGui::CalcTextSize("Use precomputed gaussian values:\t").x;
+
+		int kernelSize = (int)m_gaussianFilterTechnique->GetGaussianKernelSize();
+
+		bool usePrecomputed = m_gaussianFilterTechnique->GetUsePrecomputedGaussian();
+
+		ImGui::Text("Use precomputed gaussian values:");
+		ImGui::SameLine(maxX);
+		if (ImGui::Checkbox("##UsePrecomputedGaussianValues", &usePrecomputed))
+		{
+			m_gaussianFilterTechnique->SetUsePrecomputedGaussian(usePrecomputed);
+
+			if (usePrecomputed)
+			{
+				m_gaussianFilterTechnique->SetGaussianKernelSize(5);
+				m_gaussianFilterTechnique->SetGaussianSigma(25.0f);
+				m_gaussianFilterTechnique->SetGaussianPassCount(2);
+			}
+		}
+
+		maxX = ImGui::CalcTextSize("Gaussian Kernel size : \t").x;
+
+		ImGui::BeginDisabled(usePrecomputed);
+
+		ImGui::Text("Gaussian Kernel size:");
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (UIHelpers::OddIntegerSlider("##GaussianKernelSize", &kernelSize, 3, 7))
+		{
+			m_gaussianFilterTechnique->SetGaussianKernelSize((UINT)kernelSize);
+		}
+
+		ImGui::Text("Sigma value:");
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		float sigma = m_gaussianFilterTechnique->GetGaussianSigma();
+		if (ImGui::SliderFloat("##SigmaValue", &sigma, 0.1f, 3.0f))
+		{
+			m_gaussianFilterTechnique->SetGaussianSigma(sigma);
+		}
+
+		const char* passCountItems[] = { "No passes", "One pass", "Two passes"  };
+		int passCount = (int)m_gaussianFilterTechnique->GetGaussianPassCount();
+
+		ImGui::Text("Gaussian pass count:");
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::ListBox("##GaussianPassCount:", &passCount, passCountItems, 3))
+		{
+			m_gaussianFilterTechnique->SetGaussianPassCount((UINT)passCount);
+		}
+
+
+		ImGui::EndDisabled();
+	}
+	if (ImGui::CollapsingHeader("Networking options"))
+	{
+		bool isConnected = m_networkServer.IsConnected();
+		if (!isConnected)
+		{
+			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Server is not running");
+			if (ImGui::Button("Start Server"))
+			{
+				m_networkServer.StartServer(1234);
+			}
+		}
+		else
+		{
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Server is running");
+			if (ImGui::Button("Stop Server"))
+			{
+				m_networkServer.Disconnect();
+			}
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Server address: %s", m_networkServer.GetHostAddress().c_str());
+		}
+
+	}
 
 	ImGui::End();
 }
@@ -767,6 +883,17 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 		Graphics::s_device->Get()->CopyDescriptorsSimple(1, rendererRTGIHandle + descriptorSize * i, srvHandles[i], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
+	auto& bufferManagers = m_data->GetBufferManagers();
+
+	for (auto& bufferManager : bufferManagers)
+	{
+		m_rtgiMemoryUsage += bufferManager.second->GetTotalMemorySize();
+	}
+
+	auto tlasDesc = m_data->GetTlas()->GetDesc();
+	D3D12_RESOURCE_ALLOCATION_INFO info = Graphics::s_device->Get()->GetResourceAllocationInfo(0, 1, &tlasDesc);
+	m_rtgiMemoryUsage += info.SizeInBytes;
+
 	Renderer::SetRTGIData(m_data->GetVoxelCommons());
 	Renderer::UseRTGI(true);
 
@@ -782,7 +909,6 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 	DX12Lib::NetworkHost::InitializeEnet();
 	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
 	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
-	m_networkServer.StartServer(1234);
 
 }
 

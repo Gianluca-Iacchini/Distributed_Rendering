@@ -105,6 +105,8 @@ namespace CVGI
 		DX12Lib::QueryHandle m_timingQueryHandle;
 		DX12Lib::ReadBackBuffer m_timingReadBackBuffer;
 
+		UINT64 m_rtgiMemoryUsage = 0;
+
 		float m_voxelBuildTime = 0.0f;
 		float m_prefixSumTime = 0.0f;
 		float m_clusterizeTime = 0.0f;
@@ -161,7 +163,10 @@ namespace CVGI
 			CAMERA_DATA,
 		} m_receiveState = ReceiveState::INITIALIZATION;
 
-		float RTGIUpdateDelta = 1.0f;
+		float m_RTGIUpdateDelta = 0.0f;
+		float m_RTGIMaxTime = 0.15f;
+
 		float m_lerpDeltaTime = 0.0f;
+		float m_lerpMaxTime = 0.2f;
 	};
 }

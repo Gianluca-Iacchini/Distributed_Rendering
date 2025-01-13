@@ -138,6 +138,8 @@ namespace DX12Lib
 
 		static bool CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix);
 
+		std::string GetHostAddress() const;
+
 	protected:
 		virtual void MainNetworkLoop();
 		virtual void SendDataLoop();
@@ -171,6 +173,7 @@ namespace DX12Lib
 
 		std::thread m_mainNetworkThread;
 
+		std::string m_hostAddress;
 
 		// Using raw pointer is probably more efficient, but shared_ptr is safer and easier to manage
 		DX12Lib::ReusableQueue<std::shared_ptr<NetworkPacket>> m_packetsToSend;

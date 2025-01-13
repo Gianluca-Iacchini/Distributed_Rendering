@@ -338,4 +338,20 @@ void BufferManager::MoveDataTo(BufferManager& other)
 	other.m_srvHandle = this->m_srvHandle;
 }
 
+UINT64 VOX::BufferManager::GetTotalMemorySize()
+{
+	UINT64 size = 0;
+
+	for (auto& resource : m_buffers)
+	{
+		auto desc = resource->GetDesc();
+
+		D3D12_RESOURCE_ALLOCATION_INFO info = Graphics::s_device->Get()->GetResourceAllocationInfo(0, 1, &desc);
+
+		size += info.SizeInBytes;
+	}
+
+	return size;
+}
+
 

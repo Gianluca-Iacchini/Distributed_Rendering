@@ -8,6 +8,8 @@ namespace DX12Lib
 		static void InitializeIMGUI(DX12Lib::DX12Window* window);
 		static void ShutdownIMGUI();
 
+		static bool OddIntegerSlider(const char* label, int* value, int min, int max);
+
 		static void StartFrame();
 
 	private:

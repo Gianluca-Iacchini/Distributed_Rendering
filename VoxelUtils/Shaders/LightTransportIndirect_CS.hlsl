@@ -226,7 +226,7 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
             if (distance > 5.0f)
             {
                 float formFactor = differentialAreaFormFactor(voxelToCluster / distance, voxelWorldPos, clusterData.Normal, clusterWorldPos, 2000 * (7.1f - cbIndirectLight.FarVoxelStrength));
-                currRadiance[nIteration] = clusterRadiance * formFactor;
+                currRadiance[nIteration] = clusterRadiance * formFactor * cbIndirectLight.LightColor * cbIndirectLight.LightIntensity * 100.0f;
                 radiance += currRadiance[nIteration];
             }
             else

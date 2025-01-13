@@ -135,6 +135,15 @@ void CVGI::ClusterVisibility::BuildPipelineState()
 	m_techniquePSO = std::move(rayTracingPso);
 }
 
+UINT64 CVGI::ClusterVisibility::GetMemoryUsage()
+{
+	UINT64 totSize = m_bufferManager->GetTotalMemorySize();
+	auto tlasDesc = m_data->GetTlas()->GetDesc();
+	D3D12_RESOURCE_ALLOCATION_INFO info = Graphics::s_device->Get()->GetResourceAllocationInfo(0, 1, &tlasDesc);
+
+	return totSize + info.SizeInBytes;
+}
+
 
 
 std::unique_ptr<TopLevelAccelerationStructure> CVGI::ClusterVisibility::BuildAccelerationStructures(ComputeContext& context)

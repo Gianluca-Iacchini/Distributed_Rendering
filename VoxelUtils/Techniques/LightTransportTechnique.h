@@ -46,6 +46,8 @@ namespace VOX
 
 		bool DidRadianceStrengthChange() const { return m_didRadianceStrengthChange; }
 
+		virtual UINT64 GetMemoryUsage() override;
+
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 groupSize) override;
 		void TechniquePassIndirect(DX12Lib::ComputeContext& commandContext);

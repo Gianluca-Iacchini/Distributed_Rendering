@@ -233,6 +233,11 @@ struct ConstantBufferGaussianFilter
 	UINT KernelSize;
 	UINT VoxelCount;
 	UINT FaceCount;
+
+	float Sigma;
+	UINT PassCount;
+	UINT UsePreComputedGaussian;
+	float pad1;
 };
 
 struct ConstantBufferRadianceFromNetwork

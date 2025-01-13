@@ -163,7 +163,7 @@ void CS( uint3 DTid : SV_DispatchThreadID )
         
                 float formFactor = differentialAreaFormFactor(clusterData.Normal, cbLight.direction);
 
-                float3 voxelRadiance = formFactor * clusterData.Color * 100.0f;
+                float3 voxelRadiance = formFactor * clusterData.Color;
                 uint3 irradianceUint = uint3(voxelRadiance * IRRADIANCE_FIELD_MULTIPLIER);
                 
                 InterlockedAdd(gClusterLitBuffer[clusterIdx].x, irradianceUint.x);

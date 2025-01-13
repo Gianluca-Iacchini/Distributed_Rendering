@@ -51,7 +51,7 @@ namespace CVGI
 	public:
 		static const std::wstring Name;
 	private:
-		ConstantBufferCompactBuffer m_cbCompactBuffer;
+		::ConstantBufferCompactBuffer m_cbCompactBuffer;
 
 		// Size of the prefix sum buffer for the current step
 		std::vector<UINT32> v_prefixBufferSizeForStep;

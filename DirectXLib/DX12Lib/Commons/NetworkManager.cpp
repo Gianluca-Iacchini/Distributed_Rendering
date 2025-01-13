@@ -58,6 +58,14 @@ void DX12Lib::NetworkHost::InitializeAsClient()
 
 	m_host = enet_host_create(nullptr, 1, 1, 0, 0);
 	
+	char addrStr[INET6_ADDRSTRLEN];
+	if (enet_address_get_host_ip(&m_host->address, addrStr, sizeof(addrStr)) != 0)
+	{
+		DXLIB_CORE_ERROR(L"Failed to retrieve host address");
+		return;
+	}
+
+	m_hostAddress = std::string(addrStr);
 
 	if (m_host == NULL)
 	{
@@ -112,14 +120,6 @@ void DX12Lib::NetworkHost::Disconnect()
 			}
 		}
 
-	
-
-		if (m_host != nullptr)
-		{
-			enet_host_destroy(m_host);
-			m_host = nullptr;
-		}
-
 		m_Peer = nullptr;
 	}
 }
@@ -143,6 +143,15 @@ void DX12Lib::NetworkHost::InitializeAsServer(uint16_t port)
 	m_address.port = port;
 
 	m_host = enet_host_create(&m_address, 1, 1, 0, 0);
+
+	char addrStr[INET6_ADDRSTRLEN];
+	if (enet_address_get_host_ip(&m_host->address, addrStr, sizeof(addrStr)) != 0)
+	{
+		DXLIB_CORE_ERROR(L"Failed to retrieve host address");
+		return;
+	}
+
+	m_hostAddress = std::string(addrStr);
 
 	if (m_host == NULL)
 	{
@@ -169,6 +178,12 @@ DX12Lib::NetworkHost::NetworkHost() : m_hostType(NetworkHostType::None)
 DX12Lib::NetworkHost::~NetworkHost()
 {
 	Disconnect();
+
+	if (m_host != nullptr)
+	{
+		enet_host_destroy(m_host);
+		m_host = nullptr;
+	}
 }
 
 void DX12Lib::NetworkHost::Connect(const std::string address, const std::uint16_t port)
@@ -266,6 +281,11 @@ bool DX12Lib::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const 
 	
 }
 
+std::string DX12Lib::NetworkHost::GetHostAddress() const
+{
+	return m_hostAddress;
+}
+
 void DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
 {
 	
@@ -292,6 +312,7 @@ void DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
 
 	packet->ClearPacket();
 	packet->SetData(compressedData);
+	
 }
 
 void DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
@@ -331,6 +352,9 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 	DXLIB_CORE_INFO("Listening for messages from incoming connections.");
 
 	ENetEvent receivedEvent;
+
+	m_receivedPackets.SetDone(false);
+	m_packetsToSend.SetDone(false);
 
 	m_isConnected = true;
 
@@ -385,8 +409,8 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 		// Else no event occurred
 	}
 
-	m_receivedPackets.SetDone();
-	m_packetsToSend.SetDone();
+	m_receivedPackets.SetDone(true);
+	m_packetsToSend.SetDone(true);
 
 	if (sendDataThread.joinable())
 		sendDataThread.join();
