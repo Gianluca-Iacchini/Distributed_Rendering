@@ -5,6 +5,7 @@
 #include "WS2tcpip.h"
 #include "in6addr.h"
 #include "chrono"
+#include "zstd.h"
 
 #define QUEUE_SIZE 3
 
@@ -265,6 +266,66 @@ bool DX12Lib::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const 
 	
 }
 
+void DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
+{
+	
+	auto& packetData = packet->GetDataVector();
+	size_t prevSize = packetData.size();
+
+	size_t compressBound = ZSTD_compressBound(packetData.size());
+
+	std::vector<uint8_t> compressedData(compressBound);
+
+	size_t compressedSize = ZSTD_compress(
+		compressedData.data(),
+		compressedData.size(),
+		packetData.data(),
+		packetData.size(),
+		3
+	);
+
+	if (ZSTD_isError(compressedSize)) {
+		throw std::runtime_error("Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+	}
+
+	compressedData.resize(compressedSize);
+
+	packet->ClearPacket();
+	packet->SetData(compressedData);
+}
+
+void DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
+{
+	auto& packetData = packet->GetDataVector();
+	size_t prevSize = packetData.size();
+
+	size_t decompressedSize = ZSTD_getFrameContentSize(packetData.data(), packetData.size());
+
+	if (decompressedSize == ZSTD_CONTENTSIZE_ERROR) {
+		throw std::runtime_error("Zstd decompression failed: " + std::string(ZSTD_getErrorName(decompressedSize)));
+	}
+
+	std::vector<uint8_t> decompressedData(decompressedSize);
+
+	decompressedSize = ZSTD_decompress(
+		decompressedData.data(),
+		decompressedData.size(),
+		packetData.data(),
+		packetData.size()
+	);
+
+	if (ZSTD_isError(decompressedSize)) {
+		throw std::runtime_error("Zstd decompression failed: " + std::string(ZSTD_getErrorName(decompressedSize)));
+	}
+
+	decompressedData.resize(decompressedSize);
+
+	packet->ClearPacket();
+	packet->SetData(decompressedData);
+
+	DXLIB_CORE_INFO("Decompressed packet from {0} to {1} bytes", prevSize, decompressedSize);
+}
+
 void DX12Lib::NetworkHost::MainNetworkLoop()
 {
 	DXLIB_CORE_INFO("Listening for messages from incoming connections.");
@@ -356,6 +417,10 @@ void DX12Lib::NetworkHost::SendDataLoop()
 			continue;
 		}
 
+
+		CompressData(packet.get());
+		
+
 		ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packet->m_data.size(), ENET_PACKET_FLAG_RELIABLE);
 
 		if (enet_peer_send(m_Peer, 0, enetPacket) < 0)
@@ -382,7 +447,12 @@ void DX12Lib::NetworkHost::ReceiveDataLoop()
 		}
 
 		if (OnPacketReceived)
-			OnPacketReceived(packet.get());
+		{
+			NetworkPacket* netPacket = packet.get();
+			DecompressData(netPacket);
+			OnPacketReceived(netPacket);
+		}
+
 
 		m_receivedPackets.ReturnToPool(packet);
 	}

@@ -157,6 +157,12 @@ struct ConstantBufferIndirectLightTransport
 	XMFLOAT3 LightPosition;
 	float LightIntensity;
 
+	XMFLOAT3 LightColor;
+	float CloseVoxelStrength;
+
+	float FarVoxelStrength;
+	XMFLOAT3 pad0;
+
 	XMFLOAT3 EyePosition;
 	UINT DispatchNumber;
 };

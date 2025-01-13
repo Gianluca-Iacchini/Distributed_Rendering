@@ -73,36 +73,29 @@ void CVGI::ClusterVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 
 	m_cbClusterizeBuffer.CurrentPhase = 0;
 	TechniquePass(context, DirectX::XMUINT3(ceil(m_data->GetVoxelCount() / 512.0f), 1, 1));
-	context.Flush();
 
 	m_cbClusterizeBuffer.CurrentPhase = 1;
 	TechniquePass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1));
-	context.Flush();
 
 
 	for (int i = 0; i < 10; i++)
 	{
 		m_cbClusterizeBuffer.CurrentPhase = 2;
 		TechniquePass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1));
-		context.Flush();
 
 		m_cbClusterizeBuffer.CurrentPhase = 3;
 		TechniquePass(context, DirectX::XMUINT3(ceil(m_data->GetVoxelCount() / 512.0f), 1, 1));
-		context.Flush();
 
 		m_cbClusterizeBuffer.CurrentPhase = 4;
 		TechniquePass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1));
-		context.Flush();
 	}
 
 	m_cbClusterizeBuffer.UnassignedOnlyPass = 1;
 	m_cbClusterizeBuffer.CurrentPhase = 2;
 	TechniquePass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1));
-	context.Flush();
 
 	m_cbClusterizeBuffer.CurrentPhase = 5;
 	TechniquePass(context, DirectX::XMUINT3(ceil(m_numberOfClusters / 512.0f), 1, 1));
-	context.Flush();
 
 	context.CopyBuffer(m_bufferManager->GetBuffer((UINT)ClusterVoxels::ClusterBufferType::ClusterData),
 		m_bufferManager->GetBuffer((UINT)ClusterVoxels::ClusterBufferType::SubClusterData));
@@ -111,10 +104,6 @@ void CVGI::ClusterVoxels::PerformTechnique(DX12Lib::ComputeContext& context)
 	DXLIB_CORE_INFO("Cluster count: {0}", m_numberOfNonEmptyClusters);
 
 	PIXEndEvent(context.m_commandList->Get());
-
-	m_data->SetClusterCount(m_numberOfNonEmptyClusters);
-
-	context.Flush();
 }
 
 void CVGI::ClusterVoxels::TechniquePass(DX12Lib::ComputeContext& context, DirectX::XMUINT3 groupSize)
@@ -129,6 +118,7 @@ void CVGI::ClusterVoxels::TechniquePass(DX12Lib::ComputeContext& context, Direct
 	voxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ClusterizeRootSignature::ClusterizeCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbClusterizeBuffer).GpuAddress());
@@ -168,6 +158,11 @@ void CVGI::ClusterVoxels::BuildPipelineState()
 	voxelClusterizeComputePso->Name = Name;
 
 	m_techniquePSO = std::move(voxelClusterizeComputePso);
+}
+
+UINT CVGI::ClusterVoxels::GetNumberOfClusters()
+{
+	return m_numberOfNonEmptyClusters;
 }
 
 const std::wstring ClusterVoxels::Name = L"ClusterVoxels";

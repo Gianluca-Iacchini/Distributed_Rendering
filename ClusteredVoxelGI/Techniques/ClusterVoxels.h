@@ -54,6 +54,8 @@ namespace CVGI
 		virtual std::shared_ptr<DX12Lib::RootSignature> BuildRootSignature() override;
 		virtual void BuildPipelineState() override;
 
+		UINT GetNumberOfClusters();
+
 	public:
 		static const std::wstring Name;
 

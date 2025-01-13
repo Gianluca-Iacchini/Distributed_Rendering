@@ -69,7 +69,8 @@ void CVGI::LightVoxel::TechniquePass(DX12Lib::ComputeContext& context, DirectX::
 	prefixSumBuffer.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterVoxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0), true);
+	context.AddUAVIfNoBarriers();
+	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ShadowRootSignature::LightCommonCBV, m_data->GetLightCameraResource().GpuAddress());
@@ -89,7 +90,8 @@ void CVGI::LightVoxel::ClearBufferPass(DX12Lib::ComputeContext& context, DirectX
 	context.SetPipelineState(m_clearBufferPso.get());
 
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0), true);
+	context.AddUAVIfNoBarriers();
+	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView(0, Renderer::s_graphicsMemory->AllocateConstant(m_cbClearBuffers).GpuAddress());
 	context.m_commandList->Get()->SetComputeRootDescriptorTable(1, m_bufferManager->GetUAVHandle());

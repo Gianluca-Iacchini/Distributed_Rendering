@@ -115,9 +115,13 @@ int D3DApp::Run()
 	}
 
 	GraphicsContext& context = GraphicsContext::Begin();
+	// Make sure render loop is done before closing.
+	context.Flush(true);
 	OnClose(context);
 	context.Finish(true);
+	UIHelpers::ShutdownIMGUI();
 
+	
 	return static_cast<int>(msg.wParam);
 }
 
@@ -175,6 +179,9 @@ void DX12Lib::D3DApp::Update(GraphicsContext& commandContext)
 
 	auto kbState = s_keyboard->GetState();
 	s_kbTracker->Update(kbState);
+
+	auto mouseState = s_mouse->GetState();
+	s_mouseTracker->Update(mouseState);
 
 	m_Scene->Update(commandContext);
 }
@@ -265,7 +272,7 @@ bool D3DApp::InitDirect3D()
 	}
 
 	Renderer::InitializeSwapchain(m_dx12Window.get());
-
+	UIHelpers::InitializeIMGUI(m_dx12Window.get());
 
 
 	return true;

@@ -17,6 +17,9 @@ namespace DX12Lib {
 	class ColorBuffer;
 	class Color;
 	class PipelineState;
+	class QueryHeap;
+	class QueryHandle;
+	class ReadBackBuffer;
 
 	class CommandContext
 	{
@@ -42,9 +45,13 @@ namespace DX12Lib {
 		void SetDescriptorHeaps(std::vector<DescriptorHeap*> heaps);
 		void BindDescriptorHeaps();
 
+		void BeginQuery(QueryHeap& queryHeap, QueryHandle& handle, int offset = 0);
+		void EndQuery(QueryHeap& queryHeap, QueryHandle& handle, int offset = 0);
+		void ResolveQueryData(QueryHeap& queryHeap, QueryHandle& handle, ReadBackBuffer& destBuffer, UINT numQueries = 0);
+
 		void FlushResourceBarriers();
-		void InsertUAVBarrier(Resource& resource, bool flushImmediate = false);
-		void AddUAVIfNoBarriers(Resource& resource, bool flushImmediate = false);
+		void InsertUAVBarrier(Resource* resource = nullptr, bool flushImmediate = false);
+		void AddUAVIfNoBarriers(Resource* resource = nullptr, bool flushImmediate = false);
 		UINT64 Flush(bool waitForCompletion = false);
 		UINT64 Finish(bool waitForCompletion = false);
 

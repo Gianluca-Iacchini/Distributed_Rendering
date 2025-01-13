@@ -70,6 +70,7 @@ namespace DX12Lib
 		}
 
 		void ClearPacket() { m_data.clear(); }
+		void SetData(const std::vector<std::uint8_t>& data) { m_data = data; }
 		const uint8_t* GetData() const { return m_data.data(); }
 		std::size_t GetSize() const { return m_data.size(); }
 		const std::vector<std::uint8_t>& GetDataVector() const { return m_data; }
@@ -145,6 +146,9 @@ namespace DX12Lib
 		virtual void InitializeAsServer(uint16_t port);
 		virtual void InitializeAsClient();
 
+	private:
+		virtual void CompressData(NetworkPacket* packet);
+		virtual void DecompressData(NetworkPacket* packet);
 
 	public:
 		static void InitializeEnet();

@@ -108,6 +108,9 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 	m_lightCB.Direction = this->Node->GetForward();
 	m_lightCB.Position = this->Node->GetPosition();
 	m_lightCB.CastsShadows = (int)this->m_doesCastShadows;
+	m_lightCB.Color.x = m_color.x * m_intensity;
+	m_lightCB.Color.y = m_color.y * m_intensity;
+	m_lightCB.Color.z = m_color.z * m_intensity;
 
 	memcpy(s_lightBufferData + m_lightIndex, &m_lightCB, sizeof(m_lightCB));
 
@@ -120,11 +123,25 @@ void DX12Lib::LightComponent::Update(CommandContext& context)
 			m_lightCB.invShadowTransform = m_shadowCamera->GetInvShadowTransform();
 		}
 	}
+
+	m_didLightPropertyChange = false;
 }
 
 void DX12Lib::LightComponent::Render(CommandContext& context)
 {
 
+}
+
+void DX12Lib::LightComponent::SetLightColor(DirectX::XMFLOAT3 color)
+{
+	m_color = color;
+	m_didLightPropertyChange = true;
+}
+
+void DX12Lib::LightComponent::SetLightIntensity(float intensity)
+{
+	m_intensity = intensity;
+	m_didLightPropertyChange = true;
 }
 
 

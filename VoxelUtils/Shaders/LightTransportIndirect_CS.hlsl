@@ -31,8 +31,8 @@ StructuredBuffer<uint> gIndirectLightVisibleFacesIndices : register(t1, space5);
 ByteAddressBuffer gGaussianVoxelBitmap : register(t5, space5);
 
 
-RWStructuredBuffer<uint2> gFaceRadianceBuffer : register(u0);
-RWStructuredBuffer<uint2> gRadianceForVisibleFaceIdx : register(u1);
+RWStructuredBuffer<uint> gFaceRadianceBuffer : register(u0);
+RWStructuredBuffer<uint> gRadianceForVisibleFaceIdx : register(u1);
 
 groupshared float3 gsRadiancePerWave[2];
 
@@ -49,7 +49,8 @@ float3 clusterToVoxelIrradiancePerVoxelArrayVoxel(ClusterData cData, uint voxelI
     float3 irradianceAccumulated = float3(0.0, 0.0, 0.0);
     float3 emitterNormal = cbIndirectLight.LightDirection;
     float3 emitterPosition = cbIndirectLight.LightPosition;
-    float emitterRadiance = 25.0f * 1.5f; //cbIndirectLight.LightIntensity;
+    float3 emitterRadiance = cbIndirectLight.LightColor * cbIndirectLight.LightIntensity * 50.0f * cbIndirectLight.CloseVoxelStrength;
+    //float emitterRadiance = 25.0f * 1.5f; //cbIndirectLight.LightIntensity;
     float attenuationFactor = 0.01f;
     
     uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIndex], cbVoxelCommons.voxelTextureDimensions);
@@ -157,7 +158,7 @@ float3 gatherIrradianceFromNeighbour(uint clusterIdx, float3 voxelWorldCoord)
             {
                 uint3 neighIrradiance = gLitClusters[neighbourIndex].xyz;
                 float3 neighbourIrradiance = float3(neighIrradiance) / IRRADIANCE_FIELD_MULTIPLIER;
-                float formFactor = differentialAreaFormFactor(neighbourToVoxel, voxelWorldCoord, mainDirectionNeighbour, neighbourWorldCoords, 14860);
+                float formFactor = differentialAreaFormFactor(neighbourToVoxel, voxelWorldCoord, mainDirectionNeighbour, neighbourWorldCoords, 2000 * (7.1f - cbIndirectLight.FarVoxelStrength));
                 accumulatedIrradiance += formFactor * neighbourIrradiance;
             }
         }
@@ -224,7 +225,7 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
 
             if (distance > 5.0f)
             {
-                float formFactor = differentialAreaFormFactor(voxelToCluster / distance, voxelWorldPos, clusterData.Normal, clusterWorldPos, 14860);
+                float formFactor = differentialAreaFormFactor(voxelToCluster / distance, voxelWorldPos, clusterData.Normal, clusterWorldPos, 2000 * (7.1f - cbIndirectLight.FarVoxelStrength));
                 currRadiance[nIteration] = clusterRadiance * formFactor;
                 radiance += currRadiance[nIteration];
             }
@@ -294,10 +295,9 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
     {
         float3 finalRadiance = gsRadiancePerWave[0] + gsRadiancePerWave[1];
         
-        uint packedXY = PackFloats16(float2(finalRadiance.x, finalRadiance.y));
-        uint packedZ = PackFloats16(float2(finalRadiance.z, 0.0f));
+        uint packedRadx = PackFloat3ToUint(finalRadiance);
         
-        gFaceRadianceBuffer[idx] = uint2(packedXY, packedZ);
-        gRadianceForVisibleFaceIdx[threadID] = uint2(packedXY, packedZ);
+        gFaceRadianceBuffer[idx] = packedRadx;
+        gRadianceForVisibleFaceIdx[threadID] = packedRadx;
     }
 }

@@ -7,6 +7,7 @@
 #include "GameTime.h"
 #include "DX12Lib/Commons/CommandContext.h"
 
+
 namespace DX12Lib {
 	class DX12Window;
 	class Scene;

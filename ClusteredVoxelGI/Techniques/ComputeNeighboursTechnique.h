@@ -1,3 +1,4 @@
+#pragma once
 #include "Technique.h"
 
 namespace CVGI

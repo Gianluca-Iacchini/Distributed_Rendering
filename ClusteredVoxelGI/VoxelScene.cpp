@@ -13,9 +13,8 @@ using namespace Graphics;
 
 
 
-void VoxelScene::Init(DX12Lib::CommandContext& context)
+void VoxelScene::Init(DX12Lib::GraphicsContext& context)
 {
-	m_voxelTexture.Create3D(VoxelTextureDimensions.x, VoxelTextureDimensions.y, VoxelTextureDimensions.z, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 
 	auto lightNode = this->AddNode();
 	lightNode->SetPosition(-1, 38, 0);
@@ -46,24 +45,24 @@ void VoxelScene::Init(DX12Lib::CommandContext& context)
 	Scene::Init(context);
 }
 
-void VoxelScene::Update(DX12Lib::CommandContext& context)
+void VoxelScene::Update(DX12Lib::GraphicsContext& context)
 {
 	Scene::Update(context);
 }
 
-void VoxelScene::Render(DX12Lib::CommandContext& context)
+void VoxelScene::Render(DX12Lib::GraphicsContext& context)
 {
 	Scene::Render(context);
 }
 
-void VoxelScene::OnResize(DX12Lib::CommandContext& context, int newWidth, int newHeight)
+void VoxelScene::OnResize(DX12Lib::GraphicsContext& context, int newWidth, int newHeight)
 {
 	Scene::OnResize(context, newWidth, newHeight);
 
 
 }
 
-void VoxelScene::OnClose(DX12Lib::CommandContext& context)
+void VoxelScene::OnClose(DX12Lib::GraphicsContext& context)
 {
 	Scene::OnClose(context);
 }

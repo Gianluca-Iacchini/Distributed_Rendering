@@ -56,7 +56,7 @@ void CVGI::ComputeNeighboursTechnique::TechniquePass(DX12Lib::ComputeContext& co
 
 	clusterVoxelBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(0));
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)ComputeNeighbourRootParameter::VoxelCommonsCBV, m_data->GetVoxelCommonsResource().GpuAddress());

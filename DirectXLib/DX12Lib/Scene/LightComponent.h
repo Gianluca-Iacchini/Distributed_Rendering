@@ -29,7 +29,12 @@ namespace DX12Lib
 		void SetLightType(LightType type) { m_lightType = type; }
 		LightType GetLightType() const { return m_lightType; }
 
-		void SetLightColor(DirectX::XMFLOAT3 color) { m_lightCB.Color = color; }
+		void SetLightColor(DirectX::XMFLOAT3 color);
+		DirectX::XMFLOAT3 GetLightColor() const { return m_color; }
+		
+		void SetLightIntensity(float intensity);
+		float GetLightIntensity() const { return m_intensity; }
+		
 		void SetLightFalloff(float falloffStart, float falloffEnd) { m_lightCB.FalloffStart = falloffStart;  m_lightCB.FalloffEnd = falloffEnd; }
 				
 		bool CastsShadows() const { return m_doesCastShadows; }
@@ -37,6 +42,8 @@ namespace DX12Lib
 		ShadowCamera* GetShadowCamera();
 
 		ConstantBufferLight GetLightCB() const { return m_lightCB; }
+
+		bool DidLightPropertyChange() const { return m_didLightPropertyChange; }
 	public:
 		static int GetLightCount() { return m_activeLights.size(); }
 		static void UpdateLights(CommandContext& context);
@@ -52,6 +59,10 @@ namespace DX12Lib
 		ConstantBufferLight m_lightCB;
 		std::unique_ptr<ShadowCamera> m_shadowCamera = nullptr;
 		bool m_doesCastShadows = false;
+		bool m_didLightPropertyChange = false;
+		float m_intensity = 1.0f;
+		DirectX::XMFLOAT3 m_color = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
+
 	private:
 		static std::vector<LightComponent*> m_activeLights;
 		static DirectX::GraphicsResource m_lightBufferSRV;

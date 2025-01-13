@@ -1,5 +1,6 @@
 #pragma once
 #include <DX12Lib/Commons/D3DApp.h>
+#include "DX12Lib/DXWrapper/QueryHeap.h"
 #include <memory>
 #include <DirectXMath.h>
 #include "DX12Lib/DXWrapper/RootSignature.h"
@@ -36,6 +37,14 @@ namespace CVGI
 {
 	class VoxelCamera;
 
+	enum class IMGUIWindowStatus
+	{
+		VOXEL_SELECTION_SCREEN = 0,
+		LOADING_SCREEN = 1,
+		INITIALIZING = 2,
+		VOXEL_DEBUG_SCREEN = 3,
+	};
+
 	class ClusteredVoxelGIApp : public DX12Lib::D3DApp
 	{
 	public:
@@ -55,15 +64,21 @@ namespace CVGI
 
 
 	private:
+		bool ShowIMGUIWindow(DX12Lib::GraphicsContext& context);
+		bool ShowIMGUIVoxelOptionWindow(float appX, float appY);
+		void ShowIMGUILoadingWindow(float appX, float appY);
+		void ShowIMGUIVoxelDebugWindow(float appX, float appY);
+		void InitializeVoxelData(DX12Lib::GraphicsContext& commandContext);
 		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
 		void OnClientConnected(const ENetPeer* peer);
 		void ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera);
 		bool IsDirectXRaytracingSupported() const;
 
+		void GetFrameStats(int& fps, float& mspf);
 
 	public:
 		//const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
-		const DirectX::XMUINT3 VoxelTextureDimension = DirectX::XMUINT3(256.0f, 256.0f, 256.0f);
+		DirectX::XMUINT3 VoxelTextureDimension = DirectX::XMUINT3(256.0f, 256.0f, 256.0f);
 
 	private:
 		std::unique_ptr<VoxelizeScene> m_voxelizeScene;
@@ -83,8 +98,31 @@ namespace CVGI
 
 		UINT32 m_rasterFenceValue = 0;
 		UINT32 m_rtgiFenceValue = 0;
+		UINT32 m_lastCompletedFenceValue = 0;
 
 		CVGI::VoxelScene* m_voxelScene = nullptr;
+
+		DX12Lib::QueryHandle m_timingQueryHandle;
+		DX12Lib::ReadBackBuffer m_timingReadBackBuffer;
+
+		float m_voxelBuildTime = 0.0f;
+		float m_prefixSumTime = 0.0f;
+		float m_clusterizeTime = 0.0f;
+		float m_computeNeighboursTime = 0.0f;
+		float m_buildingAccelerationStructuresTime = 0.0f;
+		float m_clusterVisibilityTime = 0.0f;
+		float m_buildAABBsTime = 0.0f;
+		float m_initialRadianceTime = 0.0f;
+
+
+		float m_litVoxelTime = 0.0f;
+		float m_visibleVoxelTime = 0.0f;
+		float m_computeRadianceTime = 0.0f;
+		float m_firstGaussianFilterTime = 0.0f;
+		float m_secondGaussianFilterTime = 0.0f;
+
+		float m_accTotalTime = 0.0f;
+		UINT64 m_lightDispachCount = 0;
 
 		bool LightDispatched = false;
 		bool BufferSwapped = true;
@@ -92,7 +130,7 @@ namespace CVGI
 
 		bool m_resetTime = false;
 
-		bool m_cameraMovedSinceLastUpdate = false;
+		bool m_cameraMovedSinceLastUpdate = true;
 		bool m_lightChangedSinceLastUpdate = false;
 
 		bool m_isRadianceReady = false;

@@ -8,7 +8,8 @@ using namespace DirectX;
 
 void CVGI::CameraController::Init(DX12Lib::CommandContext& context)
 {
-	Graphics::s_mouse->SetMode(Mouse::MODE_RELATIVE);
+	Graphics::s_mouse->SetMode(Mouse::MODE_ABSOLUTE);
+
 }
 
 void CameraController::Update(DX12Lib::CommandContext& context)
@@ -16,10 +17,22 @@ void CameraController::Update(DX12Lib::CommandContext& context)
 	float speed = 3.0f;
 	float deltaTime = GameTime::GetDeltaTime();
 
-	if (!IsRemote)
-		Move(speed, deltaTime);
-	else
+	auto tracker = Graphics::s_mouseTracker.get();
+
+	if (tracker->rightButton == Mouse::ButtonStateTracker::PRESSED)
+	{
+		Graphics::s_mouse->SetMode(Mouse::MODE_RELATIVE);
+	}
+	else if (tracker->rightButton == Mouse::ButtonStateTracker::RELEASED)
+	{
+		Graphics::s_mouse->SetMode(Mouse::MODE_ABSOLUTE);
+	}
+
+	if (IsRemote)
 		PredictInput(speed, deltaTime);
+	else
+		Move(speed, deltaTime);
+
 }
 
 void CVGI::CameraController::SetRemoteInput(CameraState cameraState, DirectX::XMFLOAT3 clientAbsPos, DirectX::XMFLOAT4 clientAbsRot, UINT64 clientTimestamp)
@@ -99,10 +112,12 @@ void CVGI::CameraController::SetRemoteInput(std::uint8_t cameraBitmask, DirectX:
 void CVGI::CameraController::Move(float speed, float deltaTime)
 {
 	auto kbState = Graphics::s_kbTracker->GetLastState();
-	auto mouseState = Graphics::s_mouse->GetState();
+	auto mouseState = Graphics::s_mouseTracker->GetLastState();
 
 	if (Graphics::s_kbTracker->IsKeyPressed(Keyboard::Escape))
 		PostQuitMessage(0);
+
+
 
 	if (mouseState.positionMode == Mouse::MODE_RELATIVE)
 	{

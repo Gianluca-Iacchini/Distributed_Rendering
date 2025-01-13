@@ -114,8 +114,9 @@ target_link_libraries(LocalIllumination PRIVATE D3DCompiler.lib)
 target_link_libraries(LocalIllumination PRIVATE DirectXTK12)
 
 target_include_directories(LocalIllumination
-    PUBLIC "../VoxelUtils"
-    PUBLIC "../VoxelUtils/Techniques") 
+    PRIVATE "../VoxelUtils"
+    PRIVATE "../VoxelUtils/Techniques"
+) 
 
 file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll")
 

@@ -26,7 +26,7 @@ VOX::GaussianFilterTechnique::GaussianFilterTechnique(std::shared_ptr<TechniqueD
 void VOX::GaussianFilterTechnique::InitializeBuffers()
 {
 	// First filter pass
-	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
 
 	// Gaussian precomputed values
 	m_bufferManager->AddStructuredBuffer(KERNEL_SIZE * KERNEL_SIZE * KERNEL_SIZE, sizeof(float));
@@ -147,7 +147,7 @@ void VOX::GaussianFilterTechnique::TechniquePass(DX12Lib::ComputeContext& contex
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	m_readBufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(1));
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)GaussianFilterRootParameters::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());

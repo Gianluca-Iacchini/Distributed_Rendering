@@ -40,7 +40,7 @@ void SetVoxelOccupied(uint indexHashed)
 }
 
 
-float4 PS(VertexOutVoxel pIn) : SV_TARGET
+void PS(VertexOutVoxel pIn)
 {   
     pIn.NormalW = normalize(pIn.NormalW);
     
@@ -123,7 +123,5 @@ float4 PS(VertexOutVoxel pIn) : SV_TARGET
         
         SetVoxelOccupied(voxelLinearCoord);
     }
-    
-    return retColor;
-
+ 
 }

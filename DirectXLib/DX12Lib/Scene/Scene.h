@@ -20,12 +20,12 @@ namespace DX12Lib
 		bool AddFromFile(const std::wstring& filename);
 		bool AddFromFile(const wchar_t* filename);
 		bool AddFromFile(const char* filename);
-		virtual void OnAppStart(CommandContext& context) {}
-		virtual void Init(CommandContext& context);
-		virtual void Update(CommandContext& context);
-		virtual void Render(CommandContext& context);
-		virtual void OnResize(CommandContext& context, int newWidth, int newHeight);
-		virtual void OnClose(CommandContext& context);
+		virtual void OnAppStart(GraphicsContext& context) {}
+		virtual void Init(GraphicsContext& context);
+		virtual void Update(GraphicsContext& context);
+		virtual void Render(GraphicsContext& context);
+		virtual void OnResize(GraphicsContext& context, int newWidth, int newHeight);
+		virtual void OnClose(GraphicsContext& context);
 
 		SceneNode* AddNode();
 

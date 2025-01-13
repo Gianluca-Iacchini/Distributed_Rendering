@@ -135,4 +135,24 @@ uint PackFloats16(float2 floatsToPack)
     return packedRadX;
 }
 
+uint PackFloat3ToUint(float3 color)
+{
+    // Clamp the color values to [0, 1] and scale to the appropriate range
+    uint r = (uint) (clamp(color.r, 0.0, 1.0) * 1023.0); // 10 bits (0-1023)
+    // Human eye is more sensitive to green, so we give it more bits
+    uint g = (uint) (clamp(color.g, 0.0, 1.0) * 4095.0); // 12 bits (0-4095)
+    uint b = (uint) (clamp(color.b, 0.0, 1.0) * 1023.0); // 10 bits (0-1023)
+
+    // Pack the components into a single uint
+    return (r << 22) | (g << 10) | b;
+}
+
+float3 UnpackUintToFloat3(uint packedColor)
+{
+    float r = float((packedColor >> 22) & 0x3FF) / 1023.0; // Extract 10 bits and normalize
+    float g = float((packedColor >> 10) & 0xFFF) / 4095.0; // Extract 12 bits and normalize
+    float b = float(packedColor & 0x3FF) / 1023.0;         // Extract 10 bits and normalize
+
+    return float3(r, g, b);
+}
 #endif

@@ -11,10 +11,10 @@ StructuredBuffer<uint> gVoxelIndicesCompactBuffer : register(t2, space1);
 StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 
 
-StructuredBuffer<uint2> gFaceRadianceReadBuffer : register(t0, space4);
+StructuredBuffer<uint> gFaceRadianceReadBuffer : register(t0, space4);
 
 
-RWStructuredBuffer<uint2> gGaussianFirstFilterBuffer : register(u0, space0);
+RWStructuredBuffer<uint> gGaussianFirstFilterBuffer : register(u0, space0);
 RWStructuredBuffer<float> gGaussianPrecomputedDataBuffer : register(u1, space0);
 
 RWStructuredBuffer<uint2> gWriteFinalRadianceBuffer : register(u0, space1);
@@ -102,7 +102,7 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool should
                         uint neighbourIdx = FindHashedCompactedPositionIndex(neighbourCoord, cbVoxelCommons.voxelTextureDimensions).x;
                         float3 voxelFaceIrradiance = float3(0.0f, 0.0f, 0.0f);
                         
-                        uint2 packedRadiance = uint2(0, 0);
+                        uint packedRadiance = 0;
                         if (cbGaussianFilter.CurrentPhase == 1)
                         {
                             packedRadiance = gFaceRadianceReadBuffer[neighbourIdx * 6 + faceIdx];
@@ -115,8 +115,8 @@ float3 filterFace(uint voxelIdx, uint faceIdx, bool isFirstPass, out bool should
                         {
                             packedRadiance = gGaussianFirstFilterBuffer[neighbourIdx * 6 + faceIdx];
                         }
-                        voxelFaceIrradiance.xy = UnpackFloats16(packedRadiance.x);
-                        voxelFaceIrradiance.z = UnpackFloats16(packedRadiance.y).x;
+                        
+                        voxelFaceIrradiance = UnpackUintToFloat3(packedRadiance);
 
 
                         if (isFirstPass || (any(voxelFaceIrradiance > 0.0f)))
@@ -181,11 +181,10 @@ void CS( uint3 DTid : SV_DispatchThreadID)
     
     if (cbGaussianFilter.CurrentPhase == 1)
     {
-        uint2 packedRadiance = gFaceRadianceReadBuffer[idx];
+        uint packedRadiance = gFaceRadianceReadBuffer[idx];
         float3 radiance = float3(0.0f, 0.0f, 0.0f);
     
-        radiance.xy = UnpackFloats16(packedRadiance.x);
-        radiance.z = UnpackFloats16(packedRadiance.y).x;
+        radiance.xyz = UnpackUintToFloat3(packedRadiance);
     
         bool shouldSet = true;
         
@@ -196,28 +195,36 @@ void CS( uint3 DTid : SV_DispatchThreadID)
             SetVoxelPresence(voxIdx, gGaussianUpdatedVoxelsBitmap);
         }
         
-        uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
+        uint packedData = PackFloat3ToUint(filteredRadiance);
         gGaussianFirstFilterBuffer[idx] = packedData;
+        
+        //uint2 packedData = uint2(PackFloats16(filteredRadiance.xy), PackFloats16(float2(filteredRadiance.z, 0.0f)));
+        //gGaussianFirstFilterBuffer[idx] = packedData;
     }
     else if (cbGaussianFilter.CurrentPhase == 2)
     {
-        uint2 packedRadiance = gGaussianFirstFilterBuffer[idx];
-        float3 radiance = float3(0.0f, 0.0f, 0.0f);
+        //uint2 packedRadiance = gGaussianFirstFilterBuffer[idx];
+        
+        uint packedRadiance = gGaussianFirstFilterBuffer[idx];
+        
+        float3 radiance = UnpackUintToFloat3(packedRadiance); //float3(0.0f, 0.0f, 0.0f);
     
-        radiance.xy = UnpackFloats16(packedRadiance.x);
-        radiance.z = UnpackFloats16(packedRadiance.y).x;
+        //radiance.xy = UnpackFloats16(packedRadiance.x);
+        //radiance.z = UnpackFloats16(packedRadiance.y).x;
+        
+        uint2 finalPacked = uint2(0, 0);
         
         if (any(radiance > 0.0f))
         {
             bool shouldSet;
             radiance = filterFace(voxIdx, faceIndex, false, shouldSet);
-            packedRadiance = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
+            finalPacked = uint2(PackFloats16(radiance.xy), PackFloats16(float2(radiance.z, 0.0f)));
         }
         else
         {
-            packedRadiance = uint2(0, 0);
+            finalPacked = uint2(0, 0);
         }
         
-        gWriteFinalRadianceBuffer[idx] = packedRadiance;
+        gWriteFinalRadianceBuffer[idx] = finalPacked;
     }
 }

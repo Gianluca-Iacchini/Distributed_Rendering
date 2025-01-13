@@ -1,5 +1,5 @@
-#define STREAMING 1
-#define NETWORK_RADIANCE 0
+#define STREAMING 0
+#define NETWORK_RADIANCE 1
 
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"

@@ -26,6 +26,7 @@ namespace DX12Lib
 	class ShadowBuffer;
 	class ColorBuffer;
 	class DescriptorHandle;
+	class QueryHeap;
 
 	class MaterialManager;
 	class TextureManager;
@@ -87,6 +88,7 @@ namespace Graphics
 		void DeferredPass(DX12Lib::GraphicsContext& context);
 		void LerpRadiancePass(DX12Lib::GraphicsContext& context);
 		void PostProcessPass(DX12Lib::GraphicsContext& context);
+		void UIPass(DX12Lib::GraphicsContext& context, bool clearBackBuffer = false);
 		void RenderLayers(DX12Lib::GraphicsContext& context);
 		void PostDrawCleanup(DX12Lib::CommandContext& context);
 		void DrawScreenQuad(DX12Lib::GraphicsContext& context);

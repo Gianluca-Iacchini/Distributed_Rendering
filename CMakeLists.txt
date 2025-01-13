@@ -36,12 +36,25 @@ set_target_properties (DirectXTex texassemble texconv texdiag ddsview
 		FOLDER DirectXTex
 )
 
+set(ZSTD_BUILD_TESTS OFF CACHE BOOL "Build Zstd tests" FORCE)
+set(ZSTD_LEGACY_SUPPORT OFF CACHE BOOL "Disable Zstd legacy support" FORCE)
+set(ZSTD_BUILD_SHARED OFF CACHE BOOL "Disable Zstd legacy support" FORCE)
+
+add_subdirectory(extern/zstd/build/cmake)
+
+set_target_properties( zstd clean-all libzstd_static zstd
+    PROPERTIES
+         FOLDER zstd 
+ )
+
 set(ENET_STATIC 1)
+
 
 add_subdirectory(extern/spdlog)
 add_subdirectory(extern/DirectXTK12)
 add_subdirectory(extern/glfw)
 add_subdirectory(extern/enet)
+add_subdirectory(extern/imgui)
 add_subdirectory(DirectXLib)
 add_subdirectory(ClusteredVoxelGI)
 add_subdirectory(LocalIllumination)

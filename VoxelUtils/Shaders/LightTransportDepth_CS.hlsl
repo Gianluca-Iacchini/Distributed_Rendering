@@ -34,7 +34,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
     if (cbFrustumCulling.CurrentStep == 0)
     {
         
-        if (threadLinearIndex >= ceil(cbFrustumCulling.FaceCount / 2.0f))
+        if (threadLinearIndex >= cbFrustumCulling.FaceCount)
             return;
         
         gIndirectLightVisibleFacesIndices[threadLinearIndex] = UINT_MAX;
@@ -250,6 +250,33 @@ void CS(uint3 DTid : SV_DispatchThreadID)
         uint buffer1Max = (uint) ceil((gaussianStartAddress + nGaussianFaces) / (128.0f));
         
         InterlockedMax(gGaussianDispatchIndirectBuffer[0].x, buffer1Max);
+    }
+    else if (cbFrustumCulling.CurrentStep == 2)
+    {
+        if (threadLinearIndex >= cbFrustumCulling.FaceCount)
+            return;
+        
+        gIndirectLightVisibleFacesIndices[threadLinearIndex] = threadLinearIndex;
+        gGaussianVisibleFacesIndices[threadLinearIndex] = threadLinearIndex;
+        
+        if (threadLinearIndex >= cbFrustumCulling.VoxelCount)
+            return;
+        
+
+        uint idx = threadLinearIndex >> 5u;
+        idx = idx * 4;
+        gIndirectLightUpdatedVoxelsBitmap.Store(idx, UINT_MAX);
+        gGaussianUpdatedVoxelsBitmap.Store(idx, UINT_MAX);
+        
+        
+        if (threadLinearIndex == 0)
+        {
+            gVisibleFacesCounter.Store(0, cbFrustumCulling.FaceCount);
+            gVisibleFacesCounter.Store(4, cbFrustumCulling.FaceCount);
+            
+            gIndirectLightDispatchIndirectBuffer[0] = uint3(cbFrustumCulling.FaceCount, 1, 1);
+            gGaussianDispatchIndirectBuffer[0] = uint3(ceil(cbFrustumCulling.FaceCount / 128.0f), 1, 1);
+        }
     }
 }
 

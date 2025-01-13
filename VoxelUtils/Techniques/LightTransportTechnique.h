@@ -19,8 +19,11 @@ namespace VOX
 	
 		void BuildPipelineState(CD3DX12_SHADER_BYTECODE& shaderByteCode);
 
+		void ComputeStartingRadiance(DX12Lib::ComputeContext& context);
 		void ClearRadianceBuffers(DX12Lib::ComputeContext& context, bool resetRadiance = false);
 		void ComputeVisibleFaces(DX12Lib::ComputeContext& context);
+
+		void ResizeIndexBuffers();
 
 		void ResetRadianceBuffers(bool reset);
 		inline Microsoft::WRL::ComPtr<ID3D12CommandSignature> GetIndirectCommandSignature() const { return m_commandSignature; }
@@ -34,6 +37,14 @@ namespace VOX
 		std::uint8_t* GetVisibleFacesIndices(UINT32 visibleFacesCount);
 		std::uint8_t* GetVisibleFacesRadiance(UINT32 visibleFacesCount);
 		UINT32 GetVisibleFacesCount();
+
+		float GetCloseVoxelRadianceStrength() const { return m_cbLightIndirect.CloseVoxelStrength; }
+		float GetFarVoxelRadianceStrength() const { return m_cbLightIndirect.FarVoxelStrength; }
+
+		void SetCloseVoxelRadianceStrength(float strength);
+		void SetFarVoxelRadianceStrength(float strength);
+
+		bool DidRadianceStrengthChange() const { return m_didRadianceStrengthChange; }
 
 	protected:
 		void TechniquePass(DX12Lib::ComputeContext& commandContext, DirectX::XMUINT3 groupSize) override;
@@ -70,6 +81,8 @@ namespace VOX
 		Microsoft::WRL::ComPtr<ID3D12CommandSignature> m_commandSignature;
 
 		std::unique_ptr<DX12Lib::ComputePipelineState> m_indirectLightPso;
+
+		bool m_didRadianceStrengthChange = false;
 
 	public:
 		enum class LightTransportBufferType

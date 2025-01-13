@@ -32,7 +32,11 @@ namespace Graphics
 	std::unique_ptr<DirectX::Mouse> s_mouse = nullptr;
 	std::unique_ptr<DirectX::Keyboard> s_keyboard = nullptr;
 	std::unique_ptr<DirectX::Keyboard::KeyboardStateTracker> s_kbTracker = nullptr;
+	std::unique_ptr<DirectX::Mouse::ButtonStateTracker> s_mouseTracker = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> s_dredSettings = nullptr;
+	std::shared_ptr<DX12Lib::QueryHeap> s_queryHeap = nullptr;
+	UINT64 s_gpuGraphicsFrequency = 1;
+	UINT64 s_gpuComputeFrequency = 1;
 
 	void LogAdapterOutput(ComPtr<IDXGIAdapter> adapter)
 	{
@@ -138,6 +142,13 @@ namespace Graphics
 			s_commandContextManager = std::make_unique<CommandContextManager>();
 			s_keyboard = std::make_unique<DirectX::Keyboard>();
 			s_kbTracker = std::make_unique<DirectX::Keyboard::KeyboardStateTracker>();
+			s_mouseTracker = std::make_unique<DirectX::Mouse::ButtonStateTracker>();
+
+			s_queryHeap = std::make_shared<QueryHeap>();
+			s_queryHeap->Create(D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 64);
+
+			ThrowIfFailed(s_commandQueueManager->GetGraphicsQueue().Get()->GetTimestampFrequency(&s_gpuGraphicsFrequency));
+			ThrowIfFailed(s_commandQueueManager->GetComputeQueue().Get()->GetTimestampFrequency(&s_gpuComputeFrequency));
 
 			Renderer::InitializeApp();
 
@@ -190,5 +201,14 @@ namespace Graphics
 #endif
 	}
 
+	UINT64 GetGraphicsGPUFrequency()
+	{
+		return s_gpuGraphicsFrequency;
+	}
+
+	UINT64 GetComputeGPUFrequency()
+	{
+		return s_gpuComputeFrequency;
+	}
 }
 

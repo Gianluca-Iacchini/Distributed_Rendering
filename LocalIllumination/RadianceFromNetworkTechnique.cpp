@@ -29,9 +29,9 @@ LI::RadianceFromNetworkTechnique::RadianceFromNetworkTechnique(std::shared_ptr<V
 void LI::RadianceFromNetworkTechnique::InitializeBuffers()
 {
 	// Face Index buffer
-	m_bufferManager->AddStructuredBuffer((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
 	// Radiance for face buffer
-	m_bufferManager->AddStructuredBuffer((UINT32)ceilf(m_data->FaceCount / 2.0f), sizeof(DirectX::XMUINT2));
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
 
 	m_bufferManager->AllocateBuffers();
 }

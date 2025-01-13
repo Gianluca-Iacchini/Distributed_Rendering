@@ -110,6 +110,8 @@ set(CVGI_HELPERS
 
 source_group("Helpers" FILES ${CVGI_HELPERS})
 
+
+
 set(SOURCE_FILES
 	ClusteredVoxelGI.h
 	ClusteredVoxelGI.cpp
@@ -124,8 +126,9 @@ set(SOURCE_FILES
 add_executable(ClusteredVoxelGI WIN32 ${SOURCE_FILES} ${TECHNIQUES} ${CVGI_HELPERS} ${SHADERS})
 
 target_include_directories(ClusteredVoxelGI
-	PUBLIC "../VoxelUtils"
-	PUBLIC "../VoxelUtils/Techniques")
+	PRIVATE "../VoxelUtils"
+	PRIVATE "../VoxelUtils/Techniques"
+)
 
 set_property(TARGET ClusteredVoxelGI PROPERTY CXX_STANDARD 20)
 

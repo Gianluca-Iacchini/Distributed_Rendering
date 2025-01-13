@@ -11,11 +11,11 @@ namespace CVGI
 		VoxelScene() = default;
 		virtual ~VoxelScene() = default;
 
-		virtual void Init(DX12Lib::CommandContext& context) override;
-		virtual void Update(DX12Lib::CommandContext& context) override;
-		virtual void Render(DX12Lib::CommandContext& context) override;
-		virtual void OnResize(DX12Lib::CommandContext& context, int newWidth, int newHeight) override;
-		virtual void OnClose(DX12Lib::CommandContext& context) override;
+		virtual void Init(DX12Lib::GraphicsContext& context) override;
+		virtual void Update(DX12Lib::GraphicsContext& context) override;
+		virtual void Render(DX12Lib::GraphicsContext& context) override;
+		virtual void OnResize(DX12Lib::GraphicsContext& context, int newWidth, int newHeight) override;
+		virtual void OnClose(DX12Lib::GraphicsContext& context) override;
 
 		VoxelCamera* GetVoxelCamera() { return m_voxelCamera; }
 		DX12Lib::LightComponent* GetMainLight() { return m_mainLight; }
@@ -29,7 +29,7 @@ namespace CVGI
 		DX12Lib::LightComponent* m_mainLight = nullptr;
 
 	private:
-		DX12Lib::ColorBuffer m_voxelTexture;
+
 		VoxelCamera* m_voxelCamera = nullptr;
 	};
 }

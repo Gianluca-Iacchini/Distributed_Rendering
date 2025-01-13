@@ -54,6 +54,7 @@ void CVGI::BuildAABBsTechnique::TechniquePass(DX12Lib::ComputeContext& context, 
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)AABBGenerationRootSignature::AABBGenerationCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbAABBGeneration).GpuAddress());

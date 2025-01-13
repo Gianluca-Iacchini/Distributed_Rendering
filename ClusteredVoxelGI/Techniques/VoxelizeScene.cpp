@@ -124,14 +124,13 @@ void CVGI::VoxelizeScene::TechniquePass(DX12Lib::GraphicsContext& context)
 
 
 	m_bufferManager->TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
 	context.ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
 
-	//context.SetRenderTargets(0, nullptr, Renderer::s_depthStencilBuffer->GetDSV());
-	context.SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
+	context.SetRenderTargets(0, nullptr, Renderer::s_depthStencilBuffer->GetDSV());
 
 	context.SetViewportAndScissor(m_voxelScreenViewport, m_voxelScissorRect);
 
@@ -228,8 +227,7 @@ void CVGI::VoxelizeScene::BuildPipelineState()
 	voxelPSO->SetInputLayout(DirectX::VertexPositionNormalTexture::InputLayout.pInputElementDescs, \
 		DirectX::VertexPositionNormalTexture::InputLayout.NumElements);
 	voxelPSO->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	voxelPSO->SetRenderTargetFormat(Graphics::m_backBufferFormat, Graphics::m_depthStencilFormat, 1, 0);
-	//voxelPSO->SetRenderTargetFormats(0, nullptr, m_depthStencilFormat);
+	voxelPSO->SetRenderTargetFormats(0, nullptr, m_depthStencilFormat);
 	voxelPSO->SetShader(vertexShader, ShaderType::Vertex);
 	voxelPSO->SetShader(geometryShader, ShaderType::Geometry);
 	voxelPSO->SetShader(pixelShader, ShaderType::Pixel);

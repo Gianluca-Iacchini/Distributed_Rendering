@@ -3,6 +3,8 @@
 #include "CommandContext.h"
 #include "DX12Lib/DXWrapper/Resource.h"
 #include "GraphicsMemory.h"
+#include "DX12Lib/DXWrapper/QueryHeap.h"
+#include "DX12Lib/DXWrapper/GPUBuffer.h"
 
 
 using namespace Microsoft::WRL;
@@ -134,11 +136,11 @@ void CommandContext::FlushResourceBarriers()
 	}
 }
 
-void DX12Lib::CommandContext::InsertUAVBarrier(Resource& resource, bool flushImmediate)
+void DX12Lib::CommandContext::InsertUAVBarrier(Resource* resource, bool flushImmediate)
 {
 	D3D12_RESOURCE_BARRIER barrierDesc = {};
 	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	barrierDesc.UAV.pResource = resource.Get();
+	barrierDesc.UAV.pResource = (resource == nullptr ? nullptr : resource->Get());
 	m_commandList->Get()->ResourceBarrier(1, &barrierDesc);
 	if (flushImmediate)
 	{
@@ -146,7 +148,7 @@ void DX12Lib::CommandContext::InsertUAVBarrier(Resource& resource, bool flushImm
 	}
 }
 
-void DX12Lib::CommandContext::AddUAVIfNoBarriers(Resource& resource, bool flushImmediate)
+void DX12Lib::CommandContext::AddUAVIfNoBarriers(Resource* resource, bool flushImmediate)
 {
 	if (m_numBarriersToFlush == 0)
 	{
@@ -217,6 +219,42 @@ void DX12Lib::CommandContext::BindDescriptorHeaps()
 
 	if (NonNullHeaps > 0)
 		m_commandList->SetDescriptorHeaps(HeapsToBind, NonNullHeaps);
+}
+
+void DX12Lib::CommandContext::BeginQuery(QueryHeap& queryHeap, QueryHandle& handle, int offset)
+{
+	// Only timestamp queries are supported
+	if (queryHeap.GetType() != D3D12_QUERY_HEAP_TYPE_TIMESTAMP)
+		return;
+
+	m_commandList->Get()->BeginQuery(queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, handle.GetIndex() + offset);
+
+	handle.QueryStarted();
+}
+
+void DX12Lib::CommandContext::EndQuery(QueryHeap& queryHeap, QueryHandle& handle, int offset)
+{
+	// Only timestamp queries are supported
+	if (queryHeap.GetType() != D3D12_QUERY_HEAP_TYPE_TIMESTAMP)
+		return;
+
+	m_commandList->Get()->EndQuery(queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, handle.GetIndex() + offset);
+
+	if (queryHeap.GetType() != D3D12_QUERY_HEAP_TYPE_TIMESTAMP)
+		handle.QueryEnded();
+}
+
+void DX12Lib::CommandContext::ResolveQueryData(QueryHeap& queryHeap, QueryHandle& handle, ReadBackBuffer& destBuffer, UINT numQueries)
+{
+	if (queryHeap.GetType() != D3D12_QUERY_HEAP_TYPE_TIMESTAMP)
+		return;
+
+	assert(handle.IsValid() && "Invalid query handle");
+
+	UINT queryToResolve = numQueries == 0 ? handle.GetSize() : numQueries;
+
+	this->TransitionResource(destBuffer, D3D12_RESOURCE_STATE_COPY_DEST, true);
+	m_commandList->Get()->ResolveQueryData(queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, handle.GetIndex(), queryToResolve, destBuffer.Get(), 0);
 }
 
 void CommandContext::Reset()
@@ -359,6 +397,8 @@ void DX12Lib::GraphicsContext::SetViewportAndScissor(D3D12_VIEWPORT& viewport, D
 	m_commandList->Get()->RSSetViewports(1, &viewport);
 	m_commandList->Get()->RSSetScissorRects(1, &scissorRect);
 }
+
+
 
 void GraphicsContext::CommitGraphicsResources(D3D12_COMMAND_LIST_TYPE type)
 {

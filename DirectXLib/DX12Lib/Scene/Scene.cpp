@@ -84,30 +84,30 @@ bool DX12Lib::Scene::AddFromFile(const char* filename)
 	return this->AddFromFile(Utils::ToWstring(filename));
 }
 
-void DX12Lib::Scene::Init(CommandContext& context)
+void DX12Lib::Scene::Init(GraphicsContext& context)
 {
 	m_rootNode->Init(context);
 }
 
-void Scene::Update(CommandContext& context)
+void Scene::Update(GraphicsContext& context)
 {
 	LightComponent::UpdateLights(context);
 	m_rootNode->Update(context);
 }
 
-void Scene::Render(CommandContext& context)
+void Scene::Render(GraphicsContext& context)
 {
 	Renderer::AddMainCamera(m_camera);
 	LightComponent::RenderLights(context);
 	m_rootNode->Render(context);
 }
 
-void DX12Lib::Scene::OnResize(CommandContext& context, int newWidth, int newHeight)
+void DX12Lib::Scene::OnResize(GraphicsContext& context, int newWidth, int newHeight)
 {
 	m_rootNode->OnResize(context, newWidth, newHeight);
 }
 
-void DX12Lib::Scene::OnClose(CommandContext& context)
+void DX12Lib::Scene::OnClose(GraphicsContext& context)
 {
 	m_rootNode->OnClose(context);
 }

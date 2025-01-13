@@ -8,6 +8,9 @@
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
 #include <WinPixEventRuntime/pix3.h>
 
+#include "imgui.h"
+#include "backends/imgui_impl_dx12.h"
+
 #define USE_RTGI 1
 
 #define PSO_SHADOW_OPAQUE L"ShadowOpaquePso"
@@ -308,6 +311,8 @@ namespace Graphics::Renderer
 		m_costantBufferCommons.totalTime = GameTime::GetTotalTime();
 		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
 		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
+
+		UIHelpers::StartFrame();
 	}
 
 	void ShadowPassForCamera(DX12Lib::GraphicsContext& context, DX12Lib::ShadowCamera* shadowCamera)
@@ -613,6 +618,27 @@ namespace Graphics::Renderer
 		PIXEndEvent(context.m_commandList->Get());
 	}
 
+	void UIPass(DX12Lib::GraphicsContext& context, bool clearBackBuffer)
+	{
+		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
+
+		context.TransitionResource(currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+		if (clearBackBuffer)
+		{
+			auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();
+
+			context.ClearColor(currentBackBuffer, Color::LightSteelBlue().GetPtr(), nullptr);
+			context.ClearDepthAndStencil(*Renderer::s_depthStencilBuffer);
+			context.SetRenderTargets(1, &currentBackBuffer.GetRTV(), Renderer::s_depthStencilBuffer->GetDSV());
+		}
+
+		ImGui::Render();
+
+
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), context.m_commandList->Get());
+	}
+
 	void RenderLayers(GraphicsContext& context)
 	{ 
 
@@ -626,10 +652,12 @@ namespace Graphics::Renderer
 
 		DeferredPass(context);
 		PostProcessPass(context);
+		UIPass(context);
 	}
 
 	void PostDrawCleanup(CommandContext& context)
 	{
+		ImGui::EndFrame();
 		m_renderers.clear();
 		m_shadowLights.clear();
 		m_mainCamera = nullptr;

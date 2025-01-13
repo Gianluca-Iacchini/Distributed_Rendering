@@ -76,6 +76,7 @@ void CVGI::ClusterVisibility::TechniquePass(RayTracingContext& context, DirectX:
 	aabbBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	compactBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	clusterBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)RayTraceRootSignature::RayTraceCBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbRayTracing).GpuAddress());

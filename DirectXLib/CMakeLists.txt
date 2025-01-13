@@ -54,7 +54,9 @@ set_source_files_properties( ${PIXEL_SHADERS}
 	VS_SHADER_ENTRYPOINT PS
 )
 
-add_library(DirectXLib STATIC ${SOURCE_FILES} ${NVCODEC_HEADER} ${SHADERS})
+source_group("imGui" FILES ${IMGUI_SOURCE})
+
+add_library(DirectXLib STATIC ${SOURCE_FILES} ${NVCODEC_HEADER} ${IMGUI_SOURCE} ${SHADERS})
 target_precompile_headers(DirectXLib PRIVATE "DX12Lib/pch.h")
 
 set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
@@ -65,6 +67,8 @@ add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(DirectXLib 
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} 
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/directx 
+	PUBLIC ${zstd_SOURCE_DIR}/lib
+	PUBLIC ${IMGUI_INCLUDE}
 	PUBLIC "../extern/NVidiaCodec/Include" "../extern/FFmpeg/include"
 	PUBLIC "../extern/PIX/Include"
     PUBLIC "../extern/enet/include")
@@ -76,6 +80,7 @@ target_link_libraries(DirectXLib
     PUBLIC spdlog
     PUBLIC ws2_32.lib
     PUBLIC winmm.lib
+    PUBLIC libzstd_static
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avcodec.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avformat.lib"
     PUBLIC "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/avutil.lib"
