@@ -363,13 +363,6 @@ void VOX::LightTransportTechnique::ComputeVisibleFaces(DX12Lib::ComputeContext& 
     PIXEndEvent(context.m_commandList->Get());
 }
 
-void VOX::LightTransportTechnique::ResizeIndexBuffers()
-{
-	m_bufferManager->ResizeBuffer((UINT)LightTransportBufferType::IndirectLightVisibleFacesIndices, (UINT32)ceilf(m_data->FaceCount / 2.0f));
-	m_bufferManager->ResizeBuffer((UINT)LightTransportBufferType::GaussianVisibleFacesIndices, (UINT32)ceilf(m_data->FaceCount / 2.0f));
-}
-
-
 void VOX::LightTransportTechnique::ResetRadianceBuffers(bool reset)
 {
 	m_cbFrustumCulling.ResetRadianceBuffers = (UINT)reset;

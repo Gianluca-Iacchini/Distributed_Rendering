@@ -23,8 +23,6 @@ namespace VOX
 		void ClearRadianceBuffers(DX12Lib::ComputeContext& context, bool resetRadiance = false);
 		void ComputeVisibleFaces(DX12Lib::ComputeContext& context);
 
-		void ResizeIndexBuffers();
-
 		void ResetRadianceBuffers(bool reset);
 		inline Microsoft::WRL::ComPtr<ID3D12CommandSignature> GetIndirectCommandSignature() const { return m_commandSignature; }
 

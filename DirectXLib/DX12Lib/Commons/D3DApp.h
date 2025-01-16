@@ -51,12 +51,13 @@ namespace DX12Lib {
 		virtual void OnMouseUp(WPARAM btnState, int x, int y) {}
 		virtual void OnMouseMove(WPARAM btnState, int x, int y) {}
 
+		void GetFrameStats(int& fps, float& mspf) const;
+
 	protected:
 		bool InitMainWindow();
 		bool InitConsole();
 		bool InitDirect3D();
 		void FlushCommandQueue();
-		void CalculateFrameStats();
 
 	private:
 		void ResizeCallback(int newWidth, int newHeight);

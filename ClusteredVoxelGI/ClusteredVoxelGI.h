@@ -33,6 +33,7 @@
 
 #include "DX12Lib/Commons/NetworkManager.h"
 
+
 namespace CVGI
 {
 	class VoxelCamera;
@@ -71,10 +72,9 @@ namespace CVGI
 		void InitializeVoxelData(DX12Lib::GraphicsContext& commandContext);
 		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
 		void OnClientConnected(const ENetPeer* peer);
+		void OnClientDisconnected(const ENetPeer* peer);
 		void ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera);
 		bool IsDirectXRaytracingSupported() const;
-
-		void GetFrameStats(int& fps, float& mspf);
 
 	public:
 		//const DirectX::XMFLOAT3 VoxelTextureDimension = DirectX::XMFLOAT3(512.0f, 512.0f, 512.0f);
@@ -124,7 +124,7 @@ namespace CVGI
 		float m_secondGaussianFilterTime = 0.0f;
 
 		float m_accTotalTime = 0.0f;
-		UINT64 m_lightDispachCount = 0;
+		UINT64 m_lightDispatchCount = 0;
 
 		bool LightDispatched = false;
 		bool BufferSwapped = true;
@@ -156,17 +156,17 @@ namespace CVGI
 
 		DirectX::XMFLOAT3 m_lastCameraPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-		enum class ReceiveState
-		{
-			INITIALIZATION,
-			NECESSARY_BUFFERS,
-			CAMERA_DATA,
-		} m_receiveState = ReceiveState::INITIALIZATION;
+		bool m_isClientReadyForRadiance = false;
+		bool m_firstRadianceSent = false;
+
+		bool m_renderRasterScene = true;
 
 		float m_RTGIUpdateDelta = 0.0f;
 		float m_RTGIMaxTime = 0.15f;
 
 		float m_lerpDeltaTime = 0.0f;
 		float m_lerpMaxTime = 0.2f;
+
+		DX12Lib::ComputeContext* m_computeContext = nullptr;
 	};
 }

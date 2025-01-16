@@ -42,16 +42,16 @@ StructuredBuffer<AABB> gVoxelAABBBuffer : register(t0, space4);
 StructuredBuffer<ClusterAABBInfo> gClusterAABBInfoBuffer : register(t1, space4);
 StructuredBuffer<uint> gAABBVoxelIndices : register(t2, space4);
 
-RWStructuredBuffer<uint2> gFaceClusterVisibility : register(u0);
+globallycoherent RWStructuredBuffer<uint2> gFaceClusterVisibility : register(u0);
 // Stores all the visible clusters for all the faces. Clusters visible from the same faced are stored in sequence.
-RWStructuredBuffer<uint> gVisibleClustersBuffer : register(u1);
+globallycoherent RWStructuredBuffer<uint> gVisibleClustersBuffer : register(u1);
 
 // Offset buffers used to map the raytracing primitive index to the voxel index
-RWStructuredBuffer<uint> gGeometryStartOffset : register(u2);
-RWStructuredBuffer<uint> gAABBStartOffset : register(u3);
+globallycoherent RWStructuredBuffer<uint> gGeometryStartOffset : register(u2);
+globallycoherent RWStructuredBuffer<uint> gAABBStartOffset : register(u3);
 // For face at index i store in the x coordinate the start index in gVisibleClusterBuffer and in the y coordinate the number of visible
 // Clusters
-RWStructuredBuffer<uint> gClusterCount : register(u4);
+globallycoherent RWStructuredBuffer<uint> gClusterCount : register(u4);
 
 
 struct AABBAttributes

@@ -23,19 +23,19 @@ cbuffer cbPrefixSum : register(b0)
 
 // Unused in this shader
 // RWStructuredBuffer<uint> gVoxelOccupiedBuffer : register(u0, space0);
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u1, space0);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u2, space0);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3, space0);
+globallycoherent RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u1, space0);
+globallycoherent RWStructuredBuffer<uint> gNextIndexBuffer : register(u2, space0);
+globallycoherent RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3, space0);
 
 
 
-RWStructuredBuffer<uint> gIndirectionRankBuffer : register(u0, space1);
-RWStructuredBuffer<uint> gIndirectionIndexBuffer : register(u1, space1);
+globallycoherent RWStructuredBuffer<uint> gIndirectionRankBuffer : register(u0, space1);
+globallycoherent RWStructuredBuffer<uint> gIndirectionIndexBuffer : register(u1, space1);
 
-RWStructuredBuffer<uint> gVoxelIndicesCompacted : register(u2, space1);
-RWStructuredBuffer<uint> gVoxelHashesCompacted : register(u3, space1);
+globallycoherent RWStructuredBuffer<uint> gVoxelIndicesCompacted : register(u2, space1);
+globallycoherent RWStructuredBuffer<uint> gVoxelHashesCompacted : register(u3, space1);
 
-RWStructuredBuffer<uint> gPrefixSumBuffer : register(u4, space1);
+globallycoherent RWStructuredBuffer<uint> gPrefixSumBuffer : register(u4, space1);
 
 [numthreads(128, 1, 1)]
 void CS(uint3 GroupID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)

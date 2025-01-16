@@ -16,6 +16,7 @@
 #include "SceneDepthTechnique.h"
 #include "RadianceFromNetworkTechnique.h"
 #include "GaussianFilterTechnique.h"
+#include "DX12Lib/DXWrapper/QueryHeap.h"
 
 #define NUM_BASIC_BUFFERS 5
 
@@ -44,12 +45,19 @@ namespace LI
 
 	private:
 		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
+		void OnPeerDisconnected(const ENetPeer* peer);
 		DX12Lib::AABB GetSceneAABBExtents();
 		void CopyDataToBasicBuffer(UINT bufferIdx);
+
+		void InitializeBasicBuffers();
+
+		void ShowIMGUIWindow();
 	private:
 		bool m_usePBRMaterials = true;
 		DX12Lib::NetworkHost m_networkClient;
 		DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
+
+		LI::LIScene* m_LIScene = nullptr;
 
 		UINT m_buffersInitialized = 0;
 
@@ -72,9 +80,7 @@ namespace LI
 		std::uint8_t m_lastLightBitMask = 0;
 
 		std::mutex m_vectorMutex;
-		std::mutex m_mainThreadMutex;
-		std::condition_variable m_mainThreadCV;
-		bool m_isMainThreadReady = false;
+		bool m_isInitialized = false;
 
 		std::shared_ptr<VOX::TechniqueData> m_data;
 		std::shared_ptr<VOX::SceneDepthTechnique> m_sceneDepthTechnique;
@@ -82,13 +88,21 @@ namespace LI
 		std::shared_ptr<VOX::LightTransportTechnique> m_lightTransportTechnique;
 		std::shared_ptr<VOX::GaussianFilterTechnique> m_gaussianFilterTechnique;
 
+		DX12Lib::QueryHandle m_timingQueryHandle;
+		DX12Lib::ReadBackBuffer m_timingReadBackBuffer;
 
-		enum class ReceiveState
-		{
-			INITIALIZATION,
-			BASIC_BUFFERS,
-			RADIANCE,
-		} m_receiveState = ReceiveState::INITIALIZATION;
+		UINT64 m_rtgiMemoryUsage = 0;
+
+		float m_processNetworkBufferTime = 0.0f;
+		float m_visibleVoxelTime = 0.0f;
+		float m_firstGaussianFilterTime = 0.0f;
+		float m_secondGaussianFilterTime = 0.0f;
+		float m_accTotalTime = 0.0f;
+		
+		UINT64 m_lightDispatchCount = 0.0f;
+
+
+		bool m_isReadyForRadiance = false;
 
 		std::unique_ptr<DX12Lib::Fence> m_rasterFence;
 		std::unique_ptr<DX12Lib::Fence> m_rtgiFence;
@@ -96,14 +110,19 @@ namespace LI
 
 		bool LightDispatched = false;
 
-		float lerpDeltaTime = 0.0f;
-		float lerpMaxTime = 0.5f;
+		float m_lerpDeltaTime = 0.0f;
+		float m_lerpMaxTime = 0.5f;
 
 		bool m_radianceReady = false;
 
 		float sendPacketDeltaTime = 0.0f;
 
 		bool m_cameraMovedSinceLastUpdate = false;
+
+		float m_closeVoxelStrength = 1.0f;
+		float m_farVoxelStrength = 1.0f;
+
+		bool m_indirectSettingChanged = false;
 
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};

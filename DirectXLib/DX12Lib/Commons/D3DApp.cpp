@@ -100,7 +100,6 @@ int D3DApp::Run()
 
 		GameTime::s_Instance->Tick();
 
-		CalculateFrameStats();
 		GraphicsContext& updateContext = GraphicsContext::Begin();
 		Update(updateContext);
 		updateContext.Finish();
@@ -283,10 +282,13 @@ void D3DApp::FlushCommandQueue()
 	s_commandQueueManager->GetGraphicsQueue().Flush();
 }
 
-void D3DApp::CalculateFrameStats()
+void D3DApp::GetFrameStats(int& fps, float& mspf) const
 {
+	static int lastFps = 0.0f;
+	static float lastMSPF = 0.0f;
+
 	static int frameCount = 0;
-	static double lastTime = 0.0f;
+	static float lastTime = 0.0f;
 
 	frameCount++;
 
@@ -294,19 +296,15 @@ void D3DApp::CalculateFrameStats()
 
 	if (frameTime - lastTime >= 1.0)
 	{
-		float fps = (float)frameCount;
-		float mspf = 1000.0f / fps;
-
-		std::wstring fpsStr = std::to_wstring(fps);
-		std::wstring mspfStr = std::to_wstring(mspf);
-
-		std::wstring windowText = mMainWndCaption + L"		fps: " + fpsStr + L"	mspf: " + mspfStr;
-
-		SetWindowTextW(m_dx12Window->GetWindowHandle(), windowText.c_str());
+		lastFps = frameCount;
+		lastMSPF = 1000.0f / (float)lastFps;
 
 		frameCount = 0;
 
 		lastTime = frameTime;
 	}
-}
 
+	fps = lastFps;
+	mspf = lastMSPF;
+	
+}

@@ -8,6 +8,7 @@ namespace LI
 	public:
 		CameraController(bool isStreaming) : Component(), m_isStreaming(isStreaming) {}
 
+		void Init(DX12Lib::CommandContext& context) override;
 		void Update(DX12Lib::CommandContext& context) override;
 
 	private:

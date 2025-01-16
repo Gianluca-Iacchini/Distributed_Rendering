@@ -14,11 +14,11 @@ namespace LI
 		LIScene(bool shouldStream);
 		virtual ~LIScene() = default;
 
-		virtual void Init(DX12Lib::CommandContext& context) override;
-		virtual void Update(DX12Lib::CommandContext& context) override;
-		virtual void Render(DX12Lib::CommandContext& context) override;
-		virtual void OnResize(DX12Lib::CommandContext& context, int width, int height) override;
-		virtual void OnClose(DX12Lib::CommandContext& context) override;
+		virtual void Init(DX12Lib::GraphicsContext& context) override;
+		virtual void Update(DX12Lib::GraphicsContext& context) override;
+		virtual void Render(DX12Lib::GraphicsContext& context) override;
+		virtual void OnResize(DX12Lib::GraphicsContext& context, int width, int height) override;
+		virtual void OnClose(DX12Lib::GraphicsContext& context) override;
 
 		void StreamScene(DX12Lib::CommandContext& context);
 		//void TraverseModel(DX12Lib::ModelRenderer* model, aiNode* node, DX12Lib::SceneNode* parent);

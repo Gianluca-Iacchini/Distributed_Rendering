@@ -19,10 +19,10 @@ cbuffer cbLerpRadiance : register(b0)
 
 StructuredBuffer<uint2> gGaussianRadiance: register(t0);
 
-RWStructuredBuffer<uint2> gRadianceLerpResult : register(u0);
-RWStructuredBuffer<uint2> gLerpStartRadiance : register(u1);
-RWStructuredBuffer<uint2> gLerpEndRadiance : register(u2);
 
+RWStructuredBuffer<uint2> gLerpStartRadiance : register(u0);
+RWStructuredBuffer<uint2> gLerpEndRadiance : register(u1);
+RWStructuredBuffer<uint2> gRadianceLerpResult : register(u2);
 
 float3 easeOutInterpolation(float3 colorA, float3 colorB, float t)
 {

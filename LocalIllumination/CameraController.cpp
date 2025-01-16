@@ -8,6 +8,11 @@ using namespace LI;
 using namespace DX12Lib;
 using namespace DirectX;
 
+void CameraController::Init(DX12Lib::CommandContext& context)
+{
+	Graphics::s_mouse->SetMode(Mouse::MODE_ABSOLUTE);
+}
+
 void CameraController::Update(DX12Lib::CommandContext& context)
 {
 	auto kbState = Graphics::s_kbTracker->GetLastState();
@@ -28,8 +33,20 @@ void CameraController::Update(DX12Lib::CommandContext& context)
 
 void LI::CameraController::MoveUsingInput(float deltaTime, DirectX::Keyboard::State kbState)
 {
-	auto state = Graphics::s_mouse->GetState();
+	auto tracker = Graphics::s_mouseTracker.get();
 
+	if (tracker->rightButton == Mouse::ButtonStateTracker::PRESSED)
+	{
+		Graphics::s_mouse->SetMode(Mouse::MODE_RELATIVE);
+	}
+	else if (tracker->rightButton == Mouse::ButtonStateTracker::RELEASED)
+	{
+		Graphics::s_mouse->SetMode(Mouse::MODE_ABSOLUTE);
+	}
+
+
+
+	auto state = tracker->GetLastState();
 	if (state.positionMode == Mouse::MODE_RELATIVE)
 	{
 		if (state.x != 0 || state.y != 0)

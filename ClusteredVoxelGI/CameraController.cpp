@@ -17,6 +17,9 @@ void CameraController::Update(DX12Lib::CommandContext& context)
 	float speed = 3.0f;
 	float deltaTime = GameTime::GetDeltaTime();
 
+	if (Graphics::s_kbTracker->IsKeyPressed(Keyboard::Escape))
+		PostQuitMessage(0);
+
 	auto tracker = Graphics::s_mouseTracker.get();
 
 	if (tracker->rightButton == Mouse::ButtonStateTracker::PRESSED)
@@ -113,10 +116,6 @@ void CVGI::CameraController::Move(float speed, float deltaTime)
 {
 	auto kbState = Graphics::s_kbTracker->GetLastState();
 	auto mouseState = Graphics::s_mouseTracker->GetLastState();
-
-	if (Graphics::s_kbTracker->IsKeyPressed(Keyboard::Escape))
-		PostQuitMessage(0);
-
 
 
 	if (mouseState.positionMode == Mouse::MODE_RELATIVE)

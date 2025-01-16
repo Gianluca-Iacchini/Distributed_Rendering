@@ -41,6 +41,7 @@ namespace Graphics::Renderer
 	{
 		CommonCBV = 0,
 		CameraCBV = 1,
+		PostProcessCBV = 2,
 		GBufferSRV,
 		DeferredResultSRV,
 		Count
@@ -70,6 +71,14 @@ namespace Graphics::Renderer
 		float pad1 = 0.0f;
 
 	} m_cbLerp;
+
+	struct ConstantBufferPostProcess
+	{
+		float SigmaSpatial = 20.0f; // Controls spatial smoothing (e.g., pixel distance)
+		float SigmaIntensity = 12.0f; // Controls intensity smoothing (e.g., color difference)
+		float MaxWorldPostDistance = 2.0f; // Maximum allowed difference in world coordinates
+		int KernelSize = 3;
+	} m_cbPostProcess;
 
 	D3D12_VIEWPORT s_screenViewport;
 	D3D12_RECT s_scissorRect;
@@ -112,7 +121,7 @@ namespace Graphics::Renderer
 
 
 	// Post process buffers (used for lerp in radiance);
-	DX12Lib::StructuredBuffer m_postProcessBuffers[3];
+	DX12Lib::StructuredBuffer m_postProcessBuffers[5];
 
 	DX12Lib::DescriptorHandle m_gbufferStartHandle;
 	DX12Lib::DescriptorHandle m_deferredRtStartHandleSRV;
@@ -174,8 +183,8 @@ namespace Graphics::Renderer
 		m_commonTextureSRVHandle = s_textureHeap->Alloc(2);
 		m_rtgiHandleSRV = s_textureHeap->Alloc(6);
 
-		m_postProcessHandleSRV = s_textureHeap->Alloc(3);
-		m_postProcessHandleUAV = s_textureHeap->Alloc(3);
+		m_postProcessHandleSRV = s_textureHeap->Alloc(5);
+		m_postProcessHandleUAV = s_textureHeap->Alloc(5);
 
 		m_gbufferStartHandle = s_textureHeap->Alloc((UINT)RenderTargetType::Count);
 		UINT gbufferStartIndex = s_textureHeap->GetOffsetOfHandle(m_gbufferStartHandle);
@@ -269,16 +278,52 @@ namespace Graphics::Renderer
 		return m_renderers;
 	}
 
+	void SetPostProcessSpatialSigma(float sigma)
+	{
+		m_cbPostProcess.SigmaSpatial = sigma;
+	}
+
+	float GetPostProcessSpatialSigma()
+	{
+		return m_cbPostProcess.SigmaSpatial;
+	}
+	void SetPostProcessIntensitySigma(float sigma)
+	{
+		m_cbPostProcess.SigmaIntensity = sigma;
+	}
+	float GetPostProcessIntensitySigma()
+	{
+		return m_cbPostProcess.SigmaIntensity;
+	}
+	void SetPostProcessWorldThreshold(float treshold)
+	{
+		m_cbPostProcess.MaxWorldPostDistance = treshold;
+	}
+	float GetPostProcessWorldThreshold()
+	{
+		return m_cbPostProcess.MaxWorldPostDistance;
+	}
+	void SetPostProcessKernelSize(int kernelSize)
+	{
+		m_cbPostProcess.KernelSize = kernelSize;
+	}
+	int GetPostProcessKernelSize()
+	{
+		return m_cbPostProcess.KernelSize;
+	}
+
 	void LerpRadiancePass(DX12Lib::GraphicsContext& context)
 	{
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(128, 128, 0), L"LerpRadiancePass");
 
 		context.SetPipelineState(s_PSOs[L"lerpRadiancePso"].get());
 
-		for (UINT i = 0; i < 3; i++)
+		for (UINT i = 0; i < 2; i++)
 		{
 			context.TransitionResource(m_postProcessBuffers[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
+
+		context.TransitionResource(m_postProcessBuffers[2 + s_swapchain->CurrentBufferIndex], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		context.FlushResourceBarriers();
 
@@ -290,6 +335,9 @@ namespace Graphics::Renderer
 
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 			2, m_postProcessHandleUAV);
+
+		context.m_commandList->Get()->SetGraphicsRootUnorderedAccessView(
+			3, m_postProcessBuffers[2 + s_swapchain->CurrentBufferIndex].GetGpuVirtualAddress());
 
 		context.SetRenderTargets(0, nullptr, Renderer::s_depthStencilBuffer->GetDSV());
 
@@ -515,7 +563,7 @@ namespace Graphics::Renderer
 
 		if (m_useRTGI)
 		{
-			context.TransitionResource(m_postProcessBuffers[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			context.TransitionResource(m_postProcessBuffers[2 + s_swapchain->CurrentBufferIndex], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)DeferredRootSignatureSlot::VoxelRTGICBV, Renderer::s_graphicsMemory->AllocateConstant(m_cbVoxelCommons).GpuAddress());
@@ -524,7 +572,8 @@ namespace Graphics::Renderer
 				(UINT)DeferredRootSignatureSlot::RTGISRV, m_rtgiHandleSRV);
 
 			context.m_commandList->Get()->SetGraphicsRootShaderResourceView(
-				(UINT)DeferredRootSignatureSlot::LerpRadianceSRV, m_postProcessBuffers[0].GetGpuVirtualAddress());
+				(UINT)DeferredRootSignatureSlot::LerpRadianceSRV, m_postProcessBuffers[2 + s_swapchain->CurrentBufferIndex].GetGpuVirtualAddress());
+
 		}
 
 		context.FlushResourceBarriers();
@@ -600,6 +649,8 @@ namespace Graphics::Renderer
 			context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
 				(UINT)Renderer::PostProcessRootSignatureSlot::CameraCBV, m_mainCamera->GetCameraBuffer().GpuAddress());
 
+		context.m_commandList->Get()->SetGraphicsRootConstantBufferView(
+			(UINT)Renderer::PostProcessRootSignatureSlot::PostProcessCBV, s_graphicsMemory->AllocateConstant(m_cbPostProcess).GpuAddress());
 
 		context.m_commandList->Get()->SetGraphicsRootDescriptorTable(
 			(UINT)PostProcessRootSignatureSlot::GBufferSRV, m_gbufferStartHandle);
@@ -779,7 +830,7 @@ namespace Graphics::Renderer
 
 		if (prevVoxelCount != voxelCommons.VoxelCount)
 		{
-			for (UINT i = 0; i < 3; i++)
+			for (UINT i = 0; i < 5; i++)
 			{
 				m_postProcessBuffers[i].Create(voxelCommons.VoxelCount * 6, sizeof(DirectX::XMUINT2));
 
@@ -923,20 +974,23 @@ namespace Graphics::Renderer
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, (UINT)RenderTargetType::Count);	
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::RTGISRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL, 2);
 		(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::LerpRadianceSRV].InitAsBufferSRV(5, D3D12_SHADER_VISIBILITY_ALL, 2);
+		//(*deferredRootSignature)[(UINT)DeferredRootSignatureSlot::LerpRadianceSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 1, D3D12_SHADER_VISIBILITY_ALL, 2);
 		deferredRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<RootSignature> postProcessRootSignature = std::make_shared<RootSignature>((UINT)PostProcessRootSignatureSlot::Count, 1);
 		postProcessRootSignature->InitStaticSampler(0, DefaultSamplerDesc);
 		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::CommonCBV].InitAsConstantBuffer(0);
 		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::CameraCBV].InitAsConstantBuffer(1);
+		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::PostProcessCBV].InitAsConstantBuffer(2);
 		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::GBufferSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, (UINT)RenderTargetType::Count);
 		(*postProcessRootSignature)[(UINT)PostProcessRootSignatureSlot::DeferredResultSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)RenderTargetType::Count, 2);
 		postProcessRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		std::shared_ptr<RootSignature> lerpRadianceRootSignature = std::make_shared<RootSignature>(3, 0);
+		std::shared_ptr<RootSignature> lerpRadianceRootSignature = std::make_shared<RootSignature>(4, 0);
 		(*lerpRadianceRootSignature)[0].InitAsConstantBuffer(0);
 		(*lerpRadianceRootSignature)[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
-		(*lerpRadianceRootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
+		(*lerpRadianceRootSignature)[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+		(*lerpRadianceRootSignature)[3].InitAsBufferUAV(2);
 		lerpRadianceRootSignature->Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		std::shared_ptr<GraphicsPipelineState> phongPso = std::make_shared<GraphicsPipelineState>();

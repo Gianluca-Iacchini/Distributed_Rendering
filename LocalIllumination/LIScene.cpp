@@ -17,7 +17,7 @@ LI::LIScene::LIScene(bool shouldStream) : DX12Lib::Scene(), m_isStreaming(should
 		m_ffmpegStreamer = std::make_unique<FFmpegStreamer>();
 }
 
-void LI::LIScene::Init(DX12Lib::CommandContext& context)
+void LI::LIScene::Init(DX12Lib::GraphicsContext& context)
 {
 	Scene::Init(context);
 
@@ -48,7 +48,7 @@ void LI::LIScene::Init(DX12Lib::CommandContext& context)
 
 }
 
-void LI::LIScene::Update(DX12Lib::CommandContext& context)
+void LI::LIScene::Update(DX12Lib::GraphicsContext& context)
 {
 	Scene::Update(context);
 
@@ -59,19 +59,19 @@ void LI::LIScene::Update(DX12Lib::CommandContext& context)
 	}
 }
 
-void LI::LIScene::Render(DX12Lib::CommandContext& context)
+void LI::LIScene::Render(DX12Lib::GraphicsContext& context)
 {
 
 	Scene::Render(context);
 
 }
 
-void LI::LIScene::OnResize(DX12Lib::CommandContext& context, int width, int height)
+void LI::LIScene::OnResize(DX12Lib::GraphicsContext& context, int width, int height)
 {
 	Scene::OnResize(context, width, height);
 }
 
-void LI::LIScene::OnClose(DX12Lib::CommandContext& context)
+void LI::LIScene::OnClose(DX12Lib::GraphicsContext& context)
 {
 	Scene::OnClose(context);
 

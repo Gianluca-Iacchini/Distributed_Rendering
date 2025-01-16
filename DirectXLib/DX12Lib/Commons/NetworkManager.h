@@ -134,11 +134,21 @@ namespace DX12Lib
 		PacketGuard CreatePacket();
 
 		bool IsConnected() const { return m_isConnected; }
-		bool HasPeers() const { return m_host->peerCount > 0; }
+		bool HasPeers() const;
+		std::string GetPeerAddress() const;
+		UINT32 GetPing();
 
 		static bool CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix);
 
 		std::string GetHostAddress() const;
+
+		void SetDefaultCompressionLevel(std::uint8_t level) { m_defaultCompressionLevel = level; }
+		std::uint8_t GetDefaultCompressionLevel() const { return m_defaultCompressionLevel; }
+
+		float GetAverageCompressionRatio() const;
+		float GetAverageCompressionTime() const;
+
+		void ResetCompressionStats() { m_nCompressions = 0; m_totalCompressionRatio = 0.0f; m_totalCompressionTime = 0.0f; }
 
 	protected:
 		virtual void MainNetworkLoop();
@@ -149,8 +159,8 @@ namespace DX12Lib
 		virtual void InitializeAsClient();
 
 	private:
-		virtual void CompressData(NetworkPacket* packet);
-		virtual void DecompressData(NetworkPacket* packet);
+		virtual bool CompressData(NetworkPacket* packet);
+		virtual bool DecompressData(NetworkPacket* packet);
 
 	public:
 		static void InitializeEnet();
@@ -178,6 +188,13 @@ namespace DX12Lib
 		// Using raw pointer is probably more efficient, but shared_ptr is safer and easier to manage
 		DX12Lib::ReusableQueue<std::shared_ptr<NetworkPacket>> m_packetsToSend;
 		DX12Lib::ReusableQueue<std::shared_ptr<NetworkPacket>> m_receivedPackets;
+
+		int m_defaultCompressionLevel = 3;
+
+		UINT64 m_nCompressions = 0;
+		float m_totalCompressionRatio = 0.0f;
+		float m_totalCompressionTime = 0.0f;
+
 
 	private:
 		static bool m_isEnetInitialized;

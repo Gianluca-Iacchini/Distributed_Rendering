@@ -423,6 +423,15 @@ ComputeContext& DX12Lib::ComputeContext::Begin()
 	return reinterpret_cast<ComputeContext&>(*context);
 }
 
+ComputeContext* DX12Lib::ComputeContext::BeginPtr()
+{
+	CommandContext* context = s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+	assert(context != nullptr && "Context is null");
+
+	return reinterpret_cast<ComputeContext*>(context);
+}
+
 void DX12Lib::ComputeContext::Dispatch(size_t groupCountX, size_t groupCountY, size_t groupCountZ)
 {
 	FlushResourceBarriers();

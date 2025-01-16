@@ -1,5 +1,13 @@
 #include "Common.hlsli"
 
+struct ConstantBufferPostProcess
+{
+    float SigmaSpatial; // Controls spatial smoothing (e.g., pixel distance)
+    float SigmaIntensity; // Controls intensity smoothing (e.g., color difference)
+    float MaxWorldPostDistance; // Maximum allowed difference in world coordinates
+    int KernelSize;
+};
+
 cbuffer cbCommons : register(b0)
 {
     Commons commons;
@@ -10,6 +18,10 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
+cbuffer cbPostProcess : register(b2)
+{
+    ConstantBufferPostProcess postProcess;
+};
 
 
 Texture2D gBufferaWorld : register(t0);
@@ -18,11 +30,6 @@ Texture2D gBufferDiffuse : register(t2);
 Texture2D gBufferMetallicRoughnessAO : register(t3);
 Texture2D gDeferredResult : register(t4);
 Texture2D gRadianceTexture : register(t5);
-
-float GaussianWeight(float x, float y, float sigma)
-{
-    return exp(-((x * x + y * y) / (2.0f * sigma * sigma))) / (2.0f * 3.14159f * sigma * sigma);
-}
 
 float4 PS(VertexOutPosTex pIn) : SV_Target
 {
@@ -50,11 +57,6 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
 
     float2 texelSize = 1.0 / float2(width, height);
 
-    // Bilateral filter parameters
-    float sigmaSpatial = 20.0f; // Controls spatial smoothing (e.g., pixel distance)
-    float sigmaIntensity = 12.0f; // Controls intensity smoothing (e.g., color difference)
-    float worldThreshold = 2.0f; // Maximum allowed difference in world coordinates
-
     float4 centerValue = gRadianceTexture.Sample(gSampler, pIn.Tex); // Current pixel value
     
     if (centerValue.w > 0.0f)
@@ -64,9 +66,9 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         float weightSum = 0.0;
 
         // Apply bilateral filter in a 3x3 neighborhood
-        for (int y = -3; y <= 3; y++)
+        for (int y = -postProcess.KernelSize; y <= postProcess.KernelSize; y++)
         {
-            for (int x = -3; x <= 3; x++)
+            for (int x = -postProcess.KernelSize; x <= postProcess.KernelSize; x++)
             {
                 // Neighbor UV coordinates
                 float2 neighborUV = pIn.Tex + float2(x, y) * texelSize;
@@ -79,14 +81,14 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
                 float3 worldCoordDiff = neighborWorldCoord - centerWorldCoord;
 
                 // Skip this neighbor if the world coordinate difference exceeds the threshold
-                if (length(worldCoordDiff) > worldThreshold)
+                if (length(worldCoordDiff) > postProcess.MaxWorldPostDistance)
                     continue;
 
                 // Compute spatial weight (Gaussian based on distance)
-                float spatialWeight = exp(-float(x * x + y * y) / (2.0f * sigmaSpatial * sigmaSpatial));
+                float spatialWeight = exp(-float(x * x + y * y) / (2.0f * postProcess.SigmaSpatial * postProcess.SigmaSpatial));
 
                 // Compute intensity weight (Gaussian based on color difference)
-                float intensityWeight = exp(-dot(centerValue.xyz - neighborValue, centerValue.xyz - neighborValue) / (2.0f * sigmaIntensity * sigmaIntensity));
+                float intensityWeight = exp(-dot(centerValue.xyz - neighborValue, centerValue.xyz - neighborValue) / (2.0f * postProcess.SigmaIntensity * postProcess.SigmaIntensity));
 
                 // Combine weights
                 float weight = spatialWeight * intensityWeight;

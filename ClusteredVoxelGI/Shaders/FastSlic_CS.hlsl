@@ -30,46 +30,46 @@ StructuredBuffer<uint> gVoxelHashedCompactBuffer : register(t3, space1);
 
 // Buffer containing the cluster data used by this shader
 // Dim: K
-RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u0, space0);
+globallycoherent RWStructuredBuffer<ClusterData> gClusterDataBuffer : register(u0, space0);
 
 // Buffer containing voxels that are assigned to a cluster in a contiguous way.
 // Voxels belonging to the same clusters are stored in a sequence between FirstDataIndex and FirstDataIndex + VoxelCount.
-RWStructuredBuffer<uint> gVoxelInClusterBuffer : register(u1, space0);
+globallycoherent RWStructuredBuffer<uint> gVoxelInClusterBuffer : register(u1, space0);
 
 // Buffer representing a mapping for voxels assigned to a cluster. This represents the same voxel assignment as the previous buffer,
 // But while the previous one is a linked list, this one is a direct mapping. The previous one is useful for retrieving all the voxels
 // assigned for a given cluster idx, this one is useful for retrieving the cluster idx for a given voxel idx.
 // e.g. gVoxelAssigmnetMap[2] = 1002 means that voxel 2 is assigned to cluster 1002
 // Dim: VoxelCount
-RWStructuredBuffer<uint> gVoxelAssignmentMap : register(u2, space0);
+globallycoherent RWStructuredBuffer<uint> gVoxelAssignmentMap : register(u2, space0);
 
 // Buffer containing the color of each voxel, obtained as the average of the color of the fragments in the voxel
-RWStructuredBuffer<float3> gVoxelColorBuffer : register(u3, space0);
+globallycoherent RWStructuredBuffer<float3> gVoxelColorBuffer : register(u3, space0);
 
 // Buffer containing the normal direction of each voxel. All the normal directions are set to one of the axis positive or negative directions
 // Depending on the nearby empty voxels and the normal direction of the fragments in the voxel
 // Dim: VoxelCount
-RWStructuredBuffer<float3> gVoxelNormalDirectionBuffer : register(u4, space0);
+globallycoherent RWStructuredBuffer<float3> gVoxelNormalDirectionBuffer : register(u4, space0);
 
 // 3D texture representing the subdivision of the space. Each element (Tile) represents a size of the space equal to (2S x 2S x 2S)
 // Dim: (GridDimension.x / 2S) x (GridDimension.y / 2S) x (GridDimension.z / 2S)
-RWTexture3D<uint> gTileBuffer : register(u5, space0);
+globallycoherent RWTexture3D<uint> gTileBuffer : register(u5, space0);
 
 // Buffer representing the linked list of clusters in each tile. Each element is the index of the next cluster in the same tile.
 // The first cluster is stored in the TileBuffer.
 // e.g. gTileBuffer[0,0,0] = 10, gNextClusterInTileLinkedList[10] = 21, gNextClusterInTileLinkedList[21] = UINT_MAX
 // means that at the tile (0,0,0) we have clusters 10 and 21.
 // Dim: K
-RWStructuredBuffer<uint> gNextClusterInTileLinkedList : register(u6, space0);
+globallycoherent RWStructuredBuffer<uint> gNextClusterInTileLinkedList : register(u6, space0);
 
 
 // Generic counter buffer
 // Dim: 1
-RWStructuredBuffer<uint> gCounter : register(u7, space0);
+globallycoherent RWStructuredBuffer<uint> gCounter : register(u7, space0);
 
 // Buffer used to store cluster data, used as a temporary buffer for multi threaded operations
 // Will also be used on the next step for cluster merging
-RWStructuredBuffer<ClusterData> gSubclusterDataBuffer : register(u8, space0);
+globallycoherent RWStructuredBuffer<ClusterData> gSubclusterDataBuffer : register(u8, space0);
 
 // Buffer representing the final voxel assignment for each cluster, as a linked list
 // The first element is stored in the field FirstDataIndex in the ClusterData struct, and
@@ -77,7 +77,7 @@ RWStructuredBuffer<ClusterData> gSubclusterDataBuffer : register(u8, space0);
 // e.g. gClusterDataBuffer[1002].FirstDataIndex = 2, gNextVoxelLinkedList[2] = 2013 gNextVoxelLinkedList[2013] = UINT_MAX
 // means that cluster 1002 has voxels 2 and 2013 assigned to it.
 // Dim: VoxelCount
-RWStructuredBuffer<uint> gNextVoxelLinkedList : register(u9, space0);
+globallycoherent RWStructuredBuffer<uint> gNextVoxelLinkedList : register(u9, space0);
 
 uint2 FindHash(uint index, uint rank, uint hashedPosition)
 {

@@ -115,10 +115,10 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 		// We only want to dispatch the light if the camera moved or the light changed.
 		if (!LightDispatched && (shouldUpdateLight || m_cameraMovedSinceLastUpdate))
 		{
-			// We wait for the rasterization pass to finish since we use depth maps to compute the lights.
-			if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
-			{
 
+			// We wait for the rasterization pass to finish since we use depth maps to compute the lights.
+			if (m_rasterFence->IsFenceComplete(m_rasterFence->CurrentFenceValue))
+			{
 				DX12Lib::ComputeContext& context = ComputeContext::Begin();
 
 				context.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 0);
@@ -140,32 +140,41 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 				m_lightTransportTechnique->LaunchIndirectLightBlock(context, 1);
 				context.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 3);
 				// Gaussian double filter pass for each visible face
-				m_gaussianFilterTechnique->PerformTechnique(context);
+				
+				if (m_renderRasterScene)
+					m_gaussianFilterTechnique->PerformTechnique(context);
 				context.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 4);
-				m_gaussianFilterTechnique->PerformTechnique2(context);
+				
+				if (m_renderRasterScene)
+					m_gaussianFilterTechnique->PerformTechnique2(context);
 				context.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 5);
 				context.ResolveQueryData(*Graphics::s_queryHeap, m_timingQueryHandle, m_timingReadBackBuffer, 6);
 
 				// Copy data to readback buffer if we're sending it to the client.
-				if (m_receiveState == ReceiveState::CAMERA_DATA)
+				if (m_isClientReadyForRadiance)
 				{
 					m_lightTransportTechnique->TransferRadianceData(context);
 				}
-					
+
 
 				m_rtgiFence->CurrentFenceValue = context.Finish();
 				Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
 
 				LightDispatched = true;
-				m_lightDispachCount += 1;
 			}
 		}
 		else if (LightDispatched)
 		{
 			// Send radiance data to client
-			if (m_receiveState == ReceiveState::CAMERA_DATA)
+			if (m_isClientReadyForRadiance)
 			{
 				UINT32 visibleFacesCount = m_lightTransportTechnique->GetVisibleFacesCount();
+
+				if (!m_firstRadianceSent)
+				{
+					visibleFacesCount = m_data->FaceCount;
+					m_firstRadianceSent = true;
+				}
 
 				if (visibleFacesCount > 0)
 				{
@@ -190,6 +199,8 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 			m_secondGaussianFilterTime = ((timingData[5] - timingData[4]) * 1000.0f) / Graphics::GetComputeGPUFrequency();
 
 			m_accTotalTime += m_litVoxelTime + m_visibleVoxelTime + m_computeRadianceTime + m_firstGaussianFilterTime + m_secondGaussianFilterTime;
+
+			m_lightDispatchCount += 1;
 
 			// Signal lerp shader to update the radiance data.
 			m_isRadianceReady = true;
@@ -223,33 +234,30 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	}
 
 
-	// Render Layers
-	{
-		// Update depth cameras used to compute GI.
-		// Ideally we would only update the camera if the light changed or camera moved, but this is a cheap operation so we can get away with doing it every frame.
-		if (m_isRadianceReady)
-		{
-			m_sceneDepthTechnique->UpdateCameraMatrices();
-			m_sceneDepthTechnique->PerformTechnique(commandContext);
-		}
 
+	// Update depth cameras used to compute GI.
+	// Ideally we would only update the camera if the light changed or camera moved, but this is a cheap operation so we can get away with doing it every frame.
+	if (m_isRadianceReady)
+	{
+		m_sceneDepthTechnique->UpdateCameraMatrices();
+		m_sceneDepthTechnique->PerformTechnique(commandContext);
+		m_rasterFence->CurrentFenceValue = commandContext.Flush();
+		Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
+	}
+
+	if (m_renderRasterScene)
+	{
 		Renderer::ShadowPass(commandContext);
 		Renderer::MainRenderPass(commandContext);
-		
+
 		Renderer::LerpRadiancePass(commandContext);
 
 		Renderer::DeferredPass(commandContext);
 		Renderer::PostProcessPass(commandContext);
-		Renderer::UIPass(commandContext);
 	}
 
-
-	if (m_isRadianceReady)
-	{
-		m_rasterFence->CurrentFenceValue = commandContext.Flush();
-		Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
-		m_rasterFenceValue = m_rasterFence->CurrentFenceValue;
-	}
+	Renderer::UIPass(commandContext, !m_renderRasterScene);
+	
 
 
 
@@ -280,7 +288,7 @@ void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext
 
 bool CVGI::ClusteredVoxelGIApp::ShowIMGUIWindow(DX12Lib::GraphicsContext& context)
 {
-	static IMGUIWindowStatus voxelInitStatus = IMGUIWindowStatus::INITIALIZING;
+	static IMGUIWindowStatus voxelInitStatus = IMGUIWindowStatus::VOXEL_SELECTION_SCREEN;
 
 	float appX = static_cast<float>(Renderer::s_clientWidth);
 	float appY = static_cast<float>(Renderer::s_clientHeight);
@@ -415,25 +423,37 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 
 	float maxX = ImGui::CalcTextSize("- Hold Right Mouse Button:\t").x;
 
-	ImGui::Text("- W, A, S, D:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Move Camera");
+	if (!m_isClientReadyForRadiance)
+	{
+		ImGui::Text("- W, A, S, D:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Move Camera");
 
-	ImGui::Text("- E, Q:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Move Camera Up/Down");
+		ImGui::Text("- E, Q:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Move Camera Up/Down");
 
-	ImGui::Text("- Hold Right Mouse Button:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Rotate Camera");
+		ImGui::Text("- Hold Right Mouse Button:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Rotate Camera");
 
-	ImGui::Text("- Arrow Keys:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Move Light");
+		ImGui::Text("- Arrow Keys:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Move Light");
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Client is connected. Scene control is disabled.");
+	}
 
 	ImGui::Text("- ESC:");
 	ImGui::SameLine(maxX);
 	ImGui::Text("Quit");
+
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+		ImGui::SetTooltip("Enable/Disable server scene rendering. Radiance computation and networking will still work as expected.\n");
+	}
+	ImGui::Checkbox("Render scene on server", &m_renderRasterScene);
 
 	if (ImGui::CollapsingHeader("Voxelization Info", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -442,73 +462,119 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		ImGui::Text("Voxel Grid Size: (%d x %d x %d)", VoxelTextureDimension.x, VoxelTextureDimension.y, VoxelTextureDimension.z);
 		ImGui::Text("Voxel Count: %d\tCluster Count: %d", m_data->GetVoxelCount(), m_data->GetClusterCount());
 
-		ImGui::SeparatorText("Real-time GI timings");
+		ImGui::SeparatorText("Real-time GI timings (latest dispatch)");
 
 		ImGui::Text("Lit voxels:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute voxels visible from the light PoV.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_litVoxelTime);
 
 		ImGui::Text("Visible voxels:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute voxels visible from the main camera.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_visibleVoxelTime);
 
 		ImGui::Text("Compute radiance:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute the radiance for each voxel visible from the main camera.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_computeRadianceTime);
 
 		ImGui::Text("First gaussian filter:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute the first gaussian filter pass.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_firstGaussianFilterTime);
 
 		ImGui::Text("Second gaussian filter:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute the second gaussian filter pass.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_secondGaussianFilterTime);
 
 		float totalTime = m_litVoxelTime + m_visibleVoxelTime + m_computeRadianceTime + m_firstGaussianFilterTime + m_secondGaussianFilterTime;
-		ImGui::Text("Total time (last frame):"); 
+		ImGui::Text("Total time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Total time needed to complete all the previous steps for the latest dispatch.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", totalTime);
 		
-		ImGui::Text("Average total time:"); 
+		ImGui::Text("Average dispatch time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Average time needed to complete all the previous steps for each dispatch.");
+		}
 		ImGui::SameLine(maxX);
-		ImGui::Text("%.2f ms", m_accTotalTime / (m_lightDispachCount));
+		ImGui::Text("%.2f ms", m_accTotalTime / (m_lightDispatchCount));
 
 		ImGui::SeparatorText("Initialization timings");
 
 		ImGui::Text("Voxelization Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to voxelize the scene for the given voxel resolution.");
+		}
 		ImGui::SameLine(maxX); 
 		ImGui::Text("%.2f ms", m_voxelBuildTime);
 		
 		ImGui::Text("Prefix Sum Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compact voxel buffers using prefix sum algorithm.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_prefixSumTime);
 		
 		ImGui::Text("Clusterize Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to group the voxels into clusters.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_clusterizeTime);
 
 		ImGui::Text("Compute Neighbours Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute neighbours of each cluster.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_computeNeighboursTime);
 		
 		ImGui::Text("Build AABBs Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to build AABBs for each voxel.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_buildAABBsTime);
 
 		ImGui::Text("Building TLAS time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to create the Ray-Tracing acceleration structures.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_buildingAccelerationStructuresTime);
 
 		ImGui::Text("Cluster Visibility Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to find, for each cluster, all other visible clusters using RT.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_clusterVisibilityTime);
 
 		ImGui::Text("Initial Radiance Time:"); 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute the initial radiance for the whole scene.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_initialRadianceTime);
 	}
 
-	if (ImGui::CollapsingHeader("Light options"))
+	ImGui::BeginDisabled(m_isClientReadyForRadiance);
+	if (ImGui::CollapsingHeader("Light"))
 	{
 		auto* light = m_voxelScene->GetMainLight();
 
@@ -531,6 +597,9 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + spacing);
 		ImGui::Text("Light Intensity:\t");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Light color multiplier to increase/decrease brightness.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::SliderFloat("##LightIntensity", &intensity, 0.0f, 10.0f))
@@ -544,6 +613,9 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		float closeStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
 
 		ImGui::Text("Far voxels bounce strength:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Sets the intensity of indirect light gathered from far voxels.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::SliderFloat("##FarStrength", &farStrength, 0.0f, 7.0f))
@@ -552,6 +624,9 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		}
 
 		ImGui::Text("Close voxels bounce strength:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Sets the intensity of indirect light gathered from nearby voxels.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::SliderFloat("##CloseStrength", &closeStrength, 0.0f, 7.0f))
@@ -562,11 +637,17 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		ImGui::SeparatorText("Update frequency");
 
 		ImGui::Text("Light update frequency:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("How often should radiance be recomputed when lightning changes.\n(Smaller is better but more expensive).");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::SliderFloat("##UpdateFrequency", &m_RTGIMaxTime, 0.0f, 0.5f);
 
 		ImGui::Text("Lerp update frequency:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time to lerp between previous radiance values and new radiance values.");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::SliderFloat("##LerpFrequency", &m_lerpMaxTime, 0.0f, 1.0f);
@@ -585,7 +666,8 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 			m_lerpMaxTime = 0.2f;
 		}
 	}
-	if (ImGui::CollapsingHeader("Gaussian filter options"))
+	ImGui::EndDisabled();
+	if (ImGui::CollapsingHeader("Gaussian filter"))
 	{
 		maxX = ImGui::CalcTextSize("Use precomputed gaussian values:\t").x;
 
@@ -594,6 +676,10 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		bool usePrecomputed = m_gaussianFilterTechnique->GetUsePrecomputedGaussian();
 
 		ImGui::Text("Use precomputed gaussian values:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Use precomputed gaussian values instead of dynamically computing them at run-time. \
+			\nThis is slightly faster but uses more memory.\n(Disable this to modify other gaussian options.");
+		}
 		ImGui::SameLine(maxX);
 		if (ImGui::Checkbox("##UsePrecomputedGaussianValues", &usePrecomputed))
 		{
@@ -612,6 +698,9 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		ImGui::BeginDisabled(usePrecomputed);
 
 		ImGui::Text("Gaussian Kernel size:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Size of the kernel used to smooth radiance values.\n(Higher is better but more expensive).");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (UIHelpers::OddIntegerSlider("##GaussianKernelSize", &kernelSize, 3, 7))
@@ -620,6 +709,9 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		}
 
 		ImGui::Text("Sigma value:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Constant used to determine the smoothness of the gaussian filters.\n(Smaller is less smooth).");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		float sigma = m_gaussianFilterTechnique->GetGaussianSigma();
@@ -632,6 +724,9 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		int passCount = (int)m_gaussianFilterTechnique->GetGaussianPassCount();
 
 		ImGui::Text("Gaussian pass count:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("How many should the gaussian filter pass be executed, taking previous pass result as input for the next pass.\n(More is better but more expensive).");
+		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		if (ImGui::ListBox("##GaussianPassCount:", &passCount, passCountItems, 3))
@@ -642,7 +737,60 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 
 		ImGui::EndDisabled();
 	}
-	if (ImGui::CollapsingHeader("Networking options"))
+	if (ImGui::CollapsingHeader("Post-processing"))
+	{
+		maxX = ImGui::CalcTextSize("Max world position threshold:\t").x;
+
+		float spatialSigma = Renderer::GetPostProcessSpatialSigma();
+		ImGui::Text("Spatial sigma:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Smooth nearby fragments radiance based on their screen space position.\n(Higher is smoother).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##SpatialSigma", &spatialSigma, 0.5f, 50.0f))
+		{
+			Renderer::SetPostProcessSpatialSigma(spatialSigma);
+		}
+
+		float intensitySigma = Renderer::GetPostProcessIntensitySigma();
+		ImGui::Text("Intensity sigma:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Smooth nearby fragments radiance based on how similar their radiance is.\n(Higher is smoother).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##IntensitySigma", &intensitySigma, 0.5f, 50.0f))
+		{
+			Renderer::SetPostProcessIntensitySigma(intensitySigma);
+		}
+
+		float worldThreshold = Renderer::GetPostProcessWorldThreshold();
+		ImGui::Text("Max world position threshold:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Smoothing is not performed for fragments whose world position is higher than this threshold.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##WorldThreshold", &worldThreshold, 0.1f, 10.0f))
+		{
+			Renderer::SetPostProcessWorldThreshold(worldThreshold);
+		}
+
+		int kernelSize = Renderer::GetPostProcessKernelSize();
+		ImGui::Text("Kernel size:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Size of the gaussian kernel used to perform the smoothing.\n(Higher is better but more expensive).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (UIHelpers::OddIntegerSlider("##KernelSize", &kernelSize, 1, 7))
+		{
+			Renderer::SetPostProcessKernelSize(kernelSize);
+		}
+
+	}
+	if (ImGui::CollapsingHeader("Networking"))
 	{
 		bool isConnected = m_networkServer.IsConnected();
 		if (!isConnected)
@@ -659,9 +807,67 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 			if (ImGui::Button("Stop Server"))
 			{
 				m_networkServer.Disconnect();
+				m_isClientReadyForRadiance = false;
+				m_firstRadianceSent = false;
 			}
 			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Server address: %s", m_networkServer.GetHostAddress().c_str());
+
+
+
+			if (m_networkServer.HasPeers())
+			{
+				ImGui::BeginTable("ClientTable", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg);
+				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+				ImGui::TableSetupColumn("Client Address", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Ping", ImGuiTableColumnFlags_WidthFixed);
+				ImGui::TableHeadersRow();
+
+				auto peerAddr = m_networkServer.GetPeerAddress();
+
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::Text("Client %d\t", 0);
+				ImGui::TableNextColumn();
+				ImGui::Text("%s", peerAddr.c_str());
+				ImGui::TableNextColumn();
+				ImGui::Text("%d ms", m_networkServer.GetPing());
+
+				ImGui::EndTable();
+			}
+
 		}
+
+		int compressionLevel = m_networkServer.GetDefaultCompressionLevel();
+		ImGui::SeparatorText("Compression");
+		ImGui::Text("Compression level:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Compression level used to send radiance.\n(Higher is better but more expensive).\n0 means no compression is performed.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderInt("##CompressionLevel", &compressionLevel, 0, 22))
+		{
+			m_networkServer.SetDefaultCompressionLevel(compressionLevel);
+			m_networkServer.ResetCompressionStats();
+		}
+
+		ImGui::SeparatorText("Info");
+
+		maxX = ImGui::CalcTextSize("Average compression ratio:\t").x;
+
+		ImGui::Text("Average compression ratio:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Average ratio between the size of the packet before and after compression.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("x%.2f", m_networkServer.GetAverageCompressionRatio());
+
+		ImGui::Text("Average compression time:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Average time that it took for each packet to be compressed.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", m_networkServer.GetAverageCompressionTime());
 
 	}
 
@@ -850,16 +1056,6 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 	timingData = reinterpret_cast<UINT64*>(m_timingReadBackBuffer.ReadBack(sizeof(UINT64) * 2));
 	m_initialRadianceTime = ((timingData[1] - timingData[0]) * 1000.0f) / Graphics::GetComputeGPUFrequency();
 
-	DXLIB_CORE_INFO("Prefix sum time: {0} ms", m_prefixSumTime);
-	DXLIB_CORE_INFO("Clusterize time: {0} ms", m_clusterizeTime);
-	DXLIB_CORE_INFO("Compute neighbours time: {0} ms", m_computeNeighboursTime);
-	DXLIB_CORE_INFO("Build AABBs time: {0} ms", m_buildAABBsTime);
-	DXLIB_CORE_INFO("Build Acceleration structure time: {0} ms", m_buildingAccelerationStructuresTime);
-	DXLIB_CORE_INFO("Cluster visibility time: {0} ms", m_clusterVisibilityTime);
-	DXLIB_CORE_INFO("Initial radiance time: {0} ms", m_initialRadianceTime);
-
-	m_lightTransportTechnique->ResizeIndexBuffers();
-
 	m_displayVoxelScene->SetCamera(m_Scene->GetMainCamera());
 	m_displayVoxelScene->SetVertexData(commandContext);
 
@@ -909,95 +1105,86 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 	DX12Lib::NetworkHost::InitializeEnet();
 	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
 	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
+	m_networkServer.OnPeerDisconnected = std::bind(&ClusteredVoxelGIApp::OnClientDisconnected, this, std::placeholders::_1);
 
 }
 
 void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* packet)
 {
-	if (m_receiveState == ReceiveState::CAMERA_DATA)
+
+	if (NetworkHost::CheckPacketHeader(packet, "CAMINP"))
 	{
-		if (NetworkHost::CheckPacketHeader(packet, "CAMINP"))
-		{
-			ConsumeNodeInput(packet, true);
-		}
-		else if (NetworkHost::CheckPacketHeader(packet, "LGTINP"))
-		{
-			ConsumeNodeInput(packet, false);
-		}
+		ConsumeNodeInput(packet, true);
+	}
+	else if (NetworkHost::CheckPacketHeader(packet, "LGTINP"))
+	{
+		ConsumeNodeInput(packet, false);
 	}
 	// Awaiting ACK for buffer data. If received we change state to listen for camera data.
-	else if (m_receiveState == ReceiveState::NECESSARY_BUFFERS)
+	else if (NetworkHost::CheckPacketHeader(packet, "BUFFER"))
 	{
-		if (NetworkHost::CheckPacketHeader(packet, "BUFFER"))
-		{
-			DXLIB_CORE_INFO("Client received buffers");
-			m_receiveState = ReceiveState::CAMERA_DATA;
-		}
+		DXLIB_CORE_INFO("Client received buffers");
+		m_isClientReadyForRadiance = true;
 	}
-	// Voxel size data was sent on connection. Awaiting for an ACK from client to send buffer data.
-	else if (m_receiveState == ReceiveState::INITIALIZATION)
+	else if (NetworkHost::CheckPacketHeader(packet, "INIT"))
 	{
-		if (NetworkHost::CheckPacketHeader(packet, "INIT"))
-		{
-			DXLIB_CORE_INFO("Received INIT packet");
-			m_receiveState = ReceiveState::NECESSARY_BUFFERS;
+		DXLIB_CORE_INFO("Received INIT packet");
 
-			auto& voxelOccupiedBuffer = m_voxelizeScene->GetOccupiedVoxelBuffer();
+		auto& voxelOccupiedBuffer = m_voxelizeScene->GetOccupiedVoxelBuffer();
 
-			PacketGuard occupiedBufferPkt = m_networkServer.CreatePacket();
-			occupiedBufferPkt->ClearPacket();
-			occupiedBufferPkt->AppendToBuffer("OCCVOX");
-			occupiedBufferPkt->AppendToBuffer(voxelOccupiedBuffer);
-			m_networkServer.SendData(occupiedBufferPkt);
+		PacketGuard occupiedBufferPkt = m_networkServer.CreatePacket();
+		occupiedBufferPkt->ClearPacket();
+		occupiedBufferPkt->AppendToBuffer("OCCVOX");
+		occupiedBufferPkt->AppendToBuffer(voxelOccupiedBuffer);
+		m_networkServer.SendData(occupiedBufferPkt);
 
-			DXLIB_CORE_INFO("Send VOXOCC buffer with a size of: {0}", voxelOccupiedBuffer.size());
+		DXLIB_CORE_INFO("Send VOXOCC buffer with a size of: {0}", voxelOccupiedBuffer.size());
 
-			auto& indRnkBuffer = m_prefixSumVoxels->GetIndirectionRankBuffer();
+		auto& indRnkBuffer = m_prefixSumVoxels->GetIndirectionRankBuffer();
 
-			PacketGuard indirectRankBufferPkt = m_networkServer.CreatePacket();
-			indirectRankBufferPkt->ClearPacket();
-			indirectRankBufferPkt->AppendToBuffer("INDRNK");
-			indirectRankBufferPkt->AppendToBuffer(indRnkBuffer);
-			m_networkServer.SendData(indirectRankBufferPkt);
+		PacketGuard indirectRankBufferPkt = m_networkServer.CreatePacket();
+		indirectRankBufferPkt->ClearPacket();
+		indirectRankBufferPkt->AppendToBuffer("INDRNK");
+		indirectRankBufferPkt->AppendToBuffer(indRnkBuffer);
+		m_networkServer.SendData(indirectRankBufferPkt);
 
-			DXLIB_CORE_INFO("Send INDRNK buffer with a size of: {0}", indRnkBuffer.size());
+		DXLIB_CORE_INFO("Send INDRNK buffer with a size of: {0}", indRnkBuffer.size());
 
 
-			auto& indIdxBUffer = m_prefixSumVoxels->GetIndirectionIndexBuffer();
+		auto& indIdxBUffer = m_prefixSumVoxels->GetIndirectionIndexBuffer();
 
 
-			PacketGuard indirectIndexBufferPkt = m_networkServer.CreatePacket();
-			indirectIndexBufferPkt->ClearPacket();
-			indirectIndexBufferPkt->AppendToBuffer("INDIDX");
-			indirectIndexBufferPkt->AppendToBuffer(indIdxBUffer);
-			m_networkServer.SendData(indirectIndexBufferPkt);
+		PacketGuard indirectIndexBufferPkt = m_networkServer.CreatePacket();
+		indirectIndexBufferPkt->ClearPacket();
+		indirectIndexBufferPkt->AppendToBuffer("INDIDX");
+		indirectIndexBufferPkt->AppendToBuffer(indIdxBUffer);
+		m_networkServer.SendData(indirectIndexBufferPkt);
 
-			DXLIB_CORE_INFO("Send INDIDX buffer with a size of: {0}", indIdxBUffer.size());
-
-
-			auto& cmpIdxBuffer = m_prefixSumVoxels->GetCompactedVoxelIndexBuffer();
+		DXLIB_CORE_INFO("Send INDIDX buffer with a size of: {0}", indIdxBUffer.size());
 
 
-			PacketGuard compactedIndicesPkt = m_networkServer.CreatePacket();
-			compactedIndicesPkt->ClearPacket();
-			compactedIndicesPkt->AppendToBuffer("CMPIDX");
-			compactedIndicesPkt->AppendToBuffer(cmpIdxBuffer);
-			m_networkServer.SendData(compactedIndicesPkt);
+		auto& cmpIdxBuffer = m_prefixSumVoxels->GetCompactedVoxelIndexBuffer();
 
-			DXLIB_CORE_INFO("Send CMPIDX buffer with a size of: {0}", cmpIdxBuffer.size());
 
-			auto& cmpHshBuffer = m_prefixSumVoxels->GetCompactedHashedBuffer();
+		PacketGuard compactedIndicesPkt = m_networkServer.CreatePacket();
+		compactedIndicesPkt->ClearPacket();
+		compactedIndicesPkt->AppendToBuffer("CMPIDX");
+		compactedIndicesPkt->AppendToBuffer(cmpIdxBuffer);
+		m_networkServer.SendData(compactedIndicesPkt);
 
-			PacketGuard compactedHashesPkt = m_networkServer.CreatePacket();
-			compactedHashesPkt->ClearPacket();
-			compactedHashesPkt->AppendToBuffer("CMPHSH");
-			compactedHashesPkt->AppendToBuffer(cmpHshBuffer);
-			m_networkServer.SendData(compactedHashesPkt);
+		DXLIB_CORE_INFO("Send CMPIDX buffer with a size of: {0}", cmpIdxBuffer.size());
 
-			DXLIB_CORE_INFO("Send CMPHSH buffer with a size of: {0}", cmpHshBuffer.size());
+		auto& cmpHshBuffer = m_prefixSumVoxels->GetCompactedHashedBuffer();
 
-		}
+		PacketGuard compactedHashesPkt = m_networkServer.CreatePacket();
+		compactedHashesPkt->ClearPacket();
+		compactedHashesPkt->AppendToBuffer("CMPHSH");
+		compactedHashesPkt->AppendToBuffer(cmpHshBuffer);
+		m_networkServer.SendData(compactedHashesPkt);
+
+		DXLIB_CORE_INFO("Send CMPHSH buffer with a size of: {0}", cmpHshBuffer.size());
 	}
+	
 }
 
 void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
@@ -1012,8 +1199,12 @@ void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
 	packet->AppendToBuffer(m_data->GetClusterCount());
 
 	m_networkServer.SendData(packet);
+}
 
-	m_receiveState = ReceiveState::INITIALIZATION;
+void CVGI::ClusteredVoxelGIApp::OnClientDisconnected(const ENetPeer* peer)
+{
+	m_isClientReadyForRadiance = false;
+	m_firstRadianceSent = false;
 }
 
 void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera)
@@ -1070,6 +1261,28 @@ void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const DX12Lib::NetworkPacket* p
 				controller->ControlOverNetwork(true);
 				controller->SetRemoteInput(clientInputBitmask, clientAbsPos, clientAbsRot, timeStamp);
 			}
+
+			float intensity = light->GetLightIntensity();
+			DirectX::XMFLOAT3 color = light->GetLightColor();
+			float closeVoxelStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
+			float farVoxelStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
+
+			memcpy(&intensity, dataVector.data() + previousSize, sizeof(float));
+			previousSize += sizeof(float);
+
+			memcpy(&color, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
+			previousSize += sizeof(DirectX::XMFLOAT3);
+
+			memcpy(&closeVoxelStrength, dataVector.data() + previousSize, sizeof(float));
+			previousSize += sizeof(float);
+
+			memcpy(&farVoxelStrength, dataVector.data() + previousSize, sizeof(float));
+			previousSize += sizeof(float);
+
+			light->SetLightIntensity(intensity);
+			light->SetLightColor(color);
+			m_lightTransportTechnique->SetCloseVoxelRadianceStrength(closeVoxelStrength);
+			m_lightTransportTechnique->SetFarVoxelRadianceStrength(farVoxelStrength);
 		}
 	}
 }
@@ -1084,31 +1297,7 @@ bool CVGI::ClusteredVoxelGIApp::IsDirectXRaytracingSupported() const
 	return featureSupport.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }
 
-void CVGI::ClusteredVoxelGIApp::GetFrameStats(int& fps, float& mspf)
-{
-	static int lastFps = 0.0f;
-	static float lastMSPF = 0.0f;
 
-	static int frameCount = 0;
-	static float lastTime = 0.0f;
-
-	frameCount++;
-
-	float frameTime = GameTime::GetTotalTime();
-
-	if (frameTime - lastTime >= 1.0)
-	{
-		lastFps = frameCount;
-		lastMSPF = 1000.0f / (float)lastFps;
-
-		frameCount = 0;
-
-		lastTime = frameTime;
-	}
-
-	fps = lastFps;
-	mspf = lastMSPF;
-}
 
 
 

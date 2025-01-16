@@ -81,6 +81,15 @@ namespace Graphics
 
 		std::vector<DX12Lib::ModelRenderer*> GetRenderers();
 
+		void SetPostProcessSpatialSigma(float sigma);
+		float GetPostProcessSpatialSigma();
+		void SetPostProcessIntensitySigma(float sigma);
+		float GetPostProcessIntensitySigma();
+		void SetPostProcessWorldThreshold(float treshold);
+		float GetPostProcessWorldThreshold();
+		void SetPostProcessKernelSize(int kernelSize);
+		int GetPostProcessKernelSize();
+
 		void SetUpRenderFrame(DX12Lib::CommandContext& context);
 		void ShadowPassForCamera(DX12Lib::GraphicsContext& context, DX12Lib::ShadowCamera* shadowCamera);
 		void ShadowPass(DX12Lib::GraphicsContext& context);

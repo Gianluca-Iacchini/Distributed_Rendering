@@ -9,6 +9,11 @@
 #include "Technique.h"
 #include "./Data/Shaders/Include/GaussianOnly_CS.h"
 
+#include "imgui.h"
+#include "backends/imgui_impl_win32.h"
+#include "backends/imgui_impl_dx12.h"
+#include "DX12Lib/UI/UIHelpers.h"
+
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -26,63 +31,136 @@ LocalIlluminationApp::~LocalIlluminationApp()
 
 void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 {
-	if (m_receiveState == ReceiveState::RADIANCE)
+
+	if (NetworkHost::CheckPacketHeader(packet, "RDXBUF"))
 	{
-		if (NetworkHost::CheckPacketHeader(packet, "RDXBUF"))
+		std::size_t pktSize = packet->GetSize() - 7;
+		std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
+
+		UploadBufferFencePair pair;
+
 		{
-			std::size_t pktSize = packet->GetSize() - 7;
-			std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
+			std::lock_guard<std::mutex> lock(m_vectorMutex);
 
-			UploadBufferFencePair pair;
+			if (m_ReadyToWriteBuffers.empty())
+				return;
 
-			{
-				std::lock_guard<std::mutex> lock(m_vectorMutex);
+			pair = m_ReadyToWriteBuffers.front();
+		}
 
-				if (m_ReadyToWriteBuffers.empty())
-					return;
+		// Wait for the first buffer to complete its copy operation before we can write to it.
+		m_bufferFence->WaitForFence(pair.second);
 
-				pair = m_ReadyToWriteBuffers.front();
-			}
+		{
+			std::lock_guard<std::mutex> lock(m_vectorMutex);
+			// Assign again in case the queue was modified while waiting for the fence
+			pair = m_ReadyToWriteBuffers.front();
+			m_ReadyToWriteBuffers.pop();
+		}
 
-			// Wait for the first buffer to complete its copy operation before we can write to it.
-			m_bufferFence->WaitForFence(pair.second);
+		auto& uploadBuffer = pair.first;
 
-			{
-				std::lock_guard<std::mutex> lock(m_vectorMutex);
-				// Assign again in case the queue was modified while waiting for the fence
-				pair = m_ReadyToWriteBuffers.front();
-				m_ReadyToWriteBuffers.pop();
-			}
+		// RADBUF + NULL character
+		UINT totalBytes = 7;
 
-			auto& uploadBuffer = pair.first;
+		UINT nFaces = 0;
+		UINT shouldReset = 0;
 
-			// RADBUF + NULL character
-			UINT totalBytes = 7;
+		void* mappedData = uploadBuffer->Map();
 
-			UINT nFaces = 0;
-			UINT shouldReset = 0;
-
-			void* mappedData = uploadBuffer->Map();
-
-			memcpy(&nFaces, packet->GetDataVector().data() + 7, sizeof(UINT));
-			totalBytes += sizeof(UINT);
-			memcpy(&shouldReset, packet->GetDataVector().data() + totalBytes, sizeof(UINT));
-			totalBytes += sizeof(UINT);
-			memcpy(mappedData, packet->GetDataVector().data() + totalBytes, vecSize * sizeof(DirectX::XMUINT2));
+		memcpy(&nFaces, packet->GetDataVector().data() + 7, sizeof(UINT));
+		totalBytes += sizeof(UINT);
+		memcpy(&shouldReset, packet->GetDataVector().data() + totalBytes, sizeof(UINT));
+		totalBytes += sizeof(UINT);
+		memcpy(mappedData, packet->GetDataVector().data() + totalBytes, vecSize * sizeof(DirectX::XMUINT2));
 
 
-			// The buffer can now be used in the main thread command list.
-			{
-				NetworkRadianceBufferInfo buffInfo;
-				buffInfo.buffer = uploadBuffer;
-				buffInfo.nFaces = nFaces;
-				buffInfo.ShouldReset = shouldReset;
-				std::lock_guard<std::mutex> lock(m_vectorMutex);
-				m_ReadyToCopyBuffer.push(buffInfo);
-			}
+		// The buffer can now be used in the main thread command list.
+		{
+			NetworkRadianceBufferInfo buffInfo;
+			buffInfo.buffer = uploadBuffer;
+			buffInfo.nFaces = nFaces;
+			buffInfo.ShouldReset = shouldReset;
+			std::lock_guard<std::mutex> lock(m_vectorMutex);
+			m_ReadyToCopyBuffer.push(buffInfo);
 		}
 	}
-	else if (m_receiveState == ReceiveState::BASIC_BUFFERS)
+	// To ensure that the server sent the initialization message, the message starts with "VOX" (4 bytes due to null character)
+	// Then each float is 4 bytes long.
+
+	else if (NetworkHost::CheckPacketHeader(packet, "VOX"))
+	{
+		auto& dataVector = packet->GetDataVector();
+		DirectX::XMUINT3 voxelizationSize;
+
+		// VOX + NULL character
+		size_t previousSize = 4;
+
+		memcpy(&voxelizationSize, dataVector.data() + previousSize, sizeof(DirectX::XMUINT3));
+
+		DXLIB_INFO("Received voxelization data with size: [{0},{1},{2}]", voxelizationSize.x, voxelizationSize.y, voxelizationSize.z);
+
+		previousSize += sizeof(DirectX::XMUINT3);
+		UINT32 voxelCount = 0;
+		memcpy(&voxelCount, dataVector.data() + previousSize, sizeof(UINT));
+
+
+		previousSize += sizeof(UINT);
+		UINT32 clusterCount = 0;
+		memcpy(&clusterCount, dataVector.data() + previousSize, sizeof(UINT));
+
+
+		DXLIB_INFO("Received voxelization data with voxel count: {0} and cluster count: {1}", voxelCount, clusterCount);
+
+		UINT32 faceCount = voxelCount * 6;
+		for (UINT i = 0; i < 3; i++)
+		{
+			std::shared_ptr<DX12Lib::UploadBuffer> uploadBuffer = std::make_shared<DX12Lib::UploadBuffer>();
+			uploadBuffer->Create(faceCount * sizeof(DirectX::XMUINT2));
+
+			m_ReadyToWriteBuffers.push(std::make_pair(uploadBuffer, 0));
+		}
+
+
+		DX12Lib::AABB sceneBounds = GetSceneAABBExtents();
+		DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3((sceneBounds.Max.x - sceneBounds.Min.x) / voxelizationSize.x,
+			(sceneBounds.Max.y - sceneBounds.Min.y) / voxelizationSize.y,
+			(sceneBounds.Max.z - sceneBounds.Min.z) / voxelizationSize.z);
+
+		m_data->SetSceneAABB(sceneBounds);
+		m_data->SetVoxelGridSize(voxelizationSize);
+		m_data->SetVoxelCellSize(voxelCellSize);
+		m_data->SetClusterCount(clusterCount);
+		m_data->SetVoxelCount(voxelCount);
+		m_data->BuildMatrices();
+		Renderer::SetRTGIData(m_data->GetVoxelCommons());
+
+		m_radianceFromNetworkTechnique->InitializeBuffers();
+		m_lightTransportTechnique->InitializeBuffers();
+
+		m_gaussianFilterTechnique->InitializeBuffers();
+		m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
+
+
+		UINT32 voxelLinearSIze = voxelizationSize.x * voxelizationSize.y * voxelizationSize.z;
+		UINT32 voxelBitmapSize = (voxelLinearSIze + 31) / 32;
+
+		m_voxelBufferManager->AddStructuredBuffer(voxelBitmapSize, sizeof(UINT32));
+		m_voxelBufferManager->AllocateBuffers();
+
+		m_prefixSumBufferManager->AddStructuredBuffer(voxelizationSize.y * voxelizationSize.z, sizeof(UINT32));
+		m_prefixSumBufferManager->AddStructuredBuffer(voxelizationSize.y * voxelizationSize.z, sizeof(UINT32));
+		m_prefixSumBufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(UINT32));
+		m_prefixSumBufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(UINT32));
+		m_prefixSumBufferManager->AllocateBuffers();
+
+
+		PacketGuard packet = m_networkClient.CreatePacket();
+		packet->ClearPacket();
+		packet->AppendToBuffer("INIT");
+		m_networkClient.SendData(packet);
+	}
+	else
 	{
 		for (int bf = 0; bf < 5; bf++)
 		{
@@ -103,9 +181,9 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 					std::lock_guard<std::mutex> lock(m_vectorMutex);
 					pair = m_ReadyToWriteBuffers.front();
 				}
-				
+
 				m_bufferFence->WaitForFence(pair.second);
-				
+
 				{
 					std::lock_guard<std::mutex> lock(m_vectorMutex);
 					// Assign again in case the queue was modified while waiting for the fence
@@ -141,106 +219,28 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 				m_buffersInitialized++;
 				if (m_buffersInitialized >= NUM_BASIC_BUFFERS)
 				{
-
-					m_receiveState = ReceiveState::RADIANCE;
-
-					DXLIB_INFO("All buffers initialized");
 					PacketGuard packet = m_networkClient.CreatePacket();
 					packet->ClearPacket();
 					packet->AppendToBuffer("BUFFER");
 					m_networkClient.SendData(packet);
 
-					{
-						std::lock_guard<std::mutex> lock(m_mainThreadMutex);
-						m_isMainThreadReady = true;
-					}
+					InitializeBasicBuffers();
+					m_buffersInitialized = 0;
 
-					m_mainThreadCV.notify_one();
+					m_isReadyForRadiance = true;
 				}
-				
+
 			}
 		}
 	}
-	else if (m_receiveState == ReceiveState::INITIALIZATION)
-	{
-		// To ensure that the server sent the initialization message, the message starts with "VOX" (4 bytes due to null character)
-		// Then each float is 4 bytes long.
+	
+}
 
-		if (NetworkHost::CheckPacketHeader(packet, "VOX"))
-		{
-			auto& dataVector = packet->GetDataVector();
-			DirectX::XMUINT3 voxelizationSize;
-
-			// VOX + NULL character
-			size_t previousSize = 4;
-
-			memcpy(&voxelizationSize, dataVector.data() + previousSize, sizeof(DirectX::XMUINT3));
-
-			DXLIB_INFO("Received voxelization data with size: [{0},{1},{2}]", voxelizationSize.x, voxelizationSize.y, voxelizationSize.z);
-
-			previousSize += sizeof(DirectX::XMUINT3);
-			UINT32 voxelCount = 0;
-			memcpy(&voxelCount, dataVector.data() + previousSize, sizeof(UINT));
-
-
-			previousSize += sizeof(UINT);
-			UINT32 clusterCount = 0;
-			memcpy(&clusterCount, dataVector.data() + previousSize, sizeof(UINT));
-
-
-			DXLIB_INFO("Received voxelization data with voxel count: {0} and cluster count: {1}", voxelCount, clusterCount);
-
-			UINT32 faceCount = voxelCount * 6;
-			for (UINT i = 0; i < 3; i++)
-			{
-				std::shared_ptr<DX12Lib::UploadBuffer> uploadBuffer = std::make_shared<DX12Lib::UploadBuffer>();
-				uploadBuffer->Create(faceCount * sizeof(DirectX::XMUINT2));
-
-				m_ReadyToWriteBuffers.push(std::make_pair(uploadBuffer, 0));
-			}
-
-
-			DX12Lib::AABB sceneBounds = GetSceneAABBExtents();
-			DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3((sceneBounds.Max.x - sceneBounds.Min.x) / voxelizationSize.x,
-				(sceneBounds.Max.y - sceneBounds.Min.y) / voxelizationSize.y,
-				(sceneBounds.Max.z - sceneBounds.Min.z) / voxelizationSize.z);
-
-			m_data->SetSceneAABB(sceneBounds);
-			m_data->SetVoxelGridSize(voxelizationSize);
-			m_data->SetVoxelCellSize(voxelCellSize);
-			m_data->SetClusterCount(clusterCount);
-			m_data->SetVoxelCount(voxelCount);
-			m_data->BuildMatrices();
-			Renderer::SetRTGIData(m_data->GetVoxelCommons());
-
-			m_radianceFromNetworkTechnique->InitializeBuffers();
-			m_lightTransportTechnique->InitializeBuffers();
-
-			m_gaussianFilterTechnique->InitializeBuffers();
-			m_gaussianFilterTechnique->SetIndirectCommandSignature(m_lightTransportTechnique->GetIndirectCommandSignature());
-
-
-			UINT32 voxelLinearSIze = voxelizationSize.x * voxelizationSize.y * voxelizationSize.z;
-			UINT32 voxelBitmapSize = (voxelLinearSIze + 31) / 32;
-
-			m_voxelBufferManager->AddStructuredBuffer(voxelBitmapSize, sizeof(UINT32));
-			m_voxelBufferManager->AllocateBuffers();
-
-			m_prefixSumBufferManager->AddStructuredBuffer(voxelizationSize.y * voxelizationSize.z, sizeof(UINT32));
-			m_prefixSumBufferManager->AddStructuredBuffer(voxelizationSize.y * voxelizationSize.z, sizeof(UINT32));
-			m_prefixSumBufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(UINT32));
-			m_prefixSumBufferManager->AddStructuredBuffer(m_data->GetVoxelCount(), sizeof(UINT32));
-			m_prefixSumBufferManager->AllocateBuffers();
-
-			m_receiveState = ReceiveState::BASIC_BUFFERS;
-
-
-			PacketGuard packet = m_networkClient.CreatePacket();
-			packet->ClearPacket();
-			packet->AppendToBuffer("INIT");
-			m_networkClient.SendData(packet);
-		}
-	}
+void LI::LocalIlluminationApp::OnPeerDisconnected(const ENetPeer* peer)
+{
+	m_isReadyForRadiance = false;
+	Renderer::UseRTGI(false);
+	m_isInitialized = false;
 }
 
 DX12Lib::AABB LocalIlluminationApp::GetSceneAABBExtents()
@@ -285,6 +285,416 @@ void LI::LocalIlluminationApp::CopyDataToBasicBuffer(UINT bufferIdx)
 {
 }
 
+void LI::LocalIlluminationApp::InitializeBasicBuffers()
+{
+
+	m_bufferFence->WaitForCurrentFence();
+	DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
+	m_gaussianFilterTechnique->InitializeGaussianConstants(context);
+	context.Finish(true);
+
+
+	DescriptorHandle& rendererRTGIHandle = Renderer::GetRTGIHandleSRV();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandles[6];
+
+	srvHandles[0] = m_voxelBufferManager->GetBuffer(0).GetSRV();
+
+	for (UINT i = 1; i < 5; i++)
+	{
+		srvHandles[i] = m_prefixSumBufferManager->GetBuffer(i - 1).GetSRV();
+	}
+
+	srvHandles[5] = m_data->GetBufferManager(VOX::GaussianFilterTechnique::ReadName).GetBuffer(0).GetSRV();
+
+	auto descriptorSize = Renderer::s_textureHeap->GetDescriptorSize();
+	for (UINT i = 0; i < 6; i++)
+	{
+		Graphics::s_device->Get()->CopyDescriptorsSimple(1, rendererRTGIHandle + descriptorSize * i, srvHandles[i], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	Renderer::UseRTGI(true);
+
+	// Technically we should use an atomic operation here, but since this is only for the UI and it is checked every frame anyway we should be fine.
+	m_isInitialized = true;
+}
+
+void LI::LocalIlluminationApp::ShowIMGUIWindow()
+{
+	float appX = static_cast<float>(Renderer::s_clientWidth);
+	float appY = static_cast<float>(Renderer::s_clientHeight);
+
+	ImVec2 windowSize = ImVec2(appX * 0.25f, appY);
+	ImVec2 windowPos = ImVec2(appX * 0.875f, appY * 0.5f);
+
+	float spacing = 10.0f;
+	float halfSpacing = spacing / 2.0f;
+
+
+
+	ImGui::SetNextWindowSize(windowSize);
+	ImGui::SetNextWindowPos(windowPos, ImGuiCond_Once, ImVec2(0.5f, 0.5f)); // Centered position
+
+	ImGui::Begin("CVGI Scene Options");
+
+	ImGui::SeparatorText("Clustered Voxel RTXGI");
+
+	int fps = 0;
+	float mspf = 0.0f;
+	GetFrameStats(fps, mspf);
+
+	float memoryUsageMiB = (float)m_rtgiMemoryUsage;
+	memoryUsageMiB /= (1024.0f * 1024.0f);
+
+	ImGui::Text("FPS: %d\tMSPF: %.2f", fps, mspf);
+	ImGui::Text("RTGI Memory usage: %.2f MiB", memoryUsageMiB);
+
+	ImGui::SeparatorText("Controls");
+
+	float maxX = ImGui::CalcTextSize("- Hold Right Mouse Button:\t").x;
+
+	ImGui::Text("- W, A, S, D:");
+	ImGui::SameLine(maxX);
+	ImGui::Text("Move Camera");
+
+	ImGui::Text("- E, Q:");
+	ImGui::SameLine(maxX);
+	ImGui::Text("Move Camera Up/Down");
+
+	ImGui::Text("- Hold Right Mouse Button:");
+	ImGui::SameLine(maxX);
+	ImGui::Text("Rotate Camera");
+
+	ImGui::Text("- Arrow Keys:");
+	ImGui::SameLine(maxX);
+	ImGui::Text("Move Light");
+
+	ImGui::Text("- ESC:");
+	ImGui::SameLine(maxX);
+	ImGui::Text("Quit");
+
+	bool isConnected = m_networkClient.IsConnected() && m_networkClient.HasPeers();
+
+	if (ImGui::CollapsingHeader("Networking", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		static float connectionTime = 0.0f;
+		static bool isWaitingForConnection = false;
+		float connectionTimeout = 5.0f;
+
+		if (!isConnected)
+		{
+			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Not connected");
+			ImGui::BeginDisabled(isWaitingForConnection);
+			const char* buttonText = isWaitingForConnection ? "Connecting..." : "Connect to server";
+			if (ImGui::Button(buttonText))
+			{
+				m_networkClient.Connect("127.0.0.1", 1234);
+				isWaitingForConnection = true;
+				connectionTime = 0.0f;
+			}
+
+			ImGui::EndDisabled();
+
+
+			if (isWaitingForConnection)
+			{
+				connectionTime += ImGui::GetIO().DeltaTime;
+			}
+
+			if (connectionTime >= connectionTimeout)
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Could not connect to server: Timeout");
+				m_networkClient.Disconnect();
+				isWaitingForConnection = false;
+			}
+		}
+		else
+		{
+			isWaitingForConnection = m_isInitialized;
+			connectionTime = 0.0f;
+
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Server is running");
+			if (ImGui::Button("Disconnect"))
+			{
+				m_networkClient.Disconnect();
+				m_isReadyForRadiance = false;
+				Renderer::UseRTGI(false);
+				m_isInitialized = false;
+				isWaitingForConnection = false;
+			}
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected to Server at: %s, RTT: %u ms", m_networkClient.GetPeerAddress().c_str(), m_networkClient.GetPing());
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Light"))
+	{
+		auto* light = m_LIScene->GetMainLight();
+
+		DirectX::XMFLOAT3 lightColor = light->GetLightColor();
+
+		float color[3] = { lightColor.x, lightColor.y, lightColor.z };
+
+		ImGui::CalcItemWidth();
+
+		if (ImGui::ColorPicker3("Light Color", color,
+			ImGuiColorEditFlags_Float | ImGuiColorEditFlags_DisplayRGB))
+		{
+			lightColor = DirectX::XMFLOAT3(color[0], color[1], color[2]);
+			light->SetLightColor(lightColor);
+		}
+
+		maxX = ImGui::CalcTextSize("Close voxels bounce strength:\t").x;
+
+		float intensity = light->GetLightIntensity();
+
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + spacing);
+		ImGui::Text("Light Intensity:\t");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Light color multiplier to increase/decrease brightness.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##LightIntensity", &intensity, 0.0f, 10.0f))
+		{
+			light->SetLightIntensity(intensity);
+		}
+
+		ImGui::SeparatorText("Indirect Light");
+
+		float farStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
+		float closeStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
+
+		ImGui::BeginDisabled(!isConnected);
+		ImGui::Text("Far voxels bounce strength:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Sets the intensity of indirect light gathered from far voxels.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##FarStrength", &m_farVoxelStrength, 0.0f, 7.0f))
+		{
+			m_indirectSettingChanged = true;
+		}
+
+		ImGui::Text("Close voxels bounce strength:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Sets the intensity of indirect light gathered from nearby voxels.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##CloseStrength", &m_closeVoxelStrength, 0.0f, 7.0f))
+		{
+			m_indirectSettingChanged = true;
+		}
+
+		ImGui::SeparatorText("Update frequency");
+
+		ImGui::Text("Lerp update frequency:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time to lerp between previous radiance values and new radiance values.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		ImGui::SliderFloat("##LerpFrequency", &m_lerpMaxTime, 0.0f, 1.0f);
+		ImGui::EndDisabled();
+
+		ImGui::Separator();
+
+		if (ImGui::Button("Reset settings"))
+		{
+			light->SetLightColor(DirectX::XMFLOAT3(0.45f, 0.45f, 0.45f));
+			light->SetLightIntensity(1.0f);
+
+			m_lerpMaxTime = 0.2f;
+		}
+	}
+
+	ImGui::BeginDisabled(!isConnected);
+	if (ImGui::CollapsingHeader("Voxelization Info"))
+	{
+		maxX = ImGui::CalcTextSize("Compute Neighbours Time:\t").x;
+
+		DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
+		ImGui::Text("Voxel Grid Size: (%d x %d x %d)", voxelGridSize.x, voxelGridSize.y, voxelGridSize.z);
+		ImGui::Text("Voxel Count: %d\tCluster Count: %d", m_data->GetVoxelCount(), m_data->GetClusterCount());
+
+		ImGui::SeparatorText("Real-time GI timings (latest dispatch)");
+
+		ImGui::Text("Process network time:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to fill the radiance buffer from the network data.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", m_processNetworkBufferTime);
+
+		ImGui::Text("Visible voxels:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute voxels visible from the main camera.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", m_visibleVoxelTime);
+
+		ImGui::Text("First gaussian filter:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute the first gaussian filter pass.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", m_firstGaussianFilterTime);
+
+		ImGui::Text("Second gaussian filter:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Time needed to compute the second gaussian filter pass.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", m_secondGaussianFilterTime);
+
+		float totalTime = m_visibleVoxelTime + m_firstGaussianFilterTime + m_secondGaussianFilterTime;
+		ImGui::Text("Total time:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Total time needed to complete all the previous steps for the latest dispatch.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", totalTime);
+
+		ImGui::Text("Average dispatch time:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Average time needed to complete all the previous steps for each dispatch.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::Text("%.2f ms", m_accTotalTime / (m_lightDispatchCount));
+		
+	}
+
+	if (ImGui::CollapsingHeader("Gaussian filter"))
+	{
+		maxX = ImGui::CalcTextSize("Use precomputed gaussian values:\t").x;
+
+		int kernelSize = (int)m_gaussianFilterTechnique->GetGaussianKernelSize();
+
+		bool usePrecomputed = m_gaussianFilterTechnique->GetUsePrecomputedGaussian();
+
+		ImGui::Text("Use precomputed gaussian values:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Use precomputed gaussian values instead of dynamically computing them at run-time. \
+		\nThis is slightly faster but uses more memory.\n(Disable this to modify other gaussian options.");
+		}
+		ImGui::SameLine(maxX);
+		if (ImGui::Checkbox("##UsePrecomputedGaussianValues", &usePrecomputed))
+		{
+			m_gaussianFilterTechnique->SetUsePrecomputedGaussian(usePrecomputed);
+
+			if (usePrecomputed)
+			{
+				m_gaussianFilterTechnique->SetGaussianKernelSize(5);
+				m_gaussianFilterTechnique->SetGaussianSigma(25.0f);
+				m_gaussianFilterTechnique->SetGaussianPassCount(2);
+			}
+		}
+
+		maxX = ImGui::CalcTextSize("Gaussian Kernel size : \t").x;
+
+		ImGui::BeginDisabled(usePrecomputed);
+
+		ImGui::Text("Gaussian Kernel size:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Size of the kernel used to smooth radiance values.\n(Higher is better but more expensive).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (UIHelpers::OddIntegerSlider("##GaussianKernelSize", &kernelSize, 3, 7))
+		{
+			m_gaussianFilterTechnique->SetGaussianKernelSize((UINT)kernelSize);
+		}
+
+		ImGui::Text("Sigma value:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Constant used to determine the smoothness of the gaussian filters.\n(Smaller is less smooth).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		float sigma = m_gaussianFilterTechnique->GetGaussianSigma();
+		if (ImGui::SliderFloat("##SigmaValue", &sigma, 0.1f, 3.0f))
+		{
+			m_gaussianFilterTechnique->SetGaussianSigma(sigma);
+		}
+
+		const char* passCountItems[] = { "No passes", "One pass", "Two passes" };
+		int passCount = (int)m_gaussianFilterTechnique->GetGaussianPassCount();
+
+		ImGui::Text("Gaussian pass count:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("How many should the gaussian filter pass be executed, taking previous pass result as input for the next pass.\n(More is better but more expensive).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::ListBox("##GaussianPassCount:", &passCount, passCountItems, 3))
+		{
+			m_gaussianFilterTechnique->SetGaussianPassCount((UINT)passCount);
+		}
+
+
+		ImGui::EndDisabled();
+	}
+
+	if (ImGui::CollapsingHeader("Post-processing"))
+	{
+		maxX = ImGui::CalcTextSize("Max world position threshold:\t").x;
+
+		float spatialSigma = Renderer::GetPostProcessSpatialSigma();
+		ImGui::Text("Spatial sigma:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Smooth nearby fragments radiance based on their screen space position.\n(Higher is smoother).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##SpatialSigma", &spatialSigma, 0.5f, 50.0f))
+		{
+			Renderer::SetPostProcessSpatialSigma(spatialSigma);
+		}
+
+		float intensitySigma = Renderer::GetPostProcessIntensitySigma();
+		ImGui::Text("Intensity sigma:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Smooth nearby fragments radiance based on how similar their radiance is.\n(Higher is smoother).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##IntensitySigma", &intensitySigma, 0.5f, 50.0f))
+		{
+			Renderer::SetPostProcessIntensitySigma(intensitySigma);
+		}
+
+		float worldThreshold = Renderer::GetPostProcessWorldThreshold();
+		ImGui::Text("Max world position threshold:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Smoothing is not performed for fragments whose world position is higher than this threshold.");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::SliderFloat("##WorldThreshold", &worldThreshold, 0.1f, 10.0f))
+		{
+			Renderer::SetPostProcessWorldThreshold(worldThreshold);
+		}
+
+		int kernelSize = Renderer::GetPostProcessKernelSize();
+		ImGui::Text("Kernel size:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Size of the gaussian kernel used to perform the smoothing.\n(Higher is better but more expensive).");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (UIHelpers::OddIntegerSlider("##KernelSize", &kernelSize, 1, 7))
+		{
+			Renderer::SetPostProcessKernelSize(kernelSize);
+		}
+
+	}
+	ImGui::EndDisabled();
+
+	ImGui::End();
+	
+}
+
 
 
 void LocalIlluminationApp::Initialize(GraphicsContext& context)
@@ -306,10 +716,7 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 
 	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
-
-
-
-	s_mouse->SetMode(Mouse::MODE_RELATIVE);
+	m_networkClient.OnPeerDisconnected = std::bind(&LocalIlluminationApp::OnPeerDisconnected, this, std::placeholders::_1);
 
 	if (!m_usePBRMaterials)
 	{
@@ -318,7 +725,13 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 		rootNode->SetScale(0.01f, 0.01f, 0.01f);
 	}
 
-	this->m_Scene->Init(context);
+	m_LIScene = dynamic_cast<LI::LIScene*>(m_Scene.get());
+
+	assert(m_LIScene != nullptr && "Error when initializing LI scene.");
+
+	m_LIScene->Init(context);
+	
+
 
 
 #if NETWORK_RADIANCE
@@ -354,53 +767,22 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 	m_gaussianFilterTechnique = std::make_shared<VOX::GaussianFilterTechnique>(m_data);
 	m_gaussianFilterTechnique->BuildPipelineState();
 
-	m_networkClient.Connect("127.0.0.1", 1234);
-
-	std::unique_lock<std::mutex> lock(m_mainThreadMutex);
-	
-	if (m_mainThreadCV.wait_for(lock, std::chrono::seconds(5), [this] { return m_isMainThreadReady; }))
-	{
-		DXLIB_INFO("Initialization complete");
-
-		m_bufferFence->WaitForCurrentFence();
-		DX12Lib::ComputeContext& context = DX12Lib::ComputeContext::Begin();
-		m_gaussianFilterTechnique->InitializeGaussianConstants(context);
-		
-		context.Finish(true);
-
-
-		DescriptorHandle& rendererRTGIHandle = Renderer::GetRTGIHandleSRV();
-
-		D3D12_CPU_DESCRIPTOR_HANDLE srvHandles[6];
-
-		srvHandles[0] = m_voxelBufferManager->GetBuffer(0).GetSRV();
-
-		for (UINT i = 1; i < 5; i++)
-		{
-			srvHandles[i] = m_prefixSumBufferManager->GetBuffer(i - 1).GetSRV();
-		}
-
-		srvHandles[5] = m_data->GetBufferManager(VOX::GaussianFilterTechnique::ReadName).GetBuffer(0).GetSRV();
-
-		auto descriptorSize = Renderer::s_textureHeap->GetDescriptorSize();
-		for (UINT i = 0; i < 6; i++)
-		{
-			Graphics::s_device->Get()->CopyDescriptorsSimple(1, rendererRTGIHandle + descriptorSize * i, srvHandles[i], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		}
-
-		Renderer::UseRTGI(true);
-	}
-	else
-	{
-		m_bufferFence->WaitForCurrentFence();
-		DXLIB_ERROR("Timeout waiting for initialization");
-	}
+	m_timingQueryHandle = Graphics::s_queryHeap->Alloc(5);
+	m_timingReadBackBuffer.Create(5, sizeof(UINT64));
 
 #endif
 }
 
 void LocalIlluminationApp::Update(GraphicsContext& context)
 {
+	DX12Lib::SceneCamera* camera = this->m_Scene->GetMainCamera();
+
+
+	DX12Lib::LightComponent* light = m_LIScene->GetMainLight();
+
+	bool isCameraDirty = camera != nullptr && camera->IsDirty();
+	bool isLightDirty = light != nullptr && (light->Node->IsTransformDirty() || light->DidLightPropertyChange());
+
 	D3DApp::Update(context);
 
 	auto kbState = Graphics::s_keyboard->GetState();
@@ -409,13 +791,9 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 	auto mouseState = Graphics::s_mouse->GetState();
 	bool mouseMoved = false;
 
-	if ((m_receiveState == ReceiveState::RADIANCE) && sendPacketDeltaTime > 0.1f)
+	if ((m_isReadyForRadiance) && sendPacketDeltaTime > 0.1f)
 	{
-		DX12Lib::SceneCamera* camera = this->m_Scene->GetMainCamera();
-		
-		LI::LIScene* scene = dynamic_cast<LI::LIScene*>(m_Scene.get());
 
-		DX12Lib::LightComponent* light = scene->GetMainLight();
 
 		std::uint8_t cameraInputBitMask = 0;
 		std::uint8_t lightInputBitMask = 0;
@@ -443,9 +821,6 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 		if (kbState.Right)
 			lightInputBitMask |= 1 << 3;
 
-		bool isCameraDirty = camera != nullptr && camera->IsDirty();
-		bool isLightDirty = light != nullptr && light->Node->IsTransformDirty();
-
 		if (camera != nullptr && ((m_lastCameraBitMask != cameraInputBitMask) || isCameraDirty))
 		{
 			PacketGuard packet = m_networkClient.CreatePacket();
@@ -458,7 +833,9 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 			m_networkClient.SendData(packet);
 		}
 
-		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty))
+		DXLIB_CORE_INFO("LightProperyChange: {0}", light->DidLightPropertyChange());
+
+		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty || m_indirectSettingChanged))
 		{
 			PacketGuard packet = m_networkClient.CreatePacket();
 			packet->ClearPacket();
@@ -467,6 +844,13 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 			packet->AppendToBuffer(light->Node->GetPosition());
 			packet->AppendToBuffer(light->Node->GetRotationQuaternion());
 			packet->AppendToBuffer(lightInputBitMask);
+			packet->AppendToBuffer(light->GetLightIntensity());
+			packet->AppendToBuffer(light->GetLightColor());
+			packet->AppendToBuffer(m_closeVoxelStrength);
+			packet->AppendToBuffer(m_farVoxelStrength);
+
+			m_indirectSettingChanged = false;
+
 			m_networkClient.SendData(packet);
 		}
 
@@ -484,10 +868,12 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 
 	Renderer::SetUpRenderFrame(context);
 
+	ShowIMGUIWindow();
+
 	this->m_Scene->Render(context);
 
 
-	if (m_receiveState == ReceiveState::RADIANCE)
+	if (m_isReadyForRadiance)
 	{
 		NetworkRadianceBufferInfo buffInfo;
 		buffInfo.buffer = nullptr;
@@ -526,6 +912,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 
 					m_lightTransportTechnique->ClearRadianceBuffers(computeContext, shouldResetBuffers);
 
+					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 0);
 					if (isRTGIDataAvailable)
 					{
 						UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, buffInfo.buffer.get(), buffInfo.nFaces, buffInfo.ShouldReset);
@@ -536,10 +923,15 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 							m_ReadyToWriteBuffers.push(std::make_pair(buffInfo.buffer, fenceVal));
 						}
 					}
+					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 1);
 
 					m_lightTransportTechnique->ComputeVisibleFaces(computeContext);
+					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 2);
 					m_gaussianFilterTechnique->PerformTechnique(computeContext);
+					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 3);
 					m_gaussianFilterTechnique->PerformTechnique2(computeContext);
+					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 4);
+					computeContext.ResolveQueryData(*Graphics::s_queryHeap, m_timingQueryHandle, m_timingReadBackBuffer, 5);
 
 					m_rtgiFence->CurrentFenceValue = computeContext.Finish();
 					Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_rtgiFence);
@@ -552,24 +944,34 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 				m_radianceReady = true;
 				LightDispatched = false;
 				m_cameraMovedSinceLastUpdate = false;
+
+				UINT64* timingData = reinterpret_cast<UINT64*>(m_timingReadBackBuffer.ReadBack(sizeof(UINT64) * 5));
+				m_processNetworkBufferTime = ((timingData[1] - timingData[0]) * 1000.0f) / Graphics::GetComputeGPUFrequency();
+				m_visibleVoxelTime = ((timingData[2] - timingData[1]) * 1000.0f) / Graphics::GetComputeGPUFrequency();
+				m_firstGaussianFilterTime = ((timingData[3] - timingData[2]) * 1000.0f) / Graphics::GetComputeGPUFrequency();
+				m_secondGaussianFilterTime = ((timingData[4] - timingData[3]) * 1000.0f) / Graphics::GetComputeGPUFrequency();
+
+				m_accTotalTime += m_processNetworkBufferTime + m_visibleVoxelTime + m_firstGaussianFilterTime + m_secondGaussianFilterTime;
+
+				m_lightDispatchCount += 1;
 			}
 		}
 
 		if (m_radianceReady)
 		{
 			Renderer::ResetLerpTime();
-			lerpDeltaTime = 0.0f;
+			m_lerpDeltaTime = 0.0f;
 		}
 
 		if (didCameraMove)
 		{
 			Renderer::SetLerpMaxTime(0.1f);
-			Renderer::SetDeltaLerpTime(lerpDeltaTime);
+			Renderer::SetDeltaLerpTime(m_lerpDeltaTime);
 		}
 		else
 		{
 			Renderer::SetLerpMaxTime(0.25f);
-			Renderer::SetDeltaLerpTime(lerpDeltaTime);
+			Renderer::SetDeltaLerpTime(m_lerpDeltaTime);
 		}
 	}
 
@@ -592,13 +994,12 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 		Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
 		m_rasterFenceValue = m_rasterFence->CurrentFenceValue;
 	}
+	
 		
-	LI::LIScene* scene = dynamic_cast<LI::LIScene*>(this->m_Scene.get());
-		
-	if (scene != nullptr)
-		scene->StreamScene(context);
 
-	lerpDeltaTime += GameTime::GetDeltaTime();
+	m_LIScene->StreamScene(context);
+
+	m_lerpDeltaTime += GameTime::GetDeltaTime();
 
 	m_radianceReady = false;
 

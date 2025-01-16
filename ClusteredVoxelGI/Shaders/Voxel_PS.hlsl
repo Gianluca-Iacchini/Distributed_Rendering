@@ -8,13 +8,13 @@ Texture2D gMetallicRoughness : register(t3);
 Texture2D gOcclusion : register(t4);
 
 
-RWByteAddressBuffer gVoxelOccupiedBuffer : register(u0);
-RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u1);
-RWStructuredBuffer<uint> gNextIndexBuffer : register(u2);
-RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3);
-RWStructuredBuffer<uint> gFragmentCounter : register(u4);
-RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u5);
-RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6);
+globallycoherent RWByteAddressBuffer gVoxelOccupiedBuffer : register(u0);
+globallycoherent RWStructuredBuffer<FragmentData> gFragmentDataBuffer : register(u1);
+globallycoherent RWStructuredBuffer<uint> gNextIndexBuffer : register(u2);
+globallycoherent RWStructuredBuffer<uint> gVoxelIndicesBuffer : register(u3);
+globallycoherent RWStructuredBuffer<uint> gFragmentCounter : register(u4);
+globallycoherent RWStructuredBuffer<uint> gOccupiedVoxelCounter : register(u5);
+globallycoherent RWStructuredBuffer<uint> gVoxelHashBuffer : register(u6);
 
 
 

@@ -93,10 +93,12 @@ namespace DX12Lib {
 	public:
 		virtual ~ComputeContext() = default;
 		static ComputeContext& Begin();
+		static ComputeContext* BeginPtr();
 		void Dispatch(size_t groupCountX, size_t groupCountY = 1, size_t groupCountZ = 1);
 		void Dispatch1D(size_t threadCount, size_t groupSize = 64);
 		void Dispatch2D(size_t threadCountX, size_t threadCountY, size_t groupSizeX = 8, size_t groupSizeY = 8);
-		void Dispatch3D(size_t threadCountX, size_t threadCountY, size_t threadCountZ, size_t groupSizeX = 8, size_t groupSizeY = 8, size_t groupSizeZ = 8);	
+		void Dispatch3D(size_t threadCountX, size_t threadCountY, size_t threadCountZ, size_t groupSizeX = 8, size_t groupSizeY = 8, size_t groupSizeZ = 8);
+
 	};
 
 

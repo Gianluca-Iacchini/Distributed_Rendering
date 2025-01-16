@@ -1,6 +1,6 @@
 #include "DX12Lib/pch.h"
 #include "NetworkManager.h"
-
+#include "minmax.h"
 
 #include "WS2tcpip.h"
 #include "in6addr.h"
@@ -50,10 +50,9 @@ void DX12Lib::NetworkHost::InitializeAsClient()
 		return;
 	}
 
-	if (m_hostType != NetworkHostType::None)
+	if (m_host != nullptr)
 	{
-		DXLIB_CORE_ERROR("Host is already initialized");
-		return;
+		enet_host_destroy(m_host);
 	}
 
 	m_host = enet_host_create(nullptr, 1, 1, 0, 0);
@@ -82,11 +81,9 @@ void DX12Lib::NetworkHost::Disconnect()
 {
 	if (m_mainNetworkThread.joinable())
 	{
-		if (m_isConnected)
-		{
-			m_isConnected = false;
-		}
 
+		m_isConnected = false;
+		
 		m_mainNetworkThread.join();
 		
 		if (m_Peer != nullptr)
@@ -189,20 +186,19 @@ DX12Lib::NetworkHost::~NetworkHost()
 void DX12Lib::NetworkHost::Connect(const std::string address, const std::uint16_t port)
 {
 	
-	if (m_hostType != NetworkHostType::Client)
+	if (m_hostType == NetworkHostType::Server)
 	{
-		if (m_hostType == NetworkHostType::None)
-		{
-			this->InitializeAsClient();
-		}
-		else
-		{
-			DXLIB_CORE_ERROR("Only clients can initiate a connection");
-			return;
-		}
+		DXLIB_CORE_ERROR("Only clients can initiate a connection");
+		return;
 	}
 
-	enet_address_set_host(&m_address, address.c_str());
+	this->InitializeAsClient();
+
+	if (enet_address_set_host(&m_address, address.c_str()) < 0)
+	{
+		DXLIB_CORE_ERROR("Error at setting host");
+		return;
+	}
 	m_address.port = port;
 
 	ENetPeer* peer = enet_host_connect(m_host, &m_address, 1, 0);
@@ -254,15 +250,56 @@ PacketGuard DX12Lib::NetworkHost::CreatePacket()
 	std::shared_ptr<NetworkPacket> newPacket = nullptr;
 	m_packetsToSend.GetFromPool(newPacket);
 
-	assert(newPacket != nullptr && "Created Packed was null");
+	bool packetToDiscard = false;
+	// This should only happen if the client is disconnected while the packet is being created
+	if (newPacket == nullptr)
+	{
+		newPacket = NetworkPacket::MakeShared();
+		packetToDiscard = true;
+	}
 
-	PacketGuard packetGuard = PacketGuard(newPacket, [this](std::shared_ptr<NetworkPacket> packet)
+	PacketGuard packetGuard = PacketGuard(newPacket, [this, packetToDiscard](std::shared_ptr<NetworkPacket> packet)
+	{
+		if (!packetToDiscard)
 		{
-			DXLIB_CORE_INFO("Returning packet to pool");
+			DXLIB_CORE_WARN("Packet was not disposed of properly.");
 			m_packetsToSend.ReturnToPool(packet);
-		});
+		}
+	});
 
 	return packetGuard;
+}
+
+bool DX12Lib::NetworkHost::HasPeers() const
+{
+	return m_Peer != nullptr;
+}
+
+std::string DX12Lib::NetworkHost::GetPeerAddress() const
+{
+	if (m_Peer == nullptr)
+	{
+		return std::string("");
+	}
+
+	char addrStr[INET6_ADDRSTRLEN];
+	if (enet_address_get_host_ip(&m_Peer->address, addrStr, sizeof(addrStr)) != 0)
+	{
+		DXLIB_CORE_ERROR(L"Failed to retrieve host address");
+		return std::string("");
+	}
+
+	return std::string(addrStr);
+}
+
+UINT32 DX12Lib::NetworkHost::GetPing()
+{
+	if (m_Peer != nullptr)
+	{
+		return m_Peer->roundTripTime;
+	}
+
+	return 0;
 }
 
 bool DX12Lib::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix)
@@ -286,9 +323,18 @@ std::string DX12Lib::NetworkHost::GetHostAddress() const
 	return m_hostAddress;
 }
 
-void DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
+float DX12Lib::NetworkHost::GetAverageCompressionRatio() const
 {
-	
+	return m_totalCompressionRatio / max(m_nCompressions, 1);
+}
+
+float DX12Lib::NetworkHost::GetAverageCompressionTime() const
+{
+	return m_totalCompressionTime / max(m_nCompressions, 1);
+}
+
+bool DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
+{
 	auto& packetData = packet->GetDataVector();
 	size_t prevSize = packetData.size();
 
@@ -296,34 +342,57 @@ void DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
 
 	std::vector<uint8_t> compressedData(compressBound);
 
+
+	int compressionLevel = m_defaultCompressionLevel;
+
+	if (prevSize < 200)
+	{
+		compressionLevel = 0;
+	}
+
+	// Get time now
+	auto start = std::chrono::high_resolution_clock::now();
+
 	size_t compressedSize = ZSTD_compress(
 		compressedData.data(),
 		compressedData.size(),
 		packetData.data(),
 		packetData.size(),
-		3
+		compressionLevel
 	);
 
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+	m_totalCompressionTime += duration.count() / 1000.0f;
+
+	m_totalCompressionRatio += (float)prevSize / (float)compressedSize;
+	m_nCompressions += 1;
+
 	if (ZSTD_isError(compressedSize)) {
-		throw std::runtime_error("Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+		DXLIB_CORE_ERROR("Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+		return false;
 	}
 
 	compressedData.resize(compressedSize);
 
 	packet->ClearPacket();
 	packet->SetData(compressedData);
-	
+
+	return true;
 }
 
-void DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
+bool DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
 {
 	auto& packetData = packet->GetDataVector();
+
 	size_t prevSize = packetData.size();
 
 	size_t decompressedSize = ZSTD_getFrameContentSize(packetData.data(), packetData.size());
 
 	if (decompressedSize == ZSTD_CONTENTSIZE_ERROR) {
-		throw std::runtime_error("Zstd decompression failed: " + std::string(ZSTD_getErrorName(decompressedSize)));
+		DXLIB_CORE_ERROR("Zstd decompression failed: " + std::string(ZSTD_getErrorName(decompressedSize)));
+		return false;
 	}
 
 	std::vector<uint8_t> decompressedData(decompressedSize);
@@ -336,7 +405,8 @@ void DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
 	);
 
 	if (ZSTD_isError(decompressedSize)) {
-		throw std::runtime_error("Zstd decompression failed: " + std::string(ZSTD_getErrorName(decompressedSize)));
+		DXLIB_CORE_ERROR("Zstd decompression failed: " + std::string(ZSTD_getErrorName(decompressedSize)));
+		return false;
 	}
 
 	decompressedData.resize(decompressedSize);
@@ -344,7 +414,7 @@ void DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
 	packet->ClearPacket();
 	packet->SetData(decompressedData);
 
-	DXLIB_CORE_INFO("Decompressed packet from {0} to {1} bytes", prevSize, decompressedSize);
+	return true;
 }
 
 void DX12Lib::NetworkHost::MainNetworkLoop()
@@ -355,6 +425,7 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 
 	m_receivedPackets.SetDone(false);
 	m_packetsToSend.SetDone(false);
+
 
 	m_isConnected = true;
 
@@ -379,8 +450,15 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 			{
 				DXLIB_CORE_INFO("A new client connected from {0}:{1}", addrStr, receivedEvent.peer->address.port);
 				m_Peer = receivedEvent.peer;
+				if (m_hostType == NetworkHostType::Client)
+				{
+					m_isConnected = true;
+				}
 				if (OnPeerConnected)
+				{
 					OnPeerConnected(receivedEvent.peer);
+				}
+
 			}
 			else if (receivedEvent.type == ENET_EVENT_TYPE_RECEIVE)
 			{
@@ -396,9 +474,14 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 				DXLIB_CORE_INFO("Client disconnected from {0}:{1}", addrStr, receivedEvent.peer->address.port);
 				if (OnPeerDisconnected)
 					OnPeerDisconnected(receivedEvent.peer);
+
 				enet_peer_disconnect(receivedEvent.peer, 0);
-				m_isConnected = false;
+				if (m_hostType == NetworkHostType::Client)
+				{
+					m_isConnected = false;
+				}
 				m_Peer = nullptr;
+				
 			}
 		}
 		else if (serviceResult < 0)
@@ -442,16 +525,16 @@ void DX12Lib::NetworkHost::SendDataLoop()
 		}
 
 
-		CompressData(packet.get());
-		
-
-		ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packet->m_data.size(), ENET_PACKET_FLAG_RELIABLE);
-
-		if (enet_peer_send(m_Peer, 0, enetPacket) < 0)
+		if (CompressData(packet.get()))
 		{
-			DXLIB_CORE_ERROR("Error while sending packet");
+			ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packet->m_data.size(), ENET_PACKET_FLAG_RELIABLE);
+
+			if (enet_peer_send(m_Peer, 0, enetPacket) < 0)
+			{
+				DXLIB_CORE_ERROR("Error while sending packet");
+			}
 		}
-				
+
 		m_packetsToSend.ReturnToPool(packet);
 	}
 }
@@ -473,8 +556,10 @@ void DX12Lib::NetworkHost::ReceiveDataLoop()
 		if (OnPacketReceived)
 		{
 			NetworkPacket* netPacket = packet.get();
-			DecompressData(netPacket);
-			OnPacketReceived(netPacket);
+			if (DecompressData(netPacket))
+			{
+				OnPacketReceived(netPacket);
+			}
 		}
 
 

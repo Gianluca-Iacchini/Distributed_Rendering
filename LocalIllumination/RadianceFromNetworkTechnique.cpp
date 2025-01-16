@@ -64,7 +64,7 @@ void LI::RadianceFromNetworkTechnique::TechniquePass(DX12Lib::ComputeContext& co
 	voxelBitmapBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	lightTransportBufferManager.TransitionAll(context, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	context.AddUAVIfNoBarriers(m_bufferManager->GetBuffer(1));
+	context.AddUAVIfNoBarriers();
 	context.FlushResourceBarriers();
 
 	context.m_commandList->Get()->SetComputeRootConstantBufferView((UINT)NetworkRadianceRootSignature::VoxelCommonCBV, m_data->GetVoxelCommonsResource().GpuAddress());
@@ -107,7 +107,7 @@ UINT64 LI::RadianceFromNetworkTechnique::ProcessNetworkData(DX12Lib::ComputeCont
 	UINT32 faceIdxByteSize = faceCount * sizeof(UINT32);
 
 	context.m_commandList->Get()->CopyBufferRegion(faceIndexBuffer.Get(), 0, buffer->Get(), 0, faceIdxByteSize);
-	context.m_commandList->Get()->CopyBufferRegion(faceRadianceBuffer.Get(), 0, buffer->Get(), faceIdxByteSize, faceCount * sizeof(DirectX::XMUINT2));
+	context.m_commandList->Get()->CopyBufferRegion(faceRadianceBuffer.Get(), 0, buffer->Get(), faceIdxByteSize, faceCount * sizeof(UINT32));
 
 	UINT64 copyFenceVal = context.Flush();
 
