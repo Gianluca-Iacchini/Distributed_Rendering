@@ -72,8 +72,21 @@ void VOX::LightTransportTechnique::InitializeBuffers()
     
     this->CreateExecuteIndirectCommandBuffer();
 
-    m_cbLightIndirect.CloseVoxelStrength = 1.0f;
-	m_cbLightIndirect.FarVoxelStrength = 1.0f;
+    float strength = 1.0f;
+
+	UINT voxelSize = m_data->GetVoxelGridSize().x;
+
+    if (voxelSize == 64)
+	{
+		strength = 40.0f;
+	}
+	else if (voxelSize == 128)
+	{
+		strength = 5.0f;
+	}
+
+    m_cbLightIndirect.CloseVoxelStrength = strength;
+	m_cbLightIndirect.FarVoxelStrength = strength;
 }
 
 void VOX::LightTransportTechnique::PerformTechnique(DX12Lib::ComputeContext& context)
@@ -420,14 +433,44 @@ UINT32 VOX::LightTransportTechnique::GetVisibleFacesCount()
 
 void VOX::LightTransportTechnique::SetCloseVoxelRadianceStrength(float strength)
 {
-	m_cbLightIndirect.CloseVoxelStrength = strength;
+	m_closeVoxelStrength = strength;
 	m_didRadianceStrengthChange = true;
+
+    float multiplier = 1.0f;
+
+    UINT voxelSize = m_data->GetVoxelGridSize().x;
+
+    if (voxelSize == 64)
+    {
+        multiplier = 20.0f;
+    }
+    else if (voxelSize == 128)
+    {
+        multiplier = 5.0f;
+    }
+
+	m_cbLightIndirect.CloseVoxelStrength = m_closeVoxelStrength * multiplier;
 }
 
 void VOX::LightTransportTechnique::SetFarVoxelRadianceStrength(float strength)
 {
-	m_cbLightIndirect.FarVoxelStrength = strength;
+	m_farVoxelStrength = strength;
 	m_didRadianceStrengthChange = true;
+
+    float multiplier = 1.0f;
+
+    UINT voxelSize = m_data->GetVoxelGridSize().x;
+
+    if (voxelSize == 64)
+    {
+        multiplier = 5.0f;
+    }
+    else if (voxelSize == 128)
+    {
+        multiplier = 15.0f;
+    }
+
+    m_cbLightIndirect.FarVoxelStrength = m_farVoxelStrength * multiplier;
 }
 
 std::shared_ptr<DX12Lib::RootSignature> VOX::LightTransportTechnique::BuildRootSignature()

@@ -351,12 +351,12 @@ bool CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelOptionWindow(float appX, float app
 	
 	buttonPosition.y += labelSize.y + spacing;
 
-	const uint32_t voxelSizes[4] = { 64, 128, 256, 512 };
+	const uint32_t voxelSizes[3] = { 64, 128, 256 };
 
 
 	std::string buttonName;
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 3; i++)
 	{
 		ImGui::SetCursorPos(buttonPosition);
 		
@@ -618,7 +618,7 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		if (ImGui::SliderFloat("##FarStrength", &farStrength, 0.0f, 7.0f))
+		if (ImGui::SliderFloat("##FarStrength", &farStrength, 0.0f, 8.0f))
 		{
 			m_lightTransportTechnique->SetFarVoxelRadianceStrength(farStrength);
 		}
@@ -629,7 +629,7 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		}
 		ImGui::SameLine(maxX);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		if (ImGui::SliderFloat("##CloseStrength", &closeStrength, 0.0f, 7.0f))
+		if (ImGui::SliderFloat("##CloseStrength", &closeStrength, 0.0f, 8.0f))
 		{
 			m_lightTransportTechnique->SetCloseVoxelRadianceStrength(closeStrength);
 		}

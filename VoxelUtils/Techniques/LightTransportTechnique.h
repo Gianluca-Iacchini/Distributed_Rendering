@@ -36,8 +36,8 @@ namespace VOX
 		std::uint8_t* GetVisibleFacesRadiance(UINT32 visibleFacesCount);
 		UINT32 GetVisibleFacesCount();
 
-		float GetCloseVoxelRadianceStrength() const { return m_cbLightIndirect.CloseVoxelStrength; }
-		float GetFarVoxelRadianceStrength() const { return m_cbLightIndirect.FarVoxelStrength; }
+		float GetCloseVoxelRadianceStrength() const { return m_closeVoxelStrength; }
+		float GetFarVoxelRadianceStrength() const { return m_farVoxelStrength; }
 
 		void SetCloseVoxelRadianceStrength(float strength);
 		void SetFarVoxelRadianceStrength(float strength);
@@ -72,6 +72,9 @@ namespace VOX
 		std::uint8_t* m_visibleFacesIndices = nullptr;
 		std::uint8_t* m_visibleFacesRadiance = nullptr;
 		UINT32 m_visibleFacesCount = 0;
+
+		float m_closeVoxelStrength = 1.0f;
+		float m_farVoxelStrength = 1.0f;
 
 	private:
 		ConstantBufferFrustumCulling m_cbFrustumCulling;

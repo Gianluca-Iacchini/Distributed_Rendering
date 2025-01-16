@@ -158,8 +158,8 @@ float3 gatherIrradianceFromNeighbour(uint clusterIdx, float3 voxelWorldCoord)
             {
                 uint3 neighIrradiance = gLitClusters[neighbourIndex].xyz;
                 float3 neighbourIrradiance = float3(neighIrradiance) / IRRADIANCE_FIELD_MULTIPLIER;
-                float formFactor = differentialAreaFormFactor(neighbourToVoxel, voxelWorldCoord, mainDirectionNeighbour, neighbourWorldCoords, 2000 * (7.1f - cbIndirectLight.FarVoxelStrength));
-                accumulatedIrradiance += formFactor * neighbourIrradiance;
+                float formFactor = differentialAreaFormFactor(neighbourToVoxel, voxelWorldCoord, mainDirectionNeighbour, neighbourWorldCoords, 14860.0f);
+                accumulatedIrradiance += formFactor * neighbourIrradiance * cbIndirectLight.FarVoxelStrength;
             }
         }
     }
@@ -225,8 +225,8 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
 
             if (distance > 5.0f)
             {
-                float formFactor = differentialAreaFormFactor(voxelToCluster / distance, voxelWorldPos, clusterData.Normal, clusterWorldPos, 2000 * (7.1f - cbIndirectLight.FarVoxelStrength));
-                currRadiance[nIteration] = clusterRadiance * formFactor * cbIndirectLight.LightColor * cbIndirectLight.LightIntensity * 100.0f;
+                float formFactor = differentialAreaFormFactor(voxelToCluster / distance, voxelWorldPos, clusterData.Normal, clusterWorldPos, 14860);
+                currRadiance[nIteration] = clusterRadiance * formFactor * cbIndirectLight.LightColor * cbIndirectLight.LightIntensity * cbIndirectLight.FarVoxelStrength * 100.0f;
                 radiance += currRadiance[nIteration];
             }
             else
