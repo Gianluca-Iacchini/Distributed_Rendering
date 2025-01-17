@@ -61,3 +61,18 @@ add_subdirectory(LocalIllumination)
 add_subdirectory(StreamingClient)
 
 set_directory_properties( PROPERTIES VS_STARTUP_PROJECT ClusteredVoxelGI)
+
+file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll" "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/*.dll")
+
+
+# Ensure the output directory exists
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+# Copy DLLs during configuration
+foreach(DLL ${DLL_FILES})
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${DLL} ${CMAKE_BINARY_DIR}/bin/Debug
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endforeach()

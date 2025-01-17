@@ -53,7 +53,6 @@ namespace LI
 
 		void ShowIMGUIWindow();
 	private:
-		bool m_usePBRMaterials = true;
 		DX12Lib::NetworkHost m_networkClient;
 		DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
 
