@@ -37,7 +37,7 @@ IF %VS_VERSION% == 17 (
     GOTO :Exit
 )
 
-ECHO Updating Git Submodules...
+ECHO Updating Git Submodules (this may take a while) ...
 
 git submodule init
 git submodule update
