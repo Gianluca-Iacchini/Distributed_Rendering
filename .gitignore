@@ -37,7 +37,9 @@ Models/
 # Bin folder of vendors products are allowed (e.g. Cmake)
 !vendor/
 !vendor/**/[Bb]in/
-!vendor/**/x64/
+
+# Include extern libraries
+!extern/**/x64/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
