@@ -35,7 +35,7 @@ void VoxelScene::Init(DX12Lib::GraphicsContext& context)
 	m_voxelCamera = voxelCameraNode->AddComponent<VoxelCamera>(VoxelTextureDimensions);
 
 	std::string sourcePath = SOURCE_DIR;
-	sourcePath += std::string("\\..\\LocalIllumination\\Models\\PBR\\sponza2.gltf");
+	sourcePath += std::string("\\..\\Models\\PBR\\sponza2.gltf");
 
 	bool loaded = this->AddFromFile(sourcePath.c_str());
 

@@ -117,11 +117,3 @@ target_include_directories(LocalIllumination
     PRIVATE "../VoxelUtils"
     PRIVATE "../VoxelUtils/Techniques"
 ) 
-
-file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll")
-
-foreach(DLL ${DLL_FILES})
-	add_custom_command(TARGET LocalIllumination POST_BUILD
-    		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        		${DLL} $<TARGET_FILE_DIR:LocalIllumination>)
-endforeach()

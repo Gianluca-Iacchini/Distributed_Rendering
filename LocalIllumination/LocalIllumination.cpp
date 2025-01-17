@@ -702,10 +702,9 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	std::string sourcePath = std::string(SOURCE_DIR);
 
-	if (m_usePBRMaterials)
-		sourcePath += std::string("\\Models\\PBR\\sponza2.gltf");
-	else
-		sourcePath += std::string("\\Models\\sponza_nobanner.obj");
+
+	sourcePath += std::string("\\..\\Models\\PBR\\sponza2.gltf");
+
 
 
 	bool loaded = this->m_Scene->AddFromFile(sourcePath.c_str());
@@ -718,12 +717,6 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
 	m_networkClient.OnPeerDisconnected = std::bind(&LocalIlluminationApp::OnPeerDisconnected, this, std::placeholders::_1);
 
-	if (!m_usePBRMaterials)
-	{
-		auto rootNode = m_Scene->GetRootNode();
-
-		rootNode->SetScale(0.01f, 0.01f, 0.01f);
-	}
 
 	m_LIScene = dynamic_cast<LI::LIScene*>(m_Scene.get());
 
@@ -832,8 +825,6 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 			packet->AppendToBuffer(cameraInputBitMask);
 			m_networkClient.SendData(packet);
 		}
-
-		DXLIB_CORE_INFO("LightProperyChange: {0}", light->DidLightPropertyChange());
 
 		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty || m_indirectSettingChanged))
 		{

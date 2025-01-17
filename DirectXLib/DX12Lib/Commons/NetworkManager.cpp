@@ -228,6 +228,8 @@ void DX12Lib::NetworkHost::StartServer(const std::uint16_t port)
 		}
 	}
 
+	PrintNetworkInterfaces();
+
 	m_mainNetworkThread = std::thread(&NetworkHost::MainNetworkLoop, this);
 }
 
@@ -331,6 +333,11 @@ float DX12Lib::NetworkHost::GetAverageCompressionRatio() const
 float DX12Lib::NetworkHost::GetAverageCompressionTime() const
 {
 	return m_totalCompressionTime / max(m_nCompressions, 1);
+}
+
+void DX12Lib::NetworkHost::PrintNetworkInterfaces()
+{
+	
 }
 
 bool DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
