@@ -29,6 +29,12 @@ namespace DX12Lib
 		NetworkPacket() = default;
 
 	public:
+		enum class PacketType
+		{
+			PACKET_RELIABLE = 0,
+			PACKET_UNRELIABLE = 1,
+		};
+
 		// Utility to append data of any type to a buffer
 		template <typename T>
 		void AppendToBuffer(const T& value) {
@@ -69,6 +75,9 @@ namespace DX12Lib
 			memcpy(m_data.data() + currentSize, data.data(), appendDataByteSize);
 		}
 
+		void SetPacketType(PacketType type) { m_packetType = type; }
+		PacketType GetPacketType() const { return m_packetType; }
+
 		void ClearPacket() { m_data.clear(); }
 		void SetData(const std::vector<std::uint8_t>& data) { m_data = data; }
 		const uint8_t* GetData() const { return m_data.data(); }
@@ -88,6 +97,7 @@ namespace DX12Lib
 
 	private:
 		std::vector<std::uint8_t> m_data;
+		PacketType m_packetType = PacketType::PACKET_RELIABLE;
 	};
 
 	struct PacketGuard

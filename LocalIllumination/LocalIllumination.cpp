@@ -156,6 +156,7 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 
 
 		PacketGuard packet = m_networkClient.CreatePacket();
+		packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 		packet->ClearPacket();
 		packet->AppendToBuffer("INIT");
 		m_networkClient.SendData(packet);
@@ -220,6 +221,7 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 				if (m_buffersInitialized >= NUM_BASIC_BUFFERS)
 				{
 					PacketGuard packet = m_networkClient.CreatePacket();
+					packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 					packet->ClearPacket();
 					packet->AppendToBuffer("BUFFER");
 					m_networkClient.SendData(packet);
@@ -817,6 +819,7 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 		if (camera != nullptr && ((m_lastCameraBitMask != cameraInputBitMask) || isCameraDirty))
 		{
 			PacketGuard packet = m_networkClient.CreatePacket();
+			packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 			packet->ClearPacket();
 			packet->AppendToBuffer("CAMINP");
 			packet->AppendToBuffer(NetworkHost::GetEpochTime());
@@ -829,6 +832,7 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty || m_indirectSettingChanged))
 		{
 			PacketGuard packet = m_networkClient.CreatePacket();
+			packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 			packet->ClearPacket();
 			packet->AppendToBuffer("LGTINP");
 			packet->AppendToBuffer(NetworkHost::GetEpochTime());

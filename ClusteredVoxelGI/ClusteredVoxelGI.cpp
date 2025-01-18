@@ -179,6 +179,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 				if (visibleFacesCount > 0)
 				{
 					PacketGuard packet = m_networkServer.CreatePacket();
+					packet->SetPacketType(NetworkPacket::PacketType::PACKET_UNRELIABLE);
 					packet->ClearPacket();
 					packet->AppendToBuffer("RDXBUF");
 					packet->AppendToBuffer(visibleFacesCount);
@@ -1133,6 +1134,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 		auto& voxelOccupiedBuffer = m_voxelizeScene->GetOccupiedVoxelBuffer();
 
 		PacketGuard occupiedBufferPkt = m_networkServer.CreatePacket();
+		occupiedBufferPkt->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 		occupiedBufferPkt->ClearPacket();
 		occupiedBufferPkt->AppendToBuffer("OCCVOX");
 		occupiedBufferPkt->AppendToBuffer(voxelOccupiedBuffer);
@@ -1143,6 +1145,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 		auto& indRnkBuffer = m_prefixSumVoxels->GetIndirectionRankBuffer();
 
 		PacketGuard indirectRankBufferPkt = m_networkServer.CreatePacket();
+		indirectRankBufferPkt->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 		indirectRankBufferPkt->ClearPacket();
 		indirectRankBufferPkt->AppendToBuffer("INDRNK");
 		indirectRankBufferPkt->AppendToBuffer(indRnkBuffer);
@@ -1155,6 +1158,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 
 
 		PacketGuard indirectIndexBufferPkt = m_networkServer.CreatePacket();
+		indirectIndexBufferPkt->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 		indirectIndexBufferPkt->ClearPacket();
 		indirectIndexBufferPkt->AppendToBuffer("INDIDX");
 		indirectIndexBufferPkt->AppendToBuffer(indIdxBUffer);
@@ -1167,6 +1171,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 
 
 		PacketGuard compactedIndicesPkt = m_networkServer.CreatePacket();
+		compactedIndicesPkt->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 		compactedIndicesPkt->ClearPacket();
 		compactedIndicesPkt->AppendToBuffer("CMPIDX");
 		compactedIndicesPkt->AppendToBuffer(cmpIdxBuffer);
@@ -1177,6 +1182,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 		auto& cmpHshBuffer = m_prefixSumVoxels->GetCompactedHashedBuffer();
 
 		PacketGuard compactedHashesPkt = m_networkServer.CreatePacket();
+		compactedHashesPkt->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 		compactedHashesPkt->ClearPacket();
 		compactedHashesPkt->AppendToBuffer("CMPHSH");
 		compactedHashesPkt->AppendToBuffer(cmpHshBuffer);
@@ -1190,6 +1196,7 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* p
 void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
 {
 	PacketGuard packet = m_networkServer.CreatePacket();
+	packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 	packet->ClearPacket();
 	packet->AppendToBuffer("VOX");
 	packet->AppendToBuffer(VoxelTextureDimension.x);

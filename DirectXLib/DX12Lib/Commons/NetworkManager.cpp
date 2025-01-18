@@ -269,6 +269,8 @@ PacketGuard DX12Lib::NetworkHost::CreatePacket()
 		}
 	});
 
+	packetGuard->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
+
 	return packetGuard;
 }
 
@@ -534,7 +536,14 @@ void DX12Lib::NetworkHost::SendDataLoop()
 
 		if (CompressData(packet.get()))
 		{
-			ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packet->m_data.size(), ENET_PACKET_FLAG_RELIABLE);
+			ENetPacketFlag flags = ENET_PACKET_FLAG_RELIABLE;
+
+			if (packet->GetPacketType() == NetworkPacket::PacketType::PACKET_UNRELIABLE)
+			{
+				flags = ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT;
+			}
+
+			ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packet->m_data.size(), flags);
 
 			if (enet_peer_send(m_Peer, 0, enetPacket) < 0)
 			{
