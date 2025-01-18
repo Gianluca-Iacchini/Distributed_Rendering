@@ -826,8 +826,6 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 			m_networkClient.SendData(packet);
 		}
 
-		DXLIB_CORE_INFO("LightProperyChange: {0}", light->DidLightPropertyChange());
-
 		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty || m_indirectSettingChanged))
 		{
 			PacketGuard packet = m_networkClient.CreatePacket();

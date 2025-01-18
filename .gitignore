@@ -107,6 +107,9 @@ StyleCopReport.xml
 *.svclog
 *.scc
 
+# Shader object files
+*.cso
+
 # Chutzpah Test files
 _Chutzpah*
 

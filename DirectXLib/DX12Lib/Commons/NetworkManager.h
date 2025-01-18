@@ -159,6 +159,7 @@ namespace DX12Lib
 		virtual void InitializeAsClient();
 
 	private:
+		void PrintNetworkInterfaces();
 		virtual bool CompressData(NetworkPacket* packet);
 		virtual bool DecompressData(NetworkPacket* packet);
 
