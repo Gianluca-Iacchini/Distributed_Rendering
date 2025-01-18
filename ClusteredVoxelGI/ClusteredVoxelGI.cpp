@@ -1205,6 +1205,8 @@ void CVGI::ClusteredVoxelGIApp::OnClientDisconnected(const ENetPeer* peer)
 {
 	m_isClientReadyForRadiance = false;
 	m_firstRadianceSent = false;
+	m_voxelScene->GetMainCamera()->Node->GetComponent<CameraController>()->IsRemote = false;
+	m_data->GetLightComponent()->Node->GetComponent<LightController>()->ControlOverNetwork(false);
 }
 
 void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera)

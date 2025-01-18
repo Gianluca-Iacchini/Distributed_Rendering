@@ -789,7 +789,7 @@ namespace Graphics::Renderer
 		auto& curBackBuf = GetCurrentBackBuffer();
 
 
-		HRESULT hr = s_swapchain->GetComPointer()->Present(0, 0);
+		HRESULT hr = s_swapchain->GetComPointer()->Present(1, 0);
 
 		if (FAILED(hr))
 		{
