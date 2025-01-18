@@ -64,8 +64,22 @@ set_directory_properties( PROPERTIES VS_STARTUP_PROJECT ClusteredVoxelGI)
 
 file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll" "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/*.dll")
 
+<<<<<<< HEAD
 foreach(DLL ${DLL_FILES})
 	add_custom_command(TARGET LocalIllumination POST_BUILD
     		COMMAND ${CMAKE_COMMAND} -E copy_if_different
         		${DLL} $<TARGET_FILE_DIR:LocalIllumination>)
+=======
+
+# Ensure the output directory exists
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+# Copy DLLs during configuration
+foreach(DLL ${DLL_FILES})
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${DLL} ${CMAKE_BINARY_DIR}/bin/Debug
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+>>>>>>> 8674b23a0baf3a82c42bf7aad5d5be9f803f9a81
 endforeach()
