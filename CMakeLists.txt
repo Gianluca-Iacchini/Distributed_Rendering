@@ -64,7 +64,10 @@ set_directory_properties( PROPERTIES VS_STARTUP_PROJECT ClusteredVoxelGI)
 
 file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll" "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/*.dll")
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6c4daffafcb1589a98c6a4c99bc5c89367104859
 # Ensure the output directory exists
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
@@ -77,4 +80,3 @@ foreach(DLL ${DLL_FILES})
     )
 
 endforeach()
-
