@@ -123,6 +123,8 @@ namespace LI
 
 		bool m_indirectSettingChanged = false;
 
+		char m_serverAddress[16] = { "127.0.0.1" };
+
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
 		LocalIlluminationApp(const LocalIlluminationApp& rhs) = delete;

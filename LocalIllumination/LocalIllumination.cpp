@@ -1,5 +1,5 @@
-#define STREAMING 0
-#define NETWORK_RADIANCE 1
+#define STREAMING 1
+#define NETWORK_RADIANCE 0
 
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"
@@ -375,26 +375,31 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 	ImGui::SameLine(maxX);
 	ImGui::Text("Quit");
 
-	bool isConnected = m_networkClient.IsConnected() && m_networkClient.HasPeers();
+	bool isConnected = m_networkClient.IsConnected() && m_networkClient.HasPeers() && m_isReadyForRadiance;
 
 	if (ImGui::CollapsingHeader("Networking", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		static float connectionTime = 0.0f;
 		static bool isWaitingForConnection = false;
-		float connectionTimeout = 5.0f;
+		float connectionTimeout = 8.0f;
 
 		if (!isConnected)
 		{
 			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Not connected");
 			ImGui::BeginDisabled(isWaitingForConnection);
 			const char* buttonText = isWaitingForConnection ? "Connecting..." : "Connect to server";
+
+
+			ImGui::InputText("Server address", m_serverAddress, 16);
+
 			if (ImGui::Button(buttonText))
 			{
-				m_networkClient.Connect("127.0.0.1", 1234);
+				m_networkClient.Connect(m_serverAddress, 1234);
 				isWaitingForConnection = true;
 				connectionTime = 0.0f;
 			}
 
+		
 			ImGui::EndDisabled();
 
 
@@ -408,6 +413,9 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Could not connect to server: Timeout");
 				m_networkClient.Disconnect();
 				isWaitingForConnection = false;
+				m_isReadyForRadiance = false;
+				m_isInitialized = false;
+				Renderer::UseRTGI(false);
 			}
 		}
 		else

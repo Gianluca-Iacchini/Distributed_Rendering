@@ -137,13 +137,14 @@ void DX12Lib::FFmpegStreamer::StreamLoop()
 
 	len = sizeof(m_cliaddr);
 
+	int nPts = 0;
 
 	while (m_isStreamOpen && m_encoder.IsEncoding())
 	{
 		std::vector<uint8_t> packets = m_encoder.ConsumePacket();
 		if (!packets.empty())
 		{
-			this->SendFrame(packets.data(), packets.size());
+			this->SendFrame(nPts++, packets.data(), packets.size());
 		}
 
 		n = recvfrom(m_sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&m_cliaddr, &len);
@@ -164,7 +165,7 @@ void DX12Lib::FFmpegStreamer::StreamLoop()
 
 
 
-void DX12Lib::FFmpegStreamer::SendFrame(std::uint8_t* data, size_t size)
+void DX12Lib::FFmpegStreamer::SendFrame(int nPts, std::uint8_t* data, size_t size)
 {
 	if (size <= 0)
 		return;
@@ -174,6 +175,13 @@ void DX12Lib::FFmpegStreamer::SendFrame(std::uint8_t* data, size_t size)
 
 	pkt.data = data;
 	pkt.size = size;
+	pkt.stream_index = m_stream->index;
+	pkt.pts = av_rescale_q(nPts++, AVRational{ 1, 60 }, m_stream->time_base);
+	pkt.dts = pkt.pts;
+
+	if (!memcmp(data, "\x00\x00\x00\x01\x67", 5)) {
+		pkt.flags |= AV_PKT_FLAG_KEY;
+	}
 
 	int sentStatus = av_write_frame(m_fmtCtx, &pkt);
 

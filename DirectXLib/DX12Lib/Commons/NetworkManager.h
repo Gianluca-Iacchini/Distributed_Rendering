@@ -135,7 +135,7 @@ namespace DX12Lib
 
 
 
-		virtual void Connect(const std::string address, const std::uint16_t port);
+		virtual void Connect(const char* address, const std::uint16_t port);
 		virtual void StartServer(const std::uint16_t port);
 		virtual void Disconnect();
 

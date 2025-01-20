@@ -116,9 +116,9 @@ void DX12Lib::NetworkHost::Disconnect()
 				enet_peer_reset(m_Peer);
 			}
 		}
-
-		m_Peer = nullptr;
 	}
+
+	m_Peer = nullptr;
 }
 
 
@@ -164,12 +164,6 @@ void DX12Lib::NetworkHost::InitializeAsServer(uint16_t port)
 DX12Lib::NetworkHost::NetworkHost() : m_hostType(NetworkHostType::None)
 {
 	m_receivedPackets.ShouldWait = false;
-
-	for (UINT i = 0; i < QUEUE_SIZE; i++)
-	{
-		m_packetsToSend.AddNewElementToPool(NetworkPacket::MakeShared());
-		m_receivedPackets.AddNewElementToPool(NetworkPacket::MakeShared());
-	}
 }
 
 DX12Lib::NetworkHost::~NetworkHost()
@@ -183,7 +177,7 @@ DX12Lib::NetworkHost::~NetworkHost()
 	}
 }
 
-void DX12Lib::NetworkHost::Connect(const std::string address, const std::uint16_t port)
+void DX12Lib::NetworkHost::Connect(const char* address, const std::uint16_t port)
 {
 	
 	if (m_hostType == NetworkHostType::Server)
@@ -194,7 +188,7 @@ void DX12Lib::NetworkHost::Connect(const std::string address, const std::uint16_
 
 	this->InitializeAsClient();
 
-	if (enet_address_set_host(&m_address, address.c_str()) < 0)
+	if (enet_address_set_host(&m_address, address) < 0)
 	{
 		DXLIB_CORE_ERROR("Error at setting host");
 		return;
@@ -435,6 +429,11 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 	m_receivedPackets.SetDone(false);
 	m_packetsToSend.SetDone(false);
 
+	for (UINT i = 0; i < QUEUE_SIZE; i++)
+	{
+		m_packetsToSend.AddNewElementToPool(NetworkPacket::MakeShared());
+		m_receivedPackets.AddNewElementToPool(NetworkPacket::MakeShared());
+	}
 
 	m_isConnected = true;
 

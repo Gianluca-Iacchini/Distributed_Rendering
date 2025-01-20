@@ -811,8 +811,6 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 				m_isClientReadyForRadiance = false;
 				m_firstRadianceSent = false;
 			}
-			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Server address: %s", m_networkServer.GetHostAddress().c_str());
-
 
 
 			if (m_networkServer.HasPeers())

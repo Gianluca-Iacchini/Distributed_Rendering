@@ -33,7 +33,7 @@ namespace DX12Lib {
 	private:
 		void InitWinsock();
 		void StreamLoop();
-		void SendFrame(std::uint8_t* data, size_t size);
+		void SendFrame(int nPts, std::uint8_t* data, size_t size);
 
 	private:
 
