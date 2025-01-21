@@ -176,6 +176,11 @@ public:
 		return a + rand() % ((b - a) + 1);
 	}
 
+	static float Distance(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b)
+	{
+		return sqrtf(powf(b.x - a.x, 2) + powf(b.y - a.y, 2) + powf(b.z - a.z, 2));
+	}
+
 	// From MiniEngine
 	template <typename T> 
 	static __forceinline T DivideByMultiple(T value, size_t alignment)

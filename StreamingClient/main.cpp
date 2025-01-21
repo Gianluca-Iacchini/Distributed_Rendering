@@ -10,6 +10,8 @@
 
 #include "NetworkManager.h"
 
+#define IS_STREAMING 0
+
 float lastTime = 0.0f;
 float currentTime = 0.0f;
 float accumulatedTime = 0.0f;
@@ -29,36 +31,45 @@ int cameraLiftValue = 0;
 
 Commons::NetworkHost m_clientHost;
 
+
+std::uint8_t m_movementInputBitmask;
+
+float m_mousePosXY[2];
+
+bool m_isInputDataReady = true;
+
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	std::string keyInput = "";
 
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 	{
 		glfwSetWindowShouldClose(window, true);
 	}
 
+	std::uint8_t cameraInputBitMask = 0;
+	//std::uint8_t lightInputBitMask = 0;
+
 	if (action == GLFW_PRESS)
 	{
 		switch (key)
 		{
 		case GLFW_KEY_W:
-			keyInput += "CF 1\n";
+			m_movementInputBitmask |= 1 << 0;
 			break;
 		case GLFW_KEY_S:
-			keyInput += "CF -1\n";
+			m_movementInputBitmask |= 1 << 1;
 			break;
 		case GLFW_KEY_A:
-			keyInput += "CS -1\n";
+			m_movementInputBitmask |= 1 << 2;
 			break;
 		case GLFW_KEY_D:
-			keyInput += "CS 1\n";
+			m_movementInputBitmask |= 1 << 3;
 			break;
 		case GLFW_KEY_E:
-			keyInput += "CL 1\n";
+			m_movementInputBitmask |= 1 << 4;
 			break;
 		case GLFW_KEY_Q:
-			keyInput += "CL -1\n";
+			m_movementInputBitmask |= 1 << 5;
 			break;
 		default:
 			break;
@@ -67,25 +78,32 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 
 	if (action == GLFW_RELEASE)
 	{
-		if (key == GLFW_KEY_W || key == GLFW_KEY_S)
+		switch (key)
 		{
-			keyInput += "CF 0\n";
-		}
-		if (key == GLFW_KEY_A || key == GLFW_KEY_D)
-		{
-			keyInput += "CS 0\n";
-		}
-		if (key == GLFW_KEY_E || key == GLFW_KEY_Q)
-		{
-			keyInput += "CL 0\n";
+		case GLFW_KEY_W:
+			m_movementInputBitmask &= ~(1 << 0);
+			break;
+		case GLFW_KEY_S:
+			m_movementInputBitmask &= ~(1 << 1);
+			break;
+		case GLFW_KEY_A:
+			m_movementInputBitmask &= ~(1 << 2);
+			break;
+		case GLFW_KEY_D:
+			m_movementInputBitmask &= ~(1 << 3);
+			break;
+		case GLFW_KEY_E:
+			m_movementInputBitmask &= ~(1 << 4);
+			break;
+		case GLFW_KEY_Q:
+			m_movementInputBitmask &= ~(1 << 5);
+			break;
+		default:
+			break;
 		}
 	}
 
-	if (keyInput.empty())
-	{
-		return;
-	}
-
+	m_isInputDataReady = true;
 }
 
 void MouseCallback(GLFWwindow* window, double xpos, double ypos)
@@ -98,41 +116,26 @@ void MouseCallback(GLFWwindow* window, double xpos, double ypos)
 		firstMouse = false;
 	}
 
-	// Calculate the delta positions
-	double deltaX = xpos - lastX;
-	double deltaY = ypos - lastY;
-
 	// Update the last positions
-	lastX = xpos;
-	lastY = ypos;
+
 
 	int wWidth = 1, wHeight = 1;
 	glfwGetWindowSize(window, &wWidth, &wHeight);
 
-	double normalizedDeltaX = deltaX / wWidth;
-	double normalizedDeltaY = deltaY / wHeight;
+	double mouseDeltaX = xpos - lastX;
+	double mouseDeltaY = lastY - ypos;
 
-	std::string input = "M ";
+	double normalizedDeltaX = mouseDeltaX / wWidth;
+	double normalizedDeltaY = mouseDeltaY / wHeight;
 
-	std::string truncatedX = SC::Helpers::TruncateToString(normalizedDeltaX, 5);
-	std::string truncatedY = SC::Helpers::TruncateToString(normalizedDeltaY, 5);
 
-	if (truncatedX == lastMouseXTruncated && truncatedY == lastMouseYTruncated)
-		return;
+	m_mousePosXY[0] = normalizedDeltaX;
+	m_mousePosXY[1] = normalizedDeltaY;
 
-	if (truncatedX != lastMouseXTruncated)
-	{
-		input += "x:" + truncatedX + " ";
-		lastMouseXTruncated = truncatedX;
-	}
+	m_isInputDataReady = true;
 
-	if (truncatedY != lastMouseYTruncated)
-	{
-		input += "y:" + truncatedY;
-		lastMouseYTruncated = truncatedY;
-	}
-
-	input += "\n";
+	lastX = xpos;
+	lastY = ypos;
 }
 
 void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamRenderer* renderer)
@@ -243,7 +246,7 @@ int main()
 
 	Commons::NetworkHost::InitializeEnet();
 
-	m_clientHost.Connect("localhost", 2345);
+	m_clientHost.Connect("127.0.0.1", 2345);
 
 	{
 		SC::StreamRenderer sr(cuContext);
@@ -254,6 +257,7 @@ int main()
 			return -1;
 		}
 
+#if IS_STREAMING
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://cdn.radiantmediatechs.com/rmp/media/samples-for-rmp-site/04052024-lac-de-bimont/hls/playlist.m3u8");
 		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("udp://localhost:1234?overrun_nonfatal=1&fifo_size=50000000");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
@@ -268,15 +272,13 @@ int main()
 		g_isDecodeDone = false;
 
 
-
+		std::thread decodeThread(DecodeFrame, &dec, &demuxer, &sr);
 		sr.InitializeResources(width, height);
+#endif
+
+
 		sr.SetKeyCallback(KeyCallback);
 		sr.SetMouseCallback(MouseCallback);
-
-
-		std::thread decodeThread(DecodeFrame, &dec, &demuxer, &sr);
-
-
 
 		lastTime = 0.0f;
 
@@ -289,7 +291,7 @@ int main()
 		double renderStartTime = glfwGetTime();
 		double lastTime = renderStartTime;
 
-
+#if IS_STREAMING
 		while (!shouldClose)
 		{
 			sr.isDone = shouldClose = sr.ShouldCloseWindow() || (g_isDecodeDone && sr.IsReadQueueEmpty());
@@ -301,7 +303,7 @@ int main()
 			if (renderStartTime > 0.0f )
 			{
 				sr.Update();
-				sr.Render();
+				sr.Render(IS_STREAMING);
 				renderStartTime -= deltaTime;
 				continue;
 			}
@@ -314,14 +316,40 @@ int main()
 			{
 				accumulatedTime -= sr.msfps / (1000.0f);
 				sr.Update();
-				sr.Render();
+				sr.Render(IS_STREAMING);
 			}
 
 		}
 
 		sr.FreeQueues();
 		decodeThread.join();
-	} 
+	
+#else
+		while (!shouldClose)
+		{
+			sr.isDone = shouldClose = sr.ShouldCloseWindow();
+			sr.Update();
+
+			if (m_isInputDataReady)
+			{
+				Commons::PacketGuard inputPacket = m_clientHost.CreatePacket();
+				inputPacket->ClearPacket();
+				inputPacket->AppendToBuffer("STRINP");
+				inputPacket->SetPacketType(Commons::NetworkPacket::PacketType::PACKET_RELIABLE);
+				inputPacket->AppendToBuffer(Commons::NetworkHost::GetEpochTime());
+				inputPacket->AppendToBuffer(m_movementInputBitmask);
+				inputPacket->AppendToBuffer(m_mousePosXY[0]);
+				inputPacket->AppendToBuffer(m_mousePosXY[1]);
+				m_clientHost.SendData(inputPacket);
+
+				m_isInputDataReady = false;
+			}
+
+			sr.Render(IS_STREAMING);
+		}
+
+#endif
+	}
 
 
 	Commons::NetworkHost::DeinitializeEnet();

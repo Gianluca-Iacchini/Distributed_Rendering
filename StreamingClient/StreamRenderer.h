@@ -55,7 +55,7 @@ namespace SC
 		void CopyFrameToTexture();
 		GLFWwindow* GetWindow() const { return m_window; }
 		void Update();
-		void Render();
+		void Render(bool isStreaming);
 		void FreeQueues();
 		void Destroy();
 

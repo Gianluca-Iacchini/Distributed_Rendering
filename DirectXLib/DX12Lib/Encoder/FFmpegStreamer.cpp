@@ -29,8 +29,6 @@ DX12Lib::FFmpegStreamer::FFmpegStreamer() : m_url(""), m_encoder(NVEncoder())
 	}
 
 	av_register_all();
-
-	m_recvData = std::make_tuple(nullptr, 0);
 }
 
 DX12Lib::FFmpegStreamer::~FFmpegStreamer()
@@ -104,61 +102,13 @@ void DX12Lib::FFmpegStreamer::StartStreaming()
 		return;
 	}
 
-	InitWinsock();
-
 	m_encoder.StartEncodeLoop();
 	m_streamThread = std::thread(&FFmpegStreamer::StreamLoop, this);
 }
 
-void DX12Lib::FFmpegStreamer::InitWinsock()
-{
-	WSADATA wsaData;
-	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-		DXLIB_CORE_FATAL("WSAStartup failed.");
-	}
-
-	m_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (m_sockfd == INVALID_SOCKET) {
-		WSACleanup();
-		DXLIB_CORE_FATAL("Socket creation failed.");
-	}
-
-	u_long mode = 1;
-	if (ioctlsocket(m_sockfd, FIONBIO, &mode) == SOCKET_ERROR) {
-		closesocket(m_sockfd);
-		WSACleanup();
-		DXLIB_CORE_FATAL("ioctlsocket failed.");
-	}
-
-	memset(&m_servaddr, 0, sizeof(m_servaddr));
-	memset(&m_cliaddr, 0, sizeof(m_cliaddr));
-
-	m_servaddr.sin_family = AF_INET;
-	m_servaddr.sin_addr.s_addr = INADDR_ANY;
-	m_servaddr.sin_port = htons(12345);
-
-	if (bind(m_sockfd, (struct sockaddr*)&m_servaddr, sizeof(m_servaddr)) == SOCKET_ERROR) {
-		closesocket(m_sockfd);
-		WSACleanup();
-		DXLIB_CORE_FATAL("Bind failed.");
-	}
-}
-
-std::tuple<char*, size_t> DX12Lib::FFmpegStreamer::ConsumeData()
-{
-	auto data = m_recvData;
-
-	m_recvData = std::make_tuple(nullptr, 0);
-
-	return data;
-}
 
 void DX12Lib::FFmpegStreamer::StreamLoop()
 {
-	char buffer[1024];
-	int len, n, error;
-
-	len = sizeof(m_cliaddr);
 
 	int nPts = 0;
 
@@ -169,20 +119,6 @@ void DX12Lib::FFmpegStreamer::StreamLoop()
 		{
 			this->SendFrame(nPts++, packets.data(), packets.size());
 		}
-
-		n = recvfrom(m_sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&m_cliaddr, &len);
-		if (n == SOCKET_ERROR) {
-			error = WSAGetLastError();
-			if (error != WSAEWOULDBLOCK) {
-				DXLIB_CORE_ERROR("Receive failed.");
-			}
-
-			continue;
-		}
-
-		buffer[n] = '\0';
-		
-		m_recvData = std::make_tuple(buffer, n);
 	}
 }
 
@@ -226,9 +162,6 @@ void DX12Lib::FFmpegStreamer::CloseStream()
 		{
 			m_streamThread.join();
 		}
-
-		closesocket(m_sockfd);
-		WSACleanup();
 
 		FFMPEG_CHECK_ERROR(av_write_trailer(m_fmtCtx));
 		FFMPEG_CHECK_ERROR(avio_close(m_fmtCtx->pb));

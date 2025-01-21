@@ -20,6 +20,8 @@ namespace DX12Lib
 
 	public:
 		SceneNode* Node = nullptr;
+
+		bool IsEnabled = true;
 	};
 }
 

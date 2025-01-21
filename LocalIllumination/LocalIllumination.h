@@ -44,8 +44,15 @@ namespace LI
 		virtual void OnClose(DX12Lib::GraphicsContext& commandContext) override;
 
 	private:
-		void OnPacketReceived(const Commons::NetworkPacket* packet);
-		void OnPeerDisconnected(const ENetPeer* peer);
+		void StreamScene(DX12Lib::CommandContext& context);
+
+	private:
+		void OnPacketReceivedClient(const Commons::NetworkPacket* packet);
+		void OnPeerDisconnectedClient(const ENetPeer* peer);
+
+		void OnPacketReceivedServer(const Commons::NetworkPacket* packet);
+		void OnPeerConnectedServer(const ENetPeer* peer);
+
 		DX12Lib::AABB GetSceneAABBExtents();
 		void CopyDataToBasicBuffer(UINT bufferIdx);
 
@@ -54,9 +61,12 @@ namespace LI
 		void ShowIMGUIWindow();
 	private:
 		Commons::NetworkHost m_networkClient;
+		Commons::NetworkHost m_networkServer;
 		DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
 
 		LI::LIScene* m_LIScene = nullptr;
+
+		bool m_isStreaming = false;
 
 		UINT m_buffersInitialized = 0;
 
@@ -124,6 +134,13 @@ namespace LI
 		bool m_indirectSettingChanged = false;
 
 		char m_serverAddress[16] = { "127.0.0.1" };
+
+
+
+		std::unique_ptr<DX12Lib::FFmpegStreamer> m_ffmpegStreamer = nullptr;
+
+		float m_accumulatedTime = 0;
+		float m_lastUpdateTime = 0;
 
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};

@@ -4,6 +4,7 @@
 namespace DX12Lib
 {
 	class FFmpegStreamer;
+	class CameraController;
 }
 
 namespace LI
@@ -20,25 +21,13 @@ namespace LI
 		virtual void OnResize(DX12Lib::GraphicsContext& context, int width, int height) override;
 		virtual void OnClose(DX12Lib::GraphicsContext& context) override;
 
-		void StreamScene(DX12Lib::CommandContext& context);
-		//void TraverseModel(DX12Lib::ModelRenderer* model, aiNode* node, DX12Lib::SceneNode* parent);
-		
-		const std::vector<char>& GetNetworkData() const { return m_inputData; }
-
 		DX12Lib::LightComponent* GetMainLight() { return m_mainLight; }
 
-	private:
-		void SetNetworkData(const char* data, size_t size);
-
+		DX12Lib::CameraController* GetCameraController() { return m_cameraController; }
 
 	private:
 		DX12Lib::LightComponent* m_mainLight = nullptr;
-
-		bool m_isStreaming = false;
-		std::unique_ptr<DX12Lib::FFmpegStreamer> m_ffmpegStreamer = nullptr;
-
-		float m_accumulatedTime = 0;
-		float m_lastUpdateTime = 0;
+		DX12Lib::CameraController* m_cameraController = nullptr;
 
 		std::vector<char> m_inputData;
 	};

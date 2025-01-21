@@ -5,8 +5,9 @@
 #include "VoxelCamera.h"
 #include "DX12Lib/DXWrapper/UploadBuffer.h"
 #include "DX12Lib/Commons/ShadowMap.h"
-#include "CameraController.h"
+#include "DX12Lib/Scene/RemoteNodeController.h"
 #include "DX12Lib/Scene/LightController.h"
+#include "DX12Lib/Scene/CameraController.h"
 #include "DX12Lib/Commons/DX12Window.h"
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
@@ -1113,13 +1114,77 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const Commons::NetworkPacket* packet)
 {
 
-	if (NetworkHost::CheckPacketHeader(packet, "CAMINP"))
+	if (NetworkHost::CheckPacketHeader(packet, "CAMINP") || NetworkHost::CheckPacketHeader(packet, "LGTINP"))
 	{
-		ConsumeNodeInput(packet, true);
-	}
-	else if (NetworkHost::CheckPacketHeader(packet, "LGTINP"))
-	{
-		ConsumeNodeInput(packet, false);
+		bool isLightData = NetworkHost::CheckPacketHeader(packet, "LGTINP");
+
+		auto& dataVector = packet->GetDataVector();
+
+		UINT64 timeStamp = 0;
+		DirectX::XMFLOAT3 clientVelocity;
+		DirectX::XMFLOAT3 clientAbsPos;
+		DirectX::XMFLOAT4 clientAbsRot;
+		std::uint8_t clientInputBitmask = 0;
+
+		// HEADER + NULL character
+		size_t previousSize = 7;
+
+		memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
+		previousSize += sizeof(UINT64);
+
+		memcpy(&clientVelocity, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
+		previousSize += sizeof(DirectX::XMFLOAT3);
+
+		memcpy(&clientAbsPos, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
+		previousSize += sizeof(DirectX::XMFLOAT3);
+
+		memcpy(&clientAbsRot, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT4));
+		previousSize += sizeof(DirectX::XMFLOAT4);
+
+		memcpy(&clientInputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
+		previousSize += sizeof(std::uint8_t);
+
+		RemoteNodeController* controller = nullptr;
+
+		if (isLightData)
+		{
+			auto* light = m_data->GetLightComponent();
+
+			if (light == nullptr) return;
+
+			float intensity = light->GetLightIntensity();
+			DirectX::XMFLOAT3 color = light->GetLightColor();
+			float closeVoxelStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
+			float farVoxelStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
+
+			memcpy(&intensity, dataVector.data() + previousSize, sizeof(float));
+			previousSize += sizeof(float);
+
+			memcpy(&color, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
+			previousSize += sizeof(DirectX::XMFLOAT3);
+
+			memcpy(&closeVoxelStrength, dataVector.data() + previousSize, sizeof(float));
+			previousSize += sizeof(float);
+
+			memcpy(&farVoxelStrength, dataVector.data() + previousSize, sizeof(float));
+			previousSize += sizeof(float);
+
+			light->SetLightIntensity(intensity);
+			light->SetLightColor(color);
+			m_lightTransportTechnique->SetCloseVoxelRadianceStrength(closeVoxelStrength);
+			m_lightTransportTechnique->SetFarVoxelRadianceStrength(farVoxelStrength);
+
+			controller = light->Node->GetComponent<RemoteNodeController>();
+		}
+		else
+		{
+			controller = m_data->GetCamera()->Node->GetComponent<RemoteNodeController>();
+		}
+
+		if (controller == nullptr) return;
+
+		controller->FeedRemoteData(clientVelocity, clientAbsPos, clientAbsRot, timeStamp);
+		
 	}
 	// Awaiting ACK for buffer data. If received we change state to listen for camera data.
 	else if (NetworkHost::CheckPacketHeader(packet, "BUFFER"))
@@ -1206,93 +1271,45 @@ void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
 	packet->AppendToBuffer(m_data->GetClusterCount());
 
 	m_networkServer.SendData(packet);
+
+	RemoteNodeController* controller = m_data->GetCamera()->Node->GetComponent<RemoteNodeController>();
+	CameraController* cameraController = m_data->GetCamera()->Node->GetComponent<CameraController>();
+
+	if (controller != nullptr && cameraController != nullptr)
+	{
+		controller->SetRemoteControl(true);
+		cameraController->IsEnabled = false;
+	}
+
+	controller = m_data->GetLightComponent()->Node->GetComponent<RemoteNodeController>();
+	LightController* lightController = m_data->GetLightComponent()->Node->GetComponent<LightController>();
+	if (controller != nullptr && lightController != nullptr)
+	{
+		controller->SetRemoteControl(true);
+		lightController->IsEnabled = false;
+	}
 }
 
 void CVGI::ClusteredVoxelGIApp::OnClientDisconnected(const ENetPeer* peer)
 {
 	m_isClientReadyForRadiance = false;
 	m_firstRadianceSent = false;
-	m_voxelScene->GetMainCamera()->Node->GetComponent<CameraController>()->IsRemote = false;
-	m_data->GetLightComponent()->Node->GetComponent<LightController>()->ControlOverNetwork(false);
-}
+	
+	RemoteNodeController* controller = m_data->GetCamera()->Node->GetComponent<RemoteNodeController>();
+	CameraController* cameraController = m_data->GetCamera()->Node->GetComponent<CameraController>();
 
-void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const Commons::NetworkPacket* packet, bool isCamera)
-{
-	auto& dataVector = packet->GetDataVector();
-
-	UINT64 timeStamp = 0;
-	DirectX::XMFLOAT3 clientAbsPos;
-	DirectX::XMFLOAT4 clientAbsRot;
-	std::uint8_t clientInputBitmask = 0;
-
-	// HEADER + NULL character
-	size_t previousSize = 7;
-
-
-	memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
-	previousSize += sizeof(UINT64);
-
-	memcpy(&clientAbsPos, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
-	previousSize += sizeof(DirectX::XMFLOAT3);
-
-	memcpy(&clientAbsRot, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT4));
-	previousSize += sizeof(DirectX::XMFLOAT4);
-
-	memcpy(&clientInputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
-	previousSize += sizeof(std::uint8_t);
-
-	if (isCamera)
+	if (controller != nullptr && cameraController != nullptr)
 	{
-		auto* camera = m_data->GetCamera();
-
-		if (camera != nullptr)
-		{
-			CameraController* controller = camera->Node->GetComponent<CameraController>();
-
-			if (controller != nullptr)
-			{
-				controller->IsRemote = true;
-				controller->SetRemoteInput(clientInputBitmask, clientAbsPos, clientAbsRot, timeStamp);
-			}
-		}
+		controller->SetRemoteControl(false);
+		cameraController->IsEnabled = true;
 	}
 
-	else
+	controller = m_data->GetLightComponent()->Node->GetComponent<RemoteNodeController>();
+	LightController* lightController = m_data->GetLightComponent()->Node->GetComponent<LightController>();
+	if (controller != nullptr && lightController != nullptr)
 	{
-		auto* light = m_data->GetLightComponent();
-
-		if (light != nullptr)
-		{
-			LightController* controller = light->Node->GetComponent<LightController>();
-
-			if (controller != nullptr)
-			{
-				controller->ControlOverNetwork(true);
-				controller->SetRemoteInput(clientInputBitmask, clientAbsPos, clientAbsRot, timeStamp);
-			}
-
-			float intensity = light->GetLightIntensity();
-			DirectX::XMFLOAT3 color = light->GetLightColor();
-			float closeVoxelStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
-			float farVoxelStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
-
-			memcpy(&intensity, dataVector.data() + previousSize, sizeof(float));
-			previousSize += sizeof(float);
-
-			memcpy(&color, dataVector.data() + previousSize, sizeof(DirectX::XMFLOAT3));
-			previousSize += sizeof(DirectX::XMFLOAT3);
-
-			memcpy(&closeVoxelStrength, dataVector.data() + previousSize, sizeof(float));
-			previousSize += sizeof(float);
-
-			memcpy(&farVoxelStrength, dataVector.data() + previousSize, sizeof(float));
-			previousSize += sizeof(float);
-
-			light->SetLightIntensity(intensity);
-			light->SetLightColor(color);
-			m_lightTransportTechnique->SetCloseVoxelRadianceStrength(closeVoxelStrength);
-			m_lightTransportTechnique->SetFarVoxelRadianceStrength(farVoxelStrength);
-		}
+		controller->SetRemoteControl(false);
+		lightController->IsEnabled = true;
 	}
 }
 

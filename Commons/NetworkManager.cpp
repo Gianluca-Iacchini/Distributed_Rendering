@@ -36,12 +36,6 @@ void Commons::NetworkHost::DeinitializeEnet()
 
 }
 
-UINT64 Commons::NetworkHost::GetEpochTime()
-{
-	std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-	return ms.count();
-}
-
 void Commons::NetworkHost::InitializeAsClient()
 {
 

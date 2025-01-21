@@ -178,20 +178,25 @@ void SC::StreamRenderer::Update()
 	glfwPollEvents();
 }
 
-void SC::StreamRenderer::Render()
+void SC::StreamRenderer::Render(bool isStreaming)
 {
 
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	CopyFrameToTexture();
+	if (isStreaming)
+	{
+		CopyFrameToTexture();
 
-	glDisable(GL_DEPTH_TEST);
+		glDisable(GL_DEPTH_TEST);
 
-	m_defaultShader->Use();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, m_texture);
-	m_defaultShader->SetInt("streamTexture", 0);
+		m_defaultShader->Use();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_RECTANGLE, m_texture);
+		m_defaultShader->SetInt("streamTexture", 0);
+	}
+
+
 	glBindVertexArray(m_VAO);
 
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

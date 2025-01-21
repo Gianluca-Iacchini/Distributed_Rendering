@@ -1,7 +1,8 @@
 #include "DX12Lib/pch.h"
 #include "VoxelScene.h"
 #include "DX12Lib/Scene/LightComponent.h"
-#include "CameraController.h"
+#include "DX12Lib/Scene/CameraController.h"
+#include "DX12Lib/Scene/RemoteNodeController.h"
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "DX12Lib/Scene/LightController.h"
 #include "DX12Lib/Commons/ShadowMap.h"
@@ -26,10 +27,12 @@ void VoxelScene::Init(DX12Lib::GraphicsContext& context)
 	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
 	
 	lightNode->AddComponent<LightController>();
+	lightNode->AddComponent<RemoteNodeController>();
 
 	m_mainLight = light;
 
 	m_camera->Node->AddComponent<CameraController>();
+	m_camera->Node->AddComponent<RemoteNodeController>();
 
 	auto* voxelCameraNode = this->AddNode();
 	m_voxelCamera = voxelCameraNode->AddComponent<VoxelCamera>(VoxelTextureDimensions);

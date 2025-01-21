@@ -277,7 +277,6 @@ namespace Commons
 	public:
 		static void InitializeEnet();
 		static void DeinitializeEnet();
-		static UINT64 GetEpochTime();
 
 	public:
 		std::function<void(const ENetPeer*)> OnPeerConnected;

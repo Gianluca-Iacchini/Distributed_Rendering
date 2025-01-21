@@ -96,10 +96,8 @@ set(SOURCE_FILES
 	LocalIllumination.cpp 
 	LIScene.h
 	LIScene.cpp
-	CameraController.h
-	CameraController.cpp
-    LIUtils.h
-    LIUtils.cpp
+    	LIUtils.h
+    	LIUtils.cpp
 )
 
 add_executable(LocalIllumination WIN32 ${SOURCE_FILES} ${TECHNIQUES} ${VOX_HELPERS} ${SHADERS})

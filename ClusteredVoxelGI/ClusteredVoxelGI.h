@@ -73,7 +73,6 @@ namespace CVGI
 		void OnPacketReceived(const Commons::NetworkPacket* packet);
 		void OnClientConnected(const ENetPeer* peer);
 		void OnClientDisconnected(const ENetPeer* peer);
-		void ConsumeNodeInput(const Commons::NetworkPacket* packet, bool isCamera);
 		bool IsDirectXRaytracingSupported() const;
 
 	public:

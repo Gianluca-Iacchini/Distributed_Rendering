@@ -115,8 +115,6 @@ set(SOURCE_FILES
 	ClusteredVoxelGI.cpp
 	VoxelScene.h
 	VoxelScene.cpp
-	CameraController.h
-	CameraController.cpp
 	VoxelCamera.h
 	VoxelCamera.cpp
 )

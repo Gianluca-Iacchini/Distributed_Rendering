@@ -28,10 +28,8 @@ namespace DX12Lib {
 
 		const NVEncoder& GetEncoder() const { return m_encoder; }
 		void Encode(CommandContext& context, Resource& resource) { m_encoder.SendResourceForEncode(context, resource); }
-		std::tuple<char*, size_t> ConsumeData();
 
 	private:
-		void InitWinsock();
 		void StreamLoop();
 		void SendFrame(int nPts, std::uint8_t* data, size_t size);
 
@@ -43,14 +41,11 @@ namespace DX12Lib {
 		AVStream* m_stream;
 		std::string m_url;
 
-		SOCKET m_sockfd;
-		struct sockaddr_in m_servaddr, m_cliaddr;
 
 		bool m_isStreamOpen = false;
 
 		std::thread m_streamThread;
 
-		std::tuple<char*, size_t> m_recvData;
 	};
 }
 

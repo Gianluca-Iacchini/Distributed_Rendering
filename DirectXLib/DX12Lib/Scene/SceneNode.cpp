@@ -37,7 +37,8 @@ void DX12Lib::SceneNode::Update(CommandContext& context)
 
 	for (std::unique_ptr<Component>& component : m_components)
 	{
-		component->Update(context);
+		if (component->IsEnabled)
+			component->Update(context);
 	}
 	
 
@@ -55,7 +56,8 @@ void DX12Lib::SceneNode::Render(CommandContext& context)
 
 	for (std::unique_ptr<Component>& component : m_components)
 	{
-		component->Render(context);
+		if (component->IsEnabled)
+			component->Render(context);
 	}
 
 
@@ -68,7 +70,8 @@ void DX12Lib::SceneNode::OnResize(CommandContext& context, int newWidth, int new
 {
 	for (std::unique_ptr<Component>& component : m_components)
 	{
-		component->OnResize(context, newWidth, newHeight);
+		if (component->IsEnabled)
+			component->OnResize(context, newWidth, newHeight);
 	}
 
 	for (auto& node : m_children)
@@ -79,7 +82,8 @@ void DX12Lib::SceneNode::OnClose(CommandContext& context)
 {
 	for (std::unique_ptr<Component>& component : m_components)
 	{
-		component->OnClose(context);
+		if (component->IsEnabled)
+			component->OnClose(context);
 	}
 
 	for (auto& node : m_children)

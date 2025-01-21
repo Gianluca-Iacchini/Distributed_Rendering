@@ -101,6 +101,14 @@ float GameTime::GetInstantTime() const
 	return static_cast<float>((currTime - m_BaseTime) * m_SecondsPerCount);
 }
 
+UINT64 DX12Lib::GameTime::GetTimeSinceEpoch()
+{
+	auto now = std::chrono::system_clock::now();
+	
+	// reutrn milliseconds since epoch
+	return now.time_since_epoch() / std::chrono::microseconds(1);
+}
+
 void DX12Lib::GameTime::CreateInstance()
 {
 	if (s_Instance == nullptr)

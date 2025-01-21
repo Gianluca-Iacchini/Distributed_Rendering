@@ -25,6 +25,8 @@ namespace DX12Lib {
 		static inline float GetTotalTime() { return s_Instance->TotalTime(); }
 		static inline float GetDeltaTime() { return s_Instance->DeltaTime(); }
 
+		static UINT64 GetTimeSinceEpoch();
+
 	private:
 		static void CreateInstance();
 

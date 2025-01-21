@@ -5,6 +5,9 @@
 #include "DX12Lib/pch.h"
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "DX12Lib/Scene/LightComponent.h"
+
+#include "DX12Lib/Encoder/FFmpegStreamer.h"
+
 #include "LIUtils.h"
 #include "Technique.h"
 #include "./Data/Shaders/Include/GaussianOnly_CS.h"
@@ -13,6 +16,8 @@
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
 #include "UIHelpers.h"
+
+#include "DX12Lib/Scene/CameraController.h"
 
 
 using namespace DirectX;
@@ -30,7 +35,7 @@ LocalIlluminationApp::~LocalIlluminationApp()
 }
 
 
-void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
+void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 {
 
 	if (NetworkHost::CheckPacketHeader(packet, "RDXBUF"))
@@ -239,11 +244,44 @@ void LocalIlluminationApp::OnPacketReceived(const NetworkPacket* packet)
 	
 }
 
-void LI::LocalIlluminationApp::OnPeerDisconnected(const ENetPeer* peer)
+void LI::LocalIlluminationApp::OnPeerDisconnectedClient(const ENetPeer* peer)
 {
 	m_isReadyForRadiance = false;
 	Renderer::UseRTGI(false);
 	m_isInitialized = false;
+}
+
+void LI::LocalIlluminationApp::OnPacketReceivedServer(const Commons::NetworkPacket* packet)
+{
+	if (NetworkHost::CheckPacketHeader(packet, "STRINP"))
+	{
+		auto dataVector = packet->GetDataVector();
+
+		// HEADER + NULL character
+		size_t previousSize = 7;
+
+		UINT64 timeStamp = 0;
+		std::uint8_t clientInputBitmask = 0;
+		float mouseDeltaXY[2];
+
+
+		memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
+		previousSize += sizeof(UINT64);
+
+		memcpy(&clientInputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
+		previousSize += sizeof(std::uint8_t);
+
+		memcpy(mouseDeltaXY, dataVector.data() + previousSize, sizeof(float) * 2);
+		previousSize += (sizeof(float) * 2);
+
+		DX12Lib::CameraController* cameraContr = m_LIScene->GetCameraController();
+
+	}
+}
+
+void LI::LocalIlluminationApp::OnPeerConnectedServer(const ENetPeer* peer)
+{
+	DXLIB_CORE_INFO("Peer connected: {0}", peer->address.host);
 }
 
 DX12Lib::AABB LocalIlluminationApp::GetSceneAABBExtents()
@@ -728,9 +766,11 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 	Commons::NetworkHost::InitializeEnet();
 
 
-	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
-	m_networkClient.OnPeerDisconnected = std::bind(&LocalIlluminationApp::OnPeerDisconnected, this, std::placeholders::_1);
+	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceivedClient, this, std::placeholders::_1); 
+	m_networkClient.OnPeerDisconnected = std::bind(&LocalIlluminationApp::OnPeerDisconnectedClient, this, std::placeholders::_1);
 
+	m_networkServer.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceivedServer, this, std::placeholders::_1);
+	m_networkServer.OnPeerConnected = std::bind(&LocalIlluminationApp::OnPeerConnectedServer, this, std::placeholders::_1);
 
 	m_LIScene = dynamic_cast<LI::LIScene*>(m_Scene.get());
 
@@ -738,7 +778,13 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	m_LIScene->Init(context);
 	
-
+	//if (m_isStreaming)
+	if (0)
+	{
+		m_ffmpegStreamer = std::make_unique<FFmpegStreamer>();
+		m_ffmpegStreamer->OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight);
+		m_ffmpegStreamer->StartStreaming();
+	}
 
 
 #if NETWORK_RADIANCE
@@ -778,6 +824,8 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 	m_timingReadBackBuffer.Create(5, sizeof(UINT64));
 
 #endif
+
+	m_networkServer.StartServer(2345);
 }
 
 void LocalIlluminationApp::Update(GraphicsContext& context)
@@ -798,10 +846,8 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 	auto mouseState = Graphics::s_mouse->GetState();
 	bool mouseMoved = false;
 
-	if ((m_isReadyForRadiance) && sendPacketDeltaTime > 0.1f)
+	if ((m_isReadyForRadiance))
 	{
-
-
 		std::uint8_t cameraInputBitMask = 0;
 		std::uint8_t lightInputBitMask = 0;
 
@@ -830,11 +876,15 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 
 		if (camera != nullptr && ((m_lastCameraBitMask != cameraInputBitMask) || isCameraDirty))
 		{
+
+			CameraController* cameraContr = camera->Node->GetComponent<CameraController>();
+
 			PacketGuard packet = m_networkClient.CreatePacket();
 			packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 			packet->ClearPacket();
 			packet->AppendToBuffer("CAMINP");
-			packet->AppendToBuffer(NetworkHost::GetEpochTime());
+			packet->AppendToBuffer(GameTime::GetTimeSinceEpoch());
+			packet->AppendToBuffer(cameraContr->GetVelocity());
 			packet->AppendToBuffer(camera->Node->GetPosition());
 			packet->AppendToBuffer(camera->Node->GetRotationQuaternion());
 			packet->AppendToBuffer(cameraInputBitMask);
@@ -843,11 +893,14 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 
 		if (light != nullptr && ((m_lastLightBitMask != lightInputBitMask) || isLightDirty || m_indirectSettingChanged))
 		{
+			DirectX::XMFLOAT3 velocity = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+
 			PacketGuard packet = m_networkClient.CreatePacket();
 			packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 			packet->ClearPacket();
 			packet->AppendToBuffer("LGTINP");
-			packet->AppendToBuffer(NetworkHost::GetEpochTime());
+			packet->AppendToBuffer(GameTime::GetTimeSinceEpoch());
+			packet->AppendToBuffer(velocity);
 			packet->AppendToBuffer(light->Node->GetPosition());
 			packet->AppendToBuffer(light->Node->GetRotationQuaternion());
 			packet->AppendToBuffer(lightInputBitMask);
@@ -1005,7 +1058,6 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			Renderer::DeferredPass(context);
 			Renderer::PostProcessPass(context);
 
-			m_LIScene->StreamScene(context);
 
 			Renderer::UIPass(context, STREAMING);
 
@@ -1036,6 +1088,26 @@ void LocalIlluminationApp::OnClose(GraphicsContext& context)
 	m_networkClient.Disconnect();
 	Commons::NetworkHost::DeinitializeEnet();
 	D3DApp::OnClose(context);
+}
+
+void LI::LocalIlluminationApp::StreamScene(DX12Lib::CommandContext& context)
+{
+	// Accumulator is used to ensure proper frame rate for the encoder
+
+	float totTime = GameTime::GetTotalTime();
+	float encodeDeltaTime = totTime - m_lastUpdateTime;
+	m_lastUpdateTime = totTime;
+	m_accumulatedTime += encodeDeltaTime;
+
+	float encoderFramerate = 1.f / m_ffmpegStreamer->GetEncoder().maxFrames;
+
+	auto& backBuffer = Renderer::GetCurrentBackBuffer();
+
+	if (m_accumulatedTime >= (encoderFramerate))
+	{
+		m_accumulatedTime -= encoderFramerate;
+		m_ffmpegStreamer->Encode(context, backBuffer);
+	}
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)
