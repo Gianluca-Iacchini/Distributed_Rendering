@@ -110,8 +110,6 @@ set(CVGI_HELPERS
 
 source_group("Helpers" FILES ${CVGI_HELPERS})
 
-
-
 set(SOURCE_FILES
 	ClusteredVoxelGI.h
 	ClusteredVoxelGI.cpp

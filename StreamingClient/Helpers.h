@@ -16,6 +16,12 @@
 #define SC_LOG_INFO(...) SC::Logger::GetLogger()->info(__VA_ARGS__)
 #define SC_LOG_TRACE(...) SC::Logger::GetLogger()->trace(__VA_ARGS__)
 
+#define DXLIB_CORE_ERROR SC_LOG_ERROR
+#define DXLIB_CORE_FATAL SC_LOG_FATAL
+#define DXLIB_CORE_WARN SC_LOG_WARN
+#define DXLIB_CORE_INFO SC_LOG_INFO
+#define DXLIB_CORE_TRACE SC_LOG_TRACE
+
 extern void CUDA_SAFE_CALL(CUresult result);
 
 namespace SC

@@ -574,8 +574,6 @@ void DX12Lib::NVEncoder::SendResourceForEncode(CommandContext& context, Resource
 	{
 		std::lock_guard<std::mutex> lock(m_encoderMutex);
 
-
-
 		auto buffCopy = m_bufferCopyQueue.front();
 		m_bufferCopyQueue.pop();
 

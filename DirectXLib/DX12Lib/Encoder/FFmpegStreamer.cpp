@@ -61,6 +61,29 @@ void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string ur
 		FFMPEG_THROW_ERROR("Could not allocate stream");
 	}
 
+	AVCodecID codec_id = AV_CODEC_ID_HEVC;
+
+	auto codecGuid = m_encoder.GetCodecGUID();
+	if (codecGuid == NV_ENC_CODEC_H264_GUID)
+	{
+		codec_id = AV_CODEC_ID_H264;
+	}
+	else if (codecGuid == NV_ENC_CODEC_HEVC_GUID)
+	{
+		codec_id = AV_CODEC_ID_HEVC;
+	}
+	else
+	{
+		FFMPEG_THROW_ERROR("Unsupported codec");
+	}
+
+
+	AVCodecParameters* vpar = m_stream->codecpar;
+	vpar->codec_id = codec_id;
+	vpar->codec_type = AVMEDIA_TYPE_VIDEO;
+	vpar->width = 1920;
+	vpar->height = 1080;
+
 	FFMPEG_CHECK_ERROR(avio_open(&m_fmtCtx->pb, m_url.c_str(), AVIO_FLAG_WRITE));
 
 	AVDictionary* options = NULL;

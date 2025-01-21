@@ -7,8 +7,8 @@
 #include "FFmpegDemuxer.h"
 #include "NVDecoder.h"
 #include "ColorSpace.h"
-#include <winsock2.h>
-#include <ws2tcpip.h>
+
+#include "NetworkManager.h"
 
 float lastTime = 0.0f;
 float currentTime = 0.0f;
@@ -23,50 +23,11 @@ std::string lastMouseXTruncated = "0";
 std::string lastMouseYTruncated = "0";
 bool firstMouse = true;
 
-
-SOCKET g_sockfd;
-struct sockaddr_in g_servAddr;
-
 int cameraForwardValue = 0;
 int cameraStrafeValue = 0;
 int cameraLiftValue = 0;
 
-void InitializeWinsock()
-{
-	WSADATA wsaData;
-
-	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-		SC_LOG_ERROR("WSAStartup failed.");
-		return;
-	}
-
-	g_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (g_sockfd == INVALID_SOCKET) {
-		SC_LOG_ERROR("Socket creation failed.");
-		WSACleanup();
-		return;
-	}
-
-	memset(&g_servAddr, 0, sizeof(g_servAddr));
-
-	g_servAddr.sin_family = AF_INET;
-	g_servAddr.sin_port = htons(12345);
-	inet_pton(AF_INET, "127.0.0.1", &g_servAddr.sin_addr);
-
-	SC_LOG_INFO("Winsock initialized");
-}
-
-void SendInput(std::string input)
-{
-
-	std::string message = input;
-	if (sendto(g_sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&g_servAddr, sizeof(g_servAddr)) == SOCKET_ERROR)
-	{
-		int error = WSAGetLastError();
-		SC_LOG_ERROR("Failed to send message {0}", error);
-		return;
-	}
-}
+Commons::NetworkHost m_clientHost;
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -125,8 +86,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		return;
 	}
 
-
-	SendInput(keyInput);
 }
 
 void MouseCallback(GLFWwindow* window, double xpos, double ypos)
@@ -174,8 +133,6 @@ void MouseCallback(GLFWwindow* window, double xpos, double ypos)
 	}
 
 	input += "\n";
-
-	SendInput(input);
 }
 
 void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamRenderer* renderer)
@@ -284,6 +241,9 @@ int main()
 	SC_LOG_INFO("GPU in use: {0}", szDeviceName);
 	CUDA_SAFE_CALL(cuCtxCreate(&cuContext, CU_CTX_SCHED_BLOCKING_SYNC, cuDevice));
 
+	Commons::NetworkHost::InitializeEnet();
+
+	m_clientHost.Connect("localhost", 2345);
 
 	{
 		SC::StreamRenderer sr(cuContext);
@@ -298,9 +258,6 @@ int main()
 		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("udp://localhost:1234?overrun_nonfatal=1&fifo_size=50000000");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
 		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()), true, false, NULL, NULL, false, 0, 0, 1000, false);
-
-
-		InitializeWinsock();
 
 		int width = (demuxer.GetWidth() + 1) & ~1;
 		int height = demuxer.GetHeight();
@@ -367,6 +324,7 @@ int main()
 	} 
 
 
+	Commons::NetworkHost::DeinitializeEnet();
 	CUDA_SAFE_CALL(cuCtxDestroy(cuContext));
 
 	return 0;

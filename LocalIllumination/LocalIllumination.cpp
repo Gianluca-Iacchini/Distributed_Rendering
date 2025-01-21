@@ -1,5 +1,5 @@
-#define STREAMING 1
-#define NETWORK_RADIANCE 0
+#define STREAMING 0
+#define NETWORK_RADIANCE 1
 
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"
@@ -12,13 +12,14 @@
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
-#include "DX12Lib/UI/UIHelpers.h"
+#include "UIHelpers.h"
 
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using namespace Graphics;
 using namespace DX12Lib;
+using namespace Commons;
 using namespace LI;
 
 using UploadBufferFencePair = std::pair<std::shared_ptr<DX12Lib::UploadBuffer>, UINT64>;
@@ -469,6 +470,8 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 			light->SetLightIntensity(intensity);
 		}
 
+
+#if NETWORK_RADIANCE
 		ImGui::SeparatorText("Indirect Light");
 
 		float farStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
@@ -507,6 +510,7 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::SliderFloat("##LerpFrequency", &m_lerpMaxTime, 0.0f, 1.0f);
 		ImGui::EndDisabled();
+#endif 
 
 		ImGui::Separator();
 
@@ -721,7 +725,7 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	assert(loaded && "Model not loaded");
 
-	DX12Lib::NetworkHost::InitializeEnet();
+	Commons::NetworkHost::InitializeEnet();
 
 
 	m_networkClient.OnPacketReceived = std::bind(&LocalIlluminationApp::OnPacketReceived, this, std::placeholders::_1); 
@@ -988,7 +992,25 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			m_sceneDepthTechnique->PerformTechnique(context);
 		}
 
-		Renderer::RenderLayers(context);
+
+		{
+			Renderer::ShadowPass(context);
+
+
+			Renderer::MainRenderPass(context);
+
+			if (m_isReadyForRadiance)
+				Renderer::LerpRadiancePass(context);
+
+			Renderer::DeferredPass(context);
+			Renderer::PostProcessPass(context);
+
+			m_LIScene->StreamScene(context);
+
+			Renderer::UIPass(context, STREAMING);
+
+		}
+
 	}
 
 	if (m_radianceReady)
@@ -1000,7 +1022,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 	
 		
 
-	m_LIScene->StreamScene(context);
+
 
 	m_lerpDeltaTime += GameTime::GetDeltaTime();
 
@@ -1012,7 +1034,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 void LocalIlluminationApp::OnClose(GraphicsContext& context)
 {
 	m_networkClient.Disconnect();
-	DX12Lib::NetworkHost::DeinitializeEnet();
+	Commons::NetworkHost::DeinitializeEnet();
 	D3DApp::OnClose(context);
 }
 

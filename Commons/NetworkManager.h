@@ -4,11 +4,123 @@
 #include "memory"
 #include "string"
 #include "thread"
-#include "Helpers.h"
 #include "functional"
-#include "DirectXMath.h"
+#include "queue"
+#include "mutex"
+
 
 #include "../extern/enet/include/enet/enet.h"
+
+
+namespace Commons
+{
+	template<typename T>
+	class ReusableQueue {
+	public:
+		ReusableQueue() {}
+
+		void Push(T element) {
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_elementQueue.push(element);
+			m_cv.notify_one();
+		}
+
+		void GetFromPool(T& element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+
+			// If the flag is set, we wait for an element to be available in the pool
+			if (ShouldWait)
+			{
+				m_cv.wait(lock, [this] { return !m_availableElementsPool.empty() || m_done; });
+			}
+			// If the flag is not set and the pool is empty, we return the oldest element in the queue (the one at the front) to the pool 
+			else if (m_availableElementsPool.empty())
+			{
+				m_availableElementsPool.push_back(m_elementQueue.front());
+				m_elementQueue.pop();
+			}
+
+			// Usually needed only when the thread has to be abruptly stopped
+			if (m_done)
+				return;
+
+			element = m_availableElementsPool.back();
+			m_availableElementsPool.pop_back();
+		}
+
+		void Pop(T& element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_cv.wait(lock, [this] { return !m_elementQueue.empty() || m_done; });
+
+			// Usually needed only when the thread has to be abruptly stopped
+			if (m_done)
+				return;
+
+			element = m_elementQueue.front();
+			m_elementQueue.pop();
+		}
+
+		bool NonBlockingPop(T& element) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+
+			if (m_elementQueue.empty())
+				return false;
+
+			element = m_elementQueue.front();
+			m_elementQueue.pop();
+			return true;
+		}
+
+		void AddNewElementToPool(T element) {
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_availableElementsPool.push_back(element);
+		}
+
+		void ReturnToPool(T& element) {
+			std::lock_guard<std::mutex> lock(m_mutex);
+
+			m_availableElementsPool.push_back(element);
+		}
+
+		void SetDone(bool done) {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_done = done;
+			if (m_done)
+				m_cv.notify_all();
+		}
+
+		unsigned int GetQueueSize() {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			return m_elementQueue.size();
+		}
+
+		unsigned int GetPoolSize() {
+			std::unique_lock<std::mutex> lock(m_mutex);
+			return m_availableElementsPool.size();
+		}
+
+		std::mutex& GetMutex() {
+			return m_mutex;
+		}
+
+		std::queue<T>& GetQueue() {
+			return m_elementQueue;
+		}
+
+		std::vector<T>& GetPool() { return m_availableElementsPool; }
+
+	public:
+		bool ShouldWait = true;
+
+	private:
+		int m_maxElements = 0;
+		std::queue<T> m_elementQueue;
+		std::vector<T> m_availableElementsPool;
+		std::mutex m_mutex;
+		std::condition_variable m_cv;
+		bool m_done = false;
+	};
+}
 
 enum class NetworkHostType
 {
@@ -17,7 +129,7 @@ enum class NetworkHostType
 	None,
 };
 
-namespace DX12Lib
+namespace Commons
 {
 	class NetworkHost;
 
@@ -61,15 +173,6 @@ namespace DX12Lib
 		void AppendToBuffer(const std::vector<UINT32>& data) {
 			std::size_t currentSize = m_data.size();
 			std::size_t appendDataByteSize = data.size() * sizeof(UINT32);
-
-			m_data.resize(currentSize + appendDataByteSize);
-			memcpy(m_data.data() + currentSize, data.data(), appendDataByteSize);
-		}
-
-		void AppendToBuffer(const std::vector<DirectX::XMUINT2>& data)
-		{
-			std::size_t currentSize = m_data.size();
-			std::size_t appendDataByteSize = data.size() * sizeof(DirectX::XMUINT2);
 
 			m_data.resize(currentSize + appendDataByteSize);
 			memcpy(m_data.data() + currentSize, data.data(), appendDataByteSize);
@@ -131,8 +234,6 @@ namespace DX12Lib
 	public:
 		NetworkHost();
 		virtual ~NetworkHost();
-
-
 
 
 		virtual void Connect(const char* address, const std::uint16_t port);
@@ -197,8 +298,8 @@ namespace DX12Lib
 		std::string m_hostAddress;
 
 		// Using raw pointer is probably more efficient, but shared_ptr is safer and easier to manage
-		DX12Lib::ReusableQueue<std::shared_ptr<NetworkPacket>> m_packetsToSend;
-		DX12Lib::ReusableQueue<std::shared_ptr<NetworkPacket>> m_receivedPackets;
+		ReusableQueue<std::shared_ptr<NetworkPacket>> m_packetsToSend;
+		ReusableQueue<std::shared_ptr<NetworkPacket>> m_receivedPackets;
 
 		int m_defaultCompressionLevel = 3;
 
@@ -210,30 +311,6 @@ namespace DX12Lib
 	private:
 		static bool m_isEnetInitialized;
 	};
-
-
-	//class ComputeRadianceHost : public NetworkHost
-	//{
-	//public:
-	//	ComputeRadianceHost() = default;
-	//	virtual ~ComputeRadianceHost() = default;
-
-	//	virtual Packet SendData() override;
-	//	virtual void ReceivePacket(Packet packet) override;
-	//};
-
-	//class ReceiveRadianceHost : public NetworkHost
-	//{
-	//public:
-	//	ReceiveRadianceHost() = default;
-	//	virtual ~ReceiveRadianceHost() = default;
-	//	
-	//	virtual Packet SendData() override;
-	//	virtual void ReceivePacket(Packet packet) override;
-	//	
-	//	void Connect(const std::string address = "127.0.0.1", std::uint16_t port = 1234);
-
-	//};
 }
 
 

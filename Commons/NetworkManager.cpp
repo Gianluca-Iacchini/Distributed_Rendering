@@ -1,4 +1,3 @@
-#include "DX12Lib/pch.h"
 #include "NetworkManager.h"
 #include "minmax.h"
 
@@ -7,11 +6,13 @@
 #include "chrono"
 #include "zstd.h"
 
+#ifdef CVGI_GL
+#include "../StreamingClient/Helpers.h"
+#endif // CVGI_GL
+
 #define QUEUE_SIZE 3
 
-using namespace DX12Lib;
-
-void DX12Lib::NetworkHost::InitializeEnet()
+void Commons::NetworkHost::InitializeEnet()
 {
 	if (!m_isEnetInitialized)
 	{
@@ -25,7 +26,7 @@ void DX12Lib::NetworkHost::InitializeEnet()
 	}
 }
 
-void DX12Lib::NetworkHost::DeinitializeEnet()
+void Commons::NetworkHost::DeinitializeEnet()
 {
 	if (m_isEnetInitialized)
 	{
@@ -35,13 +36,13 @@ void DX12Lib::NetworkHost::DeinitializeEnet()
 
 }
 
-UINT64 DX12Lib::NetworkHost::GetEpochTime()
+UINT64 Commons::NetworkHost::GetEpochTime()
 {
 	std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 	return ms.count();
 }
 
-void DX12Lib::NetworkHost::InitializeAsClient()
+void Commons::NetworkHost::InitializeAsClient()
 {
 
 	if (!m_isEnetInitialized)
@@ -56,7 +57,7 @@ void DX12Lib::NetworkHost::InitializeAsClient()
 	}
 
 	m_host = enet_host_create(nullptr, 1, 1, 0, 0);
-	
+
 	char addrStr[INET6_ADDRSTRLEN];
 	if (enet_address_get_host_ip(&m_host->address, addrStr, sizeof(addrStr)) != 0)
 	{
@@ -77,15 +78,15 @@ void DX12Lib::NetworkHost::InitializeAsClient()
 	m_hostType = NetworkHostType::Client;
 }
 
-void DX12Lib::NetworkHost::Disconnect()
+void Commons::NetworkHost::Disconnect()
 {
 	if (m_mainNetworkThread.joinable())
 	{
 
 		m_isConnected = false;
-		
+
 		m_mainNetworkThread.join();
-		
+
 		if (m_Peer != nullptr)
 		{
 			bool successfullyDisconnected = false;
@@ -122,7 +123,7 @@ void DX12Lib::NetworkHost::Disconnect()
 }
 
 
-void DX12Lib::NetworkHost::InitializeAsServer(uint16_t port)
+void Commons::NetworkHost::InitializeAsServer(uint16_t port)
 {
 	if (!m_isEnetInitialized)
 	{
@@ -161,12 +162,12 @@ void DX12Lib::NetworkHost::InitializeAsServer(uint16_t port)
 	m_hostType = NetworkHostType::Server;
 }
 
-DX12Lib::NetworkHost::NetworkHost() : m_hostType(NetworkHostType::None)
+Commons::NetworkHost::NetworkHost() : m_hostType(NetworkHostType::None)
 {
 	m_receivedPackets.ShouldWait = false;
 }
 
-DX12Lib::NetworkHost::~NetworkHost()
+Commons::NetworkHost::~NetworkHost()
 {
 	Disconnect();
 
@@ -177,9 +178,9 @@ DX12Lib::NetworkHost::~NetworkHost()
 	}
 }
 
-void DX12Lib::NetworkHost::Connect(const char* address, const std::uint16_t port)
+void Commons::NetworkHost::Connect(const char* address, const std::uint16_t port)
 {
-	
+
 	if (m_hostType == NetworkHostType::Server)
 	{
 		DXLIB_CORE_ERROR("Only clients can initiate a connection");
@@ -207,7 +208,7 @@ void DX12Lib::NetworkHost::Connect(const char* address, const std::uint16_t port
 	m_mainNetworkThread = std::thread(&NetworkHost::MainNetworkLoop, this);
 }
 
-void DX12Lib::NetworkHost::StartServer(const std::uint16_t port)
+void Commons::NetworkHost::StartServer(const std::uint16_t port)
 {
 	if (m_hostType != NetworkHostType::Server)
 	{
@@ -227,14 +228,14 @@ void DX12Lib::NetworkHost::StartServer(const std::uint16_t port)
 	m_mainNetworkThread = std::thread(&NetworkHost::MainNetworkLoop, this);
 }
 
-void DX12Lib::NetworkHost::SendData(DX12Lib::PacketGuard& packet)
+void Commons::NetworkHost::SendData(Commons::PacketGuard& packet)
 {
 	packet.m_isMovedToPool = true;
 	m_packetsToSend.Push(packet.m_packet);
 }
 
 
-PacketGuard DX12Lib::NetworkHost::CreatePacket()
+Commons::PacketGuard Commons::NetworkHost::CreatePacket()
 {
 	// If the pool is empty, add a new element, an old packet could be returned to the pool between this call and the GetFromPool call
 	// Since we are not holding the mutex between these two calls, but that's okay.
@@ -255,25 +256,25 @@ PacketGuard DX12Lib::NetworkHost::CreatePacket()
 	}
 
 	PacketGuard packetGuard = PacketGuard(newPacket, [this, packetToDiscard](std::shared_ptr<NetworkPacket> packet)
-	{
-		if (!packetToDiscard)
 		{
-			DXLIB_CORE_WARN("Packet was not disposed of properly.");
-			m_packetsToSend.ReturnToPool(packet);
-		}
-	});
+			if (!packetToDiscard)
+			{
+				DXLIB_CORE_WARN("Packet was not disposed of properly.");
+				m_packetsToSend.ReturnToPool(packet);
+			}
+		});
 
 	packetGuard->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 
 	return packetGuard;
 }
 
-bool DX12Lib::NetworkHost::HasPeers() const
+bool Commons::NetworkHost::HasPeers() const
 {
 	return m_Peer != nullptr;
 }
 
-std::string DX12Lib::NetworkHost::GetPeerAddress() const
+std::string Commons::NetworkHost::GetPeerAddress() const
 {
 	if (m_Peer == nullptr)
 	{
@@ -290,7 +291,7 @@ std::string DX12Lib::NetworkHost::GetPeerAddress() const
 	return std::string(addrStr);
 }
 
-UINT32 DX12Lib::NetworkHost::GetPing()
+UINT32 Commons::NetworkHost::GetPing()
 {
 	if (m_Peer != nullptr)
 	{
@@ -300,7 +301,7 @@ UINT32 DX12Lib::NetworkHost::GetPing()
 	return 0;
 }
 
-bool DX12Lib::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix)
+bool Commons::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const std::string& prefix)
 {
 	auto& data = packet->GetDataVector();
 
@@ -313,30 +314,30 @@ bool DX12Lib::NetworkHost::CheckPacketHeader(const NetworkPacket* packet, const 
 	memcpy(temp.data(), data.data(), prefix.size());
 
 	return strncmp(temp.data(), prefix.c_str(), prefix.size()) == 0;
-	
+
 }
 
-std::string DX12Lib::NetworkHost::GetHostAddress() const
+std::string Commons::NetworkHost::GetHostAddress() const
 {
 	return m_hostAddress;
 }
 
-float DX12Lib::NetworkHost::GetAverageCompressionRatio() const
+float Commons::NetworkHost::GetAverageCompressionRatio() const
 {
 	return m_totalCompressionRatio / max(m_nCompressions, 1);
 }
 
-float DX12Lib::NetworkHost::GetAverageCompressionTime() const
+float Commons::NetworkHost::GetAverageCompressionTime() const
 {
 	return m_totalCompressionTime / max(m_nCompressions, 1);
 }
 
-void DX12Lib::NetworkHost::PrintNetworkInterfaces()
+void Commons::NetworkHost::PrintNetworkInterfaces()
 {
-	
+
 }
 
-bool DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
+bool Commons::NetworkHost::CompressData(NetworkPacket* packet)
 {
 	auto& packetData = packet->GetDataVector();
 	size_t prevSize = packetData.size();
@@ -385,7 +386,7 @@ bool DX12Lib::NetworkHost::CompressData(NetworkPacket* packet)
 	return true;
 }
 
-bool DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
+bool Commons::NetworkHost::DecompressData(NetworkPacket* packet)
 {
 	auto& packetData = packet->GetDataVector();
 
@@ -420,7 +421,7 @@ bool DX12Lib::NetworkHost::DecompressData(NetworkPacket* packet)
 	return true;
 }
 
-void DX12Lib::NetworkHost::MainNetworkLoop()
+void Commons::NetworkHost::MainNetworkLoop()
 {
 	DXLIB_CORE_INFO("Listening for messages from incoming connections.");
 
@@ -489,12 +490,12 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 					m_isConnected = false;
 				}
 				m_Peer = nullptr;
-				
+
 			}
 		}
 		else if (serviceResult < 0)
 		{
-			
+
 			DXLIB_CORE_ERROR("Error while receiving data");
 		}
 		// Else no event occurred
@@ -505,12 +506,12 @@ void DX12Lib::NetworkHost::MainNetworkLoop()
 
 	if (sendDataThread.joinable())
 		sendDataThread.join();
-	
+
 	if (receiveDataThread.joinable())
 		receiveDataThread.join();
 }
 
-void DX12Lib::NetworkHost::SendDataLoop()
+void Commons::NetworkHost::SendDataLoop()
 {
 	std::shared_ptr<NetworkPacket> packet = nullptr;
 
@@ -554,7 +555,7 @@ void DX12Lib::NetworkHost::SendDataLoop()
 	}
 }
 
-void DX12Lib::NetworkHost::ReceiveDataLoop()
+void Commons::NetworkHost::ReceiveDataLoop()
 {
 	std::shared_ptr<NetworkPacket> packet = nullptr;
 	while (m_isConnected)
@@ -582,5 +583,4 @@ void DX12Lib::NetworkHost::ReceiveDataLoop()
 	}
 }
 
-bool DX12Lib::NetworkHost::m_isEnetInitialized = false;
-
+bool Commons::NetworkHost::m_isEnetInitialized = false;

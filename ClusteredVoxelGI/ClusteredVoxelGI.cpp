@@ -11,6 +11,7 @@
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
+#include "UIHelpers.h"
 
 
 
@@ -21,6 +22,7 @@ using namespace DX12Lib;
 
 using namespace CVGI;
 using namespace VOX;
+using namespace Commons;
 
 
 void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
@@ -282,7 +284,7 @@ void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext
 		m_networkServer.Disconnect();
 	}
 
-	DX12Lib::NetworkHost::DeinitializeEnet();
+	Commons::NetworkHost::DeinitializeEnet();
 	
 	D3DApp::OnClose(commandContext);
 }
@@ -1101,14 +1103,14 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 
 	m_voxelScene = voxelScene;
 
-	DX12Lib::NetworkHost::InitializeEnet();
+	Commons::NetworkHost::InitializeEnet();
 	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
 	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
 	m_networkServer.OnPeerDisconnected = std::bind(&ClusteredVoxelGIApp::OnClientDisconnected, this, std::placeholders::_1);
 
 }
 
-void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const DX12Lib::NetworkPacket* packet)
+void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const Commons::NetworkPacket* packet)
 {
 
 	if (NetworkHost::CheckPacketHeader(packet, "CAMINP"))
@@ -1214,7 +1216,7 @@ void CVGI::ClusteredVoxelGIApp::OnClientDisconnected(const ENetPeer* peer)
 	m_data->GetLightComponent()->Node->GetComponent<LightController>()->ControlOverNetwork(false);
 }
 
-void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera)
+void CVGI::ClusteredVoxelGIApp::ConsumeNodeInput(const Commons::NetworkPacket* packet, bool isCamera)
 {
 	auto& dataVector = packet->GetDataVector();
 

@@ -11,6 +11,8 @@
 #include "imgui.h"
 #include "backends/imgui_impl_dx12.h"
 
+#include "UIHelpers.h"
+
 #define USE_RTGI 1
 
 #define PSO_SHADOW_OPAQUE L"ShadowOpaquePso"
@@ -360,7 +362,7 @@ namespace Graphics::Renderer
 		m_costantBufferCommons.deltaTime = GameTime::GetDeltaTime();
 		m_costantBufferCommons.numLights = LightComponent::GetLightCount();
 
-		UIHelpers::StartFrame();
+		Commons::UIHelpers::StartFrame();
 	}
 
 	void ShadowPassForCamera(DX12Lib::GraphicsContext& context, DX12Lib::ShadowCamera* shadowCamera)

@@ -31,7 +31,7 @@
 
 #include "DX12Lib/DXWrapper/Fence.h"
 
-#include "DX12Lib/Commons/NetworkManager.h"
+#include "NetworkManager.h"
 
 
 namespace CVGI
@@ -70,10 +70,10 @@ namespace CVGI
 		void ShowIMGUILoadingWindow(float appX, float appY);
 		void ShowIMGUIVoxelDebugWindow(float appX, float appY);
 		void InitializeVoxelData(DX12Lib::GraphicsContext& commandContext);
-		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
+		void OnPacketReceived(const Commons::NetworkPacket* packet);
 		void OnClientConnected(const ENetPeer* peer);
 		void OnClientDisconnected(const ENetPeer* peer);
-		void ConsumeNodeInput(const DX12Lib::NetworkPacket* packet, bool isCamera);
+		void ConsumeNodeInput(const Commons::NetworkPacket* packet, bool isCamera);
 		bool IsDirectXRaytracingSupported() const;
 
 	public:
@@ -152,7 +152,7 @@ namespace CVGI
 
 		std::shared_ptr<VOX::TechniqueData> m_data = nullptr;
 
-		DX12Lib::NetworkHost m_networkServer;
+		Commons::NetworkHost m_networkServer;
 
 		DirectX::XMFLOAT3 m_lastCameraPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 

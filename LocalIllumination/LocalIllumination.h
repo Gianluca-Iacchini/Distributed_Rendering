@@ -2,7 +2,7 @@
 #define _WINSOCKAPI_
 #include "DX12Lib/Commons/D3DApp.h"
 #include "LIScene.h"
-#include "DX12Lib/Commons/NetworkManager.h"
+#include "NetworkManager.h"
 
 #include "DX12Lib/DXWrapper/Fence.h"
 #include "DX12Lib/DXWrapper/GPUBuffer.h"
@@ -44,7 +44,7 @@ namespace LI
 		virtual void OnClose(DX12Lib::GraphicsContext& commandContext) override;
 
 	private:
-		void OnPacketReceived(const DX12Lib::NetworkPacket* packet);
+		void OnPacketReceived(const Commons::NetworkPacket* packet);
 		void OnPeerDisconnected(const ENetPeer* peer);
 		DX12Lib::AABB GetSceneAABBExtents();
 		void CopyDataToBasicBuffer(UINT bufferIdx);
@@ -53,7 +53,7 @@ namespace LI
 
 		void ShowIMGUIWindow();
 	private:
-		DX12Lib::NetworkHost m_networkClient;
+		Commons::NetworkHost m_networkClient;
 		DirectX::Keyboard::KeyboardStateTracker m_kbTracker;
 
 		LI::LIScene* m_LIScene = nullptr;

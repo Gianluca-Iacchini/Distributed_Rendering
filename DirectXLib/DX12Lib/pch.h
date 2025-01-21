@@ -52,5 +52,3 @@
 #include "DX12Lib/Scene/Scene.h"
 
 #include "DXWrapper/Device.h"
-
-#include "DX12Lib/UI/UIHelpers.h"

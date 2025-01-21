@@ -1,8 +1,6 @@
 #include "DX12Lib/pch.h"
 #include "LightController.h"
 
-#include "DX12Lib/Commons/NetworkManager.h"
-
 using namespace DX12Lib;
 using namespace Graphics;
 using namespace DirectX;
@@ -138,7 +136,13 @@ void LightController::PredictInput(float speed, float deltaTime)
 	DirectX::XMFLOAT3 deltaPos = { newPos.x - currentPos.x, newPos.y - currentPos.y, newPos.z - currentPos.z };
 
 	// Using epoch time instead of GameTime, since GameTime starts at 0 when the application is initialized.
-	InputDelta delta = { deltaPos, deltaTime, NetworkHost::GetEpochTime() };
+	auto now = std::chrono::system_clock::now();
+	float epochMs = now.time_since_epoch() / std::chrono::milliseconds(1);
+
+	InputDelta delta = { deltaPos, deltaTime, epochMs};
+
+	// Get current epoch time with chrono
+
 
 	if (m_inputDeltaHistory.size() >= c_maxHistorySize)
 		m_inputDeltaHistory.erase(m_inputDeltaHistory.begin());

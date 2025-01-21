@@ -1,14 +1,15 @@
-#include "DX12Lib/pch.h"
 #include "UIHelpers.h"
-
-#include "DX12Lib/Commons/DX12Window.h"
 
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
+
+#if CVGI_DX12
 #include "backends/imgui_impl_dx12.h"
 
 using namespace DX12Lib;
 using namespace Graphics;
+
+#include "backends/imgui_impl_dx12.h"
 
 void imguiAlloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
 {
@@ -17,9 +18,9 @@ void imguiAlloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTO
 	out_cpu_handle->ptr = descHandle.GetCPUPtr();
 	out_gpu_handle->ptr = descHandle.GetGPUPtr();
 }
+#endif // CVGI_DX12
 
-
-void DX12Lib::UIHelpers::InitializeIMGUI(DX12Lib::DX12Window* window)
+void Commons::UIHelpers::InitializeIMGUI(HWND windowHandle)
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -29,7 +30,8 @@ void DX12Lib::UIHelpers::InitializeIMGUI(DX12Lib::DX12Window* window)
 
 	ImGui::StyleColorsDark();
 
-	ImGui_ImplWin32_Init(window->GetWindowHandle());
+#if CVGI_DX12
+	ImGui_ImplWin32_Init(windowHandle);
 
 	ImGui_ImplDX12_InitInfo initInfo = {};
 	initInfo.Device = Graphics::s_device->Get();
@@ -43,24 +45,30 @@ void DX12Lib::UIHelpers::InitializeIMGUI(DX12Lib::DX12Window* window)
 
 
 	ImGui_ImplDX12_Init(&initInfo);
+
+#endif
 }
 
-void DX12Lib::UIHelpers::ShutdownIMGUI()
+void Commons::UIHelpers::ShutdownIMGUI()
 {
+#if CVGI_DX12
 	ImGui_ImplDX12_Shutdown();
+#endif
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 }
 
-void DX12Lib::UIHelpers::StartFrame()
+void Commons::UIHelpers::StartFrame()
 {
+#if CVGI_DX12
 	ImGui_ImplDX12_NewFrame();
+#endif
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
 }
 
-bool DX12Lib::UIHelpers::OddIntegerSlider(const char* label, int* value, int min, int max)
+bool Commons::UIHelpers::OddIntegerSlider(const char* label, int* value, int min, int max)
 {
 	// Clamp the initial value to the nearest odd number
 	if (*value % 2 == 0)
@@ -70,7 +78,11 @@ bool DX12Lib::UIHelpers::OddIntegerSlider(const char* label, int* value, int min
 	int oddMax = max % 2 == 0 ? max - 1 : max;
 
 	int sliderValue = *value;
-	*value = std::clamp(*value, oddMin, oddMax);
+
+	if (*value < oddMin)
+		*value = oddMin;
+	else if (*value > oddMax)
+		*value = oddMax;
 
 
 	if (ImGui::SliderInt(label, value, oddMin, oddMax))

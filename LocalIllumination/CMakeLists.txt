@@ -74,6 +74,7 @@ set(VOX_HELPERS
 
 source_group("Helpers" FILES ${VOX_HELPERS})
 
+
 set(TECHNIQUES
 	../VoxelUtils/Techniques/Technique.h
 	../VoxelUtils/Techniques/Technique.cpp

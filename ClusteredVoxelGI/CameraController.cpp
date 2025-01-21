@@ -1,6 +1,5 @@
 #include "DX12Lib/pch.h"
 #include "CameraController.h"
-#include "DX12Lib/Commons/NetworkManager.h"
 
 using namespace CVGI;
 using namespace DX12Lib;
@@ -167,7 +166,10 @@ void CVGI::CameraController::PredictInput(float speed, float deltaTime)
 	DirectX::XMFLOAT3 deltaPos = { newPos.x - currentPos.x, newPos.y - currentPos.y, newPos.z - currentPos.z };
 
 	// Using epoch time instead of GameTime, since GameTime starts at 0 when the application is initialized.
-	InputDelta delta = { deltaPos, deltaTime, NetworkHost::GetEpochTime()};
+	auto epochTime = std::chrono::system_clock::now();
+	float epochMs = epochTime.time_since_epoch() / std::chrono::milliseconds(1);
+
+	InputDelta delta = { deltaPos, deltaTime, epochMs};
 
 	if (m_inputDeltaHistory.size() >= c_maxHistorySize)
 		m_inputDeltaHistory.erase(m_inputDeltaHistory.begin());

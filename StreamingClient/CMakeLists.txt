@@ -18,19 +18,47 @@ set (CUDA_FILES ColorSpace.cu)
 
 source_group("Shaders" FILES ${SHADERS})
 
+source_group("imGui" FILES ${IMGUI_SOURCE})
+
+set(COMMONS_SOURCE 
+	"../Commons/NetworkManager.h"
+	"../Commons/NetworkManager.cpp"
+	"../Commons/UIHelpers.h"
+	"../Commons/UIHelpers.cpp"
+)
+
+set(COMMONS_SOURCE 
+	"../Commons/NetworkManager.h"
+	"../Commons/NetworkManager.cpp"
+	"../Commons/UIHelpers.h"
+	"../Commons/UIHelpers.cpp"
+)
+
+source_group("Commons" FILES ${COMMONS_SOURCE})
+
 find_package( OpenGL REQUIRED )
 find_package( CUDAToolkit REQUIRED)
 
 
-include_directories( ${OPENGL_INCLUDE_DIRS} ../extern/glad/include/ ../extern/FFmpeg/include ../extern/NvidiaCodec/Include)
+include_directories( ${OPENGL_INCLUDE_DIRS} 
+	../extern/glad/include/
+	../extern/FFmpeg/include
+	${IMGUI_INCLUDE}
+	../extern/NvidiaCodec/Include
+	../extern/enet/include
+	../Commons/
+	${zstd_SOURCE_DIR}/lib)
 
 
-add_executable(StreamingClient ${SRC_FILES} ${SHADERS} ${CUDA_FILES})
+add_executable(StreamingClient ${SRC_FILES} ${IMGUI_SOURCE} ${COMMONS_SOURCE} ${SHADERS} ${CUDA_FILES})
 
 target_link_libraries(StreamingClient
 	PRIVATE glfw
 	PRIVATE spdlog
-	PRIVATE ws2_32.lib
+    	PRIVATE ws2_32.lib
+    	PRIVATE winmm.lib
+        PRIVATE libzstd_static
+    	PRIVATE "${PROJECT_SOURCE_DIR}/extern/enet/enet64.lib"
 	PRIVATE CUDA::cudart
 	PRIVATE CUDA::cuda_driver
 
@@ -42,7 +70,7 @@ target_link_libraries(StreamingClient
 	)
 
 
-add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}" -DCVGI_GL=1)
 file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/*.dll")
 
 foreach(DLL ${DLL_FILES})

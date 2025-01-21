@@ -6,6 +6,7 @@
 #include "DX12Lib/Commons/DX12Window.h"
 #include "DX12Lib/DXWrapper/Swapchain.h"
 #include "DX12Lib/Scene/Scene.h"
+#include "UIHelpers.h"
 
 
 using namespace Microsoft::WRL;
@@ -118,7 +119,7 @@ int D3DApp::Run()
 	context.Flush(true);
 	OnClose(context);
 	context.Finish(true);
-	UIHelpers::ShutdownIMGUI();
+	Commons::UIHelpers::ShutdownIMGUI();
 
 	
 	return static_cast<int>(msg.wParam);
@@ -271,7 +272,7 @@ bool D3DApp::InitDirect3D()
 	}
 
 	Renderer::InitializeSwapchain(m_dx12Window.get());
-	UIHelpers::InitializeIMGUI(m_dx12Window.get());
+	Commons::UIHelpers::InitializeIMGUI(m_dx12Window->GetWindowHandle());
 
 
 	return true;
