@@ -18,9 +18,17 @@ void imguiAlloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTO
 	out_cpu_handle->ptr = descHandle.GetCPUPtr();
 	out_gpu_handle->ptr = descHandle.GetGPUPtr();
 }
-#endif // CVGI_DX12
+#elif CVGI_GL
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
 
-void Commons::UIHelpers::InitializeIMGUI(HWND windowHandle)
+#endif 
+
+
+
+void Commons::UIHelpers::InitializeIMGUI(IMGUIWND imguiWnd)
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -31,7 +39,7 @@ void Commons::UIHelpers::InitializeIMGUI(HWND windowHandle)
 	ImGui::StyleColorsDark();
 
 #if CVGI_DX12
-	ImGui_ImplWin32_Init(windowHandle);
+	ImGui_ImplWin32_Init(imguiWnd);
 
 	ImGui_ImplDX12_InitInfo initInfo = {};
 	initInfo.Device = Graphics::s_device->Get();
@@ -46,6 +54,9 @@ void Commons::UIHelpers::InitializeIMGUI(HWND windowHandle)
 
 	ImGui_ImplDX12_Init(&initInfo);
 
+#elif CVGI_GL
+	ImGui_ImplGlfw_InitForOpenGL(imguiWnd, true);
+	ImGui_ImplOpenGL3_Init("#version 330");
 #endif
 }
 
@@ -53,8 +64,12 @@ void Commons::UIHelpers::ShutdownIMGUI()
 {
 #if CVGI_DX12
 	ImGui_ImplDX12_Shutdown();
-#endif
 	ImGui_ImplWin32_Shutdown();
+#elif CVGI_GL
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+#endif
+
 	ImGui::DestroyContext();
 }
 
@@ -62,10 +77,44 @@ void Commons::UIHelpers::StartFrame()
 {
 #if CVGI_DX12
 	ImGui_ImplDX12_NewFrame();
-#endif
 	ImGui_ImplWin32_NewFrame();
+#elif CVGI_GL
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+#endif
+
 	ImGui::NewFrame();
 
+}
+
+void Commons::UIHelpers::EndFrame()
+{
+	ImGui::EndFrame();
+}
+
+void Commons::UIHelpers::ControlInfoBlock(bool isConnected)
+{
+}
+
+void Commons::UIHelpers::ConnectedClient(const char* peerAddr, UINT32 ping)
+{
+
+	ImGui::BeginTable("ClientTable", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg);
+	ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+	ImGui::TableSetupColumn("Client Address", ImGuiTableColumnFlags_WidthStretch);
+	ImGui::TableSetupColumn("Ping", ImGuiTableColumnFlags_WidthFixed);
+	ImGui::TableHeadersRow();
+
+	ImGui::TableNextRow();
+	ImGui::TableNextColumn();
+	ImGui::Text("Client %d\t", 0);
+	ImGui::TableNextColumn();
+	ImGui::Text("%s", peerAddr);
+	ImGui::TableNextColumn();
+	ImGui::Text("%d ms", ping);
+
+	ImGui::EndTable();
+	
 }
 
 bool Commons::UIHelpers::OddIntegerSlider(const char* label, int* value, int min, int max)

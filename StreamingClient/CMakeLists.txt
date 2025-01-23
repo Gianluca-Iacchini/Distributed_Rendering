@@ -18,7 +18,7 @@ set (CUDA_FILES ColorSpace.cu)
 
 source_group("Shaders" FILES ${SHADERS})
 
-source_group("imGui" FILES ${IMGUI_SOURCE})
+source_group("imGui" FILES ${IMGUI_SOURCE_GL})
 
 set(COMMONS_SOURCE 
 	"../Commons/NetworkManager.h"
@@ -50,7 +50,7 @@ include_directories( ${OPENGL_INCLUDE_DIRS}
 	${zstd_SOURCE_DIR}/lib)
 
 
-add_executable(StreamingClient ${SRC_FILES} ${IMGUI_SOURCE} ${COMMONS_SOURCE} ${SHADERS} ${CUDA_FILES})
+add_executable(StreamingClient ${SRC_FILES} ${IMGUI_SOURCE_GL} ${COMMONS_SOURCE} ${SHADERS} ${CUDA_FILES})
 
 target_link_libraries(StreamingClient
 	PRIVATE glfw

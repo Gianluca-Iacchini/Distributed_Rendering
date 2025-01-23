@@ -12,7 +12,7 @@ namespace LI
 	class LIScene : public DX12Lib::Scene
 	{
 	public:
-		LIScene(bool shouldStream);
+		LIScene();
 		virtual ~LIScene() = default;
 
 		virtual void Init(DX12Lib::GraphicsContext& context) override;

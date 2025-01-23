@@ -23,7 +23,7 @@ namespace Graphics
 
 
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
-
+	
 	DXGI_FORMAT m_depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	std::shared_ptr<Device> Graphics::s_device = nullptr;
@@ -134,9 +134,7 @@ namespace Graphics
 			}
 		#endif // _DEBUG
 
-#if STREAMING
-			m_backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
-#endif
+
 			s_commandQueueManager = std::make_unique<CommandQueueManager>(*s_device);
 			s_commandQueueManager->Create();
 			s_commandContextManager = std::make_unique<CommandContextManager>();

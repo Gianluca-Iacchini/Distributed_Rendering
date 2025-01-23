@@ -4,6 +4,7 @@
 #include "DX12Lib/Scene/LightComponent.h"
 #include "DX12Lib/Scene/SceneCamera.h"
 #include "DX12Lib/Scene/CameraController.h"
+#include "DX12Lib/Scene/RemoteNodeController.h"
 #include "DX12Lib/Commons/ShadowMap.h"
 #include "DX12Lib/Scene/LightController.h"
 
@@ -11,7 +12,7 @@ using namespace LI;
 using namespace DX12Lib;
 using namespace Graphics;
 
-LI::LIScene::LIScene(bool shouldStream) : DX12Lib::Scene()
+LI::LIScene::LIScene() : DX12Lib::Scene()
 {
 
 }
@@ -36,6 +37,7 @@ void LI::LIScene::Init(DX12Lib::GraphicsContext& context)
 	lightNode->AddComponent<LightController>();
 
 	m_cameraController = m_camera->Node->AddComponent<DX12Lib::CameraController>();
+	m_camera->Node->AddComponent<DX12Lib::RemoteNodeController>();
 
 	m_mainLight = light;
 

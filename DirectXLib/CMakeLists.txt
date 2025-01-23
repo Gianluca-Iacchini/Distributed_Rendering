@@ -54,7 +54,7 @@ set_source_files_properties( ${PIXEL_SHADERS}
 	VS_SHADER_ENTRYPOINT PS
 )
 
-source_group("imGui" FILES ${IMGUI_SOURCE})
+source_group("imGui" FILES ${IMGUI_SOURCE_DX12})
 
 set(COMMONS_SOURCE 
 	"../Commons/NetworkManager.h"
@@ -65,7 +65,7 @@ set(COMMONS_SOURCE
 
 source_group("Commons" FILES ${COMMONS_SOURCE})
 
-add_library(DirectXLib STATIC ${SOURCE_FILES} ${NVCODEC_HEADER} ${IMGUI_SOURCE} ${COMMONS_SOURCE} ${SHADERS})
+add_library(DirectXLib STATIC ${SOURCE_FILES} ${NVCODEC_HEADER} ${IMGUI_SOURCE_DX12} ${COMMONS_SOURCE} ${SHADERS})
 target_precompile_headers(DirectXLib PRIVATE "DX12Lib/pch.h")
 
 set_target_properties(DirectXLib PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)

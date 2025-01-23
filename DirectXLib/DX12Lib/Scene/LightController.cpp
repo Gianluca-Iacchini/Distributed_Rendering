@@ -17,6 +17,7 @@ void LightController::Update(DX12Lib::CommandContext& context)
 
 	Move(speed, deltaTime);
 
+	auto pos = this->Node->GetPosition();
 }
 
 void LightController::Move(float speed, float deltaTime)

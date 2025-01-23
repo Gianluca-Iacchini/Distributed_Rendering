@@ -10,7 +10,10 @@
 
 #include "NetworkManager.h"
 
-#define IS_STREAMING 0
+#include "imgui.h"
+
+#include <numeric>
+
 
 float lastTime = 0.0f;
 float currentTime = 0.0f;
@@ -33,10 +36,24 @@ Commons::NetworkHost m_clientHost;
 
 
 std::uint8_t m_movementInputBitmask;
+std::uint8_t m_lightInputBitmask;
 
-float m_mousePosXY[2];
+float m_mousePosX = 0.0f;
+float m_mousePosY = 0.0f;
 
-bool m_isInputDataReady = true;
+// 0 - not connected; 1 - connecting; 2 - failed; 3 - connected
+std::atomic<int> m_streamConnectionState = 0;
+
+char m_ipv4Url[20] = "127.0.0.1";
+int m_selectedCodec = 0;
+
+long long unsigned int GetEpochTimeMicroSeconds()
+{
+	auto now = std::chrono::system_clock::now();
+
+	// reutrn microseconds since epoch
+	return now.time_since_epoch() / std::chrono::microseconds(1);
+}
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -53,6 +70,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	{
 		switch (key)
 		{
+		// Camera input
 		case GLFW_KEY_W:
 			m_movementInputBitmask |= 1 << 0;
 			break;
@@ -71,6 +89,23 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		case GLFW_KEY_Q:
 			m_movementInputBitmask |= 1 << 5;
 			break;
+		case GLFW_KEY_LEFT_SHIFT:
+			m_movementInputBitmask |= 1 << 6;
+			break;
+		
+		// Light input
+		case GLFW_KEY_UP:
+			m_lightInputBitmask |= 1 << 0;
+			break;
+		case GLFW_KEY_DOWN:
+			m_lightInputBitmask |= 1 << 1;
+			break;
+		case GLFW_KEY_LEFT:
+			m_lightInputBitmask |= 1 << 2;
+			break;
+		case GLFW_KEY_RIGHT:
+			m_lightInputBitmask |= 1 << 3;
+			break;
 		default:
 			break;
 		}
@@ -80,6 +115,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	{
 		switch (key)
 		{
+		// Camera input
 		case GLFW_KEY_W:
 			m_movementInputBitmask &= ~(1 << 0);
 			break;
@@ -98,16 +134,43 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		case GLFW_KEY_Q:
 			m_movementInputBitmask &= ~(1 << 5);
 			break;
+		case GLFW_KEY_LEFT_SHIFT:
+			m_movementInputBitmask &= ~(1 << 6);
+			break;
+
+		// Light input
+		case GLFW_KEY_UP:
+			m_lightInputBitmask &= ~(1 << 0);
+			break;
+		case GLFW_KEY_DOWN:
+			m_lightInputBitmask &= ~(1 << 1);
+			break;
+		case GLFW_KEY_LEFT:
+			m_lightInputBitmask &= ~(1 << 2);
+			break;
+		case GLFW_KEY_RIGHT:
+			m_lightInputBitmask &= ~(1 << 3);
+			break;
 		default:
 			break;
 		}
 	}
 
-	m_isInputDataReady = true;
 }
 
 void MouseCallback(GLFWwindow* window, double xpos, double ypos)
 {
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	}
+	else {
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		m_mousePosX = 0.0f;
+		m_mousePosY = 0.0f;
+		firstMouse = true;
+		return;
+	}
+
 	// If this is the first time the callback is called, initialize the last position
 	if (firstMouse)
 	{
@@ -123,19 +186,179 @@ void MouseCallback(GLFWwindow* window, double xpos, double ypos)
 	glfwGetWindowSize(window, &wWidth, &wHeight);
 
 	double mouseDeltaX = xpos - lastX;
-	double mouseDeltaY = lastY - ypos;
+	double mouseDeltaY = ypos - lastY;
 
 	double normalizedDeltaX = mouseDeltaX / wWidth;
 	double normalizedDeltaY = mouseDeltaY / wHeight;
 
 
-	m_mousePosXY[0] = normalizedDeltaX;
-	m_mousePosXY[1] = normalizedDeltaY;
+	m_mousePosX = normalizedDeltaX;
+	m_mousePosY = normalizedDeltaY;
 
-	m_isInputDataReady = true;
 
 	lastX = xpos;
 	lastY = ypos;
+}
+
+std::function<void()> UICallback(SC::FFmpegDemuxer* demuxer, SC::NVDecoder* decoder)
+{
+
+	auto returnFunction = [decoder, demuxer]() {
+		float maxX = ImGui::CalcTextSize("- Codec framerate:\t").x;
+
+		std::string codec = "Codec not found";
+		ImGui::SeparatorText("Codec info");
+		if (!demuxer)
+		{
+			ImGui::Text("No demuxer found, cannot get codec info");
+		}
+		else
+		{
+			codec = demuxer->GetVideoCodecName();
+
+			ImGui::Text("- Codec:");
+			ImGui::SameLine(maxX);
+			ImGui::Text(codec.c_str());
+
+			ImGui::Text("- Framerate:");
+			ImGui::SameLine(maxX);
+			ImGui::Text("%d/%d", demuxer->GetFramerateNumerator(), demuxer->GetFramerateDenominator());
+
+			int width = demuxer->GetWidth();
+			int height = demuxer->GetHeight();
+			int gcdVal = std::gcd(width, height);
+
+
+			ImGui::Text("- Resolution:");
+			ImGui::SameLine(maxX);
+			ImGui::Text("%d x %d (%d:%d)", width, height, width / gcdVal, height / gcdVal);
+
+			const char* chromaFormatName = demuxer->GetChromaFormat();
+			ImGui::Text("- Chroma format:");
+			ImGui::SameLine(maxX);
+			ImGui::Text("%s", chromaFormatName);
+		}
+	};
+
+	return returnFunction;
+}
+
+std::function<void()> UIStartScreenCallback(SC::StreamRenderer* sr, SC::FFmpegDemuxer* demuxer)
+{
+	auto returnFunction = [sr, demuxer]()
+		{
+			const char* label = "Connect to stream";
+			ImVec2 itemSize = ImGui::CalcTextSize(label);
+
+			int width = sr->GetWidth();
+			int height = sr->GetHeight();
+
+			float inputSize = width * 0.1f;
+
+			ImGui::SetCursorPos(ImVec2((width - itemSize.x) * 0.5f, height * 0.1f));
+			ImGui::Text("%s", label);
+
+			ImVec2 inputPos = ImVec2((width - inputSize) * 0.5f, height * 0.1f);
+			inputPos.y += itemSize.y + 10;
+
+			// Determine whether the button should be disabled
+			int connectionState = m_streamConnectionState.load();
+			bool isConnecting = connectionState == 1;
+
+
+			// Disable the button if the time passed is less than 10 seconds
+			ImGui::BeginDisabled(isConnecting);
+			ImGui::SetCursorPos(inputPos);
+			ImGui::PushItemWidth(inputSize);
+			ImGui::InputText("Stream address", m_ipv4Url, 256);
+
+			inputPos.x = (width - inputSize) * 0.5f;
+			inputPos.y += 20 + 10;
+
+			const char* codecListboxData[] = { "HEVC", "H264" };
+
+			ImGui::PushItemWidth(inputSize);
+			ImGui::SetCursorPos(inputPos);
+			ImGui::ListBox("Select a codec", &m_selectedCodec, codecListboxData, 2, 2);
+
+			itemSize = ImGui::CalcTextSize("Connecting...");
+			inputPos.x = (width - itemSize.x) * 0.5f;
+			inputPos.y += (ImGui::GetItemRectMax().y - ImGui::GetItemRectMin().y) + 20;
+			ImGui::SetCursorPos(inputPos);
+
+
+
+			// Set the label for the button based on whether it's disabled or not
+			std::string connectLabel = isConnecting ? "Connecting..." : "Connect";
+
+
+			if (ImGui::Button(connectLabel.c_str(), ImVec2(itemSize.x + 10, 20)))
+			{
+				m_streamConnectionState.store(1);
+
+				std::thread connectThread([demuxer]() {
+
+					m_clientHost.Connect(m_ipv4Url, 2345);
+
+					for (int i = 0; i < 5; i++)
+					{
+						Sleep(20);
+						if (m_clientHost.IsConnected() && m_clientHost.HasPeers())
+						{
+							break;
+						}
+						else
+						{
+							m_streamConnectionState.store(2);
+							m_clientHost.Disconnect();
+							return;
+						}
+					}
+
+					Commons::PacketGuard inputPacket = m_clientHost.CreatePacket();
+					inputPacket->ClearPacket();
+
+					if (m_selectedCodec == 0) {
+						inputPacket->AppendToBuffer("STR265");
+					}
+					else
+					{
+						inputPacket->AppendToBuffer("STR264");
+					}
+
+					inputPacket->SetPacketType(Commons::NetworkPacket::PacketType::PACKET_RELIABLE);
+					m_clientHost.SendData(inputPacket);
+
+					std::string codecUrl = "udp://" + std::string(m_ipv4Url) + ":1234?overrun_nonfatal=1&fifo_size=50000000";
+					if (demuxer->OpenStream(codecUrl.c_str()))
+					{
+						m_streamConnectionState.store(3);
+					}
+					else
+					{
+						m_streamConnectionState.store(2);
+						m_clientHost.Disconnect();
+					}
+
+				});
+
+				connectThread.detach();
+			}
+
+			if (connectionState == 2)
+			{
+				itemSize = ImGui::CalcTextSize("Could not connect to host.");
+				inputPos.x = (width - itemSize.x) * 0.5f;
+				inputPos.y += 20 + 10;
+				
+				ImGui::SetCursorPos(inputPos);
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Could not connect to host.");
+			}
+
+			ImGui::EndDisabled();
+		};
+
+	return returnFunction;
 }
 
 void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamRenderer* renderer)
@@ -163,13 +386,12 @@ void DecodeFrame(SC::NVDecoder* decoder, SC::FFmpegDemuxer* demuxer, SC::StreamR
 
 	int number = 0;
 
-
+	int n = 0;
 	do
 	{
 
 		demuxer->Demux(&pVideo, &nVideoBytes);
-		nFrameReturned = decoder->Decode(pVideo, nVideoBytes);
-
+		nFrameReturned = decoder->Decode(pVideo, nVideoBytes, CUVID_PKT_ENDOFPICTURE, n++);
 
 		if (nFrameReturned && !nFrame)
 		{
@@ -246,7 +468,7 @@ int main()
 
 	Commons::NetworkHost::InitializeEnet();
 
-	m_clientHost.Connect("127.0.0.1", 2345);
+
 
 	{
 		SC::StreamRenderer sr(cuContext);
@@ -257,11 +479,34 @@ int main()
 			return -1;
 		}
 
-#if IS_STREAMING
+		SC::FFmpegDemuxer demuxer;
+
+		
+		sr.SetUICallback(UIStartScreenCallback(&sr, &demuxer));
+
+		while (!sr.ShouldCloseWindow())
+		{
+			sr.Update();
+			sr.Render(false);
+
+			if (m_streamConnectionState.load() == 3)
+			{
+				break;
+			}
+		}
+
+
+		if (sr.ShouldCloseWindow())
+		{
+			Commons::NetworkHost::DeinitializeEnet();
+			CUDA_SAFE_CALL(cuCtxDestroy(cuContext));
+			return 0;
+		}
+
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("https://cdn.radiantmediatechs.com/rmp/media/samples-for-rmp-site/04052024-lac-de-bimont/hls/playlist.m3u8");
-		SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("udp://localhost:1234?overrun_nonfatal=1&fifo_size=50000000");
 		//SC::FFmpegDemuxer demuxer = SC::FFmpegDemuxer("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()), true, false, NULL, NULL, false, 0, 0, 1000, false);
+
+		SC::NVDecoder dec(cuContext, true, SC::FFmpegDemuxer::FFmpeg2NvCodecId(demuxer.GetVideoCodecID()), true, false, NULL, NULL, false, 0, 0, 1000, true);
 
 		int width = (demuxer.GetWidth() + 1) & ~1;
 		int height = demuxer.GetHeight();
@@ -273,12 +518,13 @@ int main()
 
 
 		std::thread decodeThread(DecodeFrame, &dec, &demuxer, &sr);
-		sr.InitializeResources(width, height);
-#endif
 
+
+		sr.InitializeResources(width, height);
 
 		sr.SetKeyCallback(KeyCallback);
 		sr.SetMouseCallback(MouseCallback);
+		sr.SetUICallback(UICallback(&demuxer, &dec));
 
 		lastTime = 0.0f;
 
@@ -291,7 +537,6 @@ int main()
 		double renderStartTime = glfwGetTime();
 		double lastTime = renderStartTime;
 
-#if IS_STREAMING
 		while (!shouldClose)
 		{
 			sr.isDone = shouldClose = sr.ShouldCloseWindow() || (g_isDecodeDone && sr.IsReadQueueEmpty());
@@ -300,55 +545,32 @@ int main()
 			double deltaTime = totalTime - lastTime;
 			lastTime = totalTime;
 
-			if (renderStartTime > 0.0f )
-			{
-				sr.Update();
-				sr.Render(IS_STREAMING);
-				renderStartTime -= deltaTime;
-				continue;
-			}
-
-
-
 			accumulatedTime += deltaTime;
 
-			if ((accumulatedTime >= sr.msfps / (1000.0f)))
+			sr.Update();
+
+			if (m_clientHost.IsConnected() && m_clientHost.HasPeers())
 			{
-				accumulatedTime -= sr.msfps / (1000.0f);
-				sr.Update();
-				sr.Render(IS_STREAMING);
+				Commons::PacketGuard inputPacket = m_clientHost.CreatePacket();
+				inputPacket->ClearPacket();
+
+				inputPacket->AppendToBuffer("STRINP");
+				inputPacket->SetPacketType(Commons::NetworkPacket::PacketType::PACKET_RELIABLE);
+				inputPacket->AppendToBuffer(GetEpochTimeMicroSeconds());
+				inputPacket->AppendToBuffer(m_movementInputBitmask);
+				inputPacket->AppendToBuffer(m_mousePosX);
+				inputPacket->AppendToBuffer(m_mousePosY);
+				inputPacket->AppendToBuffer(m_lightInputBitmask);
+				inputPacket->AppendToBuffer((float)1.0f / 60.0f);
+				m_clientHost.SendData(inputPacket);
+
 			}
+			sr.Render();
 
 		}
 
 		sr.FreeQueues();
 		decodeThread.join();
-	
-#else
-		while (!shouldClose)
-		{
-			sr.isDone = shouldClose = sr.ShouldCloseWindow();
-			sr.Update();
-
-			if (m_isInputDataReady)
-			{
-				Commons::PacketGuard inputPacket = m_clientHost.CreatePacket();
-				inputPacket->ClearPacket();
-				inputPacket->AppendToBuffer("STRINP");
-				inputPacket->SetPacketType(Commons::NetworkPacket::PacketType::PACKET_RELIABLE);
-				inputPacket->AppendToBuffer(Commons::NetworkHost::GetEpochTime());
-				inputPacket->AppendToBuffer(m_movementInputBitmask);
-				inputPacket->AppendToBuffer(m_mousePosXY[0]);
-				inputPacket->AppendToBuffer(m_mousePosXY[1]);
-				m_clientHost.SendData(inputPacket);
-
-				m_isInputDataReady = false;
-			}
-
-			sr.Render(IS_STREAMING);
-		}
-
-#endif
 	}
 
 

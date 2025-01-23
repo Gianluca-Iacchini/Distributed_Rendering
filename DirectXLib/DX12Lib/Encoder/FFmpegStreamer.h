@@ -22,12 +22,14 @@ namespace DX12Lib {
 		FFmpegStreamer();
 		~FFmpegStreamer();
 
-		void OpenStream(UINT width, UINT height, const std::string url = "");
+		void OpenStream(UINT width, UINT height, const std::string url = "", AVCodecID = AV_CODEC_ID_HEVC);
 		void StartStreaming();
 		void CloseStream();
 
 		const NVEncoder& GetEncoder() const { return m_encoder; }
 		void Encode(CommandContext& context, Resource& resource) { m_encoder.SendResourceForEncode(context, resource); }
+
+		AVCodecID GetCodecID() const;
 
 	private:
 		void StreamLoop();

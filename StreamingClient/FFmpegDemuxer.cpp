@@ -1,11 +1,42 @@
 #include "FFmpegDemuxer.h"
 
-SC::FFmpegDemuxer::FFmpegDemuxer(AVFormatContext* fmtc, int64_t timeScale) : m_formatCtx(fmtc)
+
+SC::FFmpegDemuxer::~FFmpegDemuxer()
 {
+	if (!m_formatCtx)
+		return;
+
+	if (m_packet)
+		av_packet_free(&m_packet);
+
+	if (m_packetFiltered)
+		av_packet_free(&m_packetFiltered);
+
+	if (m_bitStreamFilterCtx)
+		av_bsf_free(&m_bitStreamFilterCtx);
+
+	avformat_close_input(&m_formatCtx);
+
+	if (m_avInOutCtx)
+	{
+		av_freep(&m_avInOutCtx->buffer);
+		av_freep(&m_avInOutCtx);
+	}
+
+	if (m_dataWidthHeader)
+		av_freep(&m_dataWidthHeader);
+
+	avformat_network_deinit();
+}
+
+bool SC::FFmpegDemuxer::OpenStream(const char* filename, int64_t timeScale)
+{
+	AVFormatContext* fmtc = CreateFormatContext(filename, timeScale);
+
 	if (!fmtc)
 	{
 		SC_LOG_ERROR("AVFormatContext is NULL");
-		return;
+		return false;
 	}
 
 	m_packet = av_packet_alloc();
@@ -14,9 +45,10 @@ SC::FFmpegDemuxer::FFmpegDemuxer(AVFormatContext* fmtc, int64_t timeScale) : m_f
 	if (!m_packet || !m_packetFiltered)
 	{
 		SC_LOG_ERROR("av_packet_alloc failed");
-		return;
+		return false;
 	}
 
+	m_formatCtx = fmtc;
 
 	std::string long_name = "";
 	if (fmtc->iformat->long_name)
@@ -141,91 +173,14 @@ SC::FFmpegDemuxer::FFmpegDemuxer(AVFormatContext* fmtc, int64_t timeScale) : m_f
 		avcodec_parameters_copy(m_bitStreamFilterCtx->par_in, fmtc->streams[m_iVideoStream]->codecpar);
 		FFMPEG_CHECK(av_bsf_init(m_bitStreamFilterCtx));
 	}
+
+	m_frameRateNum = m_formatCtx->streams[m_iVideoStream]->r_frame_rate.num;
+	m_frameRateDen = m_formatCtx->streams[m_iVideoStream]->r_frame_rate.den;
+
+	return true;
 }
 
-SC::FFmpegDemuxer::~FFmpegDemuxer()
-{
-	if (!m_formatCtx)
-		return;
-
-	if (m_packet)
-		av_packet_free(&m_packet);
-
-	if (m_packetFiltered)
-		av_packet_free(&m_packetFiltered);
-
-	if (m_bitStreamFilterCtx)
-		av_bsf_free(&m_bitStreamFilterCtx);
-
-	avformat_close_input(&m_formatCtx);
-
-	if (m_avInOutCtx)
-	{
-		av_freep(&m_avInOutCtx->buffer);
-		av_freep(&m_avInOutCtx);
-	}
-
-	if (m_dataWidthHeader)
-		av_freep(&m_dataWidthHeader);
-
-	avformat_network_deinit();
-}
-
-AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(DataProvider* pDataProvider)
-{
-	AVFormatContext* ctx = NULL;
-
-	if (!(ctx = avformat_alloc_context()))
-	{
-		FFMPEG_ERROR("avformat_alloc_context failed");
-	}
-
-	uint8_t* avio_ctx_buffer = NULL;
-	int avioc_buffer_size = 1024 * 1024 * 8;
-	avio_ctx_buffer = (uint8_t*)av_malloc(avioc_buffer_size);
-	if (!avio_ctx_buffer)
-	{
-		FFMPEG_ERROR("av_malloc failed");
-	}
-
-	m_avInOutCtx = avio_alloc_context(avio_ctx_buffer, avioc_buffer_size, 0, pDataProvider, &ReadPacket, NULL, NULL);
-
-	if (!m_avInOutCtx)
-	{
-		FFMPEG_ERROR("avio_alloc_context failed");
-	}
-
-	AVDictionary* opts = NULL;
-	// Set low_delay flag
-	av_dict_set(&opts, "flags", "low_delay", 0);
-
-	// Optionally set buffer size reduction
-	av_dict_set(&opts, "fflags", "nobuffer", 0);
-
-	// Optionally set frame dropping
-	av_dict_set(&opts, "flags2", "fast", 0);
-
-	// Set frame drop option
-	av_dict_set(&opts, "frame_drop", "1", 0);
-
-	// Enable low latency
-	av_dict_set(&opts, "low_latency", "1", 0);
-
-	// Set real-time flag
-	av_dict_set(&opts, "realtime", "1", 0);
-
-	// Set buffer size
-	av_dict_set(&opts, "buffer_size", "1024000", 0);
-
-	// Set maximum delay
-	av_dict_set(&opts, "max_delay", "500000", 0);
-
-	ctx->pb = m_avInOutCtx;
-	FFMPEG_CHECK(avformat_open_input(&ctx, NULL, NULL, &opts));
-	return ctx;
-}
-
-AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(const char* filename)
+AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(const char* filename, int64_t timescale)
 {
 	avformat_network_init();
 
@@ -249,13 +204,20 @@ AVFormatContext* SC::FFmpegDemuxer::CreateFormatContext(const char* filename)
 	FFMPEG_CHECK(av_dict_set(&opts, "realtime", "1", 0));
 
 	// Set buffer size
-	av_dict_set(&opts, "buffer_size", "1024000", 0);
+	av_dict_set(&opts, "buffer_size", "102400", 0);
 
 	// Set maximum delay
-	av_dict_set(&opts, "max_delay", "500000", 0);
+	av_dict_set(&opts, "max_delay", "50000", 0);
+
+	// timeout
+	av_dict_set(&opts, "timeout", "5000000", 0);
 
 	AVFormatContext* ctx = NULL;
-	FFMPEG_CHECK(avformat_open_input(&ctx, filename, NULL, &opts));
+
+	if (avformat_open_input(&ctx, filename, NULL, &opts) < 0)
+	{
+		return NULL;
+	}
 
 	return ctx;
 }
@@ -308,4 +270,10 @@ bool SC::FFmpegDemuxer::Demux(std::uint8_t** data, int* nVideoBytes, int64_t* pt
 
 	return true;
 }
+
+const char* SC::FFmpegDemuxer::GetChromaFormat() const
+{
+	return av_get_pix_fmt_name(m_chromaFormat);
+}
+
 

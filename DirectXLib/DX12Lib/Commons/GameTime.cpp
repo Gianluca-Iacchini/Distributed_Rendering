@@ -105,7 +105,7 @@ UINT64 DX12Lib::GameTime::GetTimeSinceEpoch()
 {
 	auto now = std::chrono::system_clock::now();
 	
-	// reutrn milliseconds since epoch
+	// reutrn microseconds since epoch
 	return now.time_since_epoch() / std::chrono::microseconds(1);
 }
 

@@ -1,5 +1,5 @@
-#define STREAMING 0
-#define NETWORK_RADIANCE 1
+#define STREAMING 1
+#define NETWORK_RADIANCE 0
 
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"
@@ -18,7 +18,8 @@
 #include "UIHelpers.h"
 
 #include "DX12Lib/Scene/CameraController.h"
-
+#include "DX12Lib/Scene/LightController.h"
+#include "DX12Lib/Scene/RemoteNodeController.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -261,21 +262,73 @@ void LI::LocalIlluminationApp::OnPacketReceivedServer(const Commons::NetworkPack
 		size_t previousSize = 7;
 
 		UINT64 timeStamp = 0;
-		std::uint8_t clientInputBitmask = 0;
+		std::uint8_t cameraInputBitmas = 0;
 		float mouseDeltaXY[2];
+		std::uint8_t lightInputBitmask = 0;
+		float clientDeltaTime = 0.0f;
+
 
 
 		memcpy(&timeStamp, dataVector.data() + previousSize, sizeof(UINT64));
 		previousSize += sizeof(UINT64);
 
-		memcpy(&clientInputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
+		memcpy(&cameraInputBitmas, dataVector.data() + previousSize, sizeof(std::uint8_t));
 		previousSize += sizeof(std::uint8_t);
 
 		memcpy(mouseDeltaXY, dataVector.data() + previousSize, sizeof(float) * 2);
 		previousSize += (sizeof(float) * 2);
 
-		DX12Lib::CameraController* cameraContr = m_LIScene->GetCameraController();
+		memcpy(&lightInputBitmask, dataVector.data() + previousSize, sizeof(std::uint8_t));
+		previousSize += sizeof(std::uint8_t);
 
+		memcpy(&clientDeltaTime, dataVector.data() + previousSize, sizeof(float));
+		previousSize += sizeof(float);
+
+		DX12Lib::RemoteNodeController* controller = m_LIScene->GetMainCamera()->Node->GetComponent<RemoteNodeController>();
+
+		if (controller != nullptr)
+		{
+			controller->SetRemoteControl(true);
+			m_LIScene->GetCameraController()->IsEnabled = false;
+			controller->FeedRemoteData(DirectX::XMFLOAT2(mouseDeltaXY[0], mouseDeltaXY[1]), cameraInputBitmas, timeStamp, clientDeltaTime);
+		}
+
+		auto lightNode = m_LIScene->GetMainLight()->Node;
+
+		lightNode->GetComponent<LightController>()->IsEnabled = false;
+
+		DirectX::XMFLOAT2 lightRotationInput = DirectX::XMFLOAT2(0.0f, 0.0f);
+			
+		lightRotationInput.x += (lightInputBitmask & (1 << 0)) ? 1.0f : 0.0f;
+		lightRotationInput.x += (lightInputBitmask & (1 << 1)) ? -1.0f : 0.0f;
+
+		lightRotationInput.y += (lightInputBitmask & (1 << 2)) ? -1.0f : 0.0f;
+		lightRotationInput.y += (lightInputBitmask & (1 << 3)) ? 1.0f : 0.0f;
+
+
+		float dt = (GameTime::GetTimeSinceEpoch() - timeStamp) / 1000000.0f;
+
+		lightRotationInput.x *= dt / clientDeltaTime;
+		lightRotationInput.y *= dt / clientDeltaTime;
+
+
+		lightNode->Rotate(lightNode->GetRight(), lightRotationInput.y);
+		lightNode->Rotate(lightNode->GetUp(), lightRotationInput.x);
+
+	}
+	else if (NetworkHost::CheckPacketHeader(packet, "STR264"))
+	{
+		if (!m_isStreaming)
+		{
+			this->OpenStream(false);
+		}
+	}
+	else if (NetworkHost::CheckPacketHeader(packet, "STR265"))
+	{
+		if (!m_isStreaming)
+		{
+			this->OpenStream(true);
+		}
 	}
 }
 
@@ -390,39 +443,20 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 	ImGui::Text("FPS: %d\tMSPF: %.2f", fps, mspf);
 	ImGui::Text("RTGI Memory usage: %.2f MiB", memoryUsageMiB);
 
-	ImGui::SeparatorText("Controls");
+	float maxX = ImGui::CalcTextSize("\t").x;
+	UIHelpers::ControlInfoBlock(m_isStreaming);
 
-	float maxX = ImGui::CalcTextSize("- Hold Right Mouse Button:\t").x;
-
-	ImGui::Text("- W, A, S, D:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Move Camera");
-
-	ImGui::Text("- E, Q:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Move Camera Up/Down");
-
-	ImGui::Text("- Hold Right Mouse Button:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Rotate Camera");
-
-	ImGui::Text("- Arrow Keys:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Move Light");
-
-	ImGui::Text("- ESC:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Quit");
-
-	bool isConnected = m_networkClient.IsConnected() && m_networkClient.HasPeers() && m_isReadyForRadiance;
+	bool isConnectedAsClient = m_networkClient.IsConnected() && m_networkClient.HasPeers() && m_isReadyForRadiance;
 
 	if (ImGui::CollapsingHeader("Networking", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		ImGui::SeparatorText("Radiance");
+
 		static float connectionTime = 0.0f;
 		static bool isWaitingForConnection = false;
 		float connectionTimeout = 8.0f;
 
-		if (!isConnected)
+		if (!isConnectedAsClient)
 		{
 			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Not connected");
 			ImGui::BeginDisabled(isWaitingForConnection);
@@ -472,6 +506,30 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 				isWaitingForConnection = false;
 			}
 			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected to Server at: %s, RTT: %u ms", m_networkClient.GetPeerAddress().c_str(), m_networkClient.GetPing());
+		}
+
+		ImGui::SeparatorText("Streaming");
+
+		if (m_isStreaming)
+		{
+			std::string codecName = "No codec selected";
+			if (m_ffmpegStreamer)
+			{
+				AVCodecID codecId = m_ffmpegStreamer->GetCodecID();
+				if (codecId == AV_CODEC_ID_HEVC)
+				{
+					codecName = "HEVC";
+				}
+				else if (codecId == AV_CODEC_ID_H264)
+				{
+					codecName = "H264";
+				}
+			}
+
+			if (m_networkServer.IsConnected() && m_networkServer.HasPeers())
+			{
+				Commons::UIHelpers::ConnectedClient(m_networkServer.GetPeerAddress().c_str(), m_networkServer.GetPing());
+			}
 		}
 	}
 
@@ -561,7 +619,7 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 		}
 	}
 
-	ImGui::BeginDisabled(!isConnected);
+	ImGui::BeginDisabled(!isConnectedAsClient);
 	if (ImGui::CollapsingHeader("Voxelization Info"))
 	{
 		maxX = ImGui::CalcTextSize("Compute Neighbours Time:\t").x;
@@ -778,13 +836,6 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	m_LIScene->Init(context);
 	
-	//if (m_isStreaming)
-	if (0)
-	{
-		m_ffmpegStreamer = std::make_unique<FFmpegStreamer>();
-		m_ffmpegStreamer->OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight);
-		m_ffmpegStreamer->StartStreaming();
-	}
 
 
 #if NETWORK_RADIANCE
@@ -843,8 +894,10 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 	auto kbState = Graphics::s_keyboard->GetState();
 	m_kbTracker.Update(kbState);
 
-	auto mouseState = Graphics::s_mouse->GetState();
-	bool mouseMoved = false;
+	if (m_kbTracker.pressed.Escape)
+	{
+		PostQuitMessage(0);
+	}
 
 	if ((m_isReadyForRadiance))
 	{
@@ -1058,8 +1111,13 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			Renderer::DeferredPass(context);
 			Renderer::PostProcessPass(context);
 
+			if (m_isStreaming)
+			{
+				this->StreamScene(context);
+			}
 
-			Renderer::UIPass(context, STREAMING);
+
+			Renderer::UIPass(context, true);
 
 		}
 
@@ -1110,6 +1168,16 @@ void LI::LocalIlluminationApp::StreamScene(DX12Lib::CommandContext& context)
 	}
 }
 
+void LI::LocalIlluminationApp::OpenStream(bool useHevc)
+{
+	AVCodecID codecId = useHevc ? AV_CODEC_ID_HEVC : AV_CODEC_ID_H264;
+
+	m_ffmpegStreamer = std::make_unique<FFmpegStreamer>();
+	m_ffmpegStreamer->OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight, "", codecId);
+	m_ffmpegStreamer->StartStreaming();
+	m_isStreaming = true;
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)
 {
 #if defined(DEBUG) | defined(_DEBUG)
@@ -1117,7 +1185,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 #endif
 	try
 	{
-		LI::LocalIlluminationApp app(hInstance, new LI::LIScene(STREAMING));
+		LI::LocalIlluminationApp app(hInstance, new LI::LIScene());
 		if (!app.InitializeApp())
 			return 0;
 

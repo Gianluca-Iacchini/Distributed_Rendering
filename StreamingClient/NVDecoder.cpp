@@ -506,7 +506,7 @@ int SC::NVDecoder::HandlePictureDisplay(CUVIDPARSERDISPINFO* pPicParams)
 	if (result == CUDA_SUCCESS && (decodeStatus.decodeStatus == cuvidDecodeStatus_Error || decodeStatus.decodeStatus == cuvidDecodeStatus_Error_Concealed))
 	{
 		SC_LOG_ERROR("Decode Error {0} on picIndex {1}", (unsigned int)decodeStatus.decodeStatus, (unsigned int)pPicParams->picture_index);
-		NVDEC_THROW_ERROR("Decode Error", CUDA_ERROR_UNKNOWN);
+		//NVDEC_THROW_ERROR("Decode Error", CUDA_ERROR_UNKNOWN);
 	}
 
 	uint8_t* decodeFrame = nullptr;

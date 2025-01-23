@@ -211,18 +211,21 @@ namespace Commons
 
 		std::function<void(std::shared_ptr<NetworkPacket>)> m_deleter;
 
-		PacketGuard(std::shared_ptr<NetworkPacket> packet, std::function<void(std::shared_ptr<NetworkPacket>)> deleter)
-			: m_packet(std::move(packet)), m_deleter(deleter) {}
+		PacketGuard(std::shared_ptr<NetworkPacket> packet, std::function<void(std::shared_ptr<NetworkPacket>)> deleter);
 
 	public:
 
-		~PacketGuard() { if (m_packet == nullptr || !m_isMovedToPool) { m_deleter(m_packet); } }
+		PacketGuard(PacketGuard& other);
+
+		~PacketGuard();
 		NetworkPacket* operator->() { return m_packet.get(); }
 		NetworkPacket& operator*() { return *m_packet; }
 
 		operator NetworkPacket* () { return m_packet.get(); }
 
 		operator std::shared_ptr<NetworkPacket>() { return m_packet; }
+
+		bool IsMovedToPool() const { return m_isMovedToPool; }
 
 	private:
 		std::shared_ptr<NetworkPacket> m_packet;

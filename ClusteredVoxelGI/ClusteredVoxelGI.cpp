@@ -423,41 +423,14 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 	ImGui::Text("FPS: %d\tMSPF: %.2f", fps, mspf);
 	ImGui::Text("RTGI Memory usage: %.2f MiB", memoryUsageMiB);
 
-	ImGui::SeparatorText("Controls");
-
-	float maxX = ImGui::CalcTextSize("- Hold Right Mouse Button:\t").x;
-
-	if (!m_isClientReadyForRadiance)
-	{
-		ImGui::Text("- W, A, S, D:");
-		ImGui::SameLine(maxX);
-		ImGui::Text("Move Camera");
-
-		ImGui::Text("- E, Q:");
-		ImGui::SameLine(maxX);
-		ImGui::Text("Move Camera Up/Down");
-
-		ImGui::Text("- Hold Right Mouse Button:");
-		ImGui::SameLine(maxX);
-		ImGui::Text("Rotate Camera");
-
-		ImGui::Text("- Arrow Keys:");
-		ImGui::SameLine(maxX);
-		ImGui::Text("Move Light");
-	}
-	else
-	{
-		ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Client is connected. Scene control is disabled.");
-	}
-
-	ImGui::Text("- ESC:");
-	ImGui::SameLine(maxX);
-	ImGui::Text("Quit");
+	UIHelpers::ControlInfoBlock(m_isClientReadyForRadiance);
 
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
 		ImGui::SetTooltip("Enable/Disable server scene rendering. Radiance computation and networking will still work as expected.\n");
 	}
 	ImGui::Checkbox("Render scene on server", &m_renderRasterScene);
+
+	float maxX = ImGui::CalcTextSize("\t").x;
 
 	if (ImGui::CollapsingHeader("Voxelization Info", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -815,28 +788,10 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 				m_firstRadianceSent = false;
 			}
 
-
 			if (m_networkServer.HasPeers())
 			{
-				ImGui::BeginTable("ClientTable", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg);
-				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
-				ImGui::TableSetupColumn("Client Address", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Ping", ImGuiTableColumnFlags_WidthFixed);
-				ImGui::TableHeadersRow();
-
-				auto peerAddr = m_networkServer.GetPeerAddress();
-
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn();
-				ImGui::Text("Client %d\t", 0);
-				ImGui::TableNextColumn();
-				ImGui::Text("%s", peerAddr.c_str());
-				ImGui::TableNextColumn();
-				ImGui::Text("%d ms", m_networkServer.GetPing());
-
-				ImGui::EndTable();
+				UIHelpers::ConnectedClient(m_networkServer.GetPeerAddress().c_str(), m_networkServer.GetPing());
 			}
-
 		}
 
 		int compressionLevel = m_networkServer.GetDefaultCompressionLevel();

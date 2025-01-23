@@ -2,6 +2,10 @@
 #include "Helpers.h"
 #include <fstream>
 #include <sstream>
+#include "UIHelpers.h"
+#include "imgui.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
 
 #define CHECK_OPENGL_ERROR \
 { \
@@ -91,6 +95,12 @@ bool SC::StreamRenderer::InitializeGL()
 
 	glViewport(0, 0, m_width, m_height);
 
+	glfwSetKeyCallback(m_window, KeyboardCallback);
+
+	buttonPressTime = -10000000.0f;
+
+	Commons::UIHelpers::InitializeIMGUI(m_window);
+
 	return true;
 }
 
@@ -109,9 +119,7 @@ void SC::StreamRenderer::InitializeResources(int width, int height, unsigned int
 	fragmentPath += "/Shaders/BasicFragment.fs";
 	m_defaultShader = std::make_unique<Shader>(vertexPath.c_str(), fragmentPath.c_str());
 
-	CHECK_OPENGL_ERROR;
-
-	glfwSetKeyCallback(m_window, KeyboardCallback);
+	//CHECK_OPENGL_ERROR;
 }
 
 SC::FrameData* SC::StreamRenderer::GetReadFrame()
@@ -181,6 +189,8 @@ void SC::StreamRenderer::Update()
 void SC::StreamRenderer::Render(bool isStreaming)
 {
 
+	Commons::UIHelpers::StartFrame();
+
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -194,6 +204,11 @@ void SC::StreamRenderer::Render(bool isStreaming)
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_RECTANGLE, m_texture);
 		m_defaultShader->SetInt("streamTexture", 0);
+		ShowStreamUI();
+	}
+	else
+	{
+		ShowStartUI();
 	}
 
 
@@ -204,6 +219,12 @@ void SC::StreamRenderer::Render(bool isStreaming)
 	glBindVertexArray(0);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	ImGui::EndFrame();
 
 	glfwSwapBuffers(m_window);
 }
@@ -293,6 +314,63 @@ void SC::StreamRenderer::CopyFrameToTexture()
 	PushWriteFrame(data);
 }
 
+
+void SC::StreamRenderer::ShowStartUI()
+{
+	ImGui::SetNextWindowSize(ImVec2(m_width, m_height));
+	ImGui::SetNextWindowPos(ImVec2(m_width * 0.5f, m_height * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	ImGui::Begin("Streaming Window", nullptr, ImGuiWindowFlags_NoTitleBar);
+	if (m_uiCallbackFunction)
+		m_uiCallbackFunction();
+
+	ImGui::End();
+}
+
+void SC::StreamRenderer::ShowStreamUI()
+{
+	static int lastFps = 0.0f;
+
+	static int frameCount = 0;
+	static float lastTime = 0.0f;
+
+	frameCount++;
+
+	int fps = 0;
+
+	float frameTime = glfwGetTime();
+
+	if (frameTime - lastTime >= 1.0)
+	{
+		lastFps = frameCount;
+
+		frameCount = 0;
+
+		lastTime = frameTime;
+	}
+
+	fps = lastFps;
+
+
+
+	ImVec2 windowSize = ImVec2(m_width * 0.25f, m_height);
+	ImVec2 windowPos = ImVec2(m_width * 0.875f, m_height* 0.5f);
+
+
+	ImGui::SetNextWindowSize(windowSize);
+	ImGui::SetNextWindowPos(windowPos, ImGuiCond_Once, ImVec2(0.5f, 0.5f)); // Centered position
+	ImGui::Begin("Stream info");
+
+
+
+	ImGui::Text("FPS: %d\tMSPF: %.2f", fps, 1.0f / fps);
+
+	Commons::UIHelpers::ControlInfoBlock();
+
+	if (m_uiCallbackFunction)
+		m_uiCallbackFunction();
+
+	ImGui::End();
+}
 
 void SC::StreamRenderer::BuildBuffers()
 {

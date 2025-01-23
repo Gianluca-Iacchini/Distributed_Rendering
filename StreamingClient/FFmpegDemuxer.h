@@ -6,6 +6,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 }
 
 #include "cuviddec.h"
@@ -38,21 +39,24 @@ namespace SC {
 	class FFmpegDemuxer
 	{
 	public:
-		FFmpegDemuxer(DataProvider* pDataProvider) : FFmpegDemuxer(CreateFormatContext(pDataProvider)) { m_avInOutCtx = m_formatCtx->pb; }
-		FFmpegDemuxer(const char* filepath, int64_t timescale = 1000) : FFmpegDemuxer(CreateFormatContext(filepath), timescale) {}
+		FFmpegDemuxer() {}
 		~FFmpegDemuxer();
 
-		AVFormatContext* CreateFormatContext(DataProvider* pDataProvider);
-		AVFormatContext* CreateFormatContext(const char* filename);
+		bool OpenStream(const char* filename, int64_t timescale = 1000);
+
+		AVFormatContext* CreateFormatContext(const char* filename, int64_t timescale = 1000);
 
 		bool Demux(std::uint8_t** ppData, int* nVideoBytes, int64_t* pts = NULL);
 
 		AVCodecID GetVideoCodecID() const { return m_videoCodecID; }
-		AVPixelFormat GetChromaFormat() const { return m_chromaFormat; }
+		const char* GetVideoCodecName() const { return avcodec_get_name(m_videoCodecID); }
+		const char* GetChromaFormat() const;
 		int GetWidth() const { return m_width; }
 		int GetHeight() const { return m_height; }
 		int GetBitDepth() const { return m_bitDepth; }
 		int GetFrameSize() const { return m_width * (m_height * m_chromaHeight) * m_bitsPerPixel; }
+		int GetFramerateNumerator() const { return m_frameRateNum; }
+		int GetFramerateDenominator() const { return m_frameRateDen; }
 
 	public:
 		static int ReadPacket(void* opaque, uint8_t* buf, int buf_size)
@@ -80,9 +84,6 @@ namespace SC {
 		}
 
 	private:
-		FFmpegDemuxer(AVFormatContext* fmtc, int64_t timeScale = 1000);
-
-	private:
 		AVFormatContext* m_formatCtx = NULL;
 		AVIOContext* m_avInOutCtx = NULL;
 		AVPacket* m_packet = NULL;
@@ -97,10 +98,15 @@ namespace SC {
 		double m_timeBase = 0.0;
 		int64_t m_timeScale = 0;
 
+		int m_frameRateNum = 0;
+		int m_frameRateDen = 0;
+
 		uint8_t* m_dataWidthHeader = NULL;
 		unsigned int m_frameCount = 0;
 
 		bool m_discardEarlyFrames = true;
+
+		const char* m_filePath;
 	};
 }
 

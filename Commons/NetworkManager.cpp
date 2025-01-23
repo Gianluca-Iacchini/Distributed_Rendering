@@ -578,3 +578,22 @@ void Commons::NetworkHost::ReceiveDataLoop()
 }
 
 bool Commons::NetworkHost::m_isEnetInitialized = false;
+
+Commons::PacketGuard::PacketGuard(std::shared_ptr<NetworkPacket> packet, std::function<void(std::shared_ptr<NetworkPacket>)> deleter)
+	: m_packet(std::move(packet)), m_deleter(deleter) {}
+
+Commons::PacketGuard::PacketGuard(PacketGuard& other)
+{
+	m_packet = other.m_packet;
+	m_deleter = other.m_deleter;
+	m_isMovedToPool = other.m_isMovedToPool;
+	other.m_isMovedToPool = true;
+}
+
+Commons::PacketGuard::~PacketGuard()
+{
+	if (m_packet == nullptr || !m_isMovedToPool) 
+	{
+		m_deleter(m_packet);
+	}
+}

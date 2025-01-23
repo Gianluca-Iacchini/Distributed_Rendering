@@ -40,13 +40,15 @@ DX12Lib::FFmpegStreamer::~FFmpegStreamer()
 
 }
 
-void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string url)
+void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string url, AVCodecID codecId)
 {
+	
+
 	m_url = url;
 
 	if (m_url.empty())
 	{
-		m_url = "udp://localhost:1234?overrun_nonfatal=1&fifo_size=50000000";
+		m_url = "udp://127.0.0.1:1234?overrun_nonfatal=1&fifo_size=50000000";
 	}
 
 
@@ -59,16 +61,13 @@ void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string ur
 		FFMPEG_THROW_ERROR("Could not allocate stream");
 	}
 
-	AVCodecID codec_id = AV_CODEC_ID_HEVC;
-
-	auto codecGuid = m_encoder.GetCodecGUID();
-	if (codecGuid == NV_ENC_CODEC_H264_GUID)
+	if (codecId == AV_CODEC_ID_HEVC)
 	{
-		codec_id = AV_CODEC_ID_H264;
+		m_encoder.SetCodecType(NV_ENC_CODEC_HEVC_GUID);
 	}
-	else if (codecGuid == NV_ENC_CODEC_HEVC_GUID)
+	else if (codecId == AV_CODEC_ID_H264)
 	{
-		codec_id = AV_CODEC_ID_HEVC;
+		m_encoder.SetCodecType(NV_ENC_CODEC_H264_GUID);
 	}
 	else
 	{
@@ -76,8 +75,9 @@ void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string ur
 	}
 
 
+
 	AVCodecParameters* vpar = m_stream->codecpar;
-	vpar->codec_id = codec_id;
+	vpar->codec_id = codecId;
 	vpar->codec_type = AVMEDIA_TYPE_VIDEO;
 	vpar->width = 1920;
 	vpar->height = 1080;
@@ -88,6 +88,7 @@ void DX12Lib::FFmpegStreamer::OpenStream(UINT width, UINT height, std::string ur
 
 
 	FFMPEG_CHECK_ERROR(avformat_write_header(m_fmtCtx, &options));
+
 
 	m_encoder.InitializeApp(width, height);
 
@@ -117,7 +118,8 @@ void DX12Lib::FFmpegStreamer::StreamLoop()
 		std::vector<uint8_t> packets = m_encoder.ConsumePacket();
 		if (!packets.empty())
 		{
-			this->SendFrame(nPts++, packets.data(), packets.size());
+			this->SendFrame(nPts, packets.data(), packets.size());
+			nPts += 1;
 		}
 	}
 }
@@ -135,7 +137,7 @@ void DX12Lib::FFmpegStreamer::SendFrame(int nPts, std::uint8_t* data, size_t siz
 	pkt.data = data;
 	pkt.size = size;
 	pkt.stream_index = m_stream->index;
-	pkt.pts = av_rescale_q(nPts++, AVRational{ 1, 60 }, m_stream->time_base);
+	pkt.pts = av_rescale_q(nPts, AVRational{ 1, 60 }, m_stream->time_base);
 	pkt.dts = pkt.pts;
 
 	if (!memcmp(data, "\x00\x00\x00\x01\x67", 5)) {
@@ -166,4 +168,20 @@ void DX12Lib::FFmpegStreamer::CloseStream()
 		FFMPEG_CHECK_ERROR(av_write_trailer(m_fmtCtx));
 		FFMPEG_CHECK_ERROR(avio_close(m_fmtCtx->pb));
 	}
+}
+
+AVCodecID DX12Lib::FFmpegStreamer::GetCodecID() const
+{
+	AVCodecID codecId = AVCodecID::AV_CODEC_ID_NONE;
+
+	if (m_encoder.GetCodecGUID() == NV_ENC_CODEC_HEVC_GUID)
+	{
+		codecId = AVCodecID::AV_CODEC_ID_HEVC;
+	}
+	else if (m_encoder.GetCodecGUID() == NV_ENC_CODEC_H264_GUID)
+	{
+		codecId = AVCodecID::AV_CODEC_ID_H264;
+	}
+
+	return codecId;
 }

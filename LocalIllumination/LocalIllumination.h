@@ -45,6 +45,7 @@ namespace LI
 
 	private:
 		void StreamScene(DX12Lib::CommandContext& context);
+		void OpenStream(bool useHevc);
 
 	private:
 		void OnPacketReceivedClient(const Commons::NetworkPacket* packet);

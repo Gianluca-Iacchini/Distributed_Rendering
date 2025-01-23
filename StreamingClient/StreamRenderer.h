@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include "Helpers.h"
 #include "cuda_gl_interop.h"
-
+#include "functional"
 
 namespace SC
 {
@@ -35,7 +35,11 @@ namespace SC
 	class StreamRenderer
 	{
 	public:
-		StreamRenderer(CUcontext cuContext) : m_cuContext(cuContext), m_width(1920), m_height(1080), m_mouseCallback(MouseCallback) {}
+		StreamRenderer(CUcontext cuContext) : m_cuContext(cuContext), m_width(1920), m_height(1080), m_mouseCallback(MouseCallback) 
+		{
+			m_uiCallbackFunction = []() {};
+		}
+
 		~StreamRenderer();
 
 		bool InitializeGL();
@@ -47,6 +51,7 @@ namespace SC
 		void PushWriteFrame(FrameData* frameData);
 		void SetKeyCallback(GLFWkeyfun keyCallback) { glfwSetKeyCallback(m_window, keyCallback); }
 		void SetMouseCallback(GLFWcursorposfun mouseCallback) { m_mouseCallback = mouseCallback; }
+		void SetUICallback(std::function<void()> uiCallback) { m_uiCallbackFunction = uiCallback; }
 
 		bool ShouldCloseWindow() const { return glfwWindowShouldClose(m_window); }
 		bool IsReadQueueEmpty()  { return m_frameQueues.GetOutputSize() <= 0; }
@@ -55,14 +60,22 @@ namespace SC
 		void CopyFrameToTexture();
 		GLFWwindow* GetWindow() const { return m_window; }
 		void Update();
-		void Render(bool isStreaming);
+		void Render(bool isStreaming = true);
 		void FreeQueues();
 		void Destroy();
+
+		int GetWidth() const { return m_width; }
+		int GetHeight() const { return m_height; }
 
 		float msfps = 1000.0f / 30.0f;
 		bool isDone = false;
 
+		int GetCodec() const { return m_selectedCodec; }
+
 	private:
+		void ShowStartUI();
+		void ShowStreamUI();
+
 		void BuildBuffers();
 		void BuildTextures();
 		void SetupCUDAInterop(unsigned int maxFrames);
@@ -95,5 +108,12 @@ namespace SC
 		float m_lastMouseY = 0;
 
 		GLFWcursorposfun m_mouseCallback = nullptr;
+
+
+		int m_selectedCodec = 0;
+
+		std::function<void()> m_uiCallbackFunction;
+
+		float buttonPressTime = 0.0f;
 	};
 }

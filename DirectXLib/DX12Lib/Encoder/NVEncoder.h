@@ -32,7 +32,9 @@ namespace DX12Lib {
 
         bool IsEncoding() { return !m_stopEncoding; }
 
-		GUID GetCodecGUID() { return m_codeGUID; }
+		GUID GetCodecGUID() const { return m_codeGUID; }
+
+		void SetCodecType(GUID codecGUID) { m_codeGUID = codecGUID; }
 
     private:
         bool SupportsAsyncMode(GUID codecGUID);

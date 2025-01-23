@@ -14,6 +14,7 @@ namespace DX12Lib
 		bool IsRemoteControlled() { return m_isRemoteControlled; }
 
 		void FeedRemoteData(DirectX::XMFLOAT3 velocity, DirectX::XMFLOAT3 absPos, DirectX::XMFLOAT4 absRot, UINT64 timestamp);
+		void FeedRemoteData(DirectX::XMFLOAT2 mouseDeltaXY, std::uint8_t inputBitmap, UINT64 timestamp, float clientDeltaTime);
 
 		virtual void Update(DX12Lib::CommandContext& context) override;
 
