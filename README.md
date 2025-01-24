@@ -17,10 +17,11 @@ This repository contains a real-time global illumination (RTGI) implementation u
 
 ## Introduction
 
-The goal how this project is to showcases an implementation of a distributed rendering paradigm, where part of the rendering computation is offloaded to a different machine.
-Popular distributed rendering techniques offload the rendering task entirely (or almost entirely) to a server and stream the result as a real-time video to the client [^1]
+This project demonstrates a distributed rendering system using DX12, where rendering computations are offloaded to a server, and the results are streamed to the client in real-time. In traditional distributed rendering, the server handles most of the rendering workload, streaming the final image to the client [^1]. This allows users with lower-end hardware to run the application without needing specialized resources, while also simplifying development by reducing the need to optimize for various system configurations.
 
-This project demonstrates real-time global illumination (GI) for 3D scenes using DX12. The system is designed with two primary workflows: 
+However, real-time streaming introduces challenges. Unlike standard video streaming, real-time rendering requires constant user input. Video buffering isn't feasible because the scene depends entirely on user actions. This means a stable internet connection with sufficient bandwidth is essential, and users may experience input lag due to the client being unaware of the scene's current state.
+Moreover, most modern devices have some sort of 3D rendering capabilities. By relying on the device solely as a decoder with an internet connection, we are underutilizing its potential. A better approach would be to leverage the device's capabilities to render a simplified version of the scene, while using an external server to compute additional details or augmentation. This method not only maximizes the use of the user's hardware but also helps mitigate input lag, as the simplified scene provides immediate feedback to user actions.
+
 
 1. **Server-side GI Computation**: The server performs clustered voxel-based GI calculations using the `ClusteredVoxelGI` component. This generates the GI data for the scene.
 2. **Client-side GI Composition**: The client (`LocalIllumination`) receives this data over the network and composites it onto a direct illumination-only scene.
@@ -29,11 +30,10 @@ The **StreamingClient** allows real-time streaming of the scene data, enabling t
 
 ## Requirements
 
-- Visual Studio 2019 or later with DX12 SDK
+- Visual Studio 2017 or later with DX12 SDK
 - Windows 10 or later
 - CMake for building the project
-- NVIDIA or AMD GPU with DX12 support
-- Python (for asset pipeline, if applicable)
+- NVIDIA GPU with Ray-Tracing capabilities.
 
 ## Building the Project
 
