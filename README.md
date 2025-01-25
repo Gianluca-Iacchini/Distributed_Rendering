@@ -65,7 +65,7 @@ The Streaming Client project showcases a client application for real-time video 
 1. Clone this repository
 2. Launch the file `GenerateSolution.bat` to build the solution
 
-You should find a `build_vs` folder with your Visual Studio version with the solution inside.
+You should find a `build_vs(your_vs_version)` folder with the solution inside.
 
 ## References
 [^1]: https://www.nvidia.com/en-us/geforce-now/
