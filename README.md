@@ -1,10 +1,10 @@
 # DX12 Real-Time Global Illumination (GI) Project
 
-This repository contains a real-time global illumination (RTGI) implementation using DirectX 12. This project showcases a distributed rendering pipeline where the GI can be computed on a machine and be used by another. The project is structured into three subprojects:
+This repository contains a real-time global illumination (RTGI) implementation made with C++ and DirectX 12. It showcases a distributed rendering pipeline where global illumination can be computed on one machine and used by another. The project is structured into three subprojects:
 
-- **ClusteredVoxelGI**: Computes global illumination using voxel clustering and Ray-tracing. The results can either be visualized locally or be sent to another machine.
-- **LocalIllumination**: Renders a 3D scene using common rasterize techniques but does not compute global illumination. It can however receive GI data from the netwrok and composite it over the scene.
-- **StreamingClient**: A sample streaming client application to showcase the difference between sending GI data only or streaming the whole scene over the network as a real-time video.
+* ClusteredVoxelGI: Computes global illumination using voxel clustering and ray-tracing. The results can be visualized locally or sent to another machine for compositing.
+* LocalIllumination: Renders a 3D scene using standard rasterization techniques without computing global illumination. However, it can receive GI data from the network and composite it onto the scene.
+* StreamingClient: A sample client application that demonstrates the difference between sending only GI data versus streaming the entire scene over the network as a real-time video.
 
 ## Table of Contents
 
