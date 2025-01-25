@@ -10,9 +10,9 @@ This repository contains a real-time global illumination (RTGI) implementation u
 
 1. [Introduction](#introduction)
 2. [Requirements](#requirements)
-3. [Clustered-Voxel GI](#clusteredGI)
-4. [LocalIllumination](#localIllumination)
-5. [Streaming Client](#streamingClient)
+3. [Clustered-Voxel GI](#clustered-voxel-gi)
+4. [Local Illumination](#local-illumination)
+5. [Streaming Client](#streaming-client)
 6. [Building the Project](#building-the-project)
 7. [Project Structure](#project-structure)
 8. [Usage](#usage)
@@ -62,10 +62,10 @@ The Streaming Client project showcases a client application for real-time video 
 
 ## Building the Project
 
-1. Clone the repository:
+1. Clone this repository
+2. Launch the file `GenerateSolution.bat` to build the solution
 
-   ```bash
-   git clone https://github.com/yourusername/DX12-RealTime-GI.git
+You should find a `build_vs` folder with your Visual Studio version with the solution inside.
 
 ## References
 [^1]: https://www.nvidia.com/en-us/geforce-now/
