@@ -1,6 +1,3 @@
-#define STREAMING 1
-#define NETWORK_RADIANCE 0
-
 #include "LocalIllumination.h"
 #include "DX12Lib/pch.h"
 #include "DX12Lib/Scene/SceneCamera.h"
@@ -566,14 +563,12 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 			light->SetLightIntensity(intensity);
 		}
 
-
-#if NETWORK_RADIANCE
 		ImGui::SeparatorText("Indirect Light");
 
 		float farStrength = m_lightTransportTechnique->GetFarVoxelRadianceStrength();
 		float closeStrength = m_lightTransportTechnique->GetCloseVoxelRadianceStrength();
 
-		ImGui::BeginDisabled(!isConnected);
+		ImGui::BeginDisabled(!isConnectedAsClient);
 		ImGui::Text("Far voxels bounce strength:");
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
 			ImGui::SetTooltip("Sets the intensity of indirect light gathered from far voxels.");
@@ -606,7 +601,6 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::SliderFloat("##LerpFrequency", &m_lerpMaxTime, 0.0f, 1.0f);
 		ImGui::EndDisabled();
-#endif 
 
 		ImGui::Separator();
 
@@ -836,9 +830,6 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	m_LIScene->Init(context);
 	
-
-
-#if NETWORK_RADIANCE
 	m_bufferFence = std::make_unique<DX12Lib::Fence>(*Graphics::s_device, 0, 1);
 	Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
 
@@ -873,8 +864,6 @@ void LocalIlluminationApp::Initialize(GraphicsContext& context)
 
 	m_timingQueryHandle = Graphics::s_queryHeap->Alloc(5);
 	m_timingReadBackBuffer.Create(5, sizeof(UINT64));
-
-#endif
 
 	m_networkServer.StartServer(2345);
 }
