@@ -1,10 +1,6 @@
 # DX12 Real-Time Global Illumination (GI) Project
 
-This repository contains a real-time global illumination (RTGI) implementation made with C++ and DirectX 12. It showcases a distributed rendering pipeline where global illumination can be computed on one machine and used by another. The project is structured into three subprojects:
-
-* ClusteredVoxelGI: Computes global illumination using voxel clustering and ray-tracing. The results can be visualized locally or sent to another machine for compositing.
-* LocalIllumination: Renders a 3D scene using standard rasterization techniques without computing global illumination. However, it can receive GI data from the network and composite it onto the scene.
-* StreamingClient: A sample client application that demonstrates the difference between sending only GI data versus streaming the entire scene over the network as a real-time video.
+This repository contains a real-time global illumination (RTGI) implementation made with C++ and DirectX 12. It showcases a distributed rendering pipeline where global illumination can be computed on one machine and used by another.
 
 ## Table of Contents
 
@@ -16,7 +12,8 @@ This repository contains a real-time global illumination (RTGI) implementation m
 6. [Building the Project](#building-the-project)
 7. [Project Structure](#project-structure)
 8. [Usage](#usage)
-9. [License](#license)
+9. [Credits](#credits)
+10. [License](#license)
 
 ## Introduction
 
@@ -66,6 +63,25 @@ The Streaming Client project showcases a client application for real-time video 
 2. Launch the file `GenerateSolution.bat` to build the solution
 
 You should find a `build_vs(your_vs_version)` folder with the solution inside.
+
+## Project Structure
+
+ The project is structured into three subprojects:
+
+* ClusteredVoxelGI: Computes global illumination using voxel clustering and ray-tracing. The results can be visualized locally or sent to another machine for compositing.
+* LocalIllumination: Renders a basic 3D scene using commmon rasterization techniques. It can receive radiance data from another machine and use it to composite a final frame to screen. It can also act as a server for real-time video streaming.
+* StreamingClient: An implementation of a simple real-time video streaming.
+
+## Usage
+For the usage, please refer to the individual projects READMEs.
+
+## Credits
+[Microsoft Mini-Engine](https://github.com/microsoft/DirectX-Graphics-Samples/tree/master/MiniEngine) and [Introduction to 3D Game Programming With DirectX 12](https://www.d3dcoder.net/d3d12.htm) were used as a reference for most of the DX12 library files.
+
+[Clustered voxel real-time global illumination](https://www.sciencedirect.com/science/article/pii/S009784932200005X) was used as the basis of the GI algorithm.
+
+[NVIDIA Video Codec SKD](https://developer.nvidia.com/video-codec-sdk) was used as a reference for the video encoder / decoder files.
+
 
 ## References
 [^1]: https://www.nvidia.com/en-us/geforce-now/
