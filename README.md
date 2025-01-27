@@ -12,8 +12,15 @@ This repository contains a real-time global illumination (RTGI) implementation m
 6. [Building the Project](#building-the-project)
 7. [Project Structure](#project-structure)
 8. [Usage](#usage)
-9. [Credits](#credits)
-10. [License](#license)
+9. [Known Issues](#known-issues)
+10. [Credits](#credits)
+
+| ![](Images/screenshot_final.jpg) | ![](Images/screenshot_top.jpg)|
+|:-------------------------------------------------:|:---------------------------------------------------------:|
+| ![](Images/screenshot_blue.jpg) | ![](Images/screenshot_banners.jpg)|
+
+
+
 
 ## Introduction
 
@@ -27,16 +34,14 @@ In this project, the rendering workload is split between the server and the clie
 While this approach is not new and has been studied previously [^2], this repository is dedicated to revisiting the solution by employing a Clustered-Voxel technique to perform the global illumination calculations. 
 
 ## Clustered-Voxel GI
-The clustered-Voxel GI project showcases how to compute the global illumination remotely. It is based on a clustered voxel technique [^3] to compute the indirect lightning, however it differs from the original implementation in the following ways.
+The clustered-Voxel GI project showcases how to compute the global illumination remotely. It is based on a clustered voxel technique [^3] to compute the indirect lightning. The results can be displayed locally, or sent remotely to another machine.
 
-* It uses Fast-SLIC [^4] instead of the original SLIC algorithm [^5], as Fast-SLIC is specifically designed for real-time applications.
-* It employs Ray-Tracing to perform cluster visibility calculations.
-* Several adjustments have been made to optimize the transmission of radiance data across the network:
-   * Radiance is packed more aggressively to reduce the data that needs to be transmitted.
-   * The radiance computation process is broken down into more distinct steps, allowing for more flexible client workload management (e.g., adjusting the amount of work assigned to the client).
-   * The implementation has been rewritten to use DX12 instead of Vulkan as the graphics API.
+A more detailed description of the project can be found [here](ClusteredVoxelGI/README.md).
 
-A more detailed description of the project can be found here.
+| ![](Images/screenshot_voxel.jpg) | ![](Images/screenshot_cluster.jpg)|
+|:-------------------------------------------------:|:---------------------------------------------------------:|
+| ![](Images/screenshot_litVoxels.jpg) | ![](Images/screenshot_rawRadiance.jpg)|
+
 
 ## Local Illumination
 The Local Illumination project showcases two different types of distributed rendering: distributed global illumination and real-time video streaming.
@@ -45,10 +50,15 @@ In both cases, a simple demo scene is rendered. This scene does not compute glob
 For distributed global illumination, this project functions as the client, receiving GI data from the server and using it to composite the final frame on the screen.
 For real-time video streaming, this project serves as the server. It utilizes hardware acceleration to encode the rendered frame into a video and stream it to the client.
 
-A more detailed description of the project can be found here.
+A more detailed description of the project can be found [here](LocalIllumination/README.md).
+
+| ![](Images/screenshot_directOnly.jpg) Ambient only | ![](Images/screenshot_networkGaussian.jpg) Network Radiance|
+|:-------------------------------------------------:|:---------------------------------------------------------:|
 
 ## Streaming Client
 The Streaming Client project showcases a client application for real-time video streaming. It uses hardware acceleration to decode the video stream and display it on the screen.
+
+A more detailed description of the project can be found [here](StreamingClient/README.md).
 
 ## Requirements
 
@@ -73,7 +83,17 @@ You should find a `build_vs(your_vs_version)` folder with the solution inside.
 * StreamingClient: An implementation of a simple real-time video streaming.
 
 ## Usage
-For the usage, please refer to the individual projects READMEs.
+Information regarding the projects usage can be found [here](USAGE.md).
+
+## Known Issues
+Some issues remain unresolved, as addressing them would increase the complexity of the application. The main goal of this project is to showcase a distributed rendering system in a simple and clear manner.
+
+### Lightning
+Ideal Lightning configuration are dependent on voxel resolution and clusterization level
+
+### Networking
+* The application requires minimal packet loss (<0.5%), as solutions to combat packet loss have not been added for simplicity
+* Repeatedly connecting and disconnecting from a server may require application restart
 
 ## Credits
 [Microsoft Mini-Engine](https://github.com/microsoft/DirectX-Graphics-Samples/tree/master/MiniEngine) and [Introduction to 3D Game Programming With DirectX 12](https://www.d3dcoder.net/d3d12.htm) were used as a reference for most of the DX12 library files.
@@ -82,6 +102,14 @@ For the usage, please refer to the individual projects READMEs.
 
 [NVIDIA Video Codec SKD](https://developer.nvidia.com/video-codec-sdk) was used as a reference for the video encoder / decoder files.
 
+[FFmpeg](https://www.ffmpeg.org/) for video streaming
+
+[zstd](https://github.com/facebook/zstd) for performing compression
+
+[ENet](http://enet.bespin.org/index.html) for the network files.
+
+[Dear imGUI](https://github.com/ocornut/imgui) for the GUI
+
 
 ## References
 [^1]: https://www.nvidia.com/en-us/geforce-now/
@@ -89,3 +117,12 @@ For the usage, please refer to the individual projects READMEs.
 [^3]: https://www.sciencedirect.com/science/article/pii/S009784932200005X
 [^4]: https://github.com/Algy/fast-slic
 [^5]: https://dl.acm.org/doi/10.1109/TPAMI.2012.120
+
+---
+
+
+
+https://github.com/user-attachments/assets/59d5bfa6-5993-4b41-b681-2966d2cd12f2
+
+https://github.com/user-attachments/assets/8acb3a7f-1877-4195-a227-5454f42b3370
+

@@ -580,7 +580,7 @@ void CS(uint3 GridID : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex, uint3 
                         
                         if (all(distance <= int(S)))
                         {
-                            if (dot(cData.Normal, voxelNormal) > cos25)
+                            if (dot(cData.Normal, voxelNormal) > cos35)
                             {
                                 closestClusterIndex = clusterIndex;
                                 done = true;

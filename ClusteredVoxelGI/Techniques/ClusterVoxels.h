@@ -56,15 +56,20 @@ namespace CVGI
 
 		UINT GetNumberOfClusters();
 
+		void SetClusterizationLevel(int clusterizationLevel) { m_clusterizationLevel = clusterizationLevel; }
+		int GetClusterizationLevl() { return m_clusterizationLevel; }
+
 	public:
 		static const std::wstring Name;
 
 	private:
-		ConstantBufferClusterizeBuffer m_cbClusterizeBuffer;
+		::ConstantBufferClusterizeBuffer m_cbClusterizeBuffer;
 
 		float m_compactness = 10.0f;
 		UINT32 m_numberOfClusters;
 		float m_superPixelWidth;
+
+		int m_clusterizationLevel = 1;
 
 		UINT32 m_numberOfNonEmptyClusters = 0;
 

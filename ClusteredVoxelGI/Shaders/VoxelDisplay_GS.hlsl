@@ -14,6 +14,11 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
+cbuffer cbDisplayMode : register(b2)
+{
+    uint DisplayMode;
+}
+
 
 ByteAddressBuffer gVoxelOccupiedBuffer : register(t0);
 StructuredBuffer<FragmentData> gFragmentDataBuffer : register(t1);
@@ -32,12 +37,10 @@ StructuredBuffer<uint> gClusterAssignmentBuffer : register(t2, space2);
 ByteAddressBuffer gVoxelLitBuffer : register(t0, space3);
 StructuredBuffer<uint4> gClusterLitBuffer: register(t1, space3);
 
-ByteAddressBuffer gVoxelVisibleBuffer : register(t0, space4);
+StructuredBuffer<uint> gFaceRadianceBuffer : register(t0, space4);
 
-StructuredBuffer<uint2> gFaceRadianceBuffer : register(t0, space5);
+StructuredBuffer<uint2> gGaussianFilteredRadiance : register(t0, space5);
 
-StructuredBuffer<float> gFaceClusterPenaltyBuffer : register(t0, space6);
-StructuredBuffer<float> gFaceCloseVoxelsPenaltyBuffer : register(t1, space6);
 
 
 
@@ -114,6 +117,44 @@ float3 LinearIndexToColor(uint index)
     }
     
     return float3(r, g, b);
+}
+
+float3 GetVoxelAverageColor(uint voxelIdx)
+{
+    float3 sum = 0.0f;
+    uint fragmentIndex = gVoxelIndicesCompacted[voxelIdx];
+    uint nFragments = 0;
+    
+    while (fragmentIndex != UINT_MAX)
+    {
+        sum += gFragmentDataBuffer[fragmentIndex].color.xyz;
+        fragmentIndex = gNextIndexBuffer[fragmentIndex];
+        nFragments += 1;
+    }
+    
+    sum = sum / nFragments;
+    
+    return sum;
+}
+
+float3 GetVoxelNormalColor(uint voxelIdx)
+{
+    float3 sum = 0.0f;
+    uint fragmentIndex = gVoxelIndicesCompacted[voxelIdx];
+    uint nFragments = 0;
+    
+    while (fragmentIndex != UINT_MAX)
+    {
+        sum += gFragmentDataBuffer[fragmentIndex].normal.xyz;
+        fragmentIndex = gNextIndexBuffer[fragmentIndex];
+        nFragments += 1;
+    }
+    
+    sum = sum / nFragments;
+    
+    sum = max(sum, 0.1f);
+    
+    return sum;
 }
 
 // Helper function to check if a vertex is outside the frustum
@@ -231,22 +272,38 @@ void GS(
     uint3 voxelCoord = GetVoxelPosition(voxelLinearCoord, cbVoxelCommons.voxelTextureDimensions);
     int3 iVoxelCoord = int3(voxelCoord);
     
-    
-    //avgColor.xyz = gClusterDataBuffer[gClusterAssignmentBuffer[voxelIdx]].Color;
-    
-    bool isVoxelLit = IsVoxelPresent(voxelIdx, gVoxelLitBuffer);
-    
-    if (isVoxelLit)
-        avgColor.xyz = float3(1.0f, 1.0f, 1.0f);
-    else
+   
+    if (DisplayMode == 1)
     {
-        uint2 packedRadiance = gFaceRadianceBuffer[index];
-        avgColor.xy = UnpackFloats16(packedRadiance.x);
-        avgColor.z = UnpackFloats16(packedRadiance.y).x;
+        avgColor.xyz = GetVoxelAverageColor(voxelIdx);
     }
+    else if (DisplayMode == 2)
+    {
+        avgColor.xyz = GetVoxelNormalColor(voxelIdx);
+    }
+    else if (DisplayMode == 3)
+    {
+        avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[voxelIdx]);
 
+    }
+    else if (DisplayMode == 4)
+    {
+        avgColor.xyz = IsVoxelLit(voxelIdx, gVoxelLitBuffer) ? float3(1, 1, 1) : float3(0, 0, 0);
+
+    }
+    else if (DisplayMode == 5)
+    {
+        avgColor.xyz = UnpackUintToFloat3(gFaceRadianceBuffer[index]);
+    }
+    else if (DisplayMode == 6)
+    {
+        uint2 packedRad = gGaussianFilteredRadiance[index];
+        avgColor.xy = UnpackFloats16(packedRad.x);
+        avgColor.z = UnpackFloats16(packedRad.y).x;
+
+    }
     
-    //avgColor.xyz = LinearIndexToColor(gClusterAssignmentBuffer[faceData.x]);
+
     
     
     [unroll]

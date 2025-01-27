@@ -49,9 +49,9 @@ float3 clusterToVoxelIrradiancePerVoxelArrayVoxel(ClusterData cData, uint voxelI
     float3 irradianceAccumulated = float3(0.0, 0.0, 0.0);
     float3 emitterNormal = cbIndirectLight.LightDirection;
     float3 emitterPosition = cbIndirectLight.LightPosition;
-    float3 emitterRadiance = cbIndirectLight.LightColor * cbIndirectLight.LightIntensity * 50.0f * cbIndirectLight.CloseVoxelStrength;
+    float3 emitterRadiance = cbIndirectLight.LightColor * cbIndirectLight.LightIntensity * cbIndirectLight.CloseVoxelStrength;
     //float emitterRadiance = 25.0f * 1.5f; //cbIndirectLight.LightIntensity;
-    float attenuationFactor = 0.01f;
+    float attenuationFactor = 0.5f;
     
     uint3 voxelTexCoords = GetVoxelPosition(gVoxelHashedCompactBuffer[voxelIndex], cbVoxelCommons.voxelTextureDimensions);
     
@@ -210,7 +210,9 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
     {
         uint clusterIdx = gVisibleClustersBuffer[visibleClusterIdx];
 
-        if (gLitClusters[clusterIdx].w > 0)
+        uint4 clusterRadianceUint = gLitClusters[clusterIdx];
+        
+        if (clusterRadianceUint.w > 0)
         {
             ClusterData clusterData = gClusterDataBuffer[clusterIdx];
             float3 clusterWorldPos = mul(float4(clusterData.Center, 1.0f), cbVoxelCommons.VoxelToWorld).xyz;
@@ -218,7 +220,7 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
             float3 voxelToCluster = clusterWorldPos - voxelWorldPos;
             float distance = length(voxelToCluster);
                 
-            uint4 clusterRadianceUint = gLitClusters[clusterIdx];
+ 
             float3 clusterRadiance = float3(clusterRadianceUint.xyz) / IRRADIANCE_FIELD_MULTIPLIER;
             
 

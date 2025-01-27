@@ -237,7 +237,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 		Renderer::SetDeltaLerpTime(m_lerpDeltaTime);
 	}
 
-
+	
 
 	// Update depth cameras used to compute GI.
 	// Ideally we would only update the camera if the light changed or camera moved, but this is a cheap operation so we can get away with doing it every frame.
@@ -249,15 +249,24 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 		Graphics::s_commandQueueManager->GetGraphicsQueue().Signal(*m_rasterFence);
 	}
 
+	// Display voxels
+
 	if (m_renderRasterScene)
 	{
-		Renderer::ShadowPass(commandContext);
-		Renderer::MainRenderPass(commandContext);
+		if (m_displayVoxelScene->GetDisplayMode() == 0)
+		{
+			Renderer::ShadowPass(commandContext);
+			Renderer::MainRenderPass(commandContext);
 
-		Renderer::LerpRadiancePass(commandContext);
+			Renderer::LerpRadiancePass(commandContext);
 
-		Renderer::DeferredPass(commandContext);
-		Renderer::PostProcessPass(commandContext);
+			Renderer::DeferredPass(commandContext);
+			Renderer::PostProcessPass(commandContext);
+		}
+		else
+		{
+			m_displayVoxelScene->PerformTechnique(commandContext);
+		}
 	}
 
 	Renderer::UIPass(commandContext, !m_renderRasterScene);
@@ -265,8 +274,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 
 
-	// Display voxels
-	//m_displayVoxelScene->PerformTechnique(commandContext);
+
 
 	m_lerpDeltaTime += GameTime::GetDeltaTime();
 	m_RTGIUpdateDelta += GameTime::GetDeltaTime();
@@ -377,6 +385,26 @@ bool CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelOptionWindow(float appX, float app
 		buttonPosition.y += buttonHeight + spacing;
 	}
 
+	int clusterLevel = m_clusterVoxels->GetClusterizationLevl();
+
+
+
+	buttonPosition.y += spacing;
+
+	const char* nextLabel = "Clusterization Level";
+	labelSize = ImGui::CalcTextSize(nextLabel);
+
+	ImGui::SetCursorPos(ImVec2((appX - labelSize.x) * 0.5f, buttonPosition.y));
+	ImGui::Text("%s", nextLabel);
+
+	buttonPosition.y += labelSize.y + spacing;
+	ImGui::SetCursorPos(buttonPosition);
+	ImGui::SetNextItemWidth(buttonWidth);
+	if (ImGui::SliderInt("##Clusterization Level", &clusterLevel, 1, 6))
+	{
+		m_clusterVoxels->SetClusterizationLevel(clusterLevel);
+	}
+
 	ImGui::End();
 
 	return false;
@@ -424,6 +452,8 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 	ImGui::Text("RTGI Memory usage: %.2f MiB", memoryUsageMiB);
 
 	UIHelpers::ControlInfoBlock(m_isClientReadyForRadiance);
+
+	ImGui::Separator();
 
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
 		ImGui::SetTooltip("Enable/Disable server scene rendering. Radiance computation and networking will still work as expected.\n");
@@ -826,6 +856,22 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 		ImGui::SameLine(maxX);
 		ImGui::Text("%.2f ms", m_networkServer.GetAverageCompressionTime());
 
+	}
+	if (ImGui::CollapsingHeader("Debugging"))
+	{
+		const char* displayModeItems[] = { "Final Scene", "Voxel Color", "Voxel Normals", "Clusters", "Lit Voxels", "Raw Radiance", "Filtered Radiance"};
+		int displayMode = (int)m_displayVoxelScene->GetDisplayMode();
+
+		ImGui::Text("Display Mode:");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+			ImGui::SetTooltip("Select debug display mode");
+		}
+		ImGui::SameLine(maxX);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::ListBox("##DisplayMode:", &displayMode, displayModeItems, ARRAYSIZE(displayModeItems)))
+		{
+			m_displayVoxelScene->SetDisplayMode(displayMode);
+		}
 	}
 
 	ImGui::End();

@@ -94,6 +94,36 @@ void Commons::UIHelpers::EndFrame()
 
 void Commons::UIHelpers::ControlInfoBlock(bool isConnected)
 {
+	ImGui::SeparatorText("Controls");
+
+	float maxX = ImGui::CalcTextSize("- Hold Right Mouse Button:\t").x;
+
+	if (!isConnected)
+	{
+		ImGui::Text("- W, A, S, D:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Move Camera");
+
+		ImGui::Text("- E, Q:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Move Camera Up/Down");
+
+		ImGui::Text("- Hold Right Mouse Button:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Rotate Camera");
+
+		ImGui::Text("- Arrow Keys:");
+		ImGui::SameLine(maxX);
+		ImGui::Text("Move Light");
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Client is connected. Scene control is disabled.");
+	}
+
+	ImGui::Text("- ESC:");
+	ImGui::SameLine(maxX);
+	ImGui::Text("Quit");
 }
 
 void Commons::UIHelpers::ConnectedClient(const char* peerAddr, UINT32 ping)

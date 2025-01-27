@@ -13,7 +13,8 @@
 #define VOXEL_TO_VOXEL_FORM_FACTOR_ADD 3
 
 static const unsigned int UINT_MAX = 0xffffffff;
-static const float cos30 = 0.81915204428f;
+static const float cos35 = 0.81915204428f;
+static const float cos30 = 0.86602540378;
 static const float cos25 = 0.9f;
 
 struct VertexOutVoxel

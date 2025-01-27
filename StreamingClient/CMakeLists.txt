@@ -69,7 +69,7 @@ target_link_libraries(StreamingClient
 	PRIVATE "${PROJECT_SOURCE_DIR}/extern/NvidiaCodec/Lib/nvcuvid.lib"
 	)
 
-set_property(TARGET ClusteredVoxelGI PROPERTY CXX_STANDARD 20)
+set_property(TARGET StreamingClient PROPERTY CXX_STANDARD 20)
 
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}" -DCVGI_GL=1)
 file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/FFmpeg/lib/x64/*.dll")

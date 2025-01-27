@@ -16,7 +16,7 @@ void CVGI::ClusterVoxels::InitializeBuffers()
 	DirectX::XMUINT3 voxelGridSize = m_data->GetVoxelGridSize();
 
 	UINT32 voxelLinearSize = voxelGridSize.x * voxelGridSize.y * voxelGridSize.z;
-	m_numberOfClusters = MathHelper::Min(250000u, (UINT32)(voxelCount / 10));
+	m_numberOfClusters = MathHelper::Min(250000u, (UINT32)(voxelCount / (10 * m_clusterizationLevel)));
 	m_superPixelWidth = cbrtf((float)voxelLinearSize / m_numberOfClusters);
 
 	float denominator = 2.0f * m_superPixelWidth;

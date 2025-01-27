@@ -1106,7 +1106,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			}
 
 
-			Renderer::UIPass(context, true);
+			Renderer::UIPass(context, m_isStreaming);
 
 		}
 

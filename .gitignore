@@ -32,7 +32,6 @@ bld/
 [Ll]og/
 [Ll]ogs/
 [Bb]uild_*/
-Models/
 
 # Bin folder of vendors products are allowed (e.g. Cmake)
 !vendor/
@@ -40,6 +39,9 @@ Models/
 
 # Include extern libraries
 !extern/**/x64/
+
+# Include .obj from models
+!Models/**/*.obj
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

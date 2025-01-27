@@ -14,6 +14,8 @@
 
 #include <numeric>
 
+#include "UIHelpers.h"
+
 
 float lastTime = 0.0f;
 float currentTime = 0.0f;
