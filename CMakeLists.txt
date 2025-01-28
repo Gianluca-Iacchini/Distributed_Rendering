@@ -68,6 +68,8 @@ file(GLOB DLL_FILES "${PROJECT_SOURCE_DIR}/extern/PIX/Lib/*.dll" "${PROJECT_SOUR
 # Ensure the output directory exists
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin/Debug")
+
 # Copy DLLs during configuration
 foreach(DLL ${DLL_FILES})
     execute_process(
