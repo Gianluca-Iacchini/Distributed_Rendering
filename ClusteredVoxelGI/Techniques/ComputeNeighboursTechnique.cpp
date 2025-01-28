@@ -2,7 +2,7 @@
 #include "DX12Lib/DXWrapper/RootSignature.h"
 #include "DX12Lib/pch.h"
 #include "ClusterVoxels.h"
-#include "../Data/Shaders/ComputeNeighbour_CS.h"
+#include "../Data/Shaders/Include/ComputeNeighbour_CS.h"
 
 using namespace DX12Lib;
 using namespace Graphics;
