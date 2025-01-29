@@ -92,7 +92,7 @@ Some issues remain unresolved, as addressing them would increase the complexity 
 Ideal Lightning configuration are dependent on voxel resolution and clusterization level
 
 ### Networking
-* The application requires minimal packet loss (<0.5%), as solutions to combat packet loss have not been added for simplicity
+* The application requires minimal packet loss (<0.5%).
 * Repeatedly connecting and disconnecting from a server may require application restart
 
 ## Credits
