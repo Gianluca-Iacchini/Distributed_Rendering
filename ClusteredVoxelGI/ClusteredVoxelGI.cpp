@@ -93,13 +93,22 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 	auto kbState = Graphics::s_keyboard->GetState();
 
-	bool didLightChange = 
-		m_data->GetLightComponent()->Node->IsTransformDirty() ||
-		m_data->GetLightComponent()->DidLightPropertyChange() ||
-		m_lightTransportTechnique->DidRadianceStrengthChange() ||
-		m_gaussianFilterTechnique->GaussianOptionModified();
+	bool didCameraMove = false;
+	bool didLightChange = m_lightTransportTechnique->DidRadianceStrengthChange() || m_gaussianFilterTechnique->GaussianOptionModified();
 
-	bool didCameraMove = m_data->GetCamera()->IsDirty();
+
+	if (m_isClientReadyForRadiance)
+	{
+		didLightChange |= m_clientLightUpdate.load();
+		didCameraMove |= m_clientCameraUpdate.load();
+	}
+	else
+	{
+		didLightChange |= m_data->GetLightComponent()->Node->IsTransformDirty() || m_data->GetLightComponent()->DidLightPropertyChange();
+		didCameraMove |= m_data->GetCamera()->IsDirty();
+	}
+
+
 
 	m_cameraMovedSinceLastUpdate |= didCameraMove;
 	m_lightChangedSinceLastUpdate |= didLightChange;
@@ -184,12 +193,14 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 					PacketGuard packet = m_networkServer.CreatePacket();
 					packet->SetPacketType(NetworkPacket::PacketType::PACKET_UNRELIABLE);
 					packet->ClearPacket();
-					packet->AppendToBuffer("RDXBUF");
+					packet->AppendToBuffer("RDXBUFF");
 					packet->AppendToBuffer(visibleFacesCount);
 					packet->AppendToBuffer(m_wasRadianceReset);
 					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesIndices(visibleFacesCount), visibleFacesCount * sizeof(UINT32));
 					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesRadiance(visibleFacesCount), visibleFacesCount * sizeof(UINT32));
 					m_networkServer.SendData(packet);
+
+					DXLIB_CORE_INFO("Visible faces: {0}", visibleFacesCount);
 
 					m_wasRadianceReset = 0;
 				}
@@ -212,8 +223,17 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 			lerpLightUpdate = m_lightChangedSinceLastUpdate;
 
-			m_cameraMovedSinceLastUpdate = false;
-			m_lightChangedSinceLastUpdate = false;
+			// Only change atomic bool if it was set to true, otherwise we might override a value that has arrived while the radiance was computing.
+			if (m_cameraMovedSinceLastUpdate)
+			{
+				m_cameraMovedSinceLastUpdate = false;
+				m_clientCameraUpdate.store(false);
+			}
+			if (m_lightChangedSinceLastUpdate)
+			{
+				m_lightChangedSinceLastUpdate = false;
+				m_clientLightUpdate.store(false);
+			}
 		}
 	}
 
@@ -1118,6 +1138,15 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const Commons::NetworkPacket* p
 	if (NetworkHost::CheckPacketHeader(packet, "CAMINP") || NetworkHost::CheckPacketHeader(packet, "LGTINP"))
 	{
 		bool isLightData = NetworkHost::CheckPacketHeader(packet, "LGTINP");
+
+		if (isLightData)
+		{
+			m_clientLightUpdate.store(true);
+		}
+		else
+		{
+			m_clientCameraUpdate.store(true);
+		}
 
 		auto& dataVector = packet->GetDataVector();
 

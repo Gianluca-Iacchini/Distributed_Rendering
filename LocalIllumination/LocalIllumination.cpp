@@ -36,9 +36,9 @@ LocalIlluminationApp::~LocalIlluminationApp()
 void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 {
 
-	if (NetworkHost::CheckPacketHeader(packet, "RDXBUF"))
+	if (NetworkHost::CheckPacketHeader(packet, "RDXBUFF"))
 	{
-		std::size_t pktSize = packet->GetSize() - 7;
+		std::size_t pktSize = packet->GetSize() - 8;
 		std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
 
 		UploadBufferFencePair pair;

@@ -134,6 +134,9 @@ namespace CVGI
 		bool m_cameraMovedSinceLastUpdate = true;
 		bool m_lightChangedSinceLastUpdate = false;
 
+		std::atomic<bool> m_clientLightUpdate = false;
+		std::atomic<bool> m_clientCameraUpdate = false;
+
 		bool m_isRadianceReady = false;
 
 		UINT32 m_wasRadianceReset = 0;
