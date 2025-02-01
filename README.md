@@ -12,8 +12,9 @@ This repository contains a real-time global illumination (RTGI) implementation m
 6. [Building the Project](#building-the-project)
 7. [Project Structure](#project-structure)
 8. [Usage](#usage)
-9. [Known Issues](#known-issues)
-10. [Credits](#credits)
+9. [Results and Performance](#results-and-performance)
+10. [Known Issues](#known-issues)
+11. [Credits](#credits)
 
 | ![](Images/screenshot_final.jpg) | ![](Images/screenshot_top.jpg)|
 |:-------------------------------------------------:|:---------------------------------------------------------:|
@@ -65,7 +66,8 @@ A more detailed description of the project can be found [here](StreamingClient/R
 - Visual Studio 2017 or later with DX12 SDK
 - Windows 10 or later
 - CMake for building the project
-- NVIDIA GPU with Ray-Tracing capabilities.
+- NVIDIA GPU with Ray-Tracing capabilities
+- Cuda Toolkit
 
 ## Building the Project
 
@@ -81,6 +83,67 @@ You should find a `build_vs(your_vs_version)` folder with the solution inside.
 * ClusteredVoxelGI: Computes global illumination using voxel clustering and ray-tracing. The results can be visualized locally or sent to another machine for compositing.
 * LocalIllumination: Renders a basic 3D scene using commmon rasterization techniques. It can receive radiance data from another machine and use it to composite a final frame to screen. It can also act as a server for real-time video streaming.
 * StreamingClient: An implementation of a simple real-time video streaming.
+
+## Results and Performance
+The project was tested on the following hardware:
+- **Server**: Intel i9-12900K, NVIDIA GeForce RTX 3090, 32GB DDR5 RAM
+- **Client**: Intel i7-4900, NVIDIA GeForce GTX 980, 16GB DDR3 RAM
+
+These systems were tested under the following conditions:
+
+1. Real Network Test
+   * The client was connected to a 5GHz Wi-Fi network with a maximum available bandwidth of 50mbps.
+   * The server was connected via Ethernet to a fiber-optic connection, with a maximum available bandwidth of 80mbps.
+
+In this setup, the average round-trip time (RTT) ranged from 80ms to 100ms, with packet loss averaging between 3% and 5%.
+
+2. Local Network
+ * Both the server and client were connected to the same local network but on different subnets.
+
+For this test, we simulated various network conditions using [clumsy](https://jagt.github.io/clumsy/) to analyze how different network issues affected performance.
+
+### Rendering Performance
+The performance of the GI algorithm is influenced by several factors, including the voxel resolution, clusterization level, light update frequency, and the number of visible voxels.
+
+#### Radiance Server
+The server's performance is influenced by the lighting conditions. When radiance is not being computed, the server application typically runs at an average of 288 fps.
+
+* When the light changes (e.g., position, rotation, color, intensity, or radiance bounce strength), the radiance must be recomputed for all visible voxel faces.
+ * For a voxel grid of 256x256x256 and a clusterization level of 1, this results in a performance drop to around 240 fps.
+* When the light remains unchanged and the camera moves, the radiance needs to be recomputed only for the voxel faces that were not visible to the camera since the last light update.
+ * The performance impact in this case depends on how many new voxels enter the camera's frustum. Typically, this doesn't cause a significant performance drop.
+ * Voxel radiance is cached in a buffer as long as the light settings stay the same. If the camera revisits a voxel it has already seen, no new radiance computation is performed for that voxel.
+
+#### Radiance Client
+The client's performance is influenced by the same factors as the server, but to a much lesser extent. Unlike the server, the client doesn't compute the radiance; it only performs the gaussian filtering pass.
+On average, the client runs at 144 fps, with a drop to around 110 fps when the light changes and a significant number of voxels are visible. When the light remains unchanged, the performance impact is negligible.
+
+#### Streaming Server
+The streaming server was tested on both machines, yielding similar results. Frame encoding and streaming caused a drop in performance, from 288 fps and 145 fps to approximately 280 fps and 125 fps, respectively.
+
+#### Streaming Client
+The streaming client was also tested on both machines. Its frame rate was capped at a stable 60 fps, which matches the encoding frame rate.
+
+### Network Performance
+#### Radiance
+The network performance depends largely on the network conditions, with packet loss having the greatest impact.
+
+In the real-world network test, significant lighting changes (such as sudden color shifts) caused noticeable delays when using a voxel grid size of 128x128x128. However, smaller lighting changes and camera movements made remote radiance computation much less noticeable.
+
+In the local network test, the following conditions were tested:
+* RTT values ranging from 1ms to 200ms
+* Packet loss values ranging from 0.0% to 5.0%
+* Duplicate and/or out-of-order packets
+* Bandwidth limits
+
+The application was found to be resilient to latency up to around 180ms, after which delays became noticeable for lighting changes. It was also particularly sensitive to packet loss, with delays becoming noticeable above 0.5%. Duplicate and out-of-order packets did not significantly affect the results.
+
+Finally, the bandwidth limit's impact depended on the voxel grid size. Delays became noticeable when the bandwidth was under 2 Mbps for a 64x64x64 voxel grid and under 5 Mbps for a 128x128x128 voxel grid.
+
+#### Streaming
+Real-time video streaming was tested under similar conditions. In the real network test, small visible artifacts were observed.
+
+Under the altered local network conditions, the streaming application was slightly less resilient to latency. An RTT of around 100ms caused noticeable delays in input feedback. However, the application was more resilient to packet loss, with 3% packet loss resulting in very visible artifacts but still allowing the application to remain usable.
 
 ## Usage
 Information regarding the projects usage can be found [here](USAGE.md).
