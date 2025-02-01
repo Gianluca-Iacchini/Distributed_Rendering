@@ -100,7 +100,7 @@ In this setup, the average round-trip time (RTT) ranged from 80ms to 100ms, with
 2. Local Network
  * Both the server and client were connected to the same local network but on different subnets.
 
-For this test, we simulated various network conditions using [clumsy](https://jagt.github.io/clumsy/) to analyze how different network issues affected performance.
+For this test, various network conditions were simulated using [clumsy](https://jagt.github.io/clumsy/) to analyze how different network issues affected performance.
 
 ### Rendering Performance
 The performance of the GI algorithm is influenced by several factors, including the voxel resolution, clusterization level, light update frequency, and the number of visible voxels.
