@@ -38,8 +38,7 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 
 	if (NetworkHost::CheckPacketHeader(packet, "RDXBUFF"))
 	{
-		std::size_t pktSize = packet->GetSize() - 8;
-		std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
+
 
 		UploadBufferFencePair pair;
 
@@ -65,17 +64,20 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 		auto& uploadBuffer = pair.first;
 
 		// RADBUF + NULL character
-		UINT totalBytes = 7;
+		UINT totalBytes = 8;
 
 		UINT nFaces = 0;
 		UINT shouldReset = 0;
 
 		void* mappedData = uploadBuffer->Map();
 
-		memcpy(&nFaces, packet->GetDataVector().data() + 7, sizeof(UINT));
+		memcpy(&nFaces, packet->GetDataVector().data() + totalBytes, sizeof(UINT));
 		totalBytes += sizeof(UINT);
 		memcpy(&shouldReset, packet->GetDataVector().data() + totalBytes, sizeof(UINT));
 		totalBytes += sizeof(UINT);
+
+		std::size_t pktSize = packet->GetSize() - totalBytes;
+		std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
 		memcpy(mappedData, packet->GetDataVector().data() + totalBytes, vecSize * sizeof(DirectX::XMUINT2));
 
 
@@ -185,12 +187,9 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 				{
 					std::lock_guard<std::mutex> lock(m_vectorMutex);
 					pair = m_ReadyToWriteBuffers.front();
-				}
 
-				m_bufferFence->WaitForFence(pair.second);
+					m_bufferFence->WaitForFence(pair.second);
 
-				{
-					std::lock_guard<std::mutex> lock(m_vectorMutex);
 					// Assign again in case the queue was modified while waiting for the fence
 					pair = m_ReadyToWriteBuffers.front();
 					m_ReadyToWriteBuffers.pop();

@@ -106,6 +106,7 @@ namespace Graphics
 		void InitializeSwapchain(DX12Lib::DX12Window* window);
 		void WaitForSwapchainBuffers();
 		DX12Lib::ColorBuffer& GetCurrentBackBuffer();
+		UINT GetCurrentBackBufferIndex();
 		void ResizeSwapchain(DX12Lib::CommandContext* context, int newWidth, int newHeight);
 		void Present(UINT64 fenceVal);
 		void SetScissorAndViewportSize(int width, int height);

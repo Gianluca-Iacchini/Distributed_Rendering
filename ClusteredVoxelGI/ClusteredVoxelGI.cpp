@@ -200,7 +200,6 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesRadiance(visibleFacesCount), visibleFacesCount * sizeof(UINT32));
 					m_networkServer.SendData(packet);
 
-					DXLIB_CORE_INFO("Visible faces: {0}", visibleFacesCount);
 
 					m_wasRadianceReset = 0;
 				}

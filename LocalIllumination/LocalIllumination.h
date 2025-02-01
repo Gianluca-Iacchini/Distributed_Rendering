@@ -136,6 +136,9 @@ namespace LI
 
 		char m_serverAddress[16] = { "127.0.0.1" };
 
+		std::vector<DirectX::XMUINT2> m_receivedNetworkRadiance;
+
+		std::shared_ptr<DX12Lib::UploadBuffer> m_networkRadianceUploadBuffer[3];
 
 
 		std::unique_ptr<DX12Lib::FFmpegStreamer> m_ffmpegStreamer = nullptr;

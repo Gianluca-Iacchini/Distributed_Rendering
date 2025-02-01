@@ -756,6 +756,11 @@ namespace Graphics::Renderer
 		return s_swapchain->GetCurrentBackBuffer();
 	}
 
+	UINT GetCurrentBackBufferIndex()
+	{
+		return s_swapchain->CurrentBufferIndex;
+	}
+
 	void ResizeSwapchain(CommandContext* context, int newWidth, int newHeight)
 	{
 		s_clientWidth = newWidth;
