@@ -1086,7 +1086,7 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 	{
 		// Update depth cameras used to compute GI.
 		// Ideally we would only update the camera if the light changed or camera moved, but this is a cheap operation so we can get away with doing it every frame.
-		if (m_radianceReady)
+		
 		{
 			m_sceneDepthTechnique->UpdateCameraMatrices();
 			m_sceneDepthTechnique->PerformTechnique(context);

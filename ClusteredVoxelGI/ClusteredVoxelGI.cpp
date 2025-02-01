@@ -847,6 +847,7 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 				if (ImGui::Button("Send VOX"))
 				{
 					OnClientConnected(nullptr);
+					DXLIB_CORE_INFO("Sending VOX");
 				}
 			}
 		}
