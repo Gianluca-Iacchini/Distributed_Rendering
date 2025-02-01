@@ -191,7 +191,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 				if (visibleFacesCount > 0)
 				{
 					PacketGuard packet = m_networkServer.CreatePacket();
-					packet->SetPacketType(NetworkPacket::PacketType::PACKET_UNRELIABLE);
+					packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 					packet->ClearPacket();
 					packet->AppendToBuffer("RDXBUFF");
 					packet->AppendToBuffer(visibleFacesCount);

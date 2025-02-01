@@ -187,8 +187,13 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 				{
 					std::lock_guard<std::mutex> lock(m_vectorMutex);
 					pair = m_ReadyToWriteBuffers.front();
+				}
 
-					m_bufferFence->WaitForFence(pair.second);
+				m_bufferFence->WaitForFence(pair.second);
+
+				{
+					std::lock_guard<std::mutex> lock(m_vectorMutex);
+
 
 					// Assign again in case the queue was modified while waiting for the fence
 					pair = m_ReadyToWriteBuffers.front();
