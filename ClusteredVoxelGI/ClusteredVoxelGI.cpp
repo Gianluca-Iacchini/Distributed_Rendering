@@ -800,12 +800,15 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 	if (ImGui::CollapsingHeader("Networking"))
 	{
 		bool isConnected = m_networkServer.IsConnected();
+		
+		ImGui::InputText("Server IP", m_serverAddress, 16);
+
 		if (!isConnected)
 		{
 			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Server is not running");
-			if (ImGui::Button("Start Server"))
+			if (ImGui::Button("Connect"))
 			{
-				m_networkServer.StartServer(1234);
+				m_networkServer.Connect(m_serverAddress, 1234);
 			}
 		}
 		else
@@ -821,6 +824,11 @@ void CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelDebugWindow(float appX, float appY
 			if (m_networkServer.HasPeers())
 			{
 				UIHelpers::ConnectedClient(m_networkServer.GetPeerAddress().c_str(), m_networkServer.GetPing());
+
+				if (ImGui::Button("Send VOX"))
+				{
+					OnClientConnected(nullptr);
+				}
 			}
 		}
 
@@ -1106,7 +1114,7 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 	m_voxelScene = voxelScene;
 
 	Commons::NetworkHost::InitializeEnet();
-	m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
+	//m_networkServer.OnPeerConnected = std::bind(&ClusteredVoxelGIApp::OnClientConnected, this, std::placeholders::_1);
 	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
 	m_networkServer.OnPeerDisconnected = std::bind(&ClusteredVoxelGIApp::OnClientDisconnected, this, std::placeholders::_1);
 
@@ -1256,7 +1264,6 @@ void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const Commons::NetworkPacket* p
 
 		DXLIB_CORE_INFO("Send CMPHSH buffer with a size of: {0}", cmpHshBuffer.size());
 	}
-	
 }
 
 void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)

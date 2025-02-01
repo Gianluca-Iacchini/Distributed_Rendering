@@ -153,6 +153,8 @@ namespace CVGI
 
 		Commons::NetworkHost m_networkServer;
 
+		char m_serverAddress[16] = { "127.0.0.1" };
+
 		DirectX::XMFLOAT3 m_lastCameraPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 		bool m_isClientReadyForRadiance = false;

@@ -453,6 +453,12 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 		static bool isWaitingForConnection = false;
 		float connectionTimeout = 8.0f;
 
+		if (ImGui::Button("Start Server"))
+		{
+			m_networkClient.StartServer(1234);
+		}
+
+
 		if (!isConnectedAsClient)
 		{
 			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Not connected");
@@ -460,11 +466,11 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 			const char* buttonText = isWaitingForConnection ? "Connecting..." : "Connect to server";
 
 
-			ImGui::InputText("Server address", m_serverAddress, 16);
+			//ImGui::InputText("Server address", m_serverAddress, 16);
 
 			if (ImGui::Button(buttonText))
 			{
-				m_networkClient.Connect(m_serverAddress, 1234);
+				//m_networkClient.Connect(m_serverAddress, 1234);
 				isWaitingForConnection = true;
 				connectionTime = 0.0f;
 			}
