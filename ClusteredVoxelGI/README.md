@@ -1,6 +1,7 @@
 # Clustered-Voxel GI
 
-The Clustered-Voxel GI subproject computes Global Illumination (GI) using a voxel clustering technique. The resulting radiance is computed for a static scene for simplicity; however with small modifications it would also be possible to compute GI for dynamic scenes aswell.
+The Clustered-Voxel GI subproject computes Global Illumination (GI) using a voxel clustering technique. The resulting radiance is computed for static geometry for simplicity. However, radiance is dynamically recomputed in response to camera movement, light movement, and changes to light properties (such as color, intensity, and bounce strength).
+While small modifications could enable support for dynamic scenes, this is not ideal, as it would require recalculating the prefix sum and clusters.
 
 The radiance resulting from this computation can be visualized locally or sent to another machine.
 
