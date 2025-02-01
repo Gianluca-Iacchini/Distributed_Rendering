@@ -109,10 +109,10 @@ The performance of the GI algorithm is influenced by several factors, including 
 The server's performance is influenced by the lighting conditions. When radiance is not being computed, the server application typically runs at an average of 288 fps.
 
 * When the light changes (e.g., position, rotation, color, intensity, or radiance bounce strength), the radiance must be recomputed for all visible voxel faces.
- * For a voxel grid of 256x256x256 and a clusterization level of 1, this results in a performance drop to around 240 fps.
+  * For a voxel grid of 256x256x256 and a clusterization level of 1, this results in a performance drop to around 240 fps.
 * When the light remains unchanged and the camera moves, the radiance needs to be recomputed only for the voxel faces that were not visible to the camera since the last light update.
- * The performance impact in this case depends on how many new voxels enter the camera's frustum. Typically, this doesn't cause a significant performance drop.
- * Voxel radiance is cached in a buffer as long as the light settings stay the same. If the camera revisits a voxel it has already seen, no new radiance computation is performed for that voxel.
+  * The performance impact in this case depends on how many new voxels enter the camera's frustum. Typically, this doesn't cause a significant performance drop.
+  * Voxel radiance is cached in a buffer as long as the light settings stay the same. If the camera revisits a voxel it has already seen, no new radiance computation is performed for that voxel.
 
 #### Radiance Client
 The client's performance is influenced by the same factors as the server, but to a much lesser extent. Unlike the server, the client doesn't compute the radiance; it only performs the gaussian filtering pass.
