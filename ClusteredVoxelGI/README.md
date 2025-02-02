@@ -30,7 +30,8 @@ The radiance resulting from this computation can be visualized locally or sent t
 The project was made using C++ and DirectX12 and it is based on the work by [Alejandro Cosin Ayerbe, Gustavo Patow](https://www.sciencedirect.com/science/article/pii/S009784932200005X), however it differs from the original implementation in the following ways.
 
 * It uses [Fast-SLIC](https://github.com/Algy/fast-slic) instead of the original SLIC algorithm, as Fast-SLIC is specifically designed for real-time applications.
-* It employs Ray-Tracing to perform cluster visibility calculations.
+* It employs Ray-Tracing to perform cluster visibility calculations instead of using Bresenham line algorithm.
+  * This also opens the possibility to use ray-tracing to test lit voxels instead of using depth map if needed
 * Several adjustments have been made to optimize the transmission of radiance data across the network:
    * Radiance is packed more aggressively to reduce the data that needs to be transmitted.
    * The radiance computation process is broken down into more distinct steps, allowing for more flexible client workload management (e.g., adjusting the amount of work assigned to the client).
@@ -80,16 +81,33 @@ To address this, a prefix sum algorithm is applied to compact the buffers, remov
 To solve this, two additional buffers `indirectionRank` and `indirectionIndex` are introduced during this step. These buffers allow us to retrieve the necessary information at the cost of multiple memory accesses.
 
 #### Clusterization
-Voxels are aggregated into clusters based on their similarity to simplify radiance calculations later on. This process is done using an algorithm based on [Fast-SLIC](https://github.com/Algy/fast-slic), with some modifications. 
+Voxels are aggregated into clusters based on their similarity to simplify radiance calculations later on. Unlike the original implementation, this process uses an algorithm based on [Fast-SLIC](https://github.com/Algy/fast-slic), with some modifications. Fast-SLIC was chosen because it is specifically designed for real-time applications  and can be easily parallelized, making it ideal for GPU workloads.
 
-* The algorithm is adapted to work in three dimensions
-* Voxel similarity is defined by their normal rather than color
-* Early terminations are possible when encountering empty voxels.
+1. Clusters are created and spread across the scene
+2. A distance map **dmap** and a voxel assignment map **amap** are initialized with default values.
+3. For each voxel __v__
+   1. For each nearby cluster **c**
+      1. Compute the distance **d(c,v)**
+         1. if  **d(c,v)** is less than **dmap(v)**
+            1. **dmap(v) = d(c,v)**
+            2. **amap(v) = c**
+3. For each cluster
+   1. Set the cluster position, color and normal as the average of its voxels
+4. Reset **dmap** and **amap**
+
+Where **d** is the distance function between a voxel and a cluster. For this project, the same distance function from the original implementation is used, which checks if the angle between the voxel's average normal and the cluster's average normal is less than 35 degrees.
+
+Steps 2-4 are repeated for a fixed number of iterations (10 for this project), with step 4 being skipped during the final iteration to retain the assignment map. After this, all empty clusters are removed.
+
+There are several differences compared to the original Fast-SLIC algorithm, which was designed for clustering pixels in 2D images:
+   * This project implementation was expanded to work in 3D
+   * Clusters are only spread over occupied voxels, rather than across the entire voxel grid. This ensures that clusters are focused on areas with data.
+   * Voxels query nearby clusters to test their distance, rather than the other way around, as this would mean that the cluster would first have to test whether all voxels in range are occupied.
 
 At the end of this step, the following buffers are generated:
 
 * Cluster Buffer: A buffer containing the average position, normal, and color of each voxel. It also includes the index of the first voxel that belongs to each cluster.
-* Voxel Cluster Map: A buffer where the indices represent the voxels, and the values indicate the cluster to which each voxel belongs.
+* Voxel Assignment Map: A buffer where the indices represent the voxels, and the values indicate the cluster to which each voxel belongs.
 * Voxel Linked List: Similar to the fragment linked list, the indices represent the voxel index, and the values represent the index of the next voxel in the list.
 
 <figure>
@@ -105,7 +123,9 @@ Axis-Aligned Bounding Boxes (AABBs) are generated from the voxels. The Min and M
 These AABBs are placed in a buffer, which is then used to construct a Ray-Tracing Acceleration Structure.
 
 #### Cluster visibility
-In this step, Ray-Tracing hardware is leveraged to perform cluster visibility. For each voxel **face**, 256 rays are cast. For each ray, we test for intersections with other voxels. If an intersection is found, the voxel's cluster is retrieved and added to the list of clusters visible from that voxel face.
+In this step, Ray-Tracing hardware is used to perform cluster visibility. This differs from the original implementation, where cluster visibility was achieved using a compute shader that implemented a 3D version of [Bresenham’s algorithm](https://ohiostate.pressbooks.pub/app/uploads/sites/45/2017/09/bresenham.pdf). By utilizing the ray-tracing hardware, the visibility computation becomes much more straightforward, as the hardware handles both ray casting and collision detection.
+
+For each voxel **face**, 256 rays are cast. For each ray, we test for intersections with other voxels. If an intersection is found, the voxel's cluster is retrieved and added to the list of clusters visible from that voxel face.
 
 Since AABBs are used instead of triangles, a custom hit shader is required, which can result in slightly worse performance. It may be worth investigating whether generating triangles instead of AABBs for the acceleration structure could yield better performance.
 
@@ -119,6 +139,7 @@ To correctly identify lit voxels, multiple points for each voxel are tested: one
 
 For simplicity, the project currently uses a single light (the main directional light). However, supporting additional lights can be done with minimal modifications and little to no performance overhead, as testing the points against multiple depth maps can be handled in the same pass.
 
+Ray-tracing can also be used to test lit voxels; however, for directional light, this was not necessary, as using a depth map proved to be faster.
 
 <figure>
    <img src="../Images/screenshot_litVoxels.jpg" width="480" >
@@ -178,6 +199,9 @@ There are two points where radiance could be transmitted to the client
 
 * Radiance is computed exclusively on server, and the client only perform compositing.
   * This approach requires minimal computational capability from the client, as compositing can be done very quickly. However, it does require a stable connection to avoid light artifacts. Additionally, due to the way Gaussian filtering is computed, this method requires more bandwidth.
+  * This approach is not ideal and would only be acceptable for weak clients with a robust connection. Due to this, it was not tested further.
+
+    
 * Light Transport is computed on server, client performs gaussian filtering and compositing.
   * This is the responsibility division used in this project. In this setup, the server handles the most computationally expensive parts of the process, while the client performs the Gaussian filtering pass on top of the compositing. This approach reduces bandwidth usage and provides better responsiveness, though it adds a small computational overhead for the client.
 
