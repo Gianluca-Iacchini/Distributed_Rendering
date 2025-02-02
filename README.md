@@ -104,6 +104,7 @@ For this test, various network conditions were simulated using [clumsy](https://
 
 ### Rendering Performance
 The performance of the GI algorithm is influenced by several factors, including the voxel resolution, clusterization level, light update frequency, and the number of visible voxels.
+On both machines the application was rendered with a resolution of 1980x1080.
 
 #### Radiance Server
 The server's performance is influenced by the lighting conditions. When radiance is not being computed, the server application typically runs at an average of 288 fps.
