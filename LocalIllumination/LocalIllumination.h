@@ -143,6 +143,11 @@ namespace LI
 		float m_accumulatedTime = 0;
 		float m_lastUpdateTime = 0;
 
+		std::shared_ptr<std::vector<DirectX::XMUINT2>> m_packetWrite;
+		std::shared_ptr<std::vector<DirectX::XMUINT2>> m_packetRead;
+
+		std::vector<std::shared_ptr<DX12Lib::UploadBuffer>> m_uploadBuffers;
+
 	public:
 		LocalIlluminationApp(HINSTANCE hInstance, DX12Lib::Scene* scene = nullptr) : D3DApp(hInstance, scene) {};
 		LocalIlluminationApp(const LocalIlluminationApp& rhs) = delete;

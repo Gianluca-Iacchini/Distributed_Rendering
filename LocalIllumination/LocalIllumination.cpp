@@ -18,6 +18,8 @@
 #include "DX12Lib/Scene/LightController.h"
 #include "DX12Lib/Scene/RemoteNodeController.h"
 
+#include "DX12Lib/DXWrapper/Swapchain.h"
+
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using namespace Graphics;
@@ -38,31 +40,7 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 
 	if (NetworkHost::CheckPacketHeader(packet, "RDXBUF"))
 	{
-		std::size_t pktSize = packet->GetSize() - 7;
-		std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
 
-		UploadBufferFencePair pair;
-
-		{
-			std::lock_guard<std::mutex> lock(m_vectorMutex);
-
-			if (m_ReadyToWriteBuffers.empty())
-				return;
-
-			pair = m_ReadyToWriteBuffers.front();
-		}
-
-		// Wait for the first buffer to complete its copy operation before we can write to it.
-		m_bufferFence->WaitForFence(pair.second);
-
-		{
-			std::lock_guard<std::mutex> lock(m_vectorMutex);
-			// Assign again in case the queue was modified while waiting for the fence
-			pair = m_ReadyToWriteBuffers.front();
-			m_ReadyToWriteBuffers.pop();
-		}
-
-		auto& uploadBuffer = pair.first;
 
 		// RADBUF + NULL character
 		UINT totalBytes = 7;
@@ -70,24 +48,28 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 		UINT nFaces = 0;
 		UINT shouldReset = 0;
 
-		void* mappedData = uploadBuffer->Map();
+		std::vector<DirectX::XMUINT2>* bufferVector = nullptr;
+
+		{
+			std::lock_guard<std::mutex> lock(m_vectorMutex);
+			bufferVector = m_packetWrite.get();
+		}
+
+		if (!bufferVector) return;
+
+
 
 		memcpy(&nFaces, packet->GetDataVector().data() + 7, sizeof(UINT));
 		totalBytes += sizeof(UINT);
 		memcpy(&shouldReset, packet->GetDataVector().data() + totalBytes, sizeof(UINT));
 		totalBytes += sizeof(UINT);
-		memcpy(mappedData, packet->GetDataVector().data() + totalBytes, vecSize * sizeof(DirectX::XMUINT2));
 
+		std::size_t pktSize = packet->GetSize() - totalBytes;
+		std::size_t vecSize = pktSize / sizeof(DirectX::XMUINT2);
 
-		// The buffer can now be used in the main thread command list.
-		{
-			NetworkRadianceBufferInfo buffInfo;
-			buffInfo.buffer = uploadBuffer;
-			buffInfo.nFaces = nFaces;
-			buffInfo.ShouldReset = shouldReset;
-			std::lock_guard<std::mutex> lock(m_vectorMutex);
-			m_ReadyToCopyBuffer.push(buffInfo);
-		}
+		bufferVector->resize(vecSize);
+		memcpy(bufferVector->data(), packet->GetDataVector().data() + totalBytes, vecSize * sizeof(DirectX::XMUINT2));
+
 	}
 	// To ensure that the server sent the initialization message, the message starts with "VOX" (4 bytes due to null character)
 	// Then each float is 4 bytes long.
@@ -123,8 +105,13 @@ void LocalIlluminationApp::OnPacketReceivedClient(const NetworkPacket* packet)
 			uploadBuffer->Create(faceCount * sizeof(DirectX::XMUINT2));
 
 			m_ReadyToWriteBuffers.push(std::make_pair(uploadBuffer, 0));
+
+			m_uploadBuffers.push_back(std::make_shared<DX12Lib::UploadBuffer>());
+			m_uploadBuffers[i]->Create(faceCount * sizeof(DirectX::XMUINT2));
 		}
 
+		m_packetRead = std::make_shared<std::vector<DirectX::XMUINT2>>(faceCount);
+		m_packetWrite = std::make_shared<std::vector<DirectX::XMUINT2>>(faceCount);
 
 		DX12Lib::AABB sceneBounds = GetSceneAABBExtents();
 		DirectX::XMFLOAT3 voxelCellSize = DirectX::XMFLOAT3((sceneBounds.Max.x - sceneBounds.Min.x) / voxelizationSize.x,
@@ -977,16 +964,24 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 
 	if (m_isReadyForRadiance)
 	{
-		NetworkRadianceBufferInfo buffInfo;
-		buffInfo.buffer = nullptr;
-		buffInfo.nFaces = 0;
-		buffInfo.ShouldReset = 0;
 
 		bool isRTGIDataAvailable = false;
 
+		std::vector<DirectX::XMUINT2>* readVector = nullptr;
+
 		{
 			std::lock_guard<std::mutex> lock(m_vectorMutex);
-			isRTGIDataAvailable = !m_ReadyToCopyBuffer.empty();
+			if (!m_packetWrite->empty())
+			{
+				auto temp = m_packetWrite;
+				m_packetWrite = m_packetRead;
+				m_packetRead = temp;
+
+				readVector = m_packetRead.get();
+				isRTGIDataAvailable = true;
+
+				m_packetWrite->clear();
+			}
 		}
 
 		auto kbState = Graphics::s_keyboard->GetState();
@@ -1001,14 +996,8 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 			{
 				if (m_rasterFence->IsFenceComplete(m_rasterFenceValue))
 				{
-					if (isRTGIDataAvailable)
-					{
-						std::lock_guard<std::mutex> lock(m_vectorMutex);
-						buffInfo = m_ReadyToCopyBuffer.front();
-						m_ReadyToCopyBuffer.pop();
-					}
 
-					bool shouldResetBuffers = (buffInfo.ShouldReset != 0);
+					bool shouldResetBuffers = true;
 
 					DX12Lib::ComputeContext& computeContext = DX12Lib::ComputeContext::Begin();
 
@@ -1017,13 +1006,13 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 0);
 					if (isRTGIDataAvailable)
 					{
-						UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, buffInfo.buffer.get(), buffInfo.nFaces, buffInfo.ShouldReset);
+						UINT currentBackBufferIdx = Renderer::s_swapchain->CurrentBufferIndex;
+
+						memcpy(m_uploadBuffers[currentBackBufferIdx]->Map(), readVector->data(), readVector->size() * sizeof(DirectX::XMUINT2));
+
+						UINT64 fenceVal = m_radianceFromNetworkTechnique->ProcessNetworkData(computeContext, m_uploadBuffers[currentBackBufferIdx].get(), readVector->size(), 1);
 						m_bufferFence->CurrentFenceValue = fenceVal;
 						Graphics::s_commandQueueManager->GetComputeQueue().Signal(*m_bufferFence);
-						{
-							std::lock_guard<std::mutex> lock(m_vectorMutex);
-							m_ReadyToWriteBuffers.push(std::make_pair(buffInfo.buffer, fenceVal));
-						}
 					}
 					computeContext.EndQuery(*Graphics::s_queryHeap, m_timingQueryHandle, 1);
 
