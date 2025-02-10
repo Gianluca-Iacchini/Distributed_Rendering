@@ -264,6 +264,8 @@ namespace Commons
 
 		void ResetCompressionStats() { m_nCompressions = 0; m_totalCompressionRatio = 0.0f; m_totalCompressionTime = 0.0f; }
 
+		void FlushOutgoingPackets();
+
 	protected:
 		virtual void MainNetworkLoop();
 		virtual void SendDataLoop();

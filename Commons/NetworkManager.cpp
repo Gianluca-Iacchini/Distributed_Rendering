@@ -415,6 +415,12 @@ bool Commons::NetworkHost::DecompressData(NetworkPacket* packet)
 	return true;
 }
 
+void Commons::NetworkHost::FlushOutgoingPackets()
+{
+	if (m_host)
+		enet_host_flush(m_host);
+}
+
 void Commons::NetworkHost::MainNetworkLoop()
 {
 	DXLIB_CORE_INFO("Listening for messages from incoming connections.");
