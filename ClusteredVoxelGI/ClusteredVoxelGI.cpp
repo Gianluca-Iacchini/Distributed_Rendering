@@ -187,8 +187,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 					packet->AppendToBuffer("RDXBUF");
 					packet->AppendToBuffer(visibleFacesCount);
 					packet->AppendToBuffer(m_wasRadianceReset);
-					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesIndices(visibleFacesCount), visibleFacesCount * sizeof(UINT32));
-					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesRadiance(visibleFacesCount), visibleFacesCount * sizeof(UINT32));
+					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesRadiance(visibleFacesCount), visibleFacesCount * sizeof(DirectX::XMUINT2));
 					m_networkServer.SendData(packet);
 
 					m_wasRadianceReset = 0;

@@ -61,10 +61,9 @@ void VOX::LightTransportTechnique::InitializeBuffers()
     if (m_computeIndirect)
     {
 
-        m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
+        m_indirectBufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 
-		m_faceIndicesReadBack.Create(m_data->FaceCount, sizeof(UINT32));
-		m_faceRadianceReadback.Create(m_data->FaceCount, sizeof(UINT32));
+		m_faceRadianceReadback.Create(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 		m_visibleFacesCountReadback.Create(1, sizeof(UINT32));
     }
 
@@ -401,21 +400,15 @@ void VOX::LightTransportTechnique::TransferRadianceData(DX12Lib::ComputeContext&
     //if (!m_computeIndirect)
     //    return;
 
-    context.CopyBuffer(m_faceIndicesReadBack, m_bufferManager->GetBuffer((UINT)LightTransportBufferType::IndirectLightVisibleFacesIndices));
 	context.CopyBuffer(m_faceRadianceReadback, m_indirectBufferManager->GetBuffer(1));
 	context.CopyBufferRegion(m_visibleFacesCountReadback, 0, m_bufferManager->GetBuffer(0), 0, sizeof(UINT32));
 }
 
-std::uint8_t* VOX::LightTransportTechnique::GetVisibleFacesIndices(UINT32 visFaceCount)
-{
-    void* data = m_faceIndicesReadBack.ReadBack(visFaceCount * sizeof(UINT32));
 
-    return reinterpret_cast<std::uint8_t*>(data);
-}
 
 std::uint8_t* VOX::LightTransportTechnique::GetVisibleFacesRadiance(UINT32 visFaceCount)
 {
-    void* data = m_faceRadianceReadback.ReadBack(visFaceCount * sizeof(UINT32));
+    void* data = m_faceRadianceReadback.ReadBack(visFaceCount * sizeof(DirectX::XMUINT2));
 
     return reinterpret_cast<std::uint8_t*>(data);
 }

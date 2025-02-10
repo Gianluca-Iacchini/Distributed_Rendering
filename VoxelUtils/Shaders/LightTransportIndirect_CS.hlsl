@@ -32,7 +32,7 @@ ByteAddressBuffer gGaussianVoxelBitmap : register(t5, space5);
 
 
 RWStructuredBuffer<uint> gFaceRadianceBuffer : register(u0);
-RWStructuredBuffer<uint> gRadianceForVisibleFaceIdx : register(u1);
+RWStructuredBuffer<uint2> gRadianceForVisibleFaceIdx : register(u1);
 
 groupshared float3 gsRadiancePerWave[2];
 
@@ -300,6 +300,6 @@ void CS( uint3 DTid : SV_DispatchThreadID, uint3 threadGroupId : SV_GroupThreadI
         uint packedRadx = PackFloat3ToUint(finalRadiance);
         
         gFaceRadianceBuffer[idx] = packedRadx;
-        gRadianceForVisibleFaceIdx[threadID] = packedRadx;
+        gRadianceForVisibleFaceIdx[threadID] = uint2(idx, packedRadx);
     }
 }

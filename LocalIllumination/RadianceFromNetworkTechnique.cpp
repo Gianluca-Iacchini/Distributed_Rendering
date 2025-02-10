@@ -28,10 +28,8 @@ LI::RadianceFromNetworkTechnique::RadianceFromNetworkTechnique(std::shared_ptr<V
 
 void LI::RadianceFromNetworkTechnique::InitializeBuffers()
 {
-	// Face Index buffer
-	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
 	// Radiance for face buffer
-	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(UINT32));
+	m_bufferManager->AddStructuredBuffer(m_data->FaceCount, sizeof(DirectX::XMUINT2));
 
 	m_bufferManager->AllocateBuffers();
 }
@@ -97,17 +95,14 @@ UINT64 LI::RadianceFromNetworkTechnique::ProcessNetworkData(DX12Lib::ComputeCont
 	m_cbRadianceFromNetwork.ReceivedFaceCount = faceCount;
 
 	auto& faceIndexBuffer = m_bufferManager->GetBuffer(0);
-	auto& faceRadianceBuffer = m_bufferManager->GetBuffer(1);
 
 	// Not using CommandContext.CopyBuffer because upload buffer should not be transitioned from the GENERIC_READ state
 	context.TransitionResource(faceIndexBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
-	context.TransitionResource(faceRadianceBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
 	context.FlushResourceBarriers();
 
-	UINT32 faceIdxByteSize = faceCount * sizeof(UINT32);
+	UINT32 faceIdxByteSize = faceCount * sizeof(DirectX::XMUINT2);
 
 	context.m_commandList->Get()->CopyBufferRegion(faceIndexBuffer.Get(), 0, buffer->Get(), 0, faceIdxByteSize);
-	context.m_commandList->Get()->CopyBufferRegion(faceRadianceBuffer.Get(), 0, buffer->Get(), faceIdxByteSize, faceCount * sizeof(UINT32));
 
 	UINT64 copyFenceVal = context.Flush();
 
@@ -123,7 +118,7 @@ std::shared_ptr<DX12Lib::RootSignature> LI::RadianceFromNetworkTechnique::BuildR
 
 	(*radianceFromNetRootSig)[(UINT)NetworkRadianceRootSignature::VoxelCommonCBV].InitAsConstantBuffer(0);
 	(*radianceFromNetRootSig)[(UINT)NetworkRadianceRootSignature::NetworkRadianceCBV].InitAsConstantBuffer(1);
-	(*radianceFromNetRootSig)[(UINT)NetworkRadianceRootSignature::NetworkRadianceBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
+	(*radianceFromNetRootSig)[(UINT)NetworkRadianceRootSignature::NetworkRadianceBuffersSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 	(*radianceFromNetRootSig)[(UINT)NetworkRadianceRootSignature::VisibleVoxelsBitmapsUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 	(*radianceFromNetRootSig)[(UINT)NetworkRadianceRootSignature::FinalRadianceBufferUAV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL, 1);
 

@@ -32,7 +32,6 @@ namespace VOX
 
 		void TransferRadianceData(DX12Lib::ComputeContext& context);
 
-		std::uint8_t* GetVisibleFacesIndices(UINT32 visibleFacesCount);
 		std::uint8_t* GetVisibleFacesRadiance(UINT32 visibleFacesCount);
 		UINT32 GetVisibleFacesCount();
 
@@ -65,7 +64,7 @@ namespace VOX
 		std::shared_ptr<BufferManager> m_indirectBufferManager;
 		bool m_computeIndirect = true;
 
-		DX12Lib::ReadBackBuffer m_faceIndicesReadBack;
+
 		DX12Lib::ReadBackBuffer m_faceRadianceReadback;
 		DX12Lib::ReadBackBuffer m_visibleFacesCountReadback;
 

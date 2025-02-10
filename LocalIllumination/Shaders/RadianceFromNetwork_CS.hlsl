@@ -4,8 +4,7 @@ ConstantBuffer<ConstantBufferVoxelCommons> cbVoxelCommons : register(b0);
 
 ConstantBuffer<ConstantBufferRadianceFromNetwork> cbRadianceNetwork : register(b1);
 
-StructuredBuffer<uint> gFaceIndexBuffer : register(t0, space0);
-StructuredBuffer<uint> gRadianceForFaceBuffer : register(t1, space0);
+StructuredBuffer<uint2> gRadianceForFaceBuffer : register(t0, space0);
 
 // UAV 0 not needed
 // UAV 1 not needed
@@ -23,10 +22,12 @@ void CS( uint3 DTid : SV_DispatchThreadID )
     if (DTid.x >= cbRadianceNetwork.ReceivedFaceCount)
         return;
  
-    uint faceIdx = gFaceIndexBuffer[DTid.x];
+    uint2 idxRdx = gRadianceForFaceBuffer[DTid.x];
+    
+    uint faceIdx = idxRdx.x;
     uint voxIdx = (uint) floor(faceIdx / 6.0f);
     
-    gFinalRadianceBuffer[faceIdx] = gRadianceForFaceBuffer[DTid.x];
+    gFinalRadianceBuffer[faceIdx] = idxRdx.y;
     SetVoxelPresence(voxIdx, gIndirectLightUpdatedVoxelsBitmap);
 
 }
