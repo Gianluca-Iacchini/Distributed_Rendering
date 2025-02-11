@@ -134,7 +134,7 @@ namespace LI
 
 		bool m_indirectSettingChanged = false;
 
-		char m_serverAddress[16] = { "127.0.0.1" };
+		char m_serverAddress[16] = { "87.14.75.14" };
 
 		void ResetCamera();
 		void MoveCamera();

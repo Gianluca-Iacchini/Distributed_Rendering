@@ -70,6 +70,7 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_lightVoxel->BuildPipelineState();
 	m_lightTransportTechnique->BuildPipelineState();
 	m_gaussianFilterTechnique->BuildPipelineState();
+
 }
 
 void CVGI::ClusteredVoxelGIApp::Update(DX12Lib::GraphicsContext& commandContext)
@@ -187,6 +188,7 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 
 
 					PacketGuard packet = m_networkServer.CreatePacket();
+					//packet->SetPacketType(NetworkPacket::PacketType::PACKET_RELIABLE);
 					packet->SetPacketType(NetworkPacket::PacketType::PACKET_UNRELIABLE);
 					packet->ClearPacket();
 					packet->AppendToBuffer("RDXBUFF");
@@ -1130,6 +1132,8 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 	m_networkServer.OnPacketReceived = std::bind(&ClusteredVoxelGIApp::OnPacketReceived, this, std::placeholders::_1);
 	m_networkServer.OnPeerDisconnected = std::bind(&ClusteredVoxelGIApp::OnClientDisconnected, this, std::placeholders::_1);
 
+
+	m_networkServer.StartServer(1234);
 }
 
 void CVGI::ClusteredVoxelGIApp::OnPacketReceived(const Commons::NetworkPacket* packet)
