@@ -888,6 +888,37 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 		PostQuitMessage(0);
 	}
 
+	static float t = 0.0f;
+
+	if (m_kbTracker.pressed.D1)
+	{
+		ResetCamera();
+		t = 0.0f;
+	}
+
+	if (m_kbTracker.GetLastState().D2)
+	{
+		MoveCamera();
+	}
+	else if (m_kbTracker.GetLastState().D3)
+	{
+		RotateCamera(t, true);
+	}
+	else if (m_kbTracker.GetLastState().D4)
+	{
+		RotateCamera(t, false);
+	}
+	if (m_kbTracker.GetLastState().D5)
+	{
+		LightTestGradual(t);
+	}
+	else if (m_kbTracker.GetLastState().D6)
+	{
+		LightTestSudden(t);
+	}
+
+	t += GameTime::GetDeltaTime();
+
 	if ((m_isReadyForRadiance))
 	{
 		std::uint8_t cameraInputBitMask = 0;
@@ -1165,6 +1196,97 @@ void LI::LocalIlluminationApp::OpenStream(bool useHevc)
 	m_ffmpegStreamer->OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight, "", codecId);
 	m_ffmpegStreamer->StartStreaming();
 	m_isStreaming = true;
+}
+
+void LI::LocalIlluminationApp::ResetCamera()
+{
+	auto camera = m_LIScene->GetMainCamera();
+
+	DirectX::XMFLOAT3 startPosition = DirectX::XMFLOAT3(-6.0f, 1.5f, 0.0f);
+
+	camera->Node->SetPosition(startPosition);
+	camera->Node->SetRotationEulerAngles(-0.1f, 1.57f, 0.0f);
+
+	auto light = m_LIScene->GetMainLight();
+
+	light->Node->SetRotationEulerAngles(0.0f, 0.0f, 0.0f);
+	light->Node->Rotate(light->Node->GetRight(), DirectX::XMConvertToRadians(90));
+	light->SetLightColor(DirectX::XMFLOAT3(0.45f, 0.45f, 0.45f));
+}
+
+void LI::LocalIlluminationApp::MoveCamera()
+{
+	auto camera = m_LIScene->GetMainCamera();
+
+
+	camera->Node->Translate(DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f), GameTime::GetDeltaTime() * 3.0f);
+
+}
+
+void LI::LocalIlluminationApp::RotateCamera(float t, bool x)
+{
+	if (t > 13.0f)
+		return;
+
+	auto camera = m_LIScene->GetMainCamera();
+
+	float deltaTime = GameTime::GetDeltaTime() * 2.5f;
+
+
+	float deltaY = sin(t);
+
+
+
+	auto rotation = camera->Node->GetRotationEulerAngles();
+
+	if (x)
+		camera->Node->Rotate(camera->Node->GetRight(), deltaY * deltaTime);
+
+	if (!x)
+		camera->Node->Rotate({ 0.0f, 1.0f, 0.0f }, deltaY * deltaTime);
+}
+
+void LI::LocalIlluminationApp::LightTestSudden(float t)
+{
+	if (t > 13.0f)
+		return;
+
+	DirectX::XMFLOAT3 colors[4] =
+	{
+		DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f),
+		DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f),
+		DirectX::XMFLOAT3(0.0f, 0.0f, 1.0f),
+		DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f)
+	};
+
+	auto light = m_LIScene->GetMainLight();
+
+	if (t > 8.0f)
+		light->SetLightColor(colors[3]);
+	else if (t > 6.0f)
+		light->SetLightColor(colors[2]);
+	else if (t > 4.0f)
+		light->SetLightColor(colors[1]);
+	else if (t > 2.0f)
+		light->SetLightColor(colors[0]);
+}
+
+void LI::LocalIlluminationApp::LightTestGradual(float t)
+{
+	float deltaTime = GameTime::GetDeltaTime() * 0.2f;
+
+	float deltaY = sin(t);
+
+
+	if (deltaY > 1.0f)
+		deltaY = 1.0f;
+	else if (deltaY < -1.0f)
+		deltaY = -1.0f;
+
+	auto light = m_LIScene->GetMainLight();
+
+	light->Node->Rotate(light->Node->GetRight(), deltaY * deltaTime);
+
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)

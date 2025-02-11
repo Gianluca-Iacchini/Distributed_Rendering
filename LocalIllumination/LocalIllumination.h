@@ -136,7 +136,11 @@ namespace LI
 
 		char m_serverAddress[16] = { "127.0.0.1" };
 
-
+		void ResetCamera();
+		void MoveCamera();
+		void RotateCamera(float t, bool x);
+		void LightTestSudden(float t);
+		void LightTestGradual(float t);
 
 		std::unique_ptr<DX12Lib::FFmpegStreamer> m_ffmpegStreamer = nullptr;
 

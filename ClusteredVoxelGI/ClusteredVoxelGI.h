@@ -164,7 +164,7 @@ namespace CVGI
 		bool m_renderRasterScene = true;
 
 		float m_RTGIUpdateDelta = 0.0f;
-		float m_RTGIMaxTime = 0.15f;
+		float m_RTGIMaxTime = 0.25f;
 
 		float m_lerpDeltaTime = 0.0f;
 		float m_lerpMaxTime = 0.2f;
