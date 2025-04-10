@@ -13,7 +13,9 @@
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
 #include "UIHelpers.h"
-
+#include "wincodec.h"
+#include "ScreenGrab.h"
+#include "Keyboard.h"
 
 
 using namespace DirectX;
@@ -71,23 +73,81 @@ void ClusteredVoxelGIApp::Initialize(GraphicsContext& commandContext)
 	m_lightTransportTechnique->BuildPipelineState();
 	m_gaussianFilterTechnique->BuildPipelineState();
 
+	m_serverConnectedTime = GameTime::GetTimeSinceEpoch();
+
 }
 
 void CVGI::ClusteredVoxelGIApp::Update(DX12Lib::GraphicsContext& commandContext)
 {
 	D3DApp::Update(commandContext);
+
+	if (m_networkServer.IsConnected() && m_networkServer.HasPeers())
+	{
+		static UINT64 lastTime = GameTime::GetTimeSinceEpoch();
+		static UINT64 lastDataSent = 0;
+
+		UINT64 currentTime = GameTime::GetTimeSinceEpoch();
+
+		float deltaTime = (currentTime - lastTime) / 1000000.0f;
+
+		if (deltaTime > 1.0f)
+		{
+			lastTime = currentTime;
+			
+			UINT64 sentData = m_networkServer.GetTotalSentBytes();
+			float deltaMbps = (sentData - lastDataSent) / (1024.0f * 1024.0f);
+			lastDataSent = sentData;
+
+			DXLIB_CORE_INFO("Data sent: {0} Mbps", (deltaMbps));
+		}
+
+	}
+
+	DirectX::XMFLOAT3 cameraStartPos = { -8.704463f, 4.506968f, -0.008758772f };
+	DirectX::XMFLOAT3 cameraEndPos = { 4.5480604f, 4.506968f, -0.008758772f };
+
+	DirectX::XMFLOAT3 cameraStartRot = { 0.35919827f, 1.5673783f, 0.006732432f };
+	DirectX::XMFLOAT3 cameraEndRot = { 0.55919827f, 1.5673783f, 0.006732432f };
+
+	DirectX::XMFLOAT3 lightStartPos = { -1.0f, 38.0f, 0.0f };
+	DirectX::XMFLOAT3 lightEndPos = { 1.0f, 38.0f, 0.0f };
+
+	DirectX::XMFLOAT3 lightStartRot = { 1.3679304f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 lightEndRot = { 1.8888019f, 0.0f, 0.0f };
+
+	static float direction = 1.0f;
+
+	if (s_kbTracker->pressed.F1)
+	{
+		m_Scene->GetMainCamera()->Node->SetPosition(cameraStartPos);
+		m_Scene->GetMainCamera()->Node->SetRotationEulerAngles(cameraStartRot);
+
+		m_voxelScene->GetMainLight()->Node->SetPosition(lightStartPos);
+		m_voxelScene->GetMainLight()->Node->SetRotationEulerAngles(lightStartRot);
+	}
 }
 
 void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 {
 	Renderer::SetUpRenderFrame(commandContext);
 
-	if (!ShowIMGUIWindow(commandContext))
+	static bool showImgui = true;
+
+	if (s_kbTracker->pressed.H)
 	{
-		Renderer::UIPass(commandContext, true);
-		Renderer::PostDrawCleanup(commandContext);
-		return;
+		showImgui = !showImgui;
 	}
+
+	if (showImgui)
+	{
+		if (!ShowIMGUIWindow(commandContext))
+		{
+			Renderer::UIPass(commandContext, true);
+			Renderer::PostDrawCleanup(commandContext);
+			return;
+		}
+	}
+
 
 
 
@@ -195,6 +255,8 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 					packet->AppendToBuffer(m_wasRadianceReset);
 					packet->AppendToBuffer(m_lightTransportTechnique->GetVisibleFacesRadiance(visibleFacesCount), visibleFacesCount * sizeof(DirectX::XMUINT2));
 
+
+					DXLIB_CORE_INFO("Visible faces: {0}", visibleFacesCount);
 
 					m_networkServer.SendData(packet);
 
@@ -304,6 +366,32 @@ void CVGI::ClusteredVoxelGIApp::Draw(DX12Lib::GraphicsContext& commandContext)
 	m_isRadianceReady = false;
 
 	Renderer::PostDrawCleanup(commandContext);
+
+
+
+	auto microSecondsSinceEpoch = GameTime::GetTimeSinceEpoch();
+
+	UINT64 seconds = microSecondsSinceEpoch / 1000000;
+
+	static UINT64 lastSecond = seconds;
+
+	
+	if (s_kbTracker->pressed.K)
+	{
+
+		auto backBuffer = Renderer::GetCurrentBackBuffer();
+
+		DXLIB_CORE_INFO("Screenshot taken");
+		static int screenshotIndex = 0;
+		std::wstring screenshotName = L"Images\\CV_" + std::to_wstring(screenshotIndex++) + L".jpg";
+		ThrowIfFailed(
+			SaveWICTextureToFile(s_commandQueueManager->GetGraphicsQueue().Get(), backBuffer.Get(),
+				GUID_ContainerFormatJpeg, screenshotName.c_str(),
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT));
+
+		lastSecond = seconds;
+	}
+
 }
 
 void CVGI::ClusteredVoxelGIApp::OnClose(DX12Lib::GraphicsContext& commandContext)
@@ -385,12 +473,12 @@ bool CVGI::ClusteredVoxelGIApp::ShowIMGUIVoxelOptionWindow(float appX, float app
 	
 	buttonPosition.y += labelSize.y + spacing;
 
-	const uint32_t voxelSizes[3] = { 64, 128, 256 };
+	const uint32_t voxelSizes[5] = { 64, 128, 256, 512, 768 };
 
 
 	std::string buttonName;
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		ImGui::SetCursorPos(buttonPosition);
 		
@@ -908,19 +996,19 @@ void CVGI::ClusteredVoxelGIApp::InitializeVoxelData(DX12Lib::GraphicsContext& co
 	auto* rootNode = m_Scene->GetRootNode();
 	UINT childCount = rootNode->GetChildCount();
 
-	DX12Lib::AABB sceneBounds;
+	DX12Lib::AABB sceneBounds = this->m_Scene->GetSceneBounds();
 
-	for (UINT i = 0; i < childCount; i++)
-	{
-		auto* child = rootNode->GetChildAt(i);
+	//for (UINT i = 0; i < childCount; i++)
+	//{
+	//	auto* child = rootNode->GetChildAt(i);
 
-		auto* renderer = child->GetComponent<ModelRenderer>();
+	//	auto* renderer = child->GetComponent<ModelRenderer>();
 
-		if (renderer != nullptr)
-		{
-			sceneBounds = renderer->Model->GetBounds();
-		}
-	}
+	//	if (renderer != nullptr)
+	//	{
+	//		sceneBounds = renderer->Model->GetBounds();
+	//	}
+	//}
 
 	DirectX::XMFLOAT3 originalMin = sceneBounds.Min;
 	DirectX::XMFLOAT3 originalMax = sceneBounds.Max;
@@ -1322,6 +1410,8 @@ void CVGI::ClusteredVoxelGIApp::OnClientConnected(const ENetPeer* peer)
 		controller->SetRemoteControl(true);
 		lightController->IsEnabled = false;
 	}
+
+	m_serverConnectedTime = GameTime::GetTimeSinceEpoch();
 }
 
 void CVGI::ClusteredVoxelGIApp::OnClientDisconnected(const ENetPeer* peer)

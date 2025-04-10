@@ -23,7 +23,16 @@ void DX12Lib::LightComponent::SetCastsShadows(bool value)
 		if (m_shadowCamera == nullptr)
 		{
 			m_shadowCamera = std::make_unique<ShadowCamera>();
-			m_shadowCamera->SetOrthogonalBounds(38.0f, 38.0f, 1.0f, 38.0f);
+
+			DX12Lib::AABB sceneBounds = this->Node->GetScene().GetSceneBounds();
+
+			float maxValue = std::max(sceneBounds.Max.x, std::max(sceneBounds.Max.y, sceneBounds.Max.z));
+			float minValue = std::min(sceneBounds.Min.x, std::min(sceneBounds.Min.y, sceneBounds.Min.z));
+
+			float size = maxValue - minValue;
+
+			m_shadowCamera->SetOrthogonalBounds(size, size, 1.0f, size);
+			//m_shadowCamera->SetOrthogonalBounds(38.0f, 38.0f, 1.0f, 38.0f);
 			m_shadowCamera->UpdateShadowMatrix(*this->Node);
 		}
 

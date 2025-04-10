@@ -67,8 +67,9 @@ namespace CVGI
 		{
 			VoxelCommonCBV = 0,
 			CameraCBV = 1,
-			DisplayModeCBV = 2,
-			VoxelSRVBufferTable = 3,
+			LightCBV = 2,
+			DisplayModeCBV = 3,
+			VoxelSRVBufferTable,
 			CompactSRVBufferTable,
 			ClusterSRVBufferTable,
 			ShadowSRVBufferTable,

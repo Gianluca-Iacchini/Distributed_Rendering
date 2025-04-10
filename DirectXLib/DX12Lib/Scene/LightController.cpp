@@ -36,4 +36,10 @@ void LightController::Move(float speed, float deltaTime)
 		this->Node->Rotate(Node->GetRight(), deltaTime * speed);
 
 
+	if (Graphics::s_kbTracker->pressed.I)
+	{
+		DXLIB_CORE_INFO("Camera position: {0} {1} {2}", this->Node->GetPosition().x, this->Node->GetPosition().y, this->Node->GetPosition().z);
+		DXLIB_CORE_INFO("Camera rotation: {0} {1} {2}", this->Node->GetRotationEulerAngles().x, this->Node->GetRotationEulerAngles().y, this->Node->GetRotationEulerAngles().z);
+	}
+
 }

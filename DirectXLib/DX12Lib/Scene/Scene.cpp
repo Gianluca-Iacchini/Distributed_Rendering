@@ -20,6 +20,9 @@ Scene::Scene()
 
 	auto cameraNode = this->AddNode();
 	m_camera = cameraNode->AddComponent<SceneCamera>();
+
+	m_sceneBounds.Min = { FLT_MAX, FLT_MAX, FLT_MAX };
+	m_sceneBounds.Max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 }
 
 Scene::~Scene()
@@ -27,7 +30,7 @@ Scene::~Scene()
 
 }
 
-bool DX12Lib::Scene::AddFromFile(const std::wstring& filename)
+bool DX12Lib::Scene::AddFromFile(SceneNode* node, const std::wstring& filename)
 {
 	DXLIB_CORE_INFO(L"Loading model from file {0}", filename);
 
@@ -56,12 +59,15 @@ bool DX12Lib::Scene::AddFromFile(const std::wstring& filename)
 	model->LoadFromFile(scene);
 
 
-	auto modelNode = m_rootNode->AddChild();
+	auto modelNode = node;
 
 
 
 	auto modelRenderer = modelNode->AddComponent<ModelRenderer>();
 	modelRenderer->Model = model;
+
+	m_sceneBounds.Max = MathHelper::Max(m_sceneBounds.Max, model->GetBounds().Max);
+	m_sceneBounds.Min = MathHelper::Min(m_sceneBounds.Min, model->GetBounds().Min);
 
 	TraverseModel(modelRenderer, scene->mRootNode, modelNode);
 
@@ -74,14 +80,14 @@ bool DX12Lib::Scene::AddFromFile(const std::wstring& filename)
 
 
 
-bool DX12Lib::Scene::AddFromFile(const wchar_t* filename)
+bool DX12Lib::Scene::AddFromFile(SceneNode* node, const wchar_t* filename)
 {
-    return this->AddFromFile(std::wstring(filename));
+    return this->AddFromFile(node, std::wstring(filename));
 }
 
-bool DX12Lib::Scene::AddFromFile(const char* filename)
+bool DX12Lib::Scene::AddFromFile(SceneNode* node, const char* filename)
 {
-	return this->AddFromFile(Utils::ToWstring(filename));
+	return this->AddFromFile(node, Utils::ToWstring(filename));
 }
 
 void DX12Lib::Scene::Init(GraphicsContext& context)

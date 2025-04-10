@@ -104,11 +104,11 @@ void NVEncoder::InitializeApp(UINT width, UINT height)
 	}
 
 	m_initializeParams.encodeConfig->frameIntervalP = 1;
-	m_initializeParams.encodeConfig->rcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR;
-	m_initializeParams.encodeConfig->rcParams.averageBitRate = (static_cast<unsigned int>(5.0f * m_initializeParams.encodeWidth * m_initializeParams.encodeHeight) / (1920 * 1080)) * 1000000;
-	m_initializeParams.encodeConfig->rcParams.vbvBufferSize = (m_initializeParams.encodeConfig->rcParams.averageBitRate * m_initializeParams.frameRateDen / m_initializeParams.frameRateNum) * 5;
-	m_initializeParams.encodeConfig->rcParams.maxBitRate = m_initializeParams.encodeConfig->rcParams.averageBitRate;
-	m_initializeParams.encodeConfig->rcParams.vbvInitialDelay = m_initializeParams.encodeConfig->rcParams.vbvBufferSize;
+	m_initializeParams.encodeConfig->rcParams.rateControlMode = NV_ENC_PARAMS_RC_VBR;
+	//m_initializeParams.encodeConfig->rcParams.averageBitRate = (static_cast<unsigned int>(5.0f * m_initializeParams.encodeWidth * m_initializeParams.encodeHeight) / (1920 * 1080)) * 1000000;
+	m_initializeParams.encodeConfig->rcParams.vbvBufferSize = 0;//(m_initializeParams.encodeConfig->rcParams.averageBitRate * m_initializeParams.frameRateDen / m_initializeParams.frameRateNum) * 5;
+	//m_initializeParams.encodeConfig->rcParams.maxBitRate = m_initializeParams.encodeConfig->rcParams.averageBitRate;
+	m_initializeParams.encodeConfig->rcParams.vbvInitialDelay = 0;//m_initializeParams.encodeConfig->rcParams.vbvBufferSize;
 
 	NVENC_API_CALL(m_nvEncodeAPI.nvEncInitializeEncoder(m_hEncoder, &m_initializeParams));
 
@@ -135,6 +135,8 @@ void NVEncoder::InitializeApp(UINT width, UINT height)
 
 void DX12Lib::NVEncoder::EncodeFrame()
 {
+	auto startTime = std::chrono::high_resolution_clock::now();
+
 	CommandContext* context = Graphics::s_commandContextManager->AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	int buffIndex = m_iToSend % m_nEncodedBuffer;
@@ -149,20 +151,16 @@ void DX12Lib::NVEncoder::EncodeFrame()
 
 		context->TransitionResource(*bufferedRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST, true);
-
-
 		context->m_commandList->Get()->CopyResource((ID3D12Resource*)inputFrame.inputPtr, bufferedRes->Get());
-
 		context->TransitionResource(*bufferedRes, D3D12_RESOURCE_STATE_COMMON);
 		context->TransitionResource((ID3D12Resource*)inputFrame.inputPtr, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, true);
-		
+
 		m_bufferCopyQueue.push(bufferedRes);
-
-
 	}
+
 	this->MapResource(buffIndex);
 	context->Finish(true);
-	
+
 	InterlockedIncrement(&m_outputFenceValue);
 
 	m_outputResources[buffIndex]->pOutputBuffer = m_mappedOutputBuffers[buffIndex];
@@ -173,9 +171,12 @@ void DX12Lib::NVEncoder::EncodeFrame()
 	m_inputResources[buffIndex]->inputFencePoint.waitValue = m_inputFenceValue;
 	m_inputResources[buffIndex]->inputFencePoint.bWait = true;
 
-
-
 	NVENCSTATUS nvStatus = Encode(m_inputResources[buffIndex].get(), m_outputResources[buffIndex].get());
+
+	auto endTime = std::chrono::high_resolution_clock::now();
+	double elapsedMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+
+	std::cout << "Encoding Time: " << elapsedMs << " ms" << std::endl;
 
 	if (nvStatus == NV_ENC_SUCCESS || nvStatus == NV_ENC_ERR_NEED_MORE_INPUT)
 	{
@@ -186,12 +187,13 @@ void DX12Lib::NVEncoder::EncodeFrame()
 			std::lock_guard<std::mutex> lock(m_networkMutex);
 			m_encodedPackets.insert(m_encodedPackets.end(), packet.begin(), packet.end());
 		}
-
 	}
 	else
 	{
 		NVENC_THROW_ERROR("Encode failed", nvStatus);
 	}
+
+
 }
 
 void DX12Lib::NVEncoder::EndEncode()
@@ -496,6 +498,9 @@ void DX12Lib::NVEncoder::UnregisterOutputResources()
 	m_registeredResourcesOutputBuffers.clear();
 }
 
+uint64_t totalBytesSent = 0;
+auto lastTime = std::chrono::high_resolution_clock::now();
+
 void DX12Lib::NVEncoder::GetEncodedPacket(ENCODED_PACKET& packet, bool outputDelay)
 {
 	UINT i = 0;
@@ -504,6 +509,7 @@ void DX12Lib::NVEncoder::GetEncodedPacket(ENCODED_PACKET& packet, bool outputDel
 	for (; m_iGot < iEnd; m_iGot++)
 	{
 		WaitForCompletionEvent(m_iGot % m_nEncodedBuffer);
+
 		NV_ENC_LOCK_BITSTREAM lockBitstreamData = { NV_ENC_LOCK_BITSTREAM_VER };
 		lockBitstreamData.outputBitstream = m_outputResources[m_iGot % m_nEncodedBuffer].get();
 		lockBitstreamData.doNotWait = false;
@@ -517,6 +523,22 @@ void DX12Lib::NVEncoder::GetEncodedPacket(ENCODED_PACKET& packet, bool outputDel
 		packet[i].clear();
 		packet[i].insert(packet[i].end(), &pData[0], &pData[lockBitstreamData.bitstreamSizeInBytes]);
 		i++;
+
+		// Track total bytes sent
+		totalBytesSent += lockBitstreamData.bitstreamSizeInBytes;
+
+		// Compute bitrate every second
+		auto now = std::chrono::high_resolution_clock::now();
+		double elapsedSec = std::chrono::duration<double>(now - lastTime).count();
+		if (elapsedSec >= 1.0)  // Update every second
+		{
+			double bitrateMbps = (totalBytesSent * 8.0) / (elapsedSec * 1'000'000.0);
+			std::cout << "Bitrate: " << bitrateMbps << " Mbps" << std::endl;
+
+			// Reset tracking
+			totalBytesSent = 0;
+			lastTime = now;
+		}
 
 		NVENC_API_CALL(m_nvEncodeAPI.nvEncUnlockBitstream(m_hEncoder, lockBitstreamData.outputBitstream));
 

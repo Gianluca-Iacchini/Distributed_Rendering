@@ -17,9 +17,9 @@ namespace DX12Lib
 		Scene();
 		virtual ~Scene();
 
-		bool AddFromFile(const std::wstring& filename);
-		bool AddFromFile(const wchar_t* filename);
-		bool AddFromFile(const char* filename);
+		bool AddFromFile(SceneNode* node, const std::wstring& filename);
+		bool AddFromFile(SceneNode* node, const wchar_t* filename);
+		bool AddFromFile(SceneNode* node, const char* filename);
 		virtual void OnAppStart(GraphicsContext& context) {}
 		virtual void Init(GraphicsContext& context);
 		virtual void Update(GraphicsContext& context);
@@ -33,6 +33,8 @@ namespace DX12Lib
 
 		SceneCamera* GetMainCamera() const { return m_camera; }
 
+		DX12Lib::AABB GetSceneBounds() const { return m_sceneBounds; }
+
 	protected:
 		virtual void OnModelChildAdded(SceneNode& node, MeshRenderer& meshRenderer, ModelRenderer& modelRenderer);
 
@@ -42,11 +44,13 @@ namespace DX12Lib
 
 	protected:
 		SceneCamera* m_camera = nullptr;
-
+		DX12Lib::AABB m_sceneBounds;
 	private:
 		NodePtr m_rootNode;
 
 		UINT m_numNodes = 0;
+
+
 	};
 }
 

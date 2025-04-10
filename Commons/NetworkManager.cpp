@@ -543,7 +543,10 @@ void Commons::NetworkHost::SendDataLoop()
 				flags = ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT;
 			}
 
-			ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packet->m_data.size(), flags);
+			size_t packetSize = packet->m_data.size();
+			m_totalSentBytes += packetSize;
+
+			ENetPacket* enetPacket = enet_packet_create(packet->m_data.data(), packetSize, flags);
 
 			if (enet_peer_send(m_Peer, 0, enetPacket) < 0)
 			{

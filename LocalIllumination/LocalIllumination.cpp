@@ -18,6 +18,9 @@
 #include "DX12Lib/Scene/LightController.h"
 #include "DX12Lib/Scene/RemoteNodeController.h"
 
+#include "wincodec.h"
+#include "ScreenGrab.h"
+
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using namespace Graphics;
@@ -803,17 +806,7 @@ void LI::LocalIlluminationApp::ShowIMGUIWindow()
 
 void LocalIlluminationApp::Initialize(GraphicsContext& context)
 {
-
-	std::string sourcePath = std::string(SOURCE_DIR);
-
-
-	sourcePath += std::string("\\..\\Models\\PBR\\sponza2.gltf");
-
-
-
-	bool loaded = this->m_Scene->AddFromFile(sourcePath.c_str());
-
-	assert(loaded && "Model not loaded");
+	D3DApp::Initialize(context);
 
 	Commons::NetworkHost::InitializeEnet();
 
@@ -887,37 +880,6 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 	{
 		PostQuitMessage(0);
 	}
-
-	static float t = 0.0f;
-
-	if (m_kbTracker.pressed.D1)
-	{
-		ResetCamera();
-		t = 0.0f;
-	}
-
-	if (m_kbTracker.GetLastState().D2)
-	{
-		MoveCamera();
-	}
-	else if (m_kbTracker.GetLastState().D3)
-	{
-		RotateCamera(t, true);
-	}
-	else if (m_kbTracker.GetLastState().D4)
-	{
-		RotateCamera(t, false);
-	}
-	if (m_kbTracker.GetLastState().D5)
-	{
-		LightTestGradual(t);
-	}
-	else if (m_kbTracker.GetLastState().D6)
-	{
-		LightTestSudden(t);
-	}
-
-	t += GameTime::GetDeltaTime();
 
 	if ((m_isReadyForRadiance))
 	{
@@ -994,6 +956,132 @@ void LocalIlluminationApp::Update(GraphicsContext& context)
 	}
 
 	sendPacketDeltaTime += GameTime::GetDeltaTime();
+
+
+
+
+	static bool isAnimatingLight = false;
+	static bool isAnimatingCamera = false;
+	static bool isAnimatingLightSudden = false;
+
+	DirectX::XMFLOAT3 cameraStartPos = { -10.704463f, 4.506968f, -0.008758772f };
+	DirectX::XMFLOAT3 cameraEndPos = { 4.5480604f, 4.506968f, -0.008758772f };
+
+	DirectX::XMFLOAT3 cameraStartRot = { 0.55919827f, 1.5673783f, 0.006732432f };
+	DirectX::XMFLOAT3 cameraEndRot = { 0.55919827f, 1.5673783f, 0.006732432f };
+
+	DirectX::XMFLOAT3 lightStartPos = { -1.0f, 38.0f, 0.0f };
+	DirectX::XMFLOAT3 lightEndPos = { 1.0f, 38.0f, 0.0f };
+
+	DirectX::XMFLOAT3 lightStartRot = { 1.3679304f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 lightEndRot = { 1.8888019f, 0.0f, 0.0f };
+
+	static float direction = 1.0f;
+
+	if (s_kbTracker->pressed.F1)
+	{
+		m_Scene->GetMainCamera()->Node->SetPosition(cameraStartPos);
+		m_Scene->GetMainCamera()->Node->SetRotationEulerAngles(cameraStartRot);
+
+		m_LIScene->GetMainLight()->Node->SetPosition(lightStartPos);
+		m_LIScene->GetMainLight()->Node->SetRotationEulerAngles(lightStartRot);
+
+		isAnimatingLight = false;
+		isAnimatingCamera = false;
+		isAnimatingLightSudden = false;
+
+	}
+	else if (s_kbTracker->pressed.F2)
+	{
+		isAnimatingLight = !isAnimatingLight;
+	}
+	else if (s_kbTracker->pressed.F3)
+	{
+		isAnimatingCamera = !isAnimatingCamera;
+	}
+	else if (s_kbTracker->pressed.F4)
+	{
+		isAnimatingLightSudden = !isAnimatingLightSudden;
+	}
+
+	if (isAnimatingLight)
+	{
+		if (isAnimatingLight)
+		{
+			DirectX::XMFLOAT3 lightRot = m_LIScene->GetMainLight()->Node->GetRotationEulerAngles();
+
+			if (lightRot.x > 1.9f)
+			{
+				direction = -1.0f;
+			}
+			else if (lightRot.x < 1.35f)
+			{
+				direction = 1.0f;
+			}
+
+			float rotationMagnitude = direction * GameTime::GetDeltaTime();
+			m_LIScene->GetMainLight()->Node->Rotate({ 0.2f, 0.0f, 0.0f }, rotationMagnitude);
+		}
+	}
+
+	static DirectX::XMFLOAT3 animStartPos = cameraStartPos;
+	static DirectX::XMFLOAT3 animEndPos = cameraEndPos;
+
+	if (isAnimatingCamera)
+	{
+
+		DirectX::XMFLOAT3 cameraPos = m_Scene->GetMainCamera()->Node->GetPosition();
+		DirectX::XMFLOAT3 cameraDestVector = DirectX::XMFLOAT3(
+			animEndPos.x - cameraPos.x, animEndPos.y - cameraPos.y, animEndPos.z - cameraPos.z);
+
+		float originalDistance = MathHelper::Abs(animStartPos.x - animEndPos.x);
+		float distance = MathHelper::Abs(cameraPos.x - animEndPos.x);
+
+		float t = distance / originalDistance;
+
+		float rotation = 30.0f * GameTime::GetDeltaTime();
+
+		m_Scene->GetMainCamera()->Node->Translate(cameraDestVector, GameTime::GetDeltaTime() * 0.2f);
+		m_Scene->GetMainCamera()->Node->Rotate(DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMConvertToRadians(rotation));
+
+		if (MathHelper::Distance(cameraPos, animEndPos) < 1.0f)
+		{
+			DirectX::XMFLOAT3 temp = animStartPos;
+			animStartPos = animEndPos;
+			animEndPos = temp;
+		}
+	}
+
+	if (isAnimatingLightSudden)
+	{
+		static float timePassed = 0.0f;
+		static int colorIndex = 0;
+
+		DirectX::XMFLOAT3 colors[10] =
+		{
+			{ 0.0f, 0.0f, 0.0f },
+			{ 0.0f, 0.0f, 1.0f },
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 1.0f },
+			{ 1.0f, 0.0f, 0.0f },
+			{ 1.0f, 0.0f, 1.0f },
+			{ 1.0f, 1.0f, 0.0f },
+			{ 1.0f, 1.0f, 1.0f },
+			{ 0.5f, 0.5f, 0.5f },
+			{ 0.5f, 0.5f, 0.5f }
+		};
+
+		if (timePassed > 0.5f)
+		{
+			light->SetLightColor(colors[colorIndex]);
+
+			colorIndex = (colorIndex + 1) % 10;
+
+			timePassed = 0.0f;
+		}
+
+		timePassed += GameTime::GetDeltaTime();
+	}
 }
 
 void LocalIlluminationApp::Draw(GraphicsContext& context)
@@ -1001,7 +1089,17 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 
 	Renderer::SetUpRenderFrame(context);
 
-	ShowIMGUIWindow();
+	static bool showImgui = true;
+
+	if (s_kbTracker->pressed.H)
+	{
+		showImgui = !showImgui;
+	}
+
+	if (showImgui)
+	{
+		ShowIMGUIWindow();
+	}
 
 	this->m_Scene->Render(context);
 
@@ -1159,6 +1257,33 @@ void LocalIlluminationApp::Draw(GraphicsContext& context)
 	m_radianceReady = false;
 
 	Renderer::PostDrawCleanup(context);
+
+
+
+	auto microSecondsSinceEpoch = GameTime::GetTimeSinceEpoch();
+
+	UINT64 seconds = microSecondsSinceEpoch / 1000000;
+
+	static UINT64 lastSecond = seconds;
+
+
+	//if ((seconds >= lastSecond + 1) && m_networkClient.HasPeers())
+	//{
+
+
+	if (s_kbTracker->pressed.K)
+	{
+		auto backBuffer = Renderer::GetCurrentBackBuffer();
+		DXLIB_CORE_INFO("Screenshot taken");
+		static int screenshotIndex = 0;
+		std::wstring screenshotName = L"Images\\LI_" + std::to_wstring(screenshotIndex++) + L".jpg";
+		ThrowIfFailed(
+			SaveWICTextureToFile(s_commandQueueManager->GetGraphicsQueue().Get(), backBuffer.Get(),
+				GUID_ContainerFormatJpeg, screenshotName.c_str(),
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT));
+	}
+	//	lastSecond = seconds;
+	//}
 }
 
 void LocalIlluminationApp::OnClose(GraphicsContext& context)
@@ -1196,97 +1321,6 @@ void LI::LocalIlluminationApp::OpenStream(bool useHevc)
 	m_ffmpegStreamer->OpenStream(Renderer::s_clientWidth, Renderer::s_clientHeight, "", codecId);
 	m_ffmpegStreamer->StartStreaming();
 	m_isStreaming = true;
-}
-
-void LI::LocalIlluminationApp::ResetCamera()
-{
-	auto camera = m_LIScene->GetMainCamera();
-
-	DirectX::XMFLOAT3 startPosition = DirectX::XMFLOAT3(-6.0f, 1.5f, 0.0f);
-
-	camera->Node->SetPosition(startPosition);
-	camera->Node->SetRotationEulerAngles(-0.1f, 1.57f, 0.0f);
-
-	auto light = m_LIScene->GetMainLight();
-
-	light->Node->SetRotationEulerAngles(0.0f, 0.0f, 0.0f);
-	light->Node->Rotate(light->Node->GetRight(), DirectX::XMConvertToRadians(90));
-	light->SetLightColor(DirectX::XMFLOAT3(0.45f, 0.45f, 0.45f));
-}
-
-void LI::LocalIlluminationApp::MoveCamera()
-{
-	auto camera = m_LIScene->GetMainCamera();
-
-
-	camera->Node->Translate(DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f), GameTime::GetDeltaTime() * 3.0f);
-
-}
-
-void LI::LocalIlluminationApp::RotateCamera(float t, bool x)
-{
-	if (t > 13.0f)
-		return;
-
-	auto camera = m_LIScene->GetMainCamera();
-
-	float deltaTime = GameTime::GetDeltaTime() * 2.5f;
-
-
-	float deltaY = sin(t);
-
-
-
-	auto rotation = camera->Node->GetRotationEulerAngles();
-
-	if (x)
-		camera->Node->Rotate(camera->Node->GetRight(), deltaY * deltaTime);
-
-	if (!x)
-		camera->Node->Rotate({ 0.0f, 1.0f, 0.0f }, deltaY * deltaTime);
-}
-
-void LI::LocalIlluminationApp::LightTestSudden(float t)
-{
-	if (t > 13.0f)
-		return;
-
-	DirectX::XMFLOAT3 colors[4] =
-	{
-		DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f),
-		DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f),
-		DirectX::XMFLOAT3(0.0f, 0.0f, 1.0f),
-		DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f)
-	};
-
-	auto light = m_LIScene->GetMainLight();
-
-	if (t > 8.0f)
-		light->SetLightColor(colors[3]);
-	else if (t > 6.0f)
-		light->SetLightColor(colors[2]);
-	else if (t > 4.0f)
-		light->SetLightColor(colors[1]);
-	else if (t > 2.0f)
-		light->SetLightColor(colors[0]);
-}
-
-void LI::LocalIlluminationApp::LightTestGradual(float t)
-{
-	float deltaTime = GameTime::GetDeltaTime() * 0.2f;
-
-	float deltaY = sin(t);
-
-
-	if (deltaY > 1.0f)
-		deltaY = 1.0f;
-	else if (deltaY < -1.0f)
-		deltaY = -1.0f;
-
-	auto light = m_LIScene->GetMainLight();
-
-	light->Node->Rotate(light->Node->GetRight(), deltaY * deltaTime);
-
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)

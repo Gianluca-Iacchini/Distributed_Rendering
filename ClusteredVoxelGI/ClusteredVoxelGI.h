@@ -164,11 +164,13 @@ namespace CVGI
 		bool m_renderRasterScene = true;
 
 		float m_RTGIUpdateDelta = 0.0f;
-		float m_RTGIMaxTime = 0.25f;
+		float m_RTGIMaxTime = 0.125f;
 
 		float m_lerpDeltaTime = 0.0f;
 		float m_lerpMaxTime = 0.2f;
 
 		DX12Lib::ComputeContext* m_computeContext = nullptr;
+
+		UINT64 m_serverConnectedTime = 1;
 	};
 }

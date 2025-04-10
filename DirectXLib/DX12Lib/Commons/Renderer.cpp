@@ -80,6 +80,9 @@ namespace Graphics::Renderer
 		float SigmaIntensity = 12.0f; // Controls intensity smoothing (e.g., color difference)
 		float MaxWorldPostDistance = 2.0f; // Maximum allowed difference in world coordinates
 		int KernelSize = 3;
+
+		UINT32 mode;
+		float pad0[3];
 	} m_cbPostProcess;
 
 	D3D12_VIEWPORT s_screenViewport;
@@ -626,6 +629,12 @@ namespace Graphics::Renderer
 
 	void PostProcessPass(DX12Lib::GraphicsContext& context)
 	{
+		if (s_kbTracker->pressed.P)
+		{
+			m_cbPostProcess.mode = (m_cbPostProcess.mode + 1) % 3;
+		}
+
+
 		PIXBeginEvent(context.m_commandList->Get(), PIX_COLOR(50, 128, 90), L"PostProcessPass");
 
 		auto& currentBackBuffer = Renderer::GetCurrentBackBuffer();

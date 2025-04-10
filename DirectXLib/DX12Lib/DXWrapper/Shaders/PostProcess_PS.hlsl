@@ -6,6 +6,9 @@ struct ConstantBufferPostProcess
     float SigmaIntensity; // Controls intensity smoothing (e.g., color difference)
     float MaxWorldPostDistance; // Maximum allowed difference in world coordinates
     int KernelSize;
+    
+    uint radianceOnly;
+    uint padding[3];
 };
 
 cbuffer cbCommons : register(b0)
@@ -107,8 +110,22 @@ float4 PS(VertexOutPosTex pIn) : SV_Target
         radiance = centerValue.xyz;
     }
     
-    float4 result = deferredRes;
-    result.xyz += cDiff * radiance * 0.8f;
+    float4 result = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    if (postProcess.radianceOnly == 0)
+    {
+        result = deferredRes;
+        result.xyz += cDiff * radiance * 1.3f;
+    }
+
+    else if (postProcess.radianceOnly == 1)
+    {
+        result = deferredRes;
+    }
+    else if (postProcess.radianceOnly == 2)
+    {
+        result.xyz = radiance * 0.8f;
+    }
+
     
     return result;
 }

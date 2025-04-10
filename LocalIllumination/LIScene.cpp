@@ -19,18 +19,29 @@ LI::LIScene::LIScene() : DX12Lib::Scene()
 
 void LI::LIScene::Init(DX12Lib::GraphicsContext& context)
 {
-	Scene::Init(context);
+	std::string sourcePath = std::string(SOURCE_DIR);
+
+
+	sourcePath += std::string("\\..\\Models\\PBR\\sponza2.gltf");
+	//sourcePath += std::string("\\..\\Models\\SunTemple_out\\SunTemple.gltf");
+
+	auto modelNode = this->AddNode();
+
+	bool loaded = this->AddFromFile(modelNode, sourcePath.c_str());
+
+	assert(loaded && "Model not loaded");
+
+
 
 	auto lightNode = this->AddNode();
-	lightNode->SetPosition(-1, 38, 0);
+	//lightNode->SetPosition(-1, 38.0f, 0);
+	DX12Lib::AABB sceneBounds = this->GetSceneBounds();
+	lightNode->SetPosition(0, sceneBounds.Max.y * 2.0f, 0);
 	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
 	light->SetLightColor({ 0.45f, 0.45f, 0.45f });
-	if (light->CastsShadows())
-	{
-		light->GetShadowCamera()->SetShadowBufferDimensions(2048, 2048);
-	}
-
+	light->SetLightIntensity(1.0f);
+	light->GetShadowCamera()->SetShadowBufferDimensions(2048, 2048);
 
 	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
 
@@ -40,6 +51,8 @@ void LI::LIScene::Init(DX12Lib::GraphicsContext& context)
 	m_camera->Node->AddComponent<DX12Lib::RemoteNodeController>();
 
 	m_mainLight = light;
+
+	Scene::Init(context);
 
 }
 

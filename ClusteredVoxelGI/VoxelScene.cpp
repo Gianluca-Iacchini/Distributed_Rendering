@@ -17,15 +17,32 @@ using namespace Graphics;
 void VoxelScene::Init(DX12Lib::GraphicsContext& context)
 {
 
+	std::string sourcePath = SOURCE_DIR;
+
+	auto modelRootNode = this->AddNode();
+
+	sourcePath += std::string("\\..\\Models\\PBR\\sponza2.gltf");
+
+	//sourcePath += std::string("\\..\\Models\\SunTemple_out\\SunTemple.gltf");
+
+	bool loaded = this->AddFromFile(modelRootNode, sourcePath.c_str());
+
+
+	assert(loaded && "Model not loaded");
+
+	DX12Lib::AABB sceneBounds = this->GetSceneBounds();
+
 	auto lightNode = this->AddNode();
-	lightNode->SetPosition(-1, 38, 0);
+	//lightNode->SetPosition(-1, 38.0f, 0);
+	lightNode->SetPosition(0, sceneBounds.Max.y * 2.0f, 0);
 	auto light = lightNode->AddComponent<DX12Lib::LightComponent>();
 	light->SetCastsShadows(true);
 	light->SetLightColor({ 0.45f, 0.45f, 0.45f });
+	light->SetLightIntensity(1.0f);
 	light->GetShadowCamera()->SetShadowBufferDimensions(2048, 2048);
 
 	lightNode->Rotate(lightNode->GetRight(), DirectX::XMConvertToRadians(90));
-	
+
 	lightNode->AddComponent<LightController>();
 	lightNode->AddComponent<RemoteNodeController>();
 
@@ -36,13 +53,6 @@ void VoxelScene::Init(DX12Lib::GraphicsContext& context)
 
 	auto* voxelCameraNode = this->AddNode();
 	m_voxelCamera = voxelCameraNode->AddComponent<VoxelCamera>(VoxelTextureDimensions);
-
-	std::string sourcePath = SOURCE_DIR;
-	sourcePath += std::string("\\..\\Models\\PBR\\sponza2.gltf");
-
-	bool loaded = this->AddFromFile(sourcePath.c_str());
-
-	assert(loaded && "Model not loaded");
 
 
 	Scene::Init(context);

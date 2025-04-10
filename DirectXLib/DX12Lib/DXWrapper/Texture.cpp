@@ -131,7 +131,7 @@ void Texture::CreateFromFile(const std::wstring& filename, bool sRGB)
     {
         ThrowIfFailed(DirectX::LoadFromDDSFile(filename.c_str(), DirectX::DDS_FLAGS_NONE, &texMetaData, scratchImage));
     }
-    else if (filename.substr(filename.find_last_of(L".") + 1) == L"jpg" || filename.substr(filename.find_last_of(L".") + 1) == L"png")
+    else if (filename.substr(filename.find_last_of(L".") + 1) == L"jpg" || filename.substr(filename.find_last_of(L".") + 1) == L"jpeg" || filename.substr(filename.find_last_of(L".") + 1) == L"png")
     {
         ThrowIfFailed(DirectX::LoadFromWICFile(filename.c_str(), DirectX::WIC_FLAGS_NONE, &texMetaData, scratchImage));
     }

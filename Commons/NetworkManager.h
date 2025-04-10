@@ -266,6 +266,8 @@ namespace Commons
 
 		void FlushOutgoingPackets();
 
+		UINT64 GetTotalSentBytes() const { return m_totalSentBytes; }
+
 	protected:
 		virtual void MainNetworkLoop();
 		virtual void SendDataLoop();
@@ -311,6 +313,7 @@ namespace Commons
 		float m_totalCompressionRatio = 0.0f;
 		float m_totalCompressionTime = 0.0f;
 
+		UINT64 m_totalSentBytes = 0;
 
 	private:
 		static bool m_isEnetInitialized;

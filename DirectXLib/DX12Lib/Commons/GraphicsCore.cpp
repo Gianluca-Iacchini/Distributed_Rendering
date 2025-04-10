@@ -22,6 +22,7 @@ namespace Graphics
 	};
 
 
+	//DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	
 	DXGI_FORMAT m_depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;

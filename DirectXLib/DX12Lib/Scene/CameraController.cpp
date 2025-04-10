@@ -82,6 +82,13 @@ void DX12Lib::CameraController::Move(float speed, float deltaTime)
 		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, deltaTime * speed);
 	if (kbState.Q)
 		this->Node->Translate({ 0.0f, 1.0f, 0.0f }, -deltaTime * speed);
+
+
+	if (Graphics::s_kbTracker->pressed.I)
+	{
+		DXLIB_CORE_INFO("Camera position: {0} {1} {2}", this->Node->GetPosition().x, this->Node->GetPosition().y, this->Node->GetPosition().z);
+		DXLIB_CORE_INFO("Camera rotation: {0} {1} {2}", this->Node->GetRotationEulerAngles().x, this->Node->GetRotationEulerAngles().y, this->Node->GetRotationEulerAngles().z);
+	}
 }
 
 

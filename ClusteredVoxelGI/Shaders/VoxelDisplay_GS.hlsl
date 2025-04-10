@@ -14,7 +14,12 @@ cbuffer cbCamera : register(b1)
     Camera camera;
 }
 
-cbuffer cbDisplayMode : register(b2)
+cbuffer cbLight : register(b2)
+{
+    Light light;
+}
+
+cbuffer cbDisplayMode : register(b3)
 {
     uint DisplayMode;
 }
@@ -137,7 +142,7 @@ float3 GetVoxelAverageColor(uint voxelIdx)
     return sum;
 }
 
-float3 GetVoxelNormalColor(uint voxelIdx)
+float3 GetVoxelNormal(uint voxelIdx)
 {
     float3 sum = 0.0f;
     uint fragmentIndex = gVoxelIndicesCompacted[voxelIdx];
@@ -151,8 +156,6 @@ float3 GetVoxelNormalColor(uint voxelIdx)
     }
     
     sum = sum / nFragments;
-    
-    sum = max(sum, 0.1f);
     
     return sum;
 }
@@ -279,7 +282,9 @@ void GS(
     }
     else if (DisplayMode == 2)
     {
-        avgColor.xyz = GetVoxelNormalColor(voxelIdx);
+        avgColor.xyz = GetVoxelNormal(voxelIdx);
+        avgColor.xyz = max(avgColor.xyz, 0.1f);
+    
     }
     else if (DisplayMode == 3)
     {
@@ -288,11 +293,31 @@ void GS(
     }
     else if (DisplayMode == 4)
     {
-        avgColor.xyz = IsVoxelLit(voxelIdx, gVoxelLitBuffer) ? float3(1, 1, 1) : float3(0, 0, 0);
+        if (IsVoxelLit(voxelIdx, gVoxelLitBuffer))
+        {
+            float formFactor = differentialAreaFormFactor(GetVoxelNormal(voxelIdx), light.direction);
+            avgColor.xyz = formFactor * float3(1.0f, 1.0f, 1.0f) * 4.0f;
+        }
+        else
+        {
+            avgColor.xyz = float3(0.075f, 0.075f, 0.075f) * GetVoxelAverageColor(voxelIdx);
+
+        }
+        //avgColor.xyz = IsVoxelLit(voxelIdx, gVoxelLitBuffer) ? float3(1, 1, 1) : float3(0, 0, 0);
 
     }
     else if (DisplayMode == 5)
     {
+        //uint4 clusterLitValues = gClusterLitBuffer[gClusterAssignmentBuffer[voxelIdx]];
+        
+        //if (clusterLitValues.w > 0)
+        //{
+        //    float3 neighbourIrradiance = float3(clusterLitValues.xyz) / IRRADIANCE_FIELD_MULTIPLIER;
+            
+        //    avgColor.xyz = neighbourIrradiance / 35.0f;
+        //}
+
+        
         avgColor.xyz = UnpackUintToFloat3(gFaceRadianceBuffer[index]);
     }
     else if (DisplayMode == 6)
